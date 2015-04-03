@@ -1,0 +1,79 @@
+.
+├── [4.0K]  Config
+│   ├── [141K]  h2y7hccxx_2015-02-05 22-05-04_Effective.cfg
+│   ├── [10.0K]  h2y7hccxx_2015-02-05 22-05-04_Override.cfg
+│   ├── [9.1K]  h2y7hccxx_2015-02-05 22-05-04_SortedOverride.cfg
+│   ├── [3.7K]  HiSeqControlSoftware.Options.cfg
+│   ├── [1.0K]  RTAStart.log
+│   └── [ 32K]  Variability_HiSeq_E.bin
+├── [   0]  CopyServiceLogs
+│   ├── [ 17M]  FilesAdded.csv
+│   └── [ 17M]  FilesCopied.csv
+├── [   0]  Data
+│   └── [   0]  Intensities
+│       ├── [4.0K]  BaseCalls
+│       │   ├── [ 80K]  L001 [406 entries exceeds filelimit, not opening dir]
+│       │   ├── [ 80K]  L002 [406 entries exceeds filelimit, not opening dir]
+│       │   ├── [ 80K]  L003 [406 entries exceeds filelimit, not opening dir]
+│       │   ├── [ 80K]  L004 [406 entries exceeds filelimit, not opening dir]
+│       │   ├── [ 80K]  L005 [406 entries exceeds filelimit, not opening dir]
+│       │   ├── [ 80K]  L006 [406 entries exceeds filelimit, not opening dir]
+│       │   ├── [ 80K]  L007 [406 entries exceeds filelimit, not opening dir]
+│       │   ├── [ 80K]  L008 [406 entries exceeds filelimit, not opening dir]
+│       │   └── [4.0K]  Matrix
+│       │       ├── [ 64K]  L001 [310 entries exceeds filelimit, not opening dir]
+│       │       ├── [ 64K]  L002 [310 entries exceeds filelimit, not opening dir]
+│       │       ├── [ 64K]  L003 [310 entries exceeds filelimit, not opening dir]
+│       │       ├── [ 64K]  L004 [310 entries exceeds filelimit, not opening dir]
+│       │       ├── [ 64K]  L005 [310 entries exceeds filelimit, not opening dir]
+│       │       ├── [ 64K]  L006 [310 entries exceeds filelimit, not opening dir]
+│       │       ├── [ 64K]  L007 [310 entries exceeds filelimit, not opening dir]
+│       │       └── [ 64K]  L008 [310 entries exceeds filelimit, not opening dir]
+│       └── [ 49M]  s.locs
+├── [128K]  Diag [310 entries exceeds filelimit, not opening dir]
+├── [1.8K]  HiSeqX_run_SampleSheet.csv
+├── [4.0K]  InterOp
+│   ├── [ 11M]  CorrectedIntMetrics.bin
+│   ├── [ 11M]  CorrectedIntMetricsOut.bin
+│   ├── [3.1M]  EmpiricalPhasingMetrics.bin
+│   ├── [3.1M]  EmpiricalPhasingMetricsOut.bin
+│   ├── [ 57M]  EventMetrics.bin
+│   ├── [ 57M]  EventMetricsOut.bin
+│   ├── [8.6M]  ExtractionMetrics.bin
+│   ├── [8.6M]  ExtractionMetricsOut.bin
+│   ├── [   1]  IndexMetricsOut.bin
+│   ├── [1.1M]  PFGridMetrics.bin
+│   ├── [1.1M]  PFGridMetricsOut.bin
+│   ├── [ 47M]  QMetrics.bin
+│   ├── [ 47M]  QMetricsOut.bin
+│   ├── [ 67M]  RegistrationMetrics.bin
+│   ├── [ 67M]  RegistrationMetricsOut.bin
+│   ├── [ 75K]  TileMetrics.bin
+│   └── [ 75K]  TileMetricsOut.bin
+├── [128K]  Logs [317 entries exceeds filelimit, not opening dir]
+├── [   0]  PeriodicSaveRates
+│   └── [ 595]  Save All Thumbnails.xml
+├── [   0]  Recipe
+│   ├── [ 743]  H2Y7HCCXX_RunState.xml
+│   └── [ 22K]  H2Y7HCCXX.xml
+├── [  44]  RTAComplete.txt
+├── [6.1K]  RTAConfiguration.xml
+├── [ 28K]  RTALogs [97 entries exceeds filelimit, not opening dir]
+├── [  35]  RTARead1Complete.txt
+├── [  35]  RTARead2Complete.txt
+├── [  35]  RTARead3Complete.txt
+├── [ 24K]  RunInfo.xml
+├── [4.5K]  runParameters.xml
+├── [  60]  SequencingComplete.txt
+├── [ 72M]  t
+└── [4.0K]  Thumbnail_Images
+    ├── [ 64K]  L001 [310 entries exceeds filelimit, not opening dir]
+    ├── [ 64K]  L002 [310 entries exceeds filelimit, not opening dir]
+    ├── [ 64K]  L003 [310 entries exceeds filelimit, not opening dir]
+    ├── [ 64K]  L004 [310 entries exceeds filelimit, not opening dir]
+    ├── [ 64K]  L005 [310 entries exceeds filelimit, not opening dir]
+    ├── [ 64K]  L006 [310 entries exceeds filelimit, not opening dir]
+    ├── [ 64K]  L007 [310 entries exceeds filelimit, not opening dir]
+    └── [ 64K]  L008 [310 entries exceeds filelimit, not opening dir]
+
+94 directories, 40 files

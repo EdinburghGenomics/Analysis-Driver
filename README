@@ -1,0 +1,14 @@
+Scripts information
+---------------------
+
+xmlparsing.py -> Parse RunInfo.xml which contains information of the mask
+required to run BCL2FASTQ
+
+csvparsing.py -> Parse a SampleSheet.csv file needed to run BCL2FASTQ
+
+checkFinishRun.py -> Check that a file exists and returns TRUE or FALSE
+according to that. It will be used to check when a run has finished since
+specific files are created indicating the end of a run.
+
+runBCL2FASTQ.py -> Create a PBS script with all the required information to
+run BCL2FASTQ and submit it to the queue
