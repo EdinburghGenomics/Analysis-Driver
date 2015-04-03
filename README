@@ -12,3 +12,5 @@ specific files are created indicating the end of a run.
 
 runBCL2FASTQ.py -> Create a PBS script with all the required information to
 run BCL2FASTQ and submit it to the queue
+
+pbs -> directory where PBS scripts are created
