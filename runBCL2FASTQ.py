@@ -62,6 +62,5 @@ masklist=['128','Y','8','N','128','Y']
 # call to generate string
 maskString = generateMask(masklist)
 print maskString
-
-
+# test PBS script generation for BCL2FASTQ
 createBcl2fastq_PBS(masklist)    
