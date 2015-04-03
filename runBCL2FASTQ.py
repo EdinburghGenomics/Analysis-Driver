@@ -4,12 +4,11 @@
 # OUTPUT: Mask string ready for BCL2FASTQ
 def generateMask(mask):
     masklen = len(mask)
-    print masklen
+
     chain=''
     # mask is a list of pairs, so we just need length/2
     for i in xrange(0,(masklen/2)):
         j =i*2
-        print j
         # need to add a comma if not the last
         if (j != masklen-2):
             chain += mask[j]+mask[j+1]+','
@@ -44,11 +43,13 @@ def createBcl2fastq_PBS(mask):
 
     # working directory
     fo.write("cd $PBS_O_WORKDIR\n");
-    
-    
+    maskString = '--use-mask '
+    maskString += generateMask(mask)
 
     # bash command to run bcl2fastq
-    fo.write("bscl2fastq -r blabla -o bloblo --use-mask \n");
+    fo.write("bscl2fastq -r blabla -o bloblo ");
+    fo.write(maskString);
+    
 
     # close the PBS script
     fo.close()
@@ -58,8 +59,9 @@ def createBcl2fastq_PBS(mask):
 
 # generate fake masklist
 masklist=['128','Y','8','N','128','Y']
-# call t
+# call to generate string
 maskString = generateMask(masklist)
 print maskString
 
-    
+
+createBcl2fastq_PBS(masklist)    
