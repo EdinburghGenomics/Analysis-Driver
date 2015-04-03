@@ -1,47 +1,65 @@
 #!/opt/anaconda/bin/python
+#Generate the mask as it is understood by BCL2FASTQ
+# INPUT: A mask list with made of pairs
+# OUTPUT: Mask string ready for BCL2FASTQ
+def generateMask(mask):
+    masklen = len(mask)
+    print masklen
+    chain=''
+    # mask is a list of pairs, so we just need length/2
+    for i in xrange(0,(masklen/2)):
+        j =i*2
+        print j
+        # need to add a comma if not the last
+        if (j != masklen-2):
+            chain += mask[j]+mask[j+1]+','
+        else:
+            chain += mask[j]+mask[j+1]
 
-# create a PBS script to run BCL2FASTQ
-fo = open("pbs/run.pbs", "wb")
+    return chain
 
-fo.write("#!/bin/bash\n");
-# walltime needed
-fo.write( "#PBS -l walltime=00:10:00\n");
 
-# PBS resources
-fo.write("#PBS -l ncpus=4,mem=6gb\n");
+def createBcl2fastq_PBS(mask):
+    # create a PBS script to run BCL2FASTQ
+    fo = open("pbs/run.pbs", "wb")
 
-# jobname
-fo.write("#PBS -N bcl2fastq\n");
+    fo.write("#!/bin/bash\n");
+    # walltime needed
+    fo.write( "#PBS -l walltime=00:10:00\n");
 
-# queue name
-fo.write("#PBS -q uv2000\n");
+    # PBS resources
+    fo.write("#PBS -l ncpus=4,mem=6gb\n");
 
-# input/output
-fo.write("#PBS -j oe \n");
+    # jobname
+    fo.write("#PBS -N bcl2fastq\n");
 
-# output file name
-fo.write("#PBS -o gccTest \n");
+    # queue name
+    fo.write("#PBS -q uv2000\n");
 
-# working directory
-fo.write("cd $PBS_O_WORKDIR\n");
+    # input/output
+    fo.write("#PBS -j oe \n");
 
-# bash command to run bcl2fastq
-fo.write("which gcc\n");
+    # output file name
+    fo.write("#PBS -o gccTest \n");
 
-# close the PBS script
-fo.close()
+    # working directory
+    fo.write("cd $PBS_O_WORKDIR\n");
+    
+    
 
-# Import the Python modules required for system operations
-# To get environment variables
-import os
+    # bash command to run bcl2fastq
+    fo.write("bscl2fastq -r blabla -o bloblo --use-mask \n");
 
-# To run shell commands
-import subprocess
+    # close the PBS script
+    fo.close()
 
-# submit the job to the queue
-p = subprocess.Popen(["qsub","pbs/run.pbs" ], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
-# gather output and errors
-stdout, stderr = p.communicate()
-print(stdout)
+#Unit Testing
 
+# generate fake masklist
+masklist=['128','Y','8','N','128','Y']
+# call t
+maskString = generateMask(masklist)
+print maskString
+
+    
