@@ -4,6 +4,8 @@
 import sys, getopt
 import os
 from xmlparsing import getMask
+from csvparsing import readSampleSheet
+from createBCL2FASTQ_PBS import generateMask,bcl2fastq_PBS
 def parsArgs(argv):
    inputfile = ''
  
@@ -30,7 +32,14 @@ if __name__ == "__main__":
    # parse the input directory
    inputDirectory = parsArgs(sys.argv[1:])
    #print inputDirectory
+   
+   # Read RunInfo.xml
    mask = getMask(inputDirectory)
    # print mask
 
+   # Read SampleSheet.csv
+   sampleId,sampleName = readSampleSheet(inputDirectory)
+   # print sampleId,sampleName
 
+   # Create BCL2FASTQ PBS script
+   bcl2fastq_PBS(mask)
