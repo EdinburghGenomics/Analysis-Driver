@@ -6,7 +6,7 @@
 #         1 - NumCycles
 #         2-  IsIndexedRead
 
-def getMask(filename):
+def getMask(file_path):
 
      import xml.etree.ElementTree as ET
      import os,sys
@@ -14,9 +14,9 @@ def getMask(filename):
      # List of information required to be used as the mask in bcl2fastq
      # Groups of two elements: NumCyles and IsIndexedRead will be stored consecutively
      mask=[]
-     
+     filename=file_path+"/RunInfo.xml"
      # get the tree of the XML file
-     tree = ET.parse(file_path).getroot()
+     tree = ET.parse(filename).getroot()
      # we are only intrested in the the Reads section
      object = tree.find('Run/Reads')
      #loop over all child elements of Reads storing(in order) NUmCycles and IsIndexedRead info
@@ -27,9 +27,9 @@ def getMask(filename):
      return mask
 
 # Unit Test
-file_path = "/home/U008/lcebaman/scripts/data/RunInfo.xml"
-print file_path
+#file_path = "/home/U008/lcebaman/scripts/data/RunInfo.xml"
+#print file_path
 
-mask = getMask(file_path)
+#mask = getMask(file_path)
 
-print mask
+#print mask
