@@ -3,7 +3,8 @@
 # 
 def createBCBIO_PBS(i):
     # create a PBS script to run BCL2FASTQ
-    fo = open("pbs/runBCBIO.pbs", "wb")
+    filename="pbs/runBCBIO_"+`i`+".pbs"
+    fo = open(filename, "wb")
 
     fo.write("#!/bin/bash\n");
     # walltime needed
@@ -38,7 +39,7 @@ def createBCBIO_PBS(i):
 
 
 #Unit Testing
-
-for i in xrange(0,1):
+# creates files from 0 to 2-1
+for i in xrange(0,2):
     createBCBIO_PBS(i)
 
