@@ -6,7 +6,7 @@
 #         2-  list of sampleNames
 
 
-def readSampleSheet(filename):
+def readSampleSheet(file_path):
      
      import os,sys
      import codecs,csv
@@ -16,7 +16,7 @@ def readSampleSheet(filename):
      sampleName=[]
      sampleProject=[]
 
-
+     filename = file_path + "/SampleSheet.csv"
      # read the whole CSV file
      try:
           with codecs.open(filename, "rb") as f_obj:
@@ -48,7 +48,7 @@ def readSampleSheet(filename):
 
 
 # Unit Test
-filename = "/home/U008/lcebaman/scripts/data/SampleSheet.csv"
-print filename
-sampleId,sampleName = readSampleSheet(filename)
+#filename = "/home/U008/lcebaman/scripts/data/SampleSheet.csv"
+#print filename
+#sampleId,sampleName = readSampleSheet(filename)
 
