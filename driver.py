@@ -48,11 +48,15 @@ if __name__ == "__main__":
     # submit the BCL2FASTQ script to bach scheduler
     BCL2FASTQ_jobid = qsub_dependents(args)
 
-
+    list_jobIds=[]
     # submit set of BCBIO jobs
     for i in range(0, n):
        scriptName = "runBCBIO" +`i`+".pbs"
        args=[scriptName]
-       jobid2 = qsub_dependents(args,BCL2FASTQ_jobid)
+       # store the jobIds in a list
+       list_jobIds.append( qsub_dependents(args,BCL2FASTQ_jobid))
 
     
+    # TODO: once jobs are done, we need to move the data output back to RDF
+    #       Need to discuss how we can do it. Either from the same job or submitting new jobs
+    #       Also the resources allocated for copying back
