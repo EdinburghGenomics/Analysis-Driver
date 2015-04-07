@@ -53,7 +53,9 @@ def bcbio_PBS(i, fastq1, fastq2):
     # close the PBS script
     fo.close()
 
-
+# TODO: We will probably need some more input parameters here since we have to use the fastq files to create the
+#       the BCBIO projects. It is not clear the number of output fastq files that we will have and it supposes to
+#       be the same number as the number of runs (36), otherwise we will be submmitting the same job more than once
 def bcbio_loop(n):
     
     for i in xrange(0,n):
