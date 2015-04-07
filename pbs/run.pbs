@@ -1,9 +1,0 @@
-#!/bin/bash
-#PBS -l walltime=00:10:00
-#PBS -l ncpus=4,mem=6gb
-#PBS -N bcl2fastq
-#PBS -q uv2000
-#PBS -j oe 
-#PBS -o gccTest 
-cd $PBS_O_WORKDIR
-which gcc
