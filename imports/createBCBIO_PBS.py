@@ -60,6 +60,7 @@ def bcbio_loop(n):
     
     for i in xrange(0,n):
         # TODO: pass info about the fastq files
+        # TODO: All these paths are just for testing purposes
         FASTQ_PATH="/scratch/U008/lcebaman/fastq/1"
         FASTQ1 = FASTQ_PATH+"/1--NA12878-OD1_1.fastq"
         FASTQ2 = FASTQ_PATH+"/1--NA12878-OD1_2.fastq"
