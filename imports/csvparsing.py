@@ -14,8 +14,7 @@ def readSampleSheet(file_path):
      csvlist=[]
      sampleId=[]
      sampleName=[]
-     sampleProject=[]
-
+ 
      filename = file_path + "/SampleSheet.csv"
      # read the whole CSV file
      try:
@@ -42,13 +41,23 @@ def readSampleSheet(file_path):
      for i in xrange(dataPos,len(csvlist)):
           sampleId.append(csvlist[i][1])
           sampleName.append(csvlist[i][2])
-          sampleProject.append(csvlist[i][7])
+
+     dictionary = dict(zip(sampleId, sampleName))
+     # clear lists just in case
+     del sampleId[:]
+     del sampleName[:]
+     # get values back from the dictionary
+     sampleId = dictionary.keys()
+     sampleName = dictionary.values()
 
      return sampleId,sampleName
 
 
-# Unit Test
-#filename = "/home/U008/lcebaman/scripts/data/SampleSheet.csv"
-#print filename
-#sampleId,sampleName = readSampleSheet(filename)
+# # Unit Test
+# filename = "/home/U008/lcebaman/scripts/data"
+# print filename
+# sampleId,sampleName= readSampleSheet(filename)
+# print sampleName
+
+
 
