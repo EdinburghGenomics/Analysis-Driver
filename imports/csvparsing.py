@@ -34,18 +34,21 @@ def readSampleSheet(file_path):
           if csvlist[i][0] == '[Data]':
                dataTagPos = i
                  
-       #First row of reald data
+     # First row of reald data
      dataPos=dataTagPos + 2
 
-       # store values in lists
+     # store values in lists
      for i in xrange(dataPos,len(csvlist)):
           sampleId.append(csvlist[i][1])
           sampleName.append(csvlist[i][2])
 
+     # map the two lists in a dictionary to eliminate duplicates
      dictionary = dict(zip(sampleId, sampleName))
+
      # clear lists just in case
      del sampleId[:]
      del sampleName[:]
+
      # get values back from the dictionary
      sampleId = dictionary.keys()
      sampleName = dictionary.values()
