@@ -43,16 +43,25 @@ if __name__ == "__main__":
     
     for k, v in sorted(d.items(), key=itemgetter(0)):
         #print 'id: %s, lanes: %s' % (k, v)
-        FASTQ = BASE_PATH+"/"+str(v[0][2])+"/"+str(k)
-        print len(v)
+        FASTQ = BASE_PATH
+
         for i in xrange(0,len(v)):
-            
-            if v[0][2] != '':
+            # check if sampleName != sampleId and if sampleName exists
+            if v[0][2] != k and v[0][2] !='':
                 FASTQ = BASE_PATH+"/"+str(v[0][2])+"/"+str(k)
                 FASTQ1 =FASTQ+"/"+str(v[0][2])+"_S"+str(i+1)+"_L00"+str(v[i][0])+"_R"+str(i+1)+"_001"
-                print FASTQ1
-    #    else:
-     #       FASTQ = BASE_PATH+"/"+k
+                print "[1]"+FASTQ1
+            # sampleId = sampleName (must be != empty)
+            elif v[0][2] == k and v[0][2] !='':
+                FASTQ = BASE_PATH+"/"+str(k)
+                FASTQ1 =FASTQ+"/"+str(v[0][2])+"_S"+str(i+1)+"_L00"+str(v[i][0])+"_R"+str(i+1)+"_001"
+                print "[2]"+FASTQ1
+            else:
+                FASTQ = BASE_PATH+"/"+str(k)
+                FASTQ1 =FASTQ + "/"+ str(k)+"_S"+str(i+1)+"_L00"+str(v[i][0])+"_R"+str(i+1)+"_001"
+                print "[3]"+FASTQ1
+                
+
            
       
 
