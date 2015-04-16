@@ -4,7 +4,7 @@
 #      1- i: Project and job number (total of 36-1 job numbers)
 #      2- fastq1: First file of pair fastq files
 #      3- fastq2: Second pair of pair fastq files
-def bcbio_PBS(i, fastq1, fastq2):
+def bcbio_PBS(i, k, v):
     # create a PBS script to run BCL2FASTQ
     filename="pbs/runBCBIO"+`i`+".pbs"
     fo = open(filename, "wb")
@@ -34,8 +34,26 @@ def bcbio_PBS(i, fastq1, fastq2):
     # working directory
     fo.write("cd $PBS_O_WORKDIR\n\n");
     
+
+    BASE_PATH= inputDirectory+"/Data/Intensities/BaseCalls"
+    FASTQ_list=[]
+    for k, v in sorted(d.items(), key=itemgetter(0)):
+
+        # loop over the element values of the dictionary
+        for i in xrange(0,len(v)):                   
+        if v[0][2] != '':
+            FASTQ=  BASE_PATH+"/"+str(v[0][2])+"/"+str(k)+"/"
+            FASTQ =FASTQ+"/"+str(v[0][2])+"_S"+str(i+1)+"_L00"+str(v[i][0])+"_R"+str(i+1)+"_001"
+            FASTQ2 =FASTQ+"/"+str(v[0][2])+"_S"+str(i+1)+"_L00"+str(v[i][0])+"_R"+str(i+1)+"_001"
+            FASTQ_2 = FASTQ+str(v[0][2])+"_S"+str(v[1][1])+"_L00"+str(v[1][0])+"_R2"+"_001"
+        else:
+            FASTQ_1 = BASE_PATH+"/"+str(k)+"/"+str(k)+"_S"+str(v[0][1])+"_L00"+str(v[0][0])+"_R1"+"_001"
+            FASTQ_2 = BASE_PATH+"/"+str(k)+"/"+str(k)+"_S"+str(v[1][1])+"_L00"+str(v[1][0])+"_R2"+"_001"
+
+
     # untar fastq files
-    #tarcom ="gzip"+""+fastq1+"/"+"*.gz"
+    tarcom ="gunzip"+""+fastq1+"/"+"*.gz"
+
 
 
     # path to BCBIO
@@ -57,23 +75,18 @@ def bcbio_PBS(i, fastq1, fastq2):
     # close the PBS script
     fo.close()
 
-# TODO: We will probably need some more input parameters here since we have to use the fastq files to create the
-#       the BCBIO projects. It is not clear the number of output fastq files that we will have and it supposes to
-#       be the same number as the number of runs (36), otherwise we will be submmitting the same job more than once
-def bcbio_loop(sampleId, sampleName, inputDirectory):
+
+def bcbio_loop(d, inputDirectory):
+
     # number of different PBS scripts
-    n = len(sampleId)
-    BASE_PATH= inputDirectory+"/Data/Intensities/BaseCalls"
+    n = len(d)
     
-    for i in xrange(0,n):
-        # sampleName is not empty
-        if sampleName[i] != '':
-            FASTQ = BASE_PATH+"/"+sampleName+"/"+sampleId
-        else:
-            FASTQ = BASE_PATH+"/"+sampleId
-        
+    BASE_PATH= inputDirectory+"/Data/Intensities/BaseCalls"
+
+    for counter in xrange(0, n):
         # generate a PBS script per n
-        bcbio_PBS(i, FASTQ, FASTQ )
+        bcbio_PBS(counter, k , v )
+        counter = counter + 1
     
 
 #Unit Testing

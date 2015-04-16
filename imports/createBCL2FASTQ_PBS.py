@@ -22,7 +22,7 @@ def generateMask(mask):
 #Create the PBS script responsible for running BCL2FASTQ
 #INPUT: A mask list
 
-def bcl2fastq_PBS(mask):
+def bcl2fastq_PBS(mask, inputDirectory):
     # create a PBS script to run BCL2FASTQ
     fo = open("pbs/runBCL2FASTQ.pbs", "wb")
 
@@ -51,14 +51,16 @@ def bcl2fastq_PBS(mask):
     #TODO: understand the mask issue
     maskString = '--use-mask '
     maskString += generateMask(mask)
-
-    # TODO: include the right bcl2fast command
-
-    # bash command to run bcl2fastq
-    fo.write("dd if=/dev/zero of=/scratch/U008/lcebaman/test.bla  bs=32768 count=100000");
-    #fo.write(maskString);
+    inputOpt = "-R" + inputDirectory
     
+    # TODO: include the right bcl2fast command
+    # bash command to run bcl2fastq 
+    # fo.write("dd if=/dev/zero of=/scratch/U008/lcebaman/test.bla  bs=32768 count=100000");
+    fo.write("bcbl2fastq");
+    fo.write(inputOpt);
+    fo.write(maskString);
 
+    
     # close the PBS script
     fo.close()
 

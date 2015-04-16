@@ -35,10 +35,11 @@ if __name__ == "__main__":
     # Create BCL2FASTQ PBS script
     bcl2fastq_PBS(mask)
 
+    # Total number of runs, one per sampleId
+    
     # create BCBIO PBS scripts
-    # Total number of runs
-    n = 2
-    bcbio_loop(n)
+    bcbio_loop(sampleId, sampleName, inputDirectory)
+    
     # get into pbs directory
     os.chdir("pbs")
     # submit bcl2fastq 
