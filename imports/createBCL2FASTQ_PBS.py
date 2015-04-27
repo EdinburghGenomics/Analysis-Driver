@@ -50,14 +50,16 @@ def bcl2fastq_PBS(mask, inputDirectory):
 
     #TODO: understand the mask issue
     maskString = '--use-mask '
-    maskString += generateMask(mask)
-    inputOpt = "-R" + inputDirectory
+    maskString += generateMask(mask) 
+    inputOpt = "-R " + inputDirectory
     
     # TODO: include the right bcl2fast command
     # bash command to run bcl2fastq 
     # fo.write("dd if=/dev/zero of=/scratch/U008/lcebaman/test.bla  bs=32768 count=100000");
     fo.write("bcbl2fastq");
+    fo.write(" ");
     fo.write(inputOpt);
+    fo.write(" ");
     fo.write(maskString);
 
     
