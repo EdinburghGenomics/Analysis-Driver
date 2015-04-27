@@ -52,7 +52,8 @@ if __name__ == "__main__":
     
     # submit bcl2fastq 
     # create a list with the name of the PBS script
-    args=['runBCL2FASTQ.pbs']
+    argsString='BCL_'+ str(inputDirectory)+'.pbs'
+    args=[argString]
     
     # submit the BCL2FASTQ script to bach scheduler
     logging.warning('Submit BCL2FASTQ_PBS')
@@ -66,11 +67,8 @@ if __name__ == "__main__":
 #     for i in range(0, len(d)):
 #        scriptName = "runBCBIO_" +`i`+".pbs"
 #        args=[scriptName]
-#        # store the jobIds in a list
+#        # store the jobIds in a list. They will not get executed until BCL2FASTQ has finished
 #        list_jobIds.append( qsub_dependents(args,BCL2FASTQ_jobid))
 
     logging.warning('Submit BCBIO_PBS')
-
-    # TODO: once jobs are done, we need to move the data output back to RDF
-    #       Need to discuss how we can do it. Either from the same job or submitting new jobs
-    #       Also the resources allocated for copying back
+    
