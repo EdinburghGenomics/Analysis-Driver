@@ -6,12 +6,13 @@
 #      2- k: keys(sampleIds)
 #      3- v: values -> tuple (Lane,Position,sampleName)
 
-def bcbio_PBS(i, d, inputDirectory):
+def bcbio_PBS(i, k, v, inputDirectory, projectName):
 
     from operator import itemgetter
 
     # create a PBS script to run BCL2FASTQ
-    filename="pbs/runBCBIO_"+`i`+".pbs"
+    
+    filename=projectName+"/pbs/runBCBIO_"+`i`+".pbs"
     fo = open(filename, "wb")
 
     fo.write("#!/bin/bash\n");
@@ -43,63 +44,62 @@ def bcbio_PBS(i, d, inputDirectory):
     # TODO: check the output contains "/Data/Intensities/BaseCalls"
     BASE_PATH= inputDirectory+"/Data/Intensities/BaseCalls"
     
+    print i,k,v[0][0]
     # get path to fastq pairs
-    for k, v in sorted(d.items(), key=itemgetter(0)):
-        #print 'id: %s, lanes: %s' % (k, v)
-        FASTQ = BASE_PATH
-    
-        for j in xrange(0,len(v)):
-            # check if sampleName != sampleId and if sampleName exists
-            if v[0][2] != k and v[0][2] !='':
-                FASTQ = BASE_PATH+"/"+str(v[0][2])+"/"+str(k)
-                FASTQ1 =FASTQ+"/"+str(v[0][2])+"_S"+str(j+1)+"_L00"+str(v[j][0])+"_R"+str(j+1)+"_001"
-#                print "[1]"+FASTQ1
-                # sampleId = sampleName (must be != empty)
-            elif v[0][2] == k and v[0][2] !='':
-                FASTQ  = BASE_PATH+"/"+str(k)
-                FASTQ1 = FASTQ+"/"+str(v[0][2])+"_S"+str(j+1)+"_L00"+str(v[j][0])+"_R"+str(j+1)+"_001"
- #               print "[2]"+FASTQ1
-            else:
-                FASTQ  = BASE_PATH+"/"+str(k)
-                FASTQ1 = FASTQ + "/"+ str(k)+"_S"+str(j+1)+"_L00"+str(v[j][0])+"_R"+str(j+1)+"_001"
+
+    FASTQ = BASE_PATH
+    for j in xrange(0,len(v)):
+        # check if sampleName != sampleId and if sampleName exists
+#        if v[0][1] != k and v[0][1] !='':
+        FASTQ = BASE_PATH+"/"+str(v[0][1])+"/"+str(k)
+        FASTQ1 =FASTQ+"/"+str(v[0][1])+"_S"+str(v[0][0])+"_L00"+str(v[j][0])+"_R1_001"
+        FASTQ2 =FASTQ+"/"+str(v[0][1])+"_S"+str(v[0][0])+"_L00"+str(v[j][0])+"_R2_001"
+        print FASTQ1
+ #            # sampleId = sampleName (must be != empty)
+ #        elif v[0][2] == k and v[0][2] !='':
+ #            FASTQ  = BASE_PATH+"/"+str(k)
+ #            FASTQ1 = FASTQ+"/"+str(v[0][2])+"_S"+str(j+1)+"_L00"+str(v[j][0])+"_R"+str(j+1)+"_001"
+ # #               print "[2]"+FASTQ1
+ #            else:
+ #                FASTQ  = BASE_PATH+"/"+str(k)
+ #                FASTQ1 = FASTQ + "/"+ str(k)+"_S"+str(j+1)+"_L00"+str(v[j][0])+"_R"+str(j+1)+"_001"
                 
                 
-    fo.write("\n\n");
+ #    fo.write("\n\n");
     
-    # path to BCBIO
-    BCBIO="/home/U008/lcebaman/bcbio/bin/bcbio_nextgen.py"
-    PROJECT_PATH = "/home/U008/lcebaman/scripts/pbs"
-    PROJECT_NAME = "project"+`i`
-    PROJECT = PROJECT_PATH+"/"+PROJECT_NAME
-    PROJECT_FLAGS="-w template gatk-variant"
-    PROJECT_RUN = BCBIO +" "+ PROJECT_FLAGS +" "+ PROJECT_NAME +" "+ FASTQ1+".fastq.gz" +" "+ FASTQ2+".fastq.gz"
+ #    # path to BCBIO
+ #    BCBIO="/home/U008/lcebaman/bcbio/bin/bcbio_nextgen.py"
+ #    PROJECT_PATH = "/home/U008/lcebaman/scripts/pbs"
+ #    PROJECT_NAME = "project"+`i`
+ #    PROJECT = PROJECT_PATH+"/"+PROJECT_NAME
+ #    PROJECT_FLAGS="-w template gatk-variant"
+ #    PROJECT_RUN = BCBIO +" "+ PROJECT_FLAGS +" "+ PROJECT_NAME +" "+ FASTQ+".fastq.gz" +" "+ FASTQ1+".fastq.gz"
     
-    # generate project to run bcbio
-    fo.write(PROJECT_RUN);
-    fo.write("\n\n");
-    # bash command to run bcl2fastq
-    BCBIO_RUN = BCBIO +" "+ PROJECT_NAME + "/config/"+PROJECT_NAME+".yaml" + " -n 16 " + \
-        "--workdir" +" "+ PROJECT_NAME+"/work"
-    fo.write(BCBIO_RUN);
-    fo.write("\n");
+ #    # generate project to run bcbio
+ #    fo.write(PROJECT_RUN);
+ #    fo.write("\n\n");
+ #    # bash command to run bcl2fastq
+ #    BCBIO_RUN = BCBIO +" "+ PROJECT_NAME + "/config/"+PROJECT_NAME+".yaml" + " -n 16 " + \
+ #        "--workdir" +" "+ PROJECT_NAME+"/work"
+ #    fo.write(BCBIO_RUN);
+ #    fo.write("\n");
 
     # close the PBS script
     fo.close();
 
 
-def bcbio_loop(d, inputDirectory):
+def bcbio_loop(d, inputDirectory, projectName):
 
     # number of different PBS scripts
-    n = len(d)
+    counter = 0
     
     BASE_PATH= inputDirectory+"/Data/Intensities/BaseCalls"
-
-    for counter in xrange(0, n):
+    
+    for k, v in d.items():
         # generate a PBS script per n
-        bcbio_PBS(counter, d, inputDirectory)
+        bcbio_PBS(counter, k, v, inputDirectory, projectName)
         counter = counter + 1
     
 
-#Unit Testing
-# creates files from 0 to 2-1
+
 
