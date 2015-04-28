@@ -13,7 +13,7 @@ from subprocess import call
 from qsub_dependents import qsub,qsub_dependents
 from args import parsArgs
 from datetime import datetime
- 
+from makeProject import makeProject
 
 if __name__ == "__main__":
 
@@ -26,11 +26,9 @@ if __name__ == "__main__":
     
     logging.warning('Reading bcl data from %s ',inputDirectory)
     
-    # create pbs temporary directory
-    if not os.path.exists("pbs"):
-        os.makedirs("pbs")
+    # create project directory
+    projectName = makeProject(inputDirectory)
 
-    
     # Read RunInfo.xml
     logging.warning('Reading the mask from %s ',inputDirectory)
     mask = getMask(inputDirectory)
@@ -41,19 +39,20 @@ if __name__ == "__main__":
     
     # Create BCL2FASTQ PBS script
     logging.warning('Create BCL2FASTQ pbs script')
-    bcl2fastq_PBS(mask, inputDirectory)
+    pbsName = 'BCL_'+ projectName +'.pbs'
+    bcl2fastq_PBS(mask, pbsName, projectName, inputDirectory)
 
     # create BCBIO PBS scripts
     logging.warning('Creating BCBIO PBS scripts')
-    bcbio_loop(sheetDict, inputDirectory)
+#    bcbio_loop(sheetDict, inputDirectory)
     
     # get into pbs directory
-    os.chdir("pbs")
+    os.chdir(projectName+"_out"+"/pbs")
     
     # submit bcl2fastq 
     # create a list with the name of the PBS script
-    argsString='BCL_'+ str(inputDirectory)+'.pbs'
-    args=[argString]
+
+    args=[pbsName]
     
     # submit the BCL2FASTQ script to bach scheduler
     logging.warning('Submit BCL2FASTQ_PBS')
