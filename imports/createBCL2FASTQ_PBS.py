@@ -22,9 +22,10 @@ def generateMask(mask):
 #Create the PBS script responsible for running BCL2FASTQ
 #INPUT: A mask list
 
-def bcl2fastq_PBS(mask, inputDirectory):
+def bcl2fastq_PBS(mask,scriptName,projectName,inputDirectory):
     # create a PBS script to run BCL2FASTQ
-    fo = open("pbs/runBCL2FASTQ.pbs", "wb")
+    name = projectName+"_out"+"/pbs/"+scriptName
+    fo = open(name, "wb")
 
     fo.write("#!/bin/bash\n");
     # walltime needed
