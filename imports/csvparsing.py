@@ -14,7 +14,7 @@ def readSampleSheet(file_path):
      import csv
 
      # create a dictionary
-     d = defaultdict(list)
+     d = {}
      # temp list
      dlist= []
      # hardcoded name 
@@ -33,19 +33,18 @@ def readSampleSheet(file_path):
           if any(row):
                dlist.append(row)
      
-     # print len(dlist)
-     # loop = len(dlist) -1
-     # print "loop= ",loop
-     # #make sure there are no empyt lines
-     # for i in xrange(0,loop):
-     #      print dlist[i]
-     #      if not dlist[i]:
-     #           del(dlist[i])
-     
      print len(dlist)
-     # stores elements as key(sampleId) -> values (Lane, Position, sampleName)
-     for k, g in groupby(zip(dlist, itertools.count()), key=lambda x: x[0][1]):
-          map(lambda x: d[k].append((x[0][0], x[1], x[0][2])), g)
 
+# Store keys (sampleID) and values (Lane,SampleName)
+#'10015AT0001L01': [['1', '50293']],
+# '10015AT0002L01': [['2', '128864']],
+# '10015AT0003L01': [['3', '172937']],
+# '10015AT0004L01': [['4', 'Na12878'], ['6', 'Na12878'], ['7', 'Na12878']],
+# '10015AT0005L01': [['5', 'PhiX'], ['8', 'PhiX']]}
+
+
+     for row in dlist:
+          d.setdefault(row[1],[]).append([row[0],row[2]])
+          
      return d
 
