@@ -5,62 +5,47 @@
 #         1 - list of sampleIds
 #         2-  list of sampleNames
 
-
 def readSampleSheet(file_path):
-     
-     import os,sys
-     import codecs,csv
+     import subprocess
+     from collections import defaultdict
+     import itertools
+     from itertools import groupby
+     from operator import itemgetter
+     import csv
 
-     csvlist=[]
-     sampleId=[]
-     sampleName=[]
- 
+     # create a dictionary
+     d = defaultdict(list)
+     # temp list
+     dlist= []
+     # hardcoded name 
      filename = file_path + "/SampleSheet.csv"
-     # read the whole CSV file
-     try:
-          with codecs.open(filename, "rb") as f_obj:
-               reader = csv.reader(f_obj)
-               for row in reader:
-                    csvlist.append(row)
-                    
-     except IOError:
-          print "No such file : ", filename
-          print "Please, introduce a valid path to SampleSheet.csv file"
-          sys.exit()
-          
-      #find [Data] tag
-     dataTagPos = 0
-     for i in xrange(10,len(csvlist)):
-          if csvlist[i][0] == '[Data]':
-               dataTagPos = i
-                 
-     # First row of reald data
-     dataPos=dataTagPos + 2
+     # open the file with csv
+     reader = csv.reader(open(filename, "rb"))
+    
+     # read lines until [Data] marker
+     while not next(reader)[0].startswith('[Data]'):
+          None
+     next(reader) # ignore names
 
-     # store values in lists
-     for i in xrange(dataPos,len(csvlist)):
-          sampleId.append(csvlist[i][1])
-          sampleName.append(csvlist[i][2])
+     # store the rest of the csv file in a list
+     for row in reader:
+          # store only the non empty lines
+          if any(row):
+               dlist.append(row)
+     
+     # print len(dlist)
+     # loop = len(dlist) -1
+     # print "loop= ",loop
+     # #make sure there are no empyt lines
+     # for i in xrange(0,loop):
+     #      print dlist[i]
+     #      if not dlist[i]:
+     #           del(dlist[i])
+     
+     print len(dlist)
+     # stores elements as key(sampleId) -> values (Lane, Position, sampleName)
+     for k, g in groupby(zip(dlist, itertools.count()), key=lambda x: x[0][1]):
+          map(lambda x: d[k].append((x[0][0], x[1], x[0][2])), g)
 
-     # map the two lists in a dictionary to eliminate duplicates
-     dictionary = dict(zip(sampleId, sampleName))
-
-     # clear lists just in case
-     del sampleId[:]
-     del sampleName[:]
-
-     # get values back from the dictionary
-     sampleId = dictionary.keys()
-     sampleName = dictionary.values()
-
-     return sampleId,sampleName
-
-
-# # Unit Test
-# filename = "/home/U008/lcebaman/scripts/data"
-# print filename
-# sampleId,sampleName= readSampleSheet(filename)
-# print sampleName
-
-
+     return d
 
