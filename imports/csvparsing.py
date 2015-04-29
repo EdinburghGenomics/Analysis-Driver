@@ -32,19 +32,23 @@ def readSampleSheet(file_path):
           # store only the non empty lines
           if any(row):
                dlist.append(row)
-     
-     print len(dlist)
+     # get the position in the CSV file (required for file naming)
+     firstTime={}
+     for row in dlist:
+          if row[1] not in firstTime:
+               firstTime[row[1]] = row[0]
 
-# Store keys (sampleID) and values (Lane,SampleName)
-#'10015AT0001L01': [['1', '50293']],
-# '10015AT0002L01': [['2', '128864']],
-# '10015AT0003L01': [['3', '172937']],
-# '10015AT0004L01': [['4', 'Na12878'], ['6', 'Na12878'], ['7', 'Na12878']],
-# '10015AT0005L01': [['5', 'PhiX'], ['8', 'PhiX']]}
-
+# Store keys (sampleID) and values (Lane,SampleName, firstTimePos)
+#{'10015AT0001L01': [['1', '50293', '1']],
+# '10015AT0002L01': [['2', '128864', '2']],
+# '10015AT0003L01': [['3', '172937', '3']],
+# '10015AT0004L01': [['4', 'Na12878', '4'],
+#  ['6', 'Na12878', '4'],
+#  ['7', 'Na12878', '4']],
+# '10015AT0005L01': [['5', 'PhiX', '5'], ['8', 'PhiX', '5']]}
 
      for row in dlist:
-          d.setdefault(row[1],[]).append([row[0],row[2]])
-          
+          d.setdefault(row[1],[]).append([row[0],row[2],firstTime[row[1]]])
+     
      return d
 
