@@ -13,7 +13,7 @@ from subprocess import call
 from qsub_dependents import qsub,qsub_dependents
 from args import parsArgs
 from datetime import datetime
-from makeProject import makeProject
+from makeProject import makeProject,getDirName
 
 if __name__ == "__main__":
 
@@ -22,20 +22,22 @@ if __name__ == "__main__":
     logging.basicConfig(filename=logfileName,format='%(asctime)s %(message)s', datefmt='[%d/%m/%Y-%H:%M:%S]')
 
     # parse the input directory
-    inputDirectory = parsArgs(sys.argv[1:])
+    inputPath = parsArgs(sys.argv[1:])
     
-    logging.warning('Reading bcl data from %s ',inputDirectory)
-    
+    logging.warning('Reading bcl data from %s ',inputPath)
+    workDir = inputPath+"_work"
+
     # create project directory
-    projectName = makeProject(inputDirectory)
-    
+    projectName = getDirName(inputPath)
+    makeProject(workDir)
+
     # Read RunInfo.xml
-    logging.warning('Reading the mask from %s ',inputDirectory)
-    mask = getMask(inputDirectory)
+    logging.warning('Reading the mask from %s ',inputPath)
+    mask = getMask(inputPath)
     
     # Read SampleSheet.csv
-    logging.warning('Reading SampleSheet from %s ',inputDirectory)
-    sheetDict = readSampleSheet(inputDirectory)
+    logging.warning('Reading SampleSheet from %s ',inputPath)
+    sheetDict = readSampleSheet(inputPath)
 
     # get sampleProject
     sampleProject = getSampleProject(sheetDict)
@@ -43,14 +45,15 @@ if __name__ == "__main__":
     # Create BCL2FASTQ PBS script
     logging.warning('Create BCL2FASTQ pbs script')
     pbsName = 'BCL_'+ projectName +'.pbs'
-    bcl2fastq_PBS(mask, pbsName, projectName, inputDirectory)
+
+    bcl2fastq_PBS(mask, pbsName, projectName+"_work", inputPath)
 
     # create BCBIO PBS scripts
     logging.warning('Creating BCBIO PBS scripts')
-    bcbio_loop(sheetDict, inputDirectory, projectName+"_out", sampleProject)
+    bcbio_loop(sheetDict, inputPath, projectName+"_work", sampleProject)
     
     # get into pbs directory
-    os.chdir(projectName+"_out"+"/pbs")
+    os.chdir(projectName+"_work"+"/pbs")
     
     # submit bcl2fastq 
     # create a list with the name of the PBS script
