@@ -73,7 +73,7 @@ def bcbio_PBS( k, v, inputDirectory, projectName, sampleProject):
     # close the PBS script
     fo.close();
 
-
+# Creates a pbs script per pair of samples
 def bcbio_loop(d, inputDirectory, projectName, sampleProject):
 
     # number of different PBS scripts
