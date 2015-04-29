@@ -6,7 +6,7 @@ import os,logging
 sys.path.append('imports')
 
 from xmlparsing import getMask
-from csvparsing import readSampleSheet
+from csvparsing import readSampleSheet,getSampleProject
 from createBCL2FASTQ_PBS import generateMask,bcl2fastq_PBS
 from createBCBIO_PBS import bcbio_loop
 from subprocess import call
@@ -28,7 +28,7 @@ if __name__ == "__main__":
     
     # create project directory
     projectName = makeProject(inputDirectory)
-
+    
     # Read RunInfo.xml
     logging.warning('Reading the mask from %s ',inputDirectory)
     mask = getMask(inputDirectory)
@@ -36,7 +36,10 @@ if __name__ == "__main__":
     # Read SampleSheet.csv
     logging.warning('Reading SampleSheet from %s ',inputDirectory)
     sheetDict = readSampleSheet(inputDirectory)
-    
+
+    # get sampleProject
+    sampleProject = getSampleProject(sheetDict)
+
     # Create BCL2FASTQ PBS script
     logging.warning('Create BCL2FASTQ pbs script')
     pbsName = 'BCL_'+ projectName +'.pbs'
@@ -44,7 +47,7 @@ if __name__ == "__main__":
 
     # create BCBIO PBS scripts
     logging.warning('Creating BCBIO PBS scripts')
-    bcbio_loop(sheetDict, inputDirectory, projectName+"_out")
+    bcbio_loop(sheetDict, inputDirectory, projectName+"_out", sampleProject)
     
     # get into pbs directory
     os.chdir(projectName+"_out"+"/pbs")
@@ -56,18 +59,18 @@ if __name__ == "__main__":
     
     # submit the BCL2FASTQ script to bach scheduler
     logging.warning('Submit BCL2FASTQ_PBS')
-    #BCL2FASTQ_jobid = qsub_dependents(args)
+    # BCL2FASTQ_jobid = qsub_dependents(args)
     
-    # submit the BCBIO scripts once BCL2FASTQ has finished
-    logging.warning('Submit BCBIO_PBS')
-
-#     list_jobIds=[]
-#     # submit set of BCBIO jobs. A job per sampleId included in the SampleSheet
-#     for i in range(0, len(d)):
-#        scriptName = "runBCBIO_" +`i`+".pbs"
-#        args=[scriptName]
-#        # store the jobIds in a list. They will not get executed until BCL2FASTQ has finished
-#        list_jobIds.append( qsub_dependents(args,BCL2FASTQ_jobid))
-
-    logging.warning('Submit BCBIO_PBS')
+    # # submit the BCBIO scripts once BCL2FASTQ has finished
+    # logging.warning('Submit BCBIO_PBS')
+    
+    # list_jobIds=[]
+    # # submit set of BCBIO jobs. A job per sampleId included in the SampleSheet
+    # for i in range(1, len(sheetDict)):
+    #     scriptName = "runBCBIO_" +`i`+".pbs"
+    #     args=[scriptName]
+    #     # store the jobIds in a list. They will not get executed until BCL2FASTQ has finished
+    #     list_jobIds.append( qsub_dependents(args,BCL2FASTQ_jobid))
+        
+    # logging.warning('Submit BCBIO_PBS')
     
