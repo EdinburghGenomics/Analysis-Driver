@@ -20,5 +20,5 @@ def parsArgs(argv):
            print 'test.py -i <inputfile> '
            sys.exit()
 
-   print 'Input directory is', inputfile.rstrip('/')
+#   print 'Input directory is', inputfile.rstrip('/')
    return inputfile.rstrip('/')
