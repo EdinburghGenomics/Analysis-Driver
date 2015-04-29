@@ -38,17 +38,25 @@ def readSampleSheet(file_path):
           if row[1] not in firstTime:
                firstTime[row[1]] = row[0]
 
-# Store keys (sampleID) and values (Lane,SampleName, firstTimePos)
-#{'10015AT0001L01': [['1', '50293', '1']],
-# '10015AT0002L01': [['2', '128864', '2']],
-# '10015AT0003L01': [['3', '172937', '3']],
-# '10015AT0004L01': [['4', 'Na12878', '4'],
-#  ['6', 'Na12878', '4'],
-#  ['7', 'Na12878', '4']],
-# '10015AT0005L01': [['5', 'PhiX', '5'], ['8', 'PhiX', '5']]}
+# Store keys (sampleID) and values (Lane,SampleName, firstTimePos, projectName)
+
+# {'10015AT0001L01': [['1', '50293', '1', '10015AT']],
+#  '10015AT0002L01': [['2', '128864', '2', '10015AT']],
+#  '10015AT0003L01': [['3', '172937', '3', '10015AT']],
+#  '10015AT0004L01': [['4', 'Na12878', '4', '10015AT'],
+#   ['6', 'Na12878', '4', '10015AT'],
+#   ['7', 'Na12878', '4', '10015AT']],
+#  '10015AT0005L01': [['5', 'PhiX', '5', '10015AT'],
+#   ['8', 'PhiX', '5', '10015AT']]}
+
 
      for row in dlist:
-          d.setdefault(row[1],[]).append([row[0],row[2],firstTime[row[1]]])
+          d.setdefault(row[1],[]).append([row[0],row[2],firstTime[row[1]],row[7]] )
      
      return d
 
+# gives the sample Project
+def getSampleProject(d):
+     #the first one for instance
+     return d.values()[0][0][3]
+                                             
