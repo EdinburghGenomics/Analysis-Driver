@@ -53,7 +53,7 @@ def readSampleSheet(file_path):
      for row in dlist:
           d.setdefault(row[1],[]).append([row[0],row[2],firstTime[row[1]],row[7]] )
      
-     return d
+     return len(dlist),d
 
 # gives the sample Project
 def getSampleProject(d):
