@@ -3,8 +3,13 @@ def makeProject(inputPath):
     import os
     from os.path import normpath, basename
     dirName = basename(normpath(inputPath))
-    os.makedirs(dirName+"_out")
-    os.makedirs(dirName+"_out"+"/pbs")
+    os.makedirs(dirName)
+    os.makedirs(dirName+"/pbs")
+
+def getDirName(inputPath):
+    import os
+    from os.path import normpath, basename
+    dirName = basename(normpath(inputPath))
     return dirName
 
 
