@@ -13,7 +13,7 @@ from subprocess import call
 from qsub_dependents import qsub,qsub_dependents
 from args import parsArgs
 from datetime import datetime
-from makeProject import makeProject,getDirName
+from makeProject import makeProject, getDirName
 
 if __name__ == "__main__":
 
@@ -25,10 +25,10 @@ if __name__ == "__main__":
     inputPath = parsArgs(sys.argv[1:])
     
     logging.warning('Reading bcl data from %s ',inputPath)
-    workDir = inputPath+"_work"
 
     # create project directory
-    projectName = getDirName(inputPath)
+    projectName = getDirName(inputPath)  
+    workDir = projectName+"_work"
     makeProject(workDir)
 
     # Read RunInfo.xml
@@ -37,23 +37,24 @@ if __name__ == "__main__":
     
     # Read SampleSheet.csv
     logging.warning('Reading SampleSheet from %s ',inputPath)
-    sheetDict = readSampleSheet(inputPath)
-
+    numLanes,sheetDict = readSampleSheet(inputPath)
+    print numLanes
     # get sampleProject
     sampleProject = getSampleProject(sheetDict)
 
     # Create BCL2FASTQ PBS script
     logging.warning('Create BCL2FASTQ pbs script')
     pbsName = 'BCL_'+ projectName +'.pbs'
+    print pbsName
 
-    bcl2fastq_PBS(mask, pbsName, projectName+"_work", inputPath)
+    bcl2fastq_PBS(mask, pbsName, workDir, inputPath)
 
     # create BCBIO PBS scripts
     logging.warning('Creating BCBIO PBS scripts')
-    bcbio_loop(sheetDict, inputPath, projectName+"_work", sampleProject)
+    bcbio_loop(sheetDict, inputPath, workDir, sampleProject)
     
-    # get into pbs directory
-    os.chdir(projectName+"_work"+"/pbs")
+     # get into pbs directory
+    os.chdir(workDir+"/pbs")
     
     # submit bcl2fastq 
     # create a list with the name of the PBS script
@@ -62,18 +63,18 @@ if __name__ == "__main__":
     
     # submit the BCL2FASTQ script to bach scheduler
     logging.warning('Submit BCL2FASTQ_PBS')
-    # BCL2FASTQ_jobid = qsub_dependents(args)
+    BCL2FASTQ_jobid = qsub_dependents(args)
     
-    # # submit the BCBIO scripts once BCL2FASTQ has finished
-    # logging.warning('Submit BCBIO_PBS')
-    
-    # list_jobIds=[]
-    # # submit set of BCBIO jobs. A job per sampleId included in the SampleSheet
-    # for i in range(1, len(sheetDict)):
-    #     scriptName = "runBCBIO_" +`i`+".pbs"
-    #     args=[scriptName]
-    #     # store the jobIds in a list. They will not get executed until BCL2FASTQ has finished
-    #     list_jobIds.append( qsub_dependents(args,BCL2FASTQ_jobid))
+    # submit the BCBIO scripts once BCL2FASTQ has finished
+    logging.warning('Submit BCBIO_PBS')
+
+    list_jobIds=[]
+     # submit set of BCBIO jobs. A job per sampleId included in the SampleSheet
+    for i in range(1, numLanes):
+        scriptName = "runBCBIO_" +`i`+".pbs"
+        args=[scriptName]
+         # store the jobIds in a list. They will not get executed until BCL2FASTQ has finished
+        list_jobIds.append( qsub_dependents(args,BCL2FASTQ_jobid))
+         
+    logging.warning('Submit BCBIO_PBS')
         
-    # logging.warning('Submit BCBIO_PBS')
-    
