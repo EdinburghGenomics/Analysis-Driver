@@ -44,7 +44,7 @@ if __name__ == "__main__":
 
     # create BCBIO PBS scripts
     logging.warning('Creating BCBIO PBS scripts')
-#    bcbio_loop(sheetDict, inputDirectory)
+    bcbio_loop(sheetDict, inputDirectory, projectName+"_out")
     
     # get into pbs directory
     os.chdir(projectName+"_out"+"/pbs")
