@@ -48,17 +48,18 @@ def bcbio_PBS( k, v, inputDirectory, projectName, sampleProject):
     # TODO: check the output contains "/Data/Intensities/BaseCalls"
     #BASE_PATH= inputDirectory +"/"+ sampleProject+"/"+sampleID  #+"/Data/Intensities/BaseCalls"
     BASE_PATH="../Unaligned"+"/"+ sampleProject+"/"+sampleID
-    FASTQ1 = BASE_PATH +"/"+str(sampleName)+"_S"+str(pos)+"_L00"+str(lane)+"_R1_001"
-    FASTQ2 = BASE_PATH +"/"+str(sampleName)+"_S"+str(pos)+"_L00"+str(lane)+"_R2_001"
+    FASTQ1 = BASE_PATH +"/"+str(sampleName)+"_S"+str(pos)+"_L00"+str(lane)+"_R1_001.fastq.gz"
+    FASTQ2 = BASE_PATH +"/"+str(sampleName)+"_S"+str(pos)+"_L00"+str(lane)+"_R2_001.fastq.gz"
                 
     fo.write("\n\n");
     
     # path to BCBIO
+    BCBIO_HOME="/home/U008/lcebaman/bcbio/bin"
+    BCBIO=BCBIO_HOME+"/bcbio_nextgen.py"
+    FASTQC=BCBIO_HOME+"/fastq"
 
-    BCBIO="/home/U008/lcebaman/bcbio/bin/bcbio_nextgen.py"
     projFlags ="-w template gatk-variant"
-    PROJECT_RUN = BCBIO +" "+ projFlags +" "+ sampleName +"_"+lane +" "+ FASTQ1+".fastq.gz" +" "+ \
-        FASTQ2+".fastq.gz"
+    PROJECT_RUN = BCBIO +" "+ projFlags +" "+ sampleName +"_"+lane +" "+ FASTQ1 +" "+ FASTQ2
      
     # generate project to run bcbio
     fo.write(PROJECT_RUN);
@@ -68,7 +69,15 @@ def bcbio_PBS( k, v, inputDirectory, projectName, sampleProject):
         "--workdir" +" "+ sampleName+"_"+lane +"/work"
 
     fo.write(BCBIO_RUN);
-    fo.write("\n");
+    
+    fo.write("\n\n");
+    fastqArgs = FASTQC + " " + "--nogroup -t 16"+ " -q "+ FASTQ1 + "-o " + BASE_PATH
+    fo.write(fastqArgs);
+    fo.write("\n\n");
+    fastqArgs = FASTQC + " " + "--nogroup -t 16"+ " -q "+ FASTQ2 + "-o " + BASE_PATH
+    fo.write(fastqArgs);
+
+    fo.write("\n\n");
      
     # close the PBS script
     fo.close();
