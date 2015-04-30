@@ -46,8 +46,8 @@ def bcbio_PBS( k, v, inputDirectory, projectName, sampleProject):
     
     # base path to the BCL output
     # TODO: check the output contains "/Data/Intensities/BaseCalls"
-    BASE_PATH= inputDirectory +"/"+ sampleProject+"/"+sampleID  #+"/Data/Intensities/BaseCalls"
-    
+    #BASE_PATH= inputDirectory +"/"+ sampleProject+"/"+sampleID  #+"/Data/Intensities/BaseCalls"
+    BASE_PATH="../Unaligned"+"/"+ sampleProject+"/"+sampleID
     FASTQ1 = BASE_PATH +"/"+str(sampleName)+"_S"+str(pos)+"_L00"+str(lane)+"_R1_001"
     FASTQ2 = BASE_PATH +"/"+str(sampleName)+"_S"+str(pos)+"_L00"+str(lane)+"_R2_001"
                 
