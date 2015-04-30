@@ -22,10 +22,10 @@ def generateMask(mask):
 #Create the PBS script responsible for running BCL2FASTQ
 #INPUT: A mask list
 
-def bcl2fastq_PBS(mask,scriptName,projectName,inputDirectory):
+def bcl2fastq_PBS(mask, scriptName, projectName, inputDirectory):
     # create a PBS script to run BCL2FASTQ
-    name = projectName+"/pbs/"+scriptName
-    fo = open(name, "wb")
+    PBSname = projectName+"/pbs/"+scriptName
+    fo = open(PBSname, "wb")
 
     fo.write("#!/bin/bash\n");
     # walltime needed
@@ -56,11 +56,19 @@ def bcl2fastq_PBS(mask,scriptName,projectName,inputDirectory):
     
     # TODO: include the right bcl2fast command
     # bash command to run bcl2fastq 
-    fo.write("dd if=/dev/zero of=/scratch/U008/lcebaman/test.bla  bs=32768 count=100000");
-    #fo.write("bcbl2fastq");
-    #fo.write(" ");
-    #fo.write(inputOpt);
-    #fo.write(" ");
+    #fo.write("dd if=/dev/zero of=/scratch/U008/lcebaman/test.bla  bs=32768 count=100000");
+    BCLPATH = '/scratch/U008/edingen/bin/bcl2fastq_2_16/bin/bcl2fastq'
+    fo.write(BCLPATH);
+    fo.write(" ");
+    fo.write(inputOpt);
+    fo.write(" ");
+    outputOpt = "-o ../Unaligned"
+    fo.write(outputOpt);
+    fo.write(" ");
+    sampleSheetPath=inputDirectory+"/SampleSheet.csv"
+    sampleOpt ="--sample-sheet "+ sampleSheetPath
+    fo.write(sampleOpt);
+    fo.write(" ");
     #fo.write(maskString);
 
     
