@@ -1,29 +1,37 @@
-Scripts information
+# Scripts information #
 ---------------------
 
-IMPORTS
+*driver.py ->  Main script with calls to the different scripts located at imports directory.
+
+## IMPORTS ##
 =======
 Directory containing python files with functions used in the main program.
 The files included are:
 
-*xmlparsing.py -> Parse RunInfo.xml which contains information of the mask
-required to run BCL2FASTQ
+*args.py -> Parses the arguments of the script. At the moment it only expects the path to a sequencing data.
 
-*csvparsing.py -> Parse a SampleSheet.csv file needed to run BCL2FASTQ
+*checkFinishRun.py -> Checks when a file has been created indicating the end of a run (Not used at the moment).
 
-*checkFinishRun.py -> Check that a file exists and returns TRUE or FALSE
-according to that. It will be used to check when a run has finished since
-specific files are created indicating the end of a run.
+*getFastqFiles.py -> returns a list of all fastq files in a given path (Not used at the moment).a
 
-*createBCL2FASTQ_PBS.py -> Create a PBS script with all the required information to
-run BCL2FASTQ 
+*xmlparsing.py -> Parses RunInfo.xml which contains information of the mask required to run BCL2FASTQ
 
-*createBCBIO_PBS.py -> Create a PBS script with all the required information to
-run BCBIO 
+*csvparsing.py -> Parses a SampleSheet.csv file needed to run BCL2FASTQ. The script expects to find a SampleSheet.csv file within the input directory
 
-PBS
-===
-Directory where PBS scripts are created and later on submitted to queuing
-system
+*makeProject.py -> Creates a local project where all the temp files and results will be located before sending them back to the RDF.
+
+*createBCL2FASTQ_PBS.py -> Creates a PBS script with all the required information to run BCL2FASTQ.
+
+*createBCBIO_PBS.py -> Create a PBS script with all the required information to run BCBIO. 
+
+*qsub_dependents.py
 
 
+# HOWTO #
+
+
+```
+#!python
+
+driver.py 
+```
