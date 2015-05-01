@@ -1,10 +1,11 @@
 # Scripts information #
 ---------------------
 
-*driver.py ->  Main script with calls to the different scripts located at imports directory.
+**driver.py** ->  Main script with calls to the different scripts located at imports directory.
 
 ## IMPORTS ##
-=======
+==============
+
 Directory containing python files with functions used in the main program.
 The files included are:
 
@@ -29,9 +30,14 @@ The files included are:
 
 # HOWTO #
 
+The `driver.py` script expects an inputh path:
 
-```
-#!python
+> python driver.py -i /path/to/sequencing/data
 
-driver.py 
-```
+In that path, the scripts will need to find `RunInfo.xml` and `SampleSheet.csv` which contain information related the runs. A working directory, named after the sequencing data, will be created on the local path from 
+where the script is executed, therefore it requires writing permissions. Within that new directory, two more directories will be created:
+1. Unaligned
+2. pbs
+
+The `Unaligned` directory will contain the output of running `bcl2fastq` and `fastqc`, whereas `pbs` will contain the pbs scripts created to run `bcl2fastq` and `bcbio`. In addition, a `bcbio` project
+per sample will also be created. 
