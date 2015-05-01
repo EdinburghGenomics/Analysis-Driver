@@ -30,7 +30,7 @@ The files included are:
 
 # HOWTO #
 
-The `driver.py` script expects an inputh path:
+The `driver.py` script expects an input path:
 
 > python driver.py -i /path/to/sequencing/data
 
