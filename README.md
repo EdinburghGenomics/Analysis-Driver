@@ -29,7 +29,7 @@ The files included are:
 
 
 # HOWTO #
-==============
+---------------------
 
 The `driver.py` script expects an path to an input direct:
 
