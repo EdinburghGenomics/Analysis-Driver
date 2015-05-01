@@ -15,15 +15,15 @@ The files included are:
 
 **getFastqFiles.py** -> returns a list of all fastq files in a given path (Not used at the moment).a
 
-**xmlparsing.py** -> Parses RunInfo.xml which contains information of the mask required to run BCL2FASTQ
+**xmlparsing.py** -> Parses RunInfo.xml which contains information of the mask required to run `bcl2fastq`.
 
-**csvparsing.py** -> Parses a SampleSheet.csv file needed to run BCL2FASTQ. The script expects to find a SampleSheet.csv file within the input directory
+**csvparsing.py** -> Parses a SampleSheet.csv file needed to run `bcl2fastq`. The script expects to find a SampleSheet.csv file within the input directory
 
 **makeProject.py** -> Creates a local project where all the temp files and results will be located before sending them back to the RDF.
 
-**createBCL2FASTQ_PBS.py** -> Creates a PBS script with all the required information to run BCL2FASTQ.
+**createBCL2FASTQ_PBS.py** -> Creates a PBS script with all the required information to run `bcl2fastq`.
 
-**createBCBIO_PBS.py** -> Create a PBS script with all the required information to run BCBIO. 
+**createBCBIO_PBS.py** -> Create a PBS script with all the required information to run `bcbio`. 
 
 **qsub_dependents.py** -> Submits jobs to the queue 
 
