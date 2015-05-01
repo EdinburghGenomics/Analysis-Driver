@@ -29,6 +29,7 @@ The files included are:
 
 
 # HOWTO #
+==============
 
 The `driver.py` script expects an input path:
 
@@ -36,6 +37,7 @@ The `driver.py` script expects an input path:
 
 In that path, the scripts will need to find `RunInfo.xml` and `SampleSheet.csv` which contain information related the runs. A working directory, named after the sequencing data, will be created on the local path from 
 where the script is executed, therefore it requires writing permissions. Within that new directory, two more directories will be created:
+
 1. Unaligned
 2. pbs
 
