@@ -52,7 +52,11 @@ def bcbio_PBS( k, v, inputDirectory, projectName, sampleProject):
     FASTQ2 = BASE_PATH +"/"+str(sampleName)+"_S"+str(pos)+"_L00"+str(lane)+"_R2_001.fastq.gz"
                 
     fo.write("\n\n");
-    
+
+    #path to java
+    fo.write("export JAVA_HOME=/home/U008/lcebaman/jdk1.7.0_76/");
+    fo.write("export JAVA_BINDIR=/home/U008/lcebaman/jdk1.7.0_76/bin");
+
     # path to BCBIO
     BCBIO_HOME="/home/U008/lcebaman/bcbio/bin"
     BCBIO=BCBIO_HOME+"/bcbio_nextgen.py"
