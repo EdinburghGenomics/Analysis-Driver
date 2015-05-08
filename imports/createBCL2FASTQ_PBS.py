@@ -29,7 +29,7 @@ def bcl2fastq_PBS(mask, scriptName, projectName, inputDirectory):
 
     fo.write("#!/bin/bash\n");
     # walltime needed
-    fo.write( "#PBS -l walltime=03:00:00\n");
+    fo.write( "#PBS -l walltime=24:00:00\n");
 
     # PBS resources
     fo.write("#PBS -l ncpus=12,mem=24gb\n");
