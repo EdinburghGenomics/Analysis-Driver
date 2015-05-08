@@ -23,7 +23,7 @@ The files included are:
 
 **createBCL2FASTQ_PBS.py** -> Creates a PBS script with all the required information to run `bcl2fastq`.
 
-**createBCBIO_PBS.py** -> Create a PBS script with all the required information to run `bcbio`. 
+**createBCBIO_PBS.py** -> Create a PBS script with all the required information to run `bcbio`. This script contais hardcoded paths such as Java or bcbio paths. Make sure they are pointing to the right path for you.
 
 **qsub_dependents.py** -> Submits jobs to the queue 
 
