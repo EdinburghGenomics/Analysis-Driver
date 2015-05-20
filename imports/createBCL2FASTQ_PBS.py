@@ -1,23 +1,42 @@
 #!/opt/anaconda/bin/python
 
 #Generate the mask as it is understood by BCL2FASTQ
-# INPUT: A mask list with made of pairs
+# INPUT: A mask list with made of triplets
 # OUTPUT: Mask string ready for BCL2FASTQ
+#
+# The string is built in reverse, so we can easily remove the last base
 
 def generateMask(mask):
     masklen = len(mask)
 
-    chain=''
-    # mask is a list of pairs, so we just need length/2
-    for i in xrange(0,(masklen/2)):
-        j =i*2
-        # need to add a comma if not the last
-        if (j != masklen-2):
-            chain += mask[j]+mask[j+1]+','
-        else:
-            chain += mask[j]+mask[j+1]
+    chain=[]
 
-    return chain
+    # mask is a list of triplets, so we reverse step in threes
+    currentReadNumber=0
+    for i in xrange(masklen-3,-1,-3):
+
+        readNumber=mask[i]
+        numCycles=mask[i+1]
+        isIndexedRead=mask[i+2]
+
+        # build the mask string in reverse
+        endChar=''
+        if (readNumber != currentReadNumber):
+            # New read
+            currentReadNumber=readNumber
+            numCycles=str(int(numCycles)-1)
+            endChar='n'
+        
+        maskPart=numCycles+endChar
+        
+        if(isIndexedRead.lower() == 'n'):
+            maskPart='y'+maskPart
+        else:
+            maskPart='i'+maskPart
+
+        chain.append(maskPart)
+
+    return ','.join(chain[::-1])
 
 #Create the PBS script responsible for running BCL2FASTQ
 #INPUT: A mask list
@@ -79,7 +98,7 @@ def bcl2fastq_PBS(mask, scriptName, projectName, inputDirectory):
 #Unit Testing
 
 # generate fake masklist
-#masklist=['128','Y','8','N','128','Y']
+#masklist=['1','128','Y','2','8','N','3','128','Y']
 # call to generate string
 #maskString = generateMask(masklist)
 #print maskString
