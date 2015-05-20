@@ -61,7 +61,7 @@ if __name__ == "__main__":
 
     args=[pbsName]
     
-    # submit the BCL2FASTQ script to bach scheduler
+    # submit the BCL2FASTQ script to batch scheduler
     logging.warning('Submit BCL2FASTQ_PBS')
     BCL2FASTQ_jobid = qsub_dependents(args)
     
