@@ -2,9 +2,10 @@
 
 # reads the values needed to create the mask.
 # Input: Full path to RunInfo.xml
-# Outout: Mask read from RunInfo.xml. The mask is made of pair values which indicate:
-#         1 - NumCycles
-#         2-  IsIndexedRead
+# Outout: Mask read from RunInfo.xml. The mask is made of trio values which indicate:
+#         1 - Number (Read number)
+#         2 - NumCycles
+#         3 - IsIndexedRead
 
 def getMask(file_path):
 
@@ -12,15 +13,16 @@ def getMask(file_path):
      import os,sys
 
      # List of information required to be used as the mask in bcl2fastq
-     # Groups of two elements: NumCyles and IsIndexedRead will be stored consecutively
+     # Groups of three elements: (Read) Number, NumCyles and IsIndexedRead will be stored consecutively
      mask=[]
      filename=file_path+"/RunInfo.xml"
      # get the tree of the XML file
      tree = ET.parse(filename).getroot()
      # we are only intrested in the the Reads section
      object = tree.find('Run/Reads')
-     #loop over all child elements of Reads storing(in order) NUmCycles and IsIndexedRead info
+     #loop over all child elements of Reads storing (in order): (read) Number, NumCycles, and IsIndexedRead
      for i in  object.getchildren():
+          mask.append(i.get('Number'))
           mask.append(i.get('NumCycles'))
           mask.append(i.get('IsIndexedRead'))
      
