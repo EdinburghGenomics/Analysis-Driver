@@ -1,80 +1,77 @@
 #!/opt/anaconda/bin/python
 
-#This program expects an input directory. From there, we will run BCL2FASTQ and BCBIO
-import sys, getopt
-import os,logging
-sys.path.append('imports')
-
-from xmlparsing import getMask
-from csvparsing import readSampleSheet,getSampleProject
-from createBCL2FASTQ_PBS import generateMask,bcl2fastq_PBS
-from createBCBIO_PBS import bcbio_loop
-from subprocess import call
-from qsub_dependents import qsub,qsub_dependents
-from args import parsArgs
+# This program expects an input directory. From there, we will run BCL2FASTQ and BCBIO
+import sys
+import os
+import logging
 from datetime import datetime
-from makeProject import makeProject, getDirName
 
-if __name__ == "__main__":
+from utils import run_info_parser
+from utils import sample_sheet_parser
+from utils import create_bcl2fastq_PBS
+from utils import create_bcbio_PBS
+from utils import qsub_dependents
+from utils import args
+from utils import make_project
 
-    #open logging file and configure it with date and time stamp
-    logfileName = 'log_'+datetime.now().strftime("%Y%m%d-%H%M%S")+'.log'
-    logging.basicConfig(filename=logfileName,format='%(asctime)s %(message)s', datefmt='[%d/%m/%Y-%H:%M:%S]')
+
+if __name__ == '__main__':
+
+    # Open logging file and configure it with date and time stamps
+    log_file_name = 'log_' + datetime.now().strftime('%Y%m%d-%H%M%S') + '.log'
+    logging.basicConfig(filename=log_file_name, format='%(asctime)s %(message)s', datefmt='[%d/%m/%Y-%H:%M:%S]')
 
     # parse the input directory
-    inputPath = parsArgs(sys.argv[1:])
+    input_path = args.get_file_name(sys.argv[1:])
     
-    logging.warning('Reading bcl data from %s ',inputPath)
+    logging.info('Reading bcl data from ' + input_path)
 
     # create project directory
-    projectName = getDirName(inputPath)  
-    workDir = projectName+"_work"
-    makeProject(workDir)
+    project_name = make_project.get_dirname(input_path)
+    work_dir = project_name + '_work'
+    make_project.make_project(work_dir)
 
     # Read RunInfo.xml
-    logging.warning('Reading the mask from %s ',inputPath)
-    mask = getMask(inputPath)
+    logging.info('Reading the mask from ' + input_path)
+    mask = run_info_parser.get_mask(input_path)
     
     # Read SampleSheet.csv
-    logging.warning('Reading SampleSheet from %s ',inputPath)
-    numLanes,sheetDict = readSampleSheet(inputPath)
-    print numLanes
-    # get sampleProject
-    sampleProject = getSampleProject(sheetDict)
+    logging.info('Reading SampleSheet from %s ' + input_path)
+    num_lanes, sheet_dict = sample_sheet_parser.read_sample_sheet(input_path)
+    logging.info('Lanes: ' + num_lanes)
+    # get sample_project
+    sample_project = sample_sheet_parser.get_sample_project(sheet_dict)
 
     # Create BCL2FASTQ PBS script
-    logging.warning('Create BCL2FASTQ pbs script')
-    pbsName = 'BCL_'+ projectName +'.pbs'
-    print pbsName
+    logging.info('Creating BCL2FASTQ pbs script')
+    psb_name = 'BCL_' + project_name + '.pbs'
+    logging.info('name: ' + psb_name)
 
-    bcl2fastq_PBS(mask, pbsName, workDir, inputPath)
+    create_bcl2fastq_PBS.bcl2fastq_PBS(mask, psb_name, work_dir, input_path)
 
     # create BCBIO PBS scripts
-    logging.warning('Creating BCBIO PBS scripts')
-    bcbio_loop(sheetDict, inputPath, workDir, sampleProject)
+    logging.info('Creating BCBIO PBS scripts')
+    create_bcbio_PBS.bcbio_loop(sheet_dict, input_path, work_dir, sample_project)
     
-     # get into pbs directory
-    os.chdir(workDir+"/pbs")
+    os.chdir(work_dir + '/pbs')
     
     # submit bcl2fastq 
     # create a list with the name of the PBS script
-
-    args=[pbsName]
+    args = [psb_name]
     
     # submit the BCL2FASTQ script to batch scheduler
-    logging.warning('Submit BCL2FASTQ_PBS')
-    BCL2FASTQ_jobid = qsub_dependents(args)
+    logging.info('Submitting BCL2FASTQ_PBS')
+    bcl2fastq_job_id = qsub_dependents.qsub_dependents(args)
     
     # submit the BCBIO scripts once BCL2FASTQ has finished
-    logging.warning('Submit BCBIO_PBS')
+    logging.info('Submitting BCBIO_PBS')
 
-    list_jobIds=[]
-     # submit set of BCBIO jobs. A job per sampleId included in the SampleSheet
-    for i in range(1, numLanes):
-        scriptName = "runBCBIO_" +`i`+".pbs"
-        args=[scriptName]
-         # store the jobIds in a list. They will not get executed until BCL2FASTQ has finished
-        list_jobIds.append( qsub_dependents(args,BCL2FASTQ_jobid))
+    job_ids = []
+    # submit set of BCBIO jobs. A job per sampleId included in the SampleSheet
+    for i in range(1, num_lanes):
+        script_name = 'runBCBIO_' + str(i) + '.pbs'
+        args = [script_name]
+        # store the jobIds in a list. They will not get executed until BCL2FASTQ has finished
+        job_ids.append(qsub_dependents.qsub_dependents(args, bcl2fastq_job_id))
          
-    logging.warning('Submit BCBIO_PBS')
-        
+    logging.info('Submitted BCBIO_PBS')

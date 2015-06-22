@@ -1,4 +1,7 @@
+# EPCC
 Luis  Cebamanos
 Kenton D'Mellow
 Ally Hume
 
+# Edinburgh Genomics
+Murray Wham
