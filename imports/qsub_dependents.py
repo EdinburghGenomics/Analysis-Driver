@@ -33,8 +33,7 @@
 # TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-"""
-usage: %prog [options] -- [qsub-options] FILE
+"""usage: %prog [options] -- [qsub-options] FILE
 
 Submit a string of dependent jobs through the PBS/TORQUE, Gridengine,
 (GE), or SLURM queuing system. Either set --number or provide BOTH the
@@ -102,7 +101,7 @@ def qsub(args, queuing_system=DEFAULT_QUEUING_SYSTEM):
         base_cmd = "qsub"
 
     cmd = [base_cmd] + args
-    print(">> " + " ".join(cmd))
+    print ">> " + " ".join(cmd)
     p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     output, errmsg = p.communicate()
     if p.returncode != 0:
@@ -183,23 +182,23 @@ if __name__ == "__main__":
     if opts.performance and opts.walltime and opts.runtime:
         days = opts.runtime/float(opts.performance)
         num_jobs = math.ceil(days*24/opts.walltime)
-        print("-- Will run %d jobs performing at %g ns/d for desired run time %g ns." % (num_jobs, opts.performance, opts.runtime))
-        print("-- Expected real time (excluding waiting): %g days" % days)
+        print "-- Will run %d jobs performing at %g ns/d for desired run time %g ns." % (num_jobs, opts.performance, opts.runtime)
+        print "-- Expected real time (excluding waiting): %g days" % days
     else:
         num_jobs = opts.number
-        print("-- Will run %d jobs" % num_jobs)
+        print "-- Will run %d jobs" % num_jobs
 
     queuing_system = detect_queuing_system()
     if queuing_system is None:
         queuing_system = DEFAULT_QUEUING_SYSTEM
-        print("WW Could not determine queuing system, choosing the default")
-    print("-- Using submission syntax for queuing system %r" % queuing_system)
+        print "WW Could not determine queuing system, choosing the default"
+    print "-- Using submission syntax for queuing system %r" % queuing_system
 
     # launch the first job (if options.jobid is not None then it will depend on jobid)
     jobid = qsub_dependents(args, jobid=opts.jobid, queuing_system=queuing_system)
 
     # all further jobs
-    for ijob in range(1, int(num_jobs)):
+    for ijob in xrange(1, int(num_jobs)):
         jobid = qsub_dependents(args, jobid=jobid, queuing_system=queuing_system)
 
-    print("-- launched %d jobs" % num_jobs)
+    print "-- launched %d jobs" % num_jobs
