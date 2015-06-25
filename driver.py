@@ -1,81 +1,74 @@
 #!/opt/anaconda/bin/python
 
-# This program expects an input directory. From there, we will run BCL2FASTQ and BCBIO
-import sys
-import os
-import logging
+# Runs BCL2fastq and then fastqc on a given run directory
+
+import sys, getopt
+import os,logging
+import argparse
+sys.path.append('imports')
+
+from xmlparsing import getMask
+from csvparsing import readSampleSheet,getSampleProject
+from createBCL2FASTQ_PBS import generateMask,bcl2fastq_PBS
+from createFASTQC_PBS import fastqc_PBS
+from subprocess import call
+from qsub_dependents import qsub,qsub_dependents
 from datetime import datetime
 
-from utils import run_info_parsing
-from utils import sample_sheet_parsing
-from utils import create_bcl2fastq_PBS
-from utils import create_bcbio_PBS
-from utils import qsub_dependents
-from utils import args
-from utils import make_project
+if __name__ == "__main__":
 
+    # parse the input directory /abs/path/to/INPUT_DATA/runname
+    parser = argparse.ArgumentParser()
+    parser.add_argument('dirname')
+    cmdargs = parser.parse_args()
 
-if __name__ == '__main__':
-
-    log_file = 'log_' + datetime.now().strftime('%Y%m%d-%H%M%S') + '.log'
-    logging.basicConfig(
-        filename=log_file,
-        level=logging.DEBUG,
-        format='%(asctime)s %(message)s',
-        datefmt='[%d/%m/%Y-%H:%M:%S]'
-    )
-    logger = logging.getLogger('AnalysisDriver')
-
-    # parse the input directory
-    input_path = args.parse_args(sys.argv[1:])
-    
-    logger.info('Reading bcl data from %s ', input_path)
+    # We keep all paths with trailing '/' remove and add to ensure it is there
+    inputPath = cmdargs.dirname.rstrip('/')+'/'
+    runName   = os.path.basename(inputPath.rstrip('/')) 
+    fastqPath = os.path.normpath(inputPath+'../../fastq/'+runName)+'/'
+    jobsPath  = os.path.normpath(inputPath+'../../jobs/'+runName)+'/'
 
     # create project directory
-    project_name = make_project.get_dir_name(input_path)
-    work_dir = project_name + '_work'
-    make_project.make_project(work_dir)
+    if not os.path.exists(fastqPath): os.makedirs(fastqPath)
+    if not os.path.exists(jobsPath): os.makedirs(jobsPath)
 
-    logger.info('Reading the mask from %s ', input_path)
-    mask = run_info_parsing.get_mask(input_path)  # read RunInfo.xml
+
+    #open logging file and configure it with date and time stamp
+    logfileName = jobsPath+'driver_'+datetime.now().strftime("%Y%m%d-%H%M%S")+'.log'
+    logging.basicConfig(filename=logfileName,format='%(asctime)s %(message)s',
+                        datefmt='[%d/%m/%Y-%H:%M:%S]',level=logging.INFO)
+    logging.info('Reading bcl data from %s ',inputPath)
+    logging.info('Fastq path is %s ',fastqPath)
+
+
+    # Read RunInfo.xml
+    logging.info('Reading the reads info from %s ',inputPath)
+    readDetails = getMask(inputPath)
+    logging.info('Read details [ReadNumber, NumCycles, IsIndexedRead, ...] are %s ',readDetails)
     
-    logger.info('Reading SampleSheet from %s', input_path)
-    num_lanes, sheet_dict = sample_sheet_parsing.read_sample_sheet(input_path)  # Read SampleSheet.csv
-    logger.info(num_lanes)
-
-    sample_project = sample_sheet_parsing.get_sample_project(sheet_dict)
-
     # Create BCL2FASTQ PBS script
-    logger.info('Create BCL2FASTQ pbs script')
-    pbs_name = 'BCL_' + project_name + '.pbs'
-    logger.info('PBS name: ' + pbs_name)
+    logging.info('Create BCL2FASTQ pbs script')
+    bcl2fastqPbsName = 'BCL2FASTQ_' + runName + '.pbs'
+    logging.info('bcl2fastq PBS File is %s ',bcl2fastqPbsName)
 
-    create_bcl2fastq_PBS.bcl2fastq_PBS(mask, pbs_name, work_dir, input_path)
+    bcl2fastq_PBS(readDetails, jobsPath+bcl2fastqPbsName, inputPath, fastqPath)
 
-    # create BCBIO PBS scripts
-    logger.info('Creating BCBIO PBS scripts')
-    create_bcbio_PBS.bcbio_loop(sheet_dict, input_path, work_dir, sample_project)
-    
-    os.chdir(work_dir + '/pbs')
-    
-    # submit bcl2fastq 
-    # create a list with the name of the PBS script
-    args = [pbs_name]
+    # Create the fastqc PBS script
+    logging.info('Create fastqc PBS script')
+    fastqcPbsName = 'FASTQC_' +runName + '.pbs'
+    logging.info('fastqc PBS File is %s ' , fastqcPbsName)
+
+    fastqc_PBS(jobsPath+fastqcPbsName, fastqPath)
+
+    # get into pbs directory
+    os.chdir(jobsPath)
     
     # submit the BCL2FASTQ script to batch scheduler
-    logger.info('Submitting BCL2FASTQ_PBS')
-    BCL2FASTQ_jobid = qsub_dependents.qsub_dependents(args)
+    logging.info('Submitting: %s',jobsPath+bcl2fastqPbsName)
+    BCL2FASTQ_jobid = qsub([jobsPath+bcl2fastqPbsName])
+    logging.info('BCL2FASTQ jobId: %s',BCL2FASTQ_jobid)
     
-    # submit the BCBIO scripts once BCL2FASTQ has finished
-    logger.info('Submitting BCBIO_PBS')
-
-    list_jobIds = []
-    # submit set of BCBIO jobs. A job per sample ID included in the SampleSheet
-    for i in range(1, num_lanes):
-        script_name = 'runBCBIO_' + str(i) + '.pbs'
-        args = [script_name]
-        # store the job IDs in a list. They will not get executed until BCL2FASTQ has finished
-        list_jobIds.append(qsub_dependents.qsub_dependents(args, BCL2FASTQ_jobid))
-         
-    logger.info('Done')
-
+    # submit the fastqc scrpipt to the batch scheduler
+    logging.info('Submitting: %s',jobsPath+fastqcPbsName)
+    jobid = qsub_dependents([jobsPath+fastqcPbsName], jobid=BCL2FASTQ_jobid)
+    logging.info('FASTQC jobId: %s',jobid)
