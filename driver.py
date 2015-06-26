@@ -11,6 +11,7 @@ from utils import xmlparsing
 from utils import sample_sheet_parser
 from utils import create_bcl2fastq_PBS
 from utils import create_fastqc_PBS
+from utils import create_bcbio_PBS
 from utils import qsub_dependents
 
 
@@ -46,25 +47,36 @@ if __name__ == '__main__':
     logger.info('Create BCL2FASTQ pbs script')
     bcl2fastq_PBS_name = 'BCL2FASTQ_' + run_name + '.pbs'
     logger.info('bcl2fastq PBS File is ' + bcl2fastq_PBS_name)
-
     create_bcl2fastq_PBS.bcl2fastq_PBS(read_details, job_dir+bcl2fastq_PBS_name, args.dirname, fastq_path)
 
     # Create the fastqc PBS script
     logger.info('Create fastqc PBS script')
     fastqc_PBS_name = 'FASTQC_' + run_name + '.pbs'
     logger.info('fastqc PBS File is ' + fastqc_PBS_name)
-
     create_fastqc_PBS.fastqc_PBS(job_dir + fastqc_PBS_name, fastq_path)
+
+    # Write the bcbio PBS script
+    logger.info('Writing bcbio script')
+    bcbio_PBS_name = 'BCBIO_' + run_name + '.pbs'
+    logger.info('bcbio file: ' + bcbio_PBS_name)
+    create_bcbio_PBS.bcbio_PBS(job_dir + bcbio_PBS_name, fastq_path)
 
     os.chdir(job_dir)
     
     # submit the BCL2FASTQ script to batch scheduler
     logger.info('Submitting: ' + job_dir + bcl2fastq_PBS_name)
-    bcl2fastq_jobid = qsub_dependents.qsub([job_dir+bcl2fastq_PBS_name])
+    bcl2fastq_jobid = str(qsub_dependents.qsub([job_dir + bcl2fastq_PBS_name])).lstrip('b\'').rstrip('\'')
     logger.info('BCL2FASTQ jobId: ' + bcl2fastq_jobid)
     
     # submit the fastqc scrpipt to the batch scheduler
-    logger.info('Submitting: %s', job_dir+fastqc_PBS_name)
-    jobid = qsub_dependents.qsub_dependents([job_dir+fastqc_PBS_name], jobid=bcl2fastq_jobid)
-    logger.info('FASTQC jobId: %s', jobid)
+    logger.info('Submitting: ' + job_dir + fastqc_PBS_name)
+    fastqc_jobid = str(qsub_dependents.qsub_dependents([job_dir + fastqc_PBS_name], jobid=bcl2fastq_jobid)).lstrip('b\'').rstrip('\'')
+    logger.info('FASTQC jobId: ' + fastqc_jobid)
+
+    # Submit the bcbio PBS script
+    logger.info('Writing bcbio script')
+    bcbio_jobid = str(qsub_dependents.qsub_dependents([job_dir + bcbio_PBS_name], jobid=fastqc_jobid)).lstrip('b\'').rstrip('\'')
+    logger.info('BCBIO jobId: ' + bcbio_jobid)
+
     logger.info('Done')
+
