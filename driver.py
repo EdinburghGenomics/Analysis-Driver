@@ -35,8 +35,8 @@ if __name__ == '__main__':
     logging.basicConfig(
         filename=log_file, format='%(asctime)s %(message)s', datefmt='[%d/%m/%Y-%H:%M:%S]', level=logging.INFO)
     logger = logging.getLogger('AnalysisDriver')
-    logger.info('Reading bcl data from %s ', args.dirname)
-    logger.info('Fastq path is %s ', fastq_path)
+    logger.info('Reading bcl data from ' + args.dirname)
+    logger.info('Fastq path is ' + fastq_path)
 
     # Read RunInfo.xml
     logger.info('Reading the reads info from ' + args.dirname)
@@ -47,7 +47,7 @@ if __name__ == '__main__':
     logger.info('Create BCL2FASTQ pbs script')
     bcl2fastq_PBS_name = 'BCL2FASTQ_' + run_name + '.pbs'
     logger.info('bcl2fastq PBS File is ' + bcl2fastq_PBS_name)
-    create_bcl2fastq_PBS.bcl2fastq_PBS(read_details, job_dir+bcl2fastq_PBS_name, args.dirname, fastq_path)
+    create_bcl2fastq_PBS.bcl2fastq_PBS(read_details, job_dir + bcl2fastq_PBS_name, args.dirname, fastq_path)
 
     # Create the fastqc PBS script
     logger.info('Create fastqc PBS script')
@@ -59,7 +59,15 @@ if __name__ == '__main__':
     logger.info('Writing bcbio script')
     bcbio_PBS_name = 'BCBIO_' + run_name + '.pbs'
     logger.info('bcbio file: ' + bcbio_PBS_name)
-    create_bcbio_PBS.bcbio_PBS(job_dir + bcbio_PBS_name, fastq_path)
+
+    bcbio_jobs = sample_sheet_parser.read_sample_sheet(args.dirname)
+    print('bcbio jobs:')
+    print(bcbio_jobs)
+    # {
+    #     sample_id: (lane_7, sample_name, position),
+    #     sample_id: (lane_7, sample_name, position)
+    # }
+    create_bcbio_PBS.bcbio_loop(bcbio_jobs, fastq_path, job_dir + bcbio_PBS_name, sample_sheet_parser.get_sample_project(bcbio_jobs))
 
     os.chdir(job_dir)
     

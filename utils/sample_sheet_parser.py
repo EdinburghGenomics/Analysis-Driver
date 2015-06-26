@@ -52,11 +52,21 @@ def read_sample_sheet(file_path):
     # }
 
     for row in tmp_list:
-        d.setdefault(row[1],[]).append([row[0],row[2],first_time[row[1]],row[7]] )
+        sample_id = row[1]
+        lane = row[0]
+        sample_name = row[2]
+        first_time_pos = first_time[row[1]]
+        project_name = row[7]
+        d.setdefault(sample_id, []).append([lane, sample_name, first_time_pos, project_name])
 
-    return len(tmp_list), d
+    return d
 
 
 def get_sample_project(d):
     #  the first one for instance
     return d.values()[0][0][3]
+
+
+if __name__ == '__main__':
+    print(read_sample_sheet('/home/U008/mwham/input_data/150424_E00307_0017_AH3KGTCCXX'))
+

@@ -1,27 +1,29 @@
-class Script:
-    def write(self, arg):
-        print(arg)
-
-def bcbio_PBS(k, v, input_dir, project_name, sample_project):
+def bcbio_PBS(k, v, input_dir, pbs_name, sample_project):
     """
     Writes out a PBS Bash script to run bcbio
     :param k: key - sample ID
     :param v: values -> tuple(lane, position, sample_name)
     :param input_dir
-    :param project_name
+    :param pbs_name
     :param sample_project
     :return:
     """
 
     # create a PBS script to run BCL2FASTQ
     sample_name = str(v[1])
-    lane = str(v[0])
-    pos = str(v[2])
-    sample_id = str(k)
+    if v[0]:
+        lane = '_L00' + v[0]
+    else:
+        lane = ''
 
-    file_name = project_name + '/pbs/runBCBIO_' + lane + '.pbs'
-    #f = open(file_name, 'w')
-    f = Script()
+    if v[2]:
+        pos = '_S' + v[0]
+    else:
+        pos = ''
+
+    sample_id = k
+
+    f = open(pbs_name, 'w')
 
     f.write('#!/bin/bash\n')
 
@@ -30,7 +32,7 @@ def bcbio_PBS(k, v, input_dir, project_name, sample_project):
     f.write('#PBS -N bcbio\n')  # jobname
     f.write('#PBS -q uv2000\n')  # queue name
     f.write('#PBS -j oe\n')  # input/output
-    f.write('#PBS -o ' + sample_name + '_' + lane)  # output file name
+    f.write('#PBS -o ' + sample_name + lane)  # output file name
     f.write('\n\n')
 
     f.write('cd $PBS_O_WORKDIR\n\n')  # working directory
@@ -49,9 +51,9 @@ def bcbio_PBS(k, v, input_dir, project_name, sample_project):
     # base path to the BCL output
     # TODO: check the output contains '/Data/Intensities/BaseCalls'
     # base_path = inputDirectory + '/' + sampleProject + '/' + sample_id  # +'/Data/Intensities/BaseCalls'
-    base_path = '../Unaligned/' + sample_project + '/' + sample_id
-    fastq1 = base_path + '/' + sample_name + '_S' + pos + '_L00' + lane + '_R1_001.fastq.gz'
-    fastq2 = base_path + '/' + sample_name + '_S' + pos + '_L00' + lane + '_R2_001.fastq.gz'
+    base_path = '../fastq/' + sample_project + '/' + sample_id
+    fastq1 = base_path + '/' + sample_name + pos + lane + '_R1_001.fastq.gz'
+    fastq2 = base_path + '/' + sample_name + pos + lane + '_R2_001.fastq.gz'
 
     bcbio_template = bcbio + ' -w template gatk-variant ' + sample_name + '_' + lane + ' ' + fastq1 + ' ' + fastq2
 
@@ -71,34 +73,12 @@ def bcbio_PBS(k, v, input_dir, project_name, sample_project):
 
     f.close()
 
+
 # Creates a pbs script per pair of samples
-def bcbio_loop(d, input_dir, project_name, sample_project):
+def bcbio_loop(d, input_dir, pbs_name, sample_project):
     for k, v in d.items():
         for j in v:
             # generate a PBS script per n
-            bcbio_PBS(k, j, input_dir, project_name, sample_project)
+            bcbio_PBS(k, j, input_dir, pbs_name, sample_project)
 
-def fastqc_PBS(script_name, input_directory):
-    """
-    Write out a PBS Bash script to run fastqc on all fastq files in the specified directory
-    :param script_name: Name of pbs file to create
-    :param input_directory: full path to the dir to process
-    :return:
-    """
-
-    fo = open(script_name, 'w')
-
-    fo.write('#!/bin/bash\n')
-
-    fo.write('#PBS -l walltime=06:00:00\n')  # wall time
-    fo.write('#PBS -l ncpus=8,mem=3gb\n')  # PBS resources
-    fo.write('#PBS -q uv2000\n')  # queue name
-
-    # find FASTQ files
-    fo.write('FASTQ_FILES=`find ' + input_directory + ' -name \'*.fastq.gz\'`\n')
-
-    # run fastqc
-    fo.write('fastqc --nogroup -t 8 -q $FASTQ_FILES\n')
-
-    fo.close()
 
