@@ -6,6 +6,7 @@ import os
 import logging
 import argparse
 from datetime import datetime
+import subprocess
 
 from utils import xmlparsing
 from utils import sample_sheet_parser
@@ -14,10 +15,10 @@ from utils import create_fastqc_PBS
 from utils import create_bcbio_PBS
 from utils import qsub_dependents
 
-send_qsubs = True
+job_execution = 'pbs'  # 'pbs' 'local' None
 
 
-if __name__ == '__main__':
+def main():
 
     # parse the input directory /abs/path/to/INPUT_DATA/run_name
     parser = argparse.ArgumentParser()
@@ -78,7 +79,8 @@ if __name__ == '__main__':
     # }
 
     # pbs_name, bcbio_run_folder, run_id, lanes, sample_name='Unassigned_S0'
-    bcbio_lanes = [x[0] for x in bcbio_jobs.values()[0]]
+    print(bcbio_jobs.values())
+    bcbio_lanes = [x[0] for x in list(bcbio_jobs.values())[0]]
     for lane in bcbio_lanes:
         create_bcbio_PBS.bcbio_PBS(
             job_dir + bcbio_PBS_name,
@@ -91,25 +93,23 @@ if __name__ == '__main__':
     os.chdir(job_dir)
     
     # submit the BCL2FASTQ script to batch scheduler
-    logger.info('Submitting: ' + job_dir + bcl2fastq_PBS_name)
-    if send_qsubs:
+    if job_execution == 'pbs':
+        logger.info('Submitting: ' + job_dir + bcl2fastq_PBS_name)
         bcl2fastq_jobid = str(
             qsub_dependents.qsub([job_dir + bcl2fastq_PBS_name])
         ).lstrip('b\'').rstrip('\'')
         logger.info('BCL2FASTQ jobId: ' + bcl2fastq_jobid)
     
-    # submit the fastqc scrpipt to the batch scheduler
-    logger.info('Submitting: ' + job_dir + fastqc_PBS_name)
-    if send_qsubs:
+        # submit the fastqc script to the batch scheduler
+        logger.info('Submitting: ' + job_dir + fastqc_PBS_name)
         fastqc_jobid = str(
             qsub_dependents.qsub_dependents([job_dir + fastqc_PBS_name], jobid=bcl2fastq_jobid)
         ).lstrip('b\'').rstrip('\'')
         logger.info('FASTQC jobId: ' + fastqc_jobid)
 
-    # Submit the bcbio PBS script
-    logger.info('Submitting bcbio script')
-    if send_qsubs:
+        # Submit the bcbio PBS script
         for lane in bcbio_lanes:
+            logger.info('Submitting bcbio job for lane ' + lane)
             bcbio_jobid = str(
                 qsub_dependents.qsub_dependents(
                     [job_dir + bcbio_PBS_name + '_L00' + lane + '.pbs'],
@@ -118,5 +118,30 @@ if __name__ == '__main__':
             ).lstrip('b\'').rstrip('\'')
             logger.info('BCBIO jobId: ' + bcbio_jobid)
 
+    elif job_execution == 'local':
+        logger.info('Executing locally: ' + job_dir + bcl2fastq_PBS_name)
+        execute_bash(job_dir + bcl2fastq_PBS_name)
+
+        logger.info('Executing locally: ' + job_dir + fastqc_PBS_name)
+        execute_bash(job_dir + bcl2fastq_PBS_name)
+
+        for lane in bcbio_lanes:
+            script = job_dir + bcbio_PBS_name + '_L00' + lane + '.pbs'
+            logger.info('Executing locally: ' + script)
+            execute_bash(script)
+
+    else:
+        logger.info('No job_execution set. Scripts written but not executed.')
+
     logger.info('Done')
 
+
+def execute_bash(script):
+    proc = subprocess.Popen(['sh', script], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    out, err = proc.communicate()
+    print(out)
+    print(err)
+
+
+if __name__ == '__main__':
+    main()

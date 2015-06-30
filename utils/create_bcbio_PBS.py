@@ -12,9 +12,10 @@ def bcbio_PBS(pbs_name, bcbio_run_folder, run_id, lane, sample_name='Unassigned_
     """
 
     bcbio_run_folder += run_id + '_L00' + lane + '/'
+    log_file = 'bcbio/L00' + lane + '_out.txt'
+    if not os.path.exists('bcbio'):
+        os.mkdir('bcbio')
 
-    if not os.path.exists('../jobs/' + run_id + '/bcbio'):
-        os.mkdir('../jobs/' + run_id + '/bcbio')
     pbs_name += '_L00' + lane + '.pbs'
     print('Opening ' + pbs_name)
     # create a PBS script to run BCL2FASTQ
@@ -24,10 +25,10 @@ def bcbio_PBS(pbs_name, bcbio_run_folder, run_id, lane, sample_name='Unassigned_
 
     f.write('#PBS -l walltime=72:00:00\n')  # walltime needed
     f.write('#PBS -l ncpus=8,mem=64gb\n')  # PBS resources
-#    f.write('#PBS -N bcbio\n')  # jobname
+    # f.write('#PBS -N bcbio\n')  # jobname
     f.write('#PBS -q uv2000\n')  # queue name
     f.write('#PBS -j oe\n')  # input/output
-    f.write('#PBS -o ' + bcbio_run_folder + 'out.txt')  # output file name
+    f.write('#PBS -o ' + log_file)  # output file name
     f.write('\n\n')
 
     f.write('cd $PBS_O_WORKDIR\n\n')  # working directory
@@ -74,7 +75,7 @@ def bcbio_PBS(pbs_name, bcbio_run_folder, run_id, lane, sample_name='Unassigned_
 
     f.write(bcbio_run)
 
-    f.write('\n\n')
+    f.write('\n')
     # f.write(fastqc + ' --nogroup -t 16' + ' -q ' + fastq1 + ' -o ' + base_path + '\n')
     # f.write(fastqc + ' ' + '--nogroup -t 16'+ ' -q '+ fastq2 + '-o ' + base_path + '\n')
 
