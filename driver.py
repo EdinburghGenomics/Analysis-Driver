@@ -13,6 +13,8 @@ from utils import create_bcl2fastq_PBS
 from utils import create_fastqc_PBS
 from utils import qsub_dependents
 
+import config
+
 
 if __name__ == '__main__':
 
@@ -22,8 +24,8 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     run_name = os.path.basename(args.dirname) 
-    fastq_path = os.path.normpath(os.path.join(args.dirname, '..', '..', 'fastq', run_name)) + '/'
-    job_dir = os.path.normpath(os.path.join(args.dirname, '..', '..', 'jobs', run_name)) + '/'
+    fastq_path = os.path.join(config.fastq, run_name) + '/'
+    job_dir = os.path.join(config.jobs, run_name) + '/'
     
     if not os.path.exists(fastq_path):
         os.makedirs(fastq_path)
@@ -68,3 +70,4 @@ if __name__ == '__main__':
     jobid = qsub_dependents.qsub_dependents([job_dir+fastqc_PBS_name], jobid=bcl2fastq_jobid)
     logger.info('FASTQC jobId: %s', jobid)
     logger.info('Done')
+
