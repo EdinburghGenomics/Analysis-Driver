@@ -1,3 +1,4 @@
+import os.path
 import csv
 
 
@@ -10,7 +11,7 @@ def read_sample_sheet(file_path):
 
     d = {}
     tmp_list = []
-    filename = file_path + '/SampleSheet.csv'  # hardcoded name
+    filename = os.path.join(file_path, 'SampleSheet.csv')  # hardcoded name
     reader = csv.reader(open(filename, 'r'))
 
     # read lines until [Data] marker

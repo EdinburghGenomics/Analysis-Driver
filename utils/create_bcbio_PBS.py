@@ -1,6 +1,6 @@
 import os
 
-def bcbio_PBS(pbs_name, bcbio_run_folder, run_id, lane, sample_name='Unassigned_S0'):
+def bcbio_PBS(pbs_name, bcbio_run_folder, run_id, lane, fastq_dir, sample_name='Undetermined_S0'):
     """
     Writes out a PBS Bash script to run bcbio
     :param k: key - sample ID
@@ -11,10 +11,10 @@ def bcbio_PBS(pbs_name, bcbio_run_folder, run_id, lane, sample_name='Unassigned_
     :return:
     """
 
-    bcbio_run_folder += run_id + '_L00' + lane + '/'
-    log_file = 'bcbio/L00' + lane + '_out.txt'
-    if not os.path.exists('bcbio'):
-        os.mkdir('bcbio')
+    bcbio_run_folder = os.path.join(bcbio_run_folder, run_id + '_L00' + lane)
+    log_file = os.path.join(bcbio_run_folder, 'log.txt')
+    if not os.path.exists(bcbio_run_folder):
+        os.makedirs(bcbio_run_folder)
 
     pbs_name += '_L00' + lane + '.pbs'
     print('Opening ' + pbs_name)
@@ -32,21 +32,22 @@ def bcbio_PBS(pbs_name, bcbio_run_folder, run_id, lane, sample_name='Unassigned_
     f.write('\n\n')
 
     f.write('cd $PBS_O_WORKDIR\n\n')  # working directory
-                
+
     # paths to java
-    f.write('export JAVA_HOME=/home/U008/lcebaman/jdk1.7.0_76/\n')
-    f.write('export JAVA_BINDIR=/home/U008/lcebaman/jdk1.7.0_76/bin\n\n')
+    f.write('export JAVA_HOME=/home/U008/edingen/Applications/jdk1.7.0_76/\n')
+    f.write('export JAVA_BINDIR=/home/U008/edingen/Applications/jdk1.7.0_76/bin\n')
+    f.write('export JAVA_ROOT=/home/edingen/Applications/jdk1.7.0_76/\n\n')
 
     # path to bcbio
-    bcbio_home = '/home/U008/lcebaman/bcbio/bin'
+    bcbio_home = '/home/U008/edingen/Applications/bcbio/bin'
     bcbio = bcbio_home + '/bcbio_nextgen.py'
     fastqc = bcbio_home + '/fastqc'
 
     # Path to the input fastqs
     # base_path = inputDirectory + '/' + sampleProject + '/' + sample_id  # +'/Data/Intensities/BaseCalls'
-    base_path = '../fastq/' + run_id
-    fastq1 = base_path + '/' + sample_name + '_L00' + lane + '_R1_001.fastq.gz'
-    fastq2 = base_path + '/' + sample_name + '_L00' + lane + '_R2_001.fastq.gz'
+    base_path = os.path.join(fastq_dir)
+    fastq1 = os.path.join(base_path, sample_name + '_L00' + lane + '_R1_001.fastq.gz')
+    fastq2 = os.path.join(base_path, sample_name + '_L00' + lane + '_R2_001.fastq.gz')
 
     bcbio_template = ' '.join(
         [
@@ -62,14 +63,18 @@ def bcbio_PBS(pbs_name, bcbio_run_folder, run_id, lane, sample_name='Unassigned_
     f.write(bcbio_template)
     f.write('\n\n')
 
+    run_yaml = os.path.join(bcbio_run_folder, '..', run_id + '.yaml')
+    print(run_yaml)
+
+    f.write('cd ' + os.path.join(bcbio_run_folder, 'work') + '\n\n')
     print('Sample name: ' + sample_name)
     # bash command to run bcbio
     bcbio_run = ' '.join(
         [
             bcbio,
-            bcbio_run_folder + 'config/' + sample_name + '_' + lane + '.yaml',
+            os.path.join(bcbio_run_folder, '..', run_id + '_L00' + lane + '.yaml'),
             '-n', '16',
-            '--workdir', bcbio_run_folder + 'work'
+            '--workdir', os.path.join(bcbio_run_folder, 'work')
         ]
     )
 
