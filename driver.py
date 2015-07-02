@@ -15,6 +15,8 @@ from utils import create_fastqc_PBS
 from utils import create_bcbio_PBS
 from utils import qsub_dependents
 
+import config
+
 job_execution = 'pbs'  # 'pbs' 'local' None
 
 
@@ -26,8 +28,8 @@ def main():
     args = parser.parse_args()
 
     run_name = os.path.basename(args.dirname) 
-    fastq_path = os.path.normpath(os.path.join(args.dirname, '..', '..', 'fastq', run_name))
-    job_path = os.path.normpath(os.path.join(args.dirname, '..', '..', 'jobs', run_name))
+    fastq_path = os.path.join(config.fastq, run_name) + '/'
+    job_dir = os.path.join(config.jobs, run_name) + '/'
     
     if not os.path.exists(fastq_path):
         os.makedirs(fastq_path)
