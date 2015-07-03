@@ -1,3 +1,6 @@
+import os.path
+
+
 def generate_mask(mask):
     """
     Generate a mask readable by bcl2fastq. The string is built in reverse to easily remove the last base
@@ -54,8 +57,8 @@ def bcl2fastq_PBS(mask, pbs_name, inputDirectory, fastq_path):
 
     # construct command and arguments
     f.write(
-        'bcl2fastq --runfolder-dir ' + inputDirectory + ' --output-dir ' + fastq_path + ' --sample-sheet ' +
-        inputDirectory + 'SampleSheet.csv --use-bases-mask ' + generate_mask(mask) + '\n'
+        'bcl2fastq -l INFO --runfolder-dir ' + inputDirectory + ' --output-dir ' + fastq_path + ' --sample-sheet ' +
+        os.path.join(inputDirectory, 'SampleSheet.csv') + ' --use-bases-mask ' + generate_mask(mask) + '\n'
     )
 
     f.close()
