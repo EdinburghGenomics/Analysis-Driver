@@ -17,8 +17,6 @@ from utils import qsub_dependents
 
 import config
 
-job_execution = 'pbs'  # 'pbs' 'local' None
-
 
 def main():
 
@@ -33,10 +31,10 @@ def main():
     
     if not os.path.exists(fastq_path):
         os.makedirs(fastq_path)
-    if not os.path.exists(job_path):
-        os.makedirs(job_path)
+    if not os.path.exists(job_dir):
+        os.makedirs(job_dir)
 
-    log_file = os.path.join(job_path, 'driver_' + datetime.now().strftime('%Y%m%d-%H%M%S') + '.log')
+    log_file = os.path.join(job_dir, 'driver_' + datetime.now().strftime('%Y%m%d-%H%M%S') + '.log')
     logging.basicConfig(
         filename=log_file,
         format='%(asctime)s %(message)s',
@@ -58,7 +56,7 @@ def main():
     logger.info('bcl2fastq PBS File is ' + bcl2fastq_PBS_name)
     create_bcl2fastq_PBS.bcl2fastq_PBS(
         read_details,
-        os.path.join(job_path, bcl2fastq_PBS_name),
+        os.path.join(job_dir, bcl2fastq_PBS_name),
         args.dirname,
         fastq_path
     )
@@ -67,7 +65,7 @@ def main():
     logger.info('Create fastqc PBS script')
     fastqc_PBS_name = 'FASTQC_' + run_name + '.pbs'
     logger.info('fastqc PBS File is ' + fastqc_PBS_name)
-    create_fastqc_PBS.fastqc_PBS(os.path.join(job_path, fastqc_PBS_name), fastq_path)
+    create_fastqc_PBS.fastqc_PBS(os.path.join(job_dir, fastqc_PBS_name), fastq_path)
 
     # Write the bcbio PBS script
     logger.info('Writing bcbio script')
@@ -85,28 +83,28 @@ def main():
     bcbio_lanes = [x[0] for x in list(bcbio_jobs.values())[0]]
     for lane in bcbio_lanes:
         create_bcbio_PBS.bcbio_PBS(
-            os.path.join(job_path, bcbio_PBS_name),
-            os.path.join(job_path, 'bcbio'),
+            os.path.join(job_dir, bcbio_PBS_name),
+            os.path.join(job_dir, 'bcbio'),
             run_name,
             lane,
             fastq_path  # ,
             # sample_sheet_parser.get_sample_project(bcbio_jobs)
         )
 
-    os.chdir(job_path)
+    os.chdir(job_dir)
     
     # submit the BCL2FASTQ script to batch scheduler
-    if job_execution == 'pbs':
-        logger.info('Submitting: ' + os.path.join(job_path, bcl2fastq_PBS_name))
+    if config.job_execution == 'pbs':
+        logger.info('Submitting: ' + os.path.join(job_dir, bcl2fastq_PBS_name))
         bcl2fastq_jobid = str(
-            qsub_dependents.qsub([os.path.join(job_path, bcl2fastq_PBS_name)])
+            qsub_dependents.qsub([os.path.join(job_dir, bcl2fastq_PBS_name)])
         ).lstrip('b\'').rstrip('\'')
         logger.info('BCL2FASTQ jobId: ' + bcl2fastq_jobid)
     
         # submit the fastqc script to the batch scheduler
-        logger.info('Submitting: ' + os.path.join(job_path, fastqc_PBS_name))
+        logger.info('Submitting: ' + os.path.join(job_dir, fastqc_PBS_name))
         fastqc_jobid = str(
-            qsub_dependents.qsub_dependents([os.path.join(job_path, fastqc_PBS_name)], jobid=bcl2fastq_jobid)
+            qsub_dependents.qsub_dependents([os.path.join(job_dir, fastqc_PBS_name)], jobid=bcl2fastq_jobid)
         ).lstrip('b\'').rstrip('\'')
         logger.info('FASTQC jobId: ' + fastqc_jobid)
 
@@ -115,21 +113,21 @@ def main():
             logger.info('Submitting bcbio job for lane ' + lane)
             bcbio_jobid = str(
                 qsub_dependents.qsub_dependents(
-                    [os.path.join(job_path, bcbio_PBS_name + '_L00' + lane + '.pbs')],
+                    [os.path.join(job_dir, bcbio_PBS_name + '_L00' + lane + '.pbs')],
                     jobid=fastqc_jobid
                 )
             ).lstrip('b\'').rstrip('\'')
             logger.info('BCBIO jobId: ' + bcbio_jobid)
 
-    elif job_execution == 'local':
-        logger.info('Executing locally: ' + os.path.join(job_path, bcl2fastq_PBS_name))
-        execute_bash(os.path.join(job_path, bcl2fastq_PBS_name))
+    elif config.job_execution == 'local':
+        logger.info('Executing locally: ' + os.path.join(job_dir, bcl2fastq_PBS_name))
+        execute_bash(os.path.join(job_dir, bcl2fastq_PBS_name))
 
-        logger.info('Executing locally: ' + os.path.join(job_path, fastqc_PBS_name))
-        execute_bash(os.path.join(job_path, bcl2fastq_PBS_name))
+        logger.info('Executing locally: ' + os.path.join(job_dir, fastqc_PBS_name))
+        execute_bash(os.path.join(job_dir, bcl2fastq_PBS_name))
 
         for lane in bcbio_lanes:
-            script = os.path.join(job_path, bcbio_PBS_name + '_L00' + lane + '.pbs')
+            script = os.path.join(job_dir, bcbio_PBS_name + '_L00' + lane + '.pbs')
             logger.info('Executing locally: ' + script)
             execute_bash(script)
 
