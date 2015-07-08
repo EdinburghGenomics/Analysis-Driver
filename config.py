@@ -16,8 +16,9 @@ if not run_env:
 
 config = yaml.load(open(config_file, 'r'))[run_env]
 
-fastq = config['shared']['fastq']
-jobs = config['shared']['jobs']
+work_home = config['shared']['work_home']
+fastq = os.path.join(work_home, config['shared']['fastq_dir'])
+jobs = os.path.join(work_home, config['shared']['jobs_dir'])
 
 job_execution = config['analysisdriver']['job_execution']
 
