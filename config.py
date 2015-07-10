@@ -21,4 +21,4 @@ fastq = config['shared']['fastq_dir']
 jobs = config['shared']['jobs_dir']
 
 job_execution = config['analysisdriver']['job_execution']
-
+bcbio = config['analysisdriver']['bcbio']
