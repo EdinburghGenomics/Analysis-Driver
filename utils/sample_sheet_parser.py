@@ -1,5 +1,6 @@
 import os.path
 import csv
+from util.logger import AppLogger
 
 
 def read_sample_sheet(file_path):
@@ -57,8 +58,8 @@ def read_sample_sheet(file_path):
         lane = row[0]
         sample_name = row[2]
         first_time_pos = first_time[row[1]]
-        # project_name = row[7]
-        project_name = row[5]
+        project_name = row[7]
+        # project_name = row[5]
         d.setdefault(sample_id, []).append([lane, sample_name, first_time_pos, project_name])
 
     return d
@@ -69,6 +70,86 @@ def get_sample_project(d):
     return list(d.values())[0][0][3]
 
 
+class SampleSheet(AppLogger):
+    def __init__(self, data_dir):
+        self.file = open(os.path.join(data_dir, 'SampleSheet.csv'), 'r')
+        # read lines until [Data] marker
+        while not next(self.file).startswith('[Data]'):
+            pass
+
+        self.sample_projects = {}
+        self._populate(self.sample_projects)
+
+    def _populate(self, samples):
+        reader = csv.DictReader(self.file)
+        for row in reader:
+            if any(row):
+                sample_project = row['Sample_Project']
+                new_sample = Sample(
+                    row['Lane'],
+                    row['Sample_ID'],
+                    row['Sample_Name'],
+                    row['I7_Index_ID'],
+                    row['index'],
+                    row['Sample_Plate'],
+                    row['Sample_Well'],
+                    row['Description']
+                )
+                try:
+                    samples[sample_project].add_sample(new_sample, sample_project)
+                except KeyError:
+                    samples[sample_project] = SampleProject(new_sample, sample_project)
+
+        # for sample in sample_list:
+        #     sample_project = sample['Sample_Project']
+        #     lane = sample['Lane']
+        #     sample_id = sample['Sample_ID']
+        #     sample_name = sample['Sample_Name']
+        #     barcode = sample['I7_Index_ID']
+        #     adapter = sample['index']
+
+
+class SampleProject:
+    def __init__(self, new_sample, name):
+        self.name = name
+        self.samples = [new_sample]
+
+    def add_sample(self, sample, sample_project):
+        print(sample_project, self.name)
+        assert sample_project == self.name
+        self.samples.append(sample)
+
+
+class Sample:
+    def __init__(self, lane, sample_id, sample_name, i7_index_id,
+                 index=None, sample_plate=None, sample_well=None, description=None):
+        self.lane = lane
+        self.id = sample_id
+        self.name = sample_name
+        self.barcode = i7_index_id
+        self.adapter = index
+        self.plate = sample_plate
+        self.well = sample_well
+        self.description = description
+
+
+
 if __name__ == '__main__':
-    print(read_sample_sheet('/home/U008/mwham/input_data/150424_E00307_0017_AH3KGTCCXX'))
+    import os
+    sheet = SampleSheet(
+        os.path.join(
+            os.getenv('HOME'),
+            'workspace',
+            'EdGen_Analysis_Driver',
+            'input_data',
+            '150424_E00307_0017_AH3KGTCCXX'
+        )
+    )
+    print(
+        [
+            (
+                name, [sample.id for sample in sample_project.samples]
+            ) for name, sample_project in sheet.sample_projects.items()
+        ]
+    )
 

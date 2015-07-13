@@ -1,4 +1,6 @@
+import os.path
 import xml.etree.ElementTree as ET
+from util.logger import AppLogger
 
 
 def get_mask(path):
@@ -23,6 +25,35 @@ def get_mask(path):
             mask.append(i.get('IsIndexedRead'))
 
         return mask
+
+
+class RunInfo(AppLogger):
+    def __init__(self, data_dir):
+        run_info = os.path.join(data_dir, 'RunInfo.xml')
+        self.root = ET.parse(run_info).getroot()
+        self.reads = self.root.find('Run/Reads').getchildren()
+
+
+class Mask:
+    def __init__(self, run_info):
+        self.masks = []
+        for read in run_info.reads:
+            self.masks.append(
+                MaskRecord(
+                    read.get('Number'),
+                    read.get('NumCycles'),
+                    read.get('IsIndexedRead')
+                )
+            )
+
+
+class MaskRecord:
+    def __init__(self, number, num_cycles, is_indexed_read):
+        self.number = number
+        self.num_cycles = num_cycles
+        self.is_indexed_read = is_indexed_read
+
+
 
 # Unit Test
 if __name__ == '__main__':

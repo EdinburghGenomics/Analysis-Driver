@@ -6,16 +6,14 @@ import os
 import logging
 import argparse
 from datetime import datetime
-import subprocess
-
+import sys
 from utils import xmlparsing
 from utils import sample_sheet_parser
 import pbs_executor
 
 from utils import qsub_dependents
 import util
-import config
-
+import config as cfg
 
 def main():
 
@@ -23,6 +21,8 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('dirname')
     args = parser.parse_args()
+
+    config = cfg.Configuration()
 
     run_name = os.path.basename(args.dirname) 
     fastq_path = os.path.join(config.fastq, run_name)
@@ -35,9 +35,9 @@ def main():
 
     log_file = os.path.join(job_dir, 'driver_' + datetime.now().strftime('%Y%m%d-%H%M%S') + '.log')
     logging.basicConfig(
-        filename=log_file,
+        stream=sys.stdout,
         format='%(asctime)s %(message)s',
-        datefmt='[%d/%m/%Y-%H:%M:%S]',
+        datefmt='[%d-%m-%Y %H:%M:%S]',
         level=logging.INFO
     )
     logger = logging.getLogger('AnalysisDriver')
@@ -50,18 +50,18 @@ def main():
     logger.info('Read details [ReadNumber, NumCycles, IsIndexedRead, ...] are ' + str(mask))
     
     # Create BCL2FASTQ PBS script
-    logger.info('Create BCL2FASTQ pbs script')
+    logger.info('Create bcl2fastq PBS script')
     bcl2fastq_pbs_name = os.path.join(job_dir, 'bcl2fastq_' + run_name + '.pbs')
-    logger.info('bcl2fastq PBS File is ' + bcl2fastq_pbs_name)
+    logger.info('bcl2fastq PBS file is ' + bcl2fastq_pbs_name)
     bcl2fastq_writer = pbs_executor.BCL2FastqPBSWriter(
         bcl2fastq_pbs_name, 'bcl2fastq', os.path.join(job_dir, 'bcl2fastq_pbs.log')
     )
     bcl2fastq_writer.write(mask, args.dirname, fastq_path)
 
     # Create the fastqc PBS script
-    logger.info('Create fastqc PBS script')
+    logger.info('Creating fastqc PBS script')
     fastqc_pbs_name = os.path.join(job_dir, 'fastqc_' + run_name + '.pbs')
-    logger.info('fastqc PBS File is ' + fastqc_pbs_name)
+    logger.info('Fastqc PBS file is ' + fastqc_pbs_name)
 
     fastqc_writer = pbs_executor.FastqcPBSWriter(
         fastqc_pbs_name, 'fastqc', os.path.join(job_dir, 'fastqc_pbs.log')
@@ -74,6 +74,8 @@ def main():
     #     sample_id: (lane_7, sample_name, position)
     # }
     sample_id = sample_sheet_parser.get_sample_project(bcbio_jobs)
+    logger.info('bcbio_jobs: ' + str(bcbio_jobs))
+    logger.info('sample_id: ' + sample_id)
     sample_projects = os.listdir(os.path.join(fastq_path, sample_id))
 
     # Write the bcbio PBS script
