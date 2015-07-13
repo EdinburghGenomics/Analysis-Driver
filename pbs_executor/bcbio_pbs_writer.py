@@ -8,13 +8,14 @@ class BCBioPBSWriter(PBSWriter):
         super().__init__(pbs_name, walltime, cpus, mem, job_name, log_file)
 
     @staticmethod
-    def get_fastqs(fastq_dir, run_id, sample_id, sample_project):
-        fastqs = os.path.join(fastq_dir, run_id, sample_id, sample_project)
-        return [os.path.abspath(f) for f in os.listdir(fastqs) if f.endswith('fastq.gz')]
+    def get_fastqs(fastq_dir, sample_id, sample_project):
+        print('[BCBioPBSWriter]', fastq_dir, sample_id, sample_project)
+        fastqs = os.path.join(fastq_dir, sample_id, sample_project)
+        return [os.path.join(fastqs, f) for f in os.listdir(fastqs) if f.endswith('fastq.gz')]
 
     @staticmethod
     def setup_bcbio_run(bcbio, template, sample_project, fastqs):
-        util.localexecute(bcbio, '-w', 'template', template, sample_project, fastqs)
+        util.localexecute(bcbio, '-w', 'template', template, sample_project, *fastqs)
 
     def _bcbio(self, bcbio_path, run_yaml, workdir, cores=16):
         # Java paths. TODO: get these into the YAML config

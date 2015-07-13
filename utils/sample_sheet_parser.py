@@ -57,7 +57,8 @@ def read_sample_sheet(file_path):
         lane = row[0]
         sample_name = row[2]
         first_time_pos = first_time[row[1]]
-        project_name = row[7]
+        # project_name = row[7]
+        project_name = row[5]
         d.setdefault(sample_id, []).append([lane, sample_name, first_time_pos, project_name])
 
     return d
@@ -65,7 +66,7 @@ def read_sample_sheet(file_path):
 
 def get_sample_project(d):
     #  the first one for instance
-    return d.values()[0][0][3]
+    return list(d.values())[0][0][3]
 
 
 if __name__ == '__main__':

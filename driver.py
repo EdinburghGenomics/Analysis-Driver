@@ -19,8 +19,6 @@ import config
 
 def main():
 
-    sample_id = '10015AT'
-
     # parse the input directory /abs/path/to/INPUT_DATA/run_name
     parser = argparse.ArgumentParser()
     parser.add_argument('dirname')
@@ -70,31 +68,31 @@ def main():
     )
     fastqc_writer.write(fastq_path)
 
-    sample_projects = [os.path.abspath(proj) for proj in os.listdir(os.path.join(fastq_path, sample_id))]
-
     bcbio_jobs = sample_sheet_parser.read_sample_sheet(args.dirname)
     # {
     #     sample_id: (lane_7, sample_name, position),
     #     sample_id: (lane_7, sample_name, position)
     # }
+    sample_id = sample_sheet_parser.get_sample_project(bcbio_jobs)
+    sample_projects = os.listdir(os.path.join(fastq_path, sample_id))
 
     # Write the bcbio PBS script
     for sample_project in sample_projects:
         bcbio_run_dir = os.path.join(job_dir, 'bcbio', sample_project)
         if not os.path.exists(bcbio_run_dir):
-            os.mkdir(bcbio_run_dir)
+            os.makedirs(bcbio_run_dir)
 
         bcbio_pbs = os.path.join(job_dir, 'bcbio_' + os.path.basename(sample_project) + '.pbs')
         bcbio_writer = pbs_executor.BCBioPBSWriter(
             bcbio_pbs, 'bcbio_alignment', os.path.join(bcbio_run_dir, 'log.txt')
         )
-        fastqs = bcbio_writer.get_fastqs(fastq_path, run_name, sample_id, sample_project)
+        fastqs = bcbio_writer.get_fastqs(fastq_path, sample_id, sample_project)
         bcbio_writer.setup_bcbio_run(
             config.bcbio,
             os.path.join(
                 os.path.dirname(__file__), 'etc', 'bcbio_alignment.yaml'
             ),
-            sample_project,
+            os.path.join(job_dir, sample_project),
             fastqs
         )
         bcbio_writer.write(
@@ -144,13 +142,6 @@ def main():
         logger.info('No job_execution set. Scripts written but not executed.')
 
     logger.info('Done')
-
-
-def execute_bash(script):
-    proc = subprocess.Popen(['sh', script], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    out, err = proc.communicate()
-    print(out)
-    print(err)
 
 
 if __name__ == '__main__':
