@@ -35,7 +35,8 @@ def main():
 
     log_file = os.path.join(job_dir, 'driver_' + datetime.now().strftime('%Y%m%d-%H%M%S') + '.log')
     logging.basicConfig(
-        stream=sys.stdout,
+        #stream=sys.stdout,
+        stream=open(log_file, 'w'),
         format='%(asctime)s %(message)s',
         datefmt='[%d-%m-%Y %H:%M:%S]',
         level=logging.INFO
@@ -68,33 +69,34 @@ def main():
     )
     fastqc_writer.write(fastq_path)
 
-    bcbio_jobs = sample_sheet_parser.read_sample_sheet(args.dirname)
-    # {
-    #     sample_id: (lane_7, sample_name, position),
-    #     sample_id: (lane_7, sample_name, position)
-    # }
-    sample_id = sample_sheet_parser.get_sample_project(bcbio_jobs)
-    logger.info('bcbio_jobs: ' + str(bcbio_jobs))
-    logger.info('sample_id: ' + sample_id)
-    sample_projects = os.listdir(os.path.join(fastq_path, sample_id))
+    sample_sheet = sample_sheet_parser.SampleSheet(args.dirname)
+    run_info = xmlparsing.RunInfo(args.dirname)
+    if run_info.barcode_len:
+        assert sample_sheet.check_barcodes() == run_info.barcode_len, 'Barcode mismatch: %s (SampleSheet.csv) and %s (RunInfo.xml)' % (
+            sample_sheet.check_barcodes(), run_info.barcode_len
+        )
 
-    # Write the bcbio PBS script
-    for sample_project in sample_projects:
+    else:
+        raise util.AnalysisDriverError('No barcode in RunInfo.xml')
+    
+    bcbio_pbs_scripts = []
+    for sample_project, samples in sample_sheet.sample_projects.items():
         bcbio_run_dir = os.path.join(job_dir, 'bcbio', sample_project)
         if not os.path.exists(bcbio_run_dir):
             os.makedirs(bcbio_run_dir)
 
-        bcbio_pbs = os.path.join(job_dir, 'bcbio_' + os.path.basename(sample_project) + '.pbs')
+        bcbio_pbs = os.path.join(job_dir, 'bcbio_' + sample_project + '.pbs')
         bcbio_writer = pbs_executor.BCBioPBSWriter(
             bcbio_pbs, 'bcbio_alignment', os.path.join(bcbio_run_dir, 'log.txt')
         )
-        fastqs = bcbio_writer.get_fastqs(fastq_path, sample_id, sample_project)
+        fastqs = bcbio_writer.get_fastqs(fastq_path, sample_project)
+        
         bcbio_writer.setup_bcbio_run(
             config.bcbio,
             os.path.join(
                 os.path.dirname(__file__), 'etc', 'bcbio_alignment.yaml'
             ),
-            os.path.join(job_dir, sample_project),
+            os.path.join(job_dir, 'bcbio', sample_project),
             fastqs
         )
         bcbio_writer.write(
@@ -102,10 +104,10 @@ def main():
             os.path.join(job_dir, 'bcbio', sample_project + '.yaml'),
             os.path.join(job_dir, 'bcbio', sample_project, 'work')
         )
+        bcbio_pbs_scripts = bcbio_pbs_scripts + [
+            os.path.abspath(f) for f in os.listdir(job_dir) if 'bcbio' in f and f.endswith('.pbs')
+        ]
 
-    bcbio_pbs_scripts = [
-        os.path.abspath(f) for f in os.listdir(job_dir) if 'bcbio' in f and f.endswith('.pbs')
-    ]
     # submit the BCL2FASTQ script to batch scheduler
     if config.job_execution == 'pbs':
         logger.info('Submitting: ' + os.path.join(job_dir, bcl2fastq_pbs_name))

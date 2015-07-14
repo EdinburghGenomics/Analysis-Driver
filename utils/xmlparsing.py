@@ -1,6 +1,6 @@
 import os.path
 import xml.etree.ElementTree as ET
-from util.logger import AppLogger
+#from util.logger import AppLogger
 
 
 def get_mask(path):
@@ -27,17 +27,25 @@ def get_mask(path):
         return mask
 
 
-class RunInfo(AppLogger):
+class RunInfo:
     def __init__(self, data_dir):
         run_info = os.path.join(data_dir, 'RunInfo.xml')
         self.root = ET.parse(run_info).getroot()
         self.reads = self.root.find('Run/Reads').getchildren()
 
+        barcode_reads = [
+            read for read in self.reads if read.attrib['IsIndexedRead'] == 'Y'
+        ]
+        if len(barcode_reads) == 1:
+            self.barcode_len = int(barcode_reads[0].attrib['NumCycles'])
+        else:
+            pass  # RunInfo has no barcode_len property
+
 
 class Mask:
-    def __init__(self, run_info):
+    def __init__(self, run_info_object):
         self.masks = []
-        for read in run_info.reads:
+        for read in run_info_object.reads:
             self.masks.append(
                 MaskRecord(
                     read.get('Number'),

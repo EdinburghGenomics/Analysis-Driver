@@ -8,9 +8,9 @@ class BCBioPBSWriter(PBSWriter):
         super().__init__(pbs_name, walltime, cpus, mem, job_name, log_file)
 
     @staticmethod
-    def get_fastqs(fastq_dir, sample_id, sample_project):
-        print('[BCBioPBSWriter]', fastq_dir, sample_id, sample_project)
-        fastqs = os.path.join(fastq_dir, sample_id, sample_project)
+    def get_fastqs(fastq_dir, sample_project):
+        print('[BCBioPBSWriter]', fastq_dir, sample_project)
+        fastqs = os.path.join(fastq_dir, sample_project)
         return [os.path.join(fastqs, f) for f in os.listdir(fastqs) if f.endswith('fastq.gz')]
 
     @staticmethod
