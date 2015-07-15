@@ -3,63 +3,80 @@ import xml.etree.ElementTree as ET
 #from util.logger import AppLogger
 
 
-def get_mask(path):
-        """
-        Read values from RunInfo.xml needed to create a mask
-        :param path: Full path to RunInfo.xml
-        :return: Mask read from RunInfo.xml. A triplet of: Number (Read number), NumCycles, IsIndexedRead
-        """
-
-        # List of information required to be used as the mask in bcl2fastq
-        # Groups of three elements: (Read) Number, NumCyles and IsIndexedRead will be stored consecutively
-        mask = []
-        file_name = path + '/RunInfo.xml'
-        # get the tree of the XML file
-        tree = ET.parse(file_name).getroot()
-        # we are only intrested in the the Reads section
-        root = tree.find('Run/Reads').getchildren()
-        # loop over all child elements of Reads storing (in order): (read) Number, NumCycles, and IsIndexedRead
-        for i in root:
-            mask.append(i.get('Number'))
-            mask.append(i.get('NumCycles'))
-            mask.append(i.get('IsIndexedRead'))
-
-        return mask
-
-
 class RunInfo:
     def __init__(self, data_dir):
         run_info = os.path.join(data_dir, 'RunInfo.xml')
         self.root = ET.parse(run_info).getroot()
-        self.reads = self.root.find('Run/Reads').getchildren()
+        reads = self.root.find('Run/Reads').getchildren()
 
-        barcode_reads = [
-            read for read in self.reads if read.attrib['IsIndexedRead'] == 'Y'
-        ]
-        if len(barcode_reads) == 1:
-            self.barcode_len = int(barcode_reads[0].attrib['NumCycles'])
+        self.mask = Mask()
+        for read in reads:
+            self.mask.add(read)
+        self.mask.validate()
+
+        barcode_reads = self.mask.index_lengths
+
+        if len(barcode_reads):
+            self.barcode_len = int(barcode_reads[0])
         else:
-            pass  # RunInfo has no barcode_len property
+            pass  # RunInfo is created with no barcode_len property
 
 
 class Mask:
-    def __init__(self, run_info_object):
-        self.masks = []
-        for read in run_info_object.reads:
-            self.masks.append(
-                MaskRecord(
-                    read.get('Number'),
-                    read.get('NumCycles'),
-                    read.get('IsIndexedRead')
-                )
-            )
+    def __init__(self):
+        self.reads = []
+        self.barcode_len = None
+
+    @property
+    def upstream_read(self):
+        return self.reads[0]
+
+    @property
+    def downstream_read(self):
+        return self.reads[-1]
+
+    @property
+    def indexes(self):
+        return self.reads[1:len(self.reads)-1]
+
+    @property
+    def index_lengths(self):
+        return [read.attrib['NumCycles'] for read in self.indexes]
 
 
-class MaskRecord:
-    def __init__(self, number, num_cycles, is_indexed_read):
-        self.number = number
-        self.num_cycles = num_cycles
-        self.is_indexed_read = is_indexed_read
+    def add(self, read):
+        self.reads.append(read)
+        if self._is_indexed_read(read):
+            assert (read.attrib == self.barcode_len or self.barcode_len is None)
+            self.barcode_len = read.attrib['NumCycles']
+
+    def validate(self):
+        assert not self._is_indexed_read(self.reads[0])
+        assert not self._is_indexed_read(self.reads[-1])
+        for index in self.indexes:
+            assert self._is_indexed_read(index), str([x.attrib for x in self.indexes])
+
+    def tostring(self, sample_sheet_barcode_len):
+        mask = 'y' + str(self._num_cycles(self.upstream_read) - 1) + 'n,'
+
+        for i in self.index_lengths:
+            diff = int(i) - sample_sheet_barcode_len
+            mask += 'i' + str(sample_sheet_barcode_len) + 'n'*diff + ','
+
+        mask += 'y' + str(self._num_cycles(self.downstream_read) - 1) + 'n'
+
+        return mask
+
+    def _is_indexed_read(self, read):
+        if read.attrib['IsIndexedRead'] == 'Y':
+            return True
+        elif read.attrib['IsIndexedRead'] == 'N':
+            return False
+        else:
+            raise ValueError('Invalid IsIndexedRead parameter: ' + read.attrib['IsIndexedRead'])
+
+    def _num_cycles(self, read):
+        return int(read.attrib['NumCycles'])
 
 
 
@@ -68,5 +85,5 @@ if __name__ == '__main__':
     file_path = "/home/U008/lcebaman/scripts/data/RunInfo.xml"
     print(file_path)
 
-    mask = get_mask(file_path)
-    print(mask)
+    #mask = get_mask(file_path)
+    #print(mask)

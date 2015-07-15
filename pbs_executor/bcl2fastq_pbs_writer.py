@@ -9,7 +9,7 @@ class BCL2FastqPBSWriter(PBSWriter):
     def _bcl2fastq(self, mask, input_dir, fastq_path):
         self.write_line(
             'bcl2fastq -l INFO --runfolder-dir ' + input_dir + ' --output-dir ' + fastq_path + ' --sample-sheet ' +
-            os.path.join(input_dir, 'SampleSheet.csv') + ' --use-bases-mask ' + self._generate_mask(mask) + '\n'
+            os.path.join(input_dir, 'SampleSheet.csv') + ' --use-bases-mask ' + mask + '\n'
         )
 
     @staticmethod
@@ -29,7 +29,6 @@ class BCL2FastqPBSWriter(PBSWriter):
             if read_number != current_read_number:
                 # New read
                 current_read_number = read_number
-                num_cycles = str(int(num_cycles)-1)
                 end_char = 'n'
 
             mask_part = num_cycles + end_char

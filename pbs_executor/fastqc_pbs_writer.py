@@ -9,6 +9,7 @@ class FastqcPBSWriter(PBSWriter):
         self.write_line('FASTQ_FILES=`find ' + input_dir + ' -name \'*.fastq.gz\'`\n')
         self.write_line('fastqc --nogroup -t 8 -q $FASTQ_FILES\n')
 
-    def write(self, input_dir):
+    def write(self, input_dir, run_dir):
         self._fastqc(input_dir)
+        self.write_line('touch ' + run_dir + '/.fastqc_complete')
         self.save()
