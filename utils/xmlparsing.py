@@ -1,6 +1,5 @@
 import os.path
 import xml.etree.ElementTree as ET
-#from util.logger import AppLogger
 
 
 class RunInfo:
@@ -43,7 +42,6 @@ class Mask:
     def index_lengths(self):
         return [read.attrib['NumCycles'] for read in self.indexes]
 
-
     def add(self, read):
         self.reads.append(read)
         if self._is_indexed_read(read):
@@ -67,7 +65,8 @@ class Mask:
 
         return mask
 
-    def _is_indexed_read(self, read):
+    @staticmethod
+    def _is_indexed_read(read):
         if read.attrib['IsIndexedRead'] == 'Y':
             return True
         elif read.attrib['IsIndexedRead'] == 'N':
@@ -75,7 +74,8 @@ class Mask:
         else:
             raise ValueError('Invalid IsIndexedRead parameter: ' + read.attrib['IsIndexedRead'])
 
-    def _num_cycles(self, read):
+    @staticmethod
+    def _num_cycles(read):
         return int(read.attrib['NumCycles'])
 
 
@@ -85,5 +85,5 @@ if __name__ == '__main__':
     file_path = "/home/U008/lcebaman/scripts/data/RunInfo.xml"
     print(file_path)
 
-    #mask = get_mask(file_path)
-    #print(mask)
+    # mask = get_mask(file_path)
+    # print(mask)

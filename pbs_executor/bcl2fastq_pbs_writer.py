@@ -8,8 +8,9 @@ class BCL2FastqPBSWriter(PBSWriter):
 
     def _bcl2fastq(self, mask, input_dir, fastq_path):
         self.write_line(
-            'bcl2fastq -l INFO --runfolder-dir ' + input_dir + ' --output-dir ' + fastq_path + ' --sample-sheet ' +
-            os.path.join(input_dir, 'SampleSheet.csv') + ' --use-bases-mask ' + mask + '\n'
+            'bcl2fastq -l INFO --runfolder-dir %s --output-dir %s --sample-sheet %s --use-bases-mask %s\n' % (
+                input_dir, fastq_path, os.path.join(input_dir, 'SampleSheet.csv'), mask
+            )
         )
 
     @staticmethod

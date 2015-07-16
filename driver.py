@@ -1,19 +1,14 @@
-#!/opt/anaconda/bin/python
-
-# Runs BCL2fastq and then fastqc on a given run directory
-
 import os
 import logging
 import argparse
 from datetime import datetime
 from time import sleep
-import sys
+
+import pbs_executor
 from utils import xmlparsing
 from utils import sample_sheet_parser
-import pbs_executor
-
 from utils import qsub_dependents
-import util
+
 import config as cfg
 
 def main():
@@ -36,7 +31,7 @@ def main():
 
     log_file = os.path.join(job_dir, 'driver_' + datetime.now().strftime('%Y%m%d-%H%M%S') + '.log')
     logging.basicConfig(
-        #stream=sys.stdout,
+        # stream=sys.stdout,
         stream=open(log_file, 'w'),
         format='%(asctime)s %(message)s',
         datefmt='[%d-%m-%Y %H:%M:%S]',
@@ -60,7 +55,6 @@ def main():
     else:
         logger.warn('No barcode in RunInfo.xml')
 
-    
     mask = run_info.mask.tostring(sample_sheet.check_barcodes())
     # mask = 'y150n,i6,y150n'
     logger.info('bcl2fastq mask: ' + mask)
@@ -106,8 +100,14 @@ def main():
 
         logger.info('Fastqc complete, executing alignment')
 
+        # Wrrite BCBio csv samples file
+        bcbio_csv_writer = pbs_executor.BCBioCSVWriter(fastq_path, job_dir, sample_sheet)
+        bcbio_csv_writer.write()
+
         bcbio_pbs_scripts = []
         for sample_project, samples in sample_sheet.sample_projects.items():
+
+            # Write BCBio PBS scripts
             bcbio_run_dir = os.path.join(job_dir, 'bcbio', sample_project)
             if not os.path.exists(bcbio_run_dir):
                 os.makedirs(bcbio_run_dir)
@@ -120,6 +120,7 @@ def main():
 
             bcbio_writer.setup_bcbio_run(
                 config.bcbio,
+                os.path.join(job_dir, 'bcbio_samples.csv'),
                 os.path.join(
                     os.path.dirname(__file__), 'etc', 'bcbio_alignment.yaml'
                 ),
@@ -134,8 +135,6 @@ def main():
             bcbio_pbs_scripts = bcbio_pbs_scripts + [
                 os.path.join(job_dir, f) for f in os.listdir(job_dir) if 'bcbio' in f and f.endswith('.pbs')
             ]
- 
-
 
         # Submit the bcbio PBS scripts
         for script in bcbio_pbs_scripts:
@@ -145,20 +144,6 @@ def main():
             ).lstrip('b\'').rstrip('\'')
             logger.info('BCBIO jobId: ' + bcbio_jobid)
 
-
-
-
-    elif config.job_execution == 'local':
-        logger.info('Executing locally: ' + os.path.join(job_dir, bcl2fastq_pbs_name))
-        util.localexecute('sh', os.path.join(job_dir, bcl2fastq_pbs_name))
-
-        logger.info('Executing locally: ' + os.path.join(job_dir, fastqc_pbs_name))
-        util.localexecute('sh', os.path.join(job_dir, bcl2fastq_pbs_name))
-
-        for script in bcbio_pbs_scripts:
-            logger.info('Executing locally: ' + script)
-            util.localexecute('sh', script)
-
     else:
         logger.info('No job_execution set. Scripts written but not executed.')
 
@@ -167,4 +152,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
