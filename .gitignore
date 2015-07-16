@@ -1,4 +1,3 @@
-__pycache__/
+__pycache__
 *.pyc
-utils/__pycache__/
-utils/*.pyc
+.idea
