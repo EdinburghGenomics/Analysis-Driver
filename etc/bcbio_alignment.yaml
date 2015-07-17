@@ -6,6 +6,6 @@ details:
     mark_duplicates: picard
     realign: gatk
     recalibrate: gatk
-    variantcaller: false
+    variantcaller: gatk-haplotype
   analysis: variant2
   genome_build: GRCh37

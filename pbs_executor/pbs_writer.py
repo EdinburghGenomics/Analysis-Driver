@@ -1,6 +1,8 @@
 __author__ = 'mwham'
+from util.logger import AppLogger
 
-class PBSWriter:
+
+class PBSWriter(AppLogger):
     def __init__(self, pbs_name, walltime, cpus, mem, job_name, log_file, queue='uv2000'):
         self.pbs_file = open(pbs_name, 'w')
         self.script = ''

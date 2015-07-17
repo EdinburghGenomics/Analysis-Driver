@@ -8,6 +8,7 @@ import pbs_executor
 from utils import xmlparsing
 from utils import sample_sheet_parser
 from utils import qsub_dependents
+import util
 
 import config as cfg
 
@@ -100,55 +101,33 @@ def main():
 
         logger.info('Fastqc complete, executing alignment')
 
-        # Wrrite BCBio csv samples file
-        bcbio_csv_writer = pbs_executor.BCBioCSVWriter(fastq_path, job_dir, sample_sheet)
-        bcbio_csv_writer.write()
+    csv_writer = pbs_executor.BCBioCSVWriter(fastq_path, job_dir, sample_sheet)
+    csv_writer.write()
+    fastqs = []
 
-        bcbio_pbs_scripts = []
-        for sample_project, samples in sample_sheet.sample_projects.items():
+    for sample_project in sample_sheet.sample_projects:
+        fastqs = fastqs + util.find_fastqs(os.path.join(fastq_path, sample_project))
 
-            # Write BCBio PBS scripts
-            bcbio_run_dir = os.path.join(job_dir, 'bcbio', sample_project)
-            if not os.path.exists(bcbio_run_dir):
-                os.makedirs(bcbio_run_dir)
+    util.localexecute(
+        config.bcbio,
+        '-w', 'template',
+        os.path.join(os.path.dirname(__file__), 'etc', 'bcbio_alignment.yaml'),
+        os.path.join(job_dir, 'bcbio'),
+        os.path.join(job_dir, 'samples.csv'),
+        *fastqs
+    )
+    print('this')
+    util.localexecute(
+        config.bcbio,
+        os.path.join(job_dir, 'bcbio.yaml'),
+        '--workdir',
+        os.path.join(job_dir, 'bcbio', 'work')
+    )
 
-            bcbio_pbs = os.path.join(job_dir, 'bcbio_' + sample_project + '.pbs')
-            bcbio_writer = pbs_executor.BCBioPBSWriter(
-                bcbio_pbs, 'bcbio_alignment', os.path.join(bcbio_run_dir, 'log.txt')
-            )
-            fastqs = bcbio_writer.get_fastqs(fastq_path, sample_project)
 
-            bcbio_writer.setup_bcbio_run(
-                config.bcbio,
-                os.path.join(job_dir, 'bcbio_samples.csv'),
-                os.path.join(
-                    os.path.dirname(__file__), 'etc', 'bcbio_alignment.yaml'
-                ),
-                os.path.join(job_dir, 'bcbio', sample_project),
-                fastqs
-            )
-            bcbio_writer.write(
-                config.bcbio,
-                os.path.join(job_dir, 'bcbio', sample_project + '.yaml'),
-                os.path.join(job_dir, 'bcbio', sample_project, 'work')
-            )
-            bcbio_pbs_scripts = bcbio_pbs_scripts + [
-                os.path.join(job_dir, f) for f in os.listdir(job_dir) if 'bcbio' in f and f.endswith('.pbs')
-            ]
-
-        # Submit the bcbio PBS scripts
-        for script in bcbio_pbs_scripts:
-            logger.info('Submitting bcbio job: ' + script)
-            bcbio_jobid = str(
-                qsub_dependents.qsub_dependents([script], jobid=fastqc_jobid)
-            ).lstrip('b\'').rstrip('\'')
-            logger.info('BCBIO jobId: ' + bcbio_jobid)
-
-    else:
-        logger.info('No job_execution set. Scripts written but not executed.')
 
     logger.info('Done')
 
-
 if __name__ == '__main__':
     main()
+

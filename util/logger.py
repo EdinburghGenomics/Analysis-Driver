@@ -6,7 +6,7 @@ import logging
 class AppLogger:
     __logger = None
 
-    def log(self, level, msg, error_class=None):
+    def log(self, msg, level='INFO', error_class=None):
         if self.__logger is None:
             self.__logger = logging.getLogger(self.__class__.__name__)
 
