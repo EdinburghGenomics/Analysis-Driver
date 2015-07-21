@@ -1,8 +1,9 @@
 import os.path
 import xml.etree.ElementTree as ET
+from analysis_driver.util import AppLogger
 
 
-class RunInfo:
+class RunInfo(AppLogger):
     def __init__(self, data_dir):
         run_info = os.path.join(data_dir, 'RunInfo.xml')
         self.root = ET.parse(run_info).getroot()
@@ -16,9 +17,10 @@ class RunInfo:
         barcode_reads = self.mask.index_lengths
 
         if len(barcode_reads):
+            self.log('Barcode reads: ' + str(barcode_reads), 'DEBUG')
             self.barcode_len = int(barcode_reads[0])
         else:
-            pass  # RunInfo is created with no barcode_len property
+            self.log('RunInfo.xml has no barcode reads', 'WARN')
 
 
 class Mask:

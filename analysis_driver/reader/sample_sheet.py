@@ -1,21 +1,23 @@
-import os.path
+__author__ = 'mwham'
 import csv
+import os
+
+from analysis_driver.util import AppLogger
 
 
-def get_sample_project(d):
-    #  the first one for instance
-    return list(d.values())[0][0][3]
-
-
-class SampleSheet:
+class SampleSheet(AppLogger):
     def __init__(self, data_dir):
         self.file = open(os.path.join(data_dir, 'SampleSheet.csv'), 'r')
         # read lines until [Data] marker
+        counter = 1
         while not next(self.file).startswith('[Data]'):
-            pass
+            pass  # Do nothing until [Data]
+            counter += 1
+        self.log('Start reading sample sheet at line ' + str(counter), 'DEBUG')
 
         self.sample_projects = {}  # {name: samples} {str: Sample}
         self._populate(self.sample_projects)
+        self.log('Sample project entries: ' + str(self.sample_projects), 'DEBUG')
 
     def _populate(self, samples):
         reader = csv.DictReader(self.file)
@@ -23,15 +25,15 @@ class SampleSheet:
             if any(row):
                 sample_project = row['Sample_Project']
                 new_sample = Sample(
-                    sample_project,
-                    row['Lane'],
-                    row['Sample_ID'],
-                    row['Sample_Name'],
-                    row['I7_Index_ID'],
-                    row['index'],
-                    row['Sample_Plate'],
-                    row['Sample_Well'],
-                    row['Description']
+                    sample_project=sample_project,
+                    lane=row['Lane'],
+                    id=row['Sample_ID'],
+                    name=row['Sample_Name'],
+                    index_id=row['I7_Index_ID'],
+                    barcode=row['index'],
+                    plate=row['Sample_Plate'],
+                    well=row['Sample_Well'],
+                    description=row['Description']
                 )
                 try:
                     samples[sample_project].add_sample(new_sample)
@@ -39,7 +41,12 @@ class SampleSheet:
                     samples[sample_project] = SampleProject(sample_project, new_sample)
 
     def check_barcodes(self):
-        last_sample = None
+        """
+        For each sample project, check that all the DNA barcodes are the same length
+        TODO: yield the length for each sample project
+        :return: The DNA barcode length for each sample project
+        :rtype: int
+        """
         for name, sample_project in self.sample_projects.items():
             last_sample = None
             for sample in sample_project.samples:
@@ -73,36 +80,14 @@ class SampleProject:
 
 
 class Sample:
-    def __init__(self, sample_project, lane, sample_id, sample_name, i7_index_id,
-                 index=None, sample_plate=None, sample_well=None, description=None):
-        self.sample_project = sample_project
-        self.lane = lane
-        self.id = sample_id
-        self.name = sample_name
-        self.index_id = i7_index_id
-        self.barcode = index
-        self.plate = sample_plate
-        self.well = sample_well
-        self.description = description
+    def __init__(self, **kwargs):
+        self.data = {}
+        for k, v in kwargs.items():
+            assert k in [
+                'sample_project', 'lane', 'id', 'name', 'index_id', 'barcode', 'plate', 'well',
+                'description'
+            ]
+            self.data[k] = v
 
-
-
-if __name__ == '__main__':
-    import os
-    sheet = SampleSheet(
-        os.path.join(
-            os.getenv('HOME'),
-            # 'workspace',
-            # 'EdGen_Analysis_Driver',
-            'input_data',
-            '150424_E00307_0017_AH3KGTCCXX'
-        )
-    )
-    print(
-        [
-            (
-                name, [sample.id for sample in sample_project.samples]
-            ) for name, sample_project in sheet.sample_projects.items()
-        ]
-    )
-    print(sheet.check_barcodes())
+    def __getattr__(self, attr):
+        return self.data[attr]

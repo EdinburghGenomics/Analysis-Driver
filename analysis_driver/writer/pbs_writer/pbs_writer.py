@@ -1,12 +1,19 @@
 __author__ = 'mwham'
-from util.logger import AppLogger
+from analysis_driver.util.logger import AppLogger
 
 
 class PBSWriter(AppLogger):
     def __init__(self, pbs_name, walltime, cpus, mem, job_name, log_file, queue='uv2000'):
+        self.log('Writing PBS file: ' + pbs_name)
         self.pbs_file = open(pbs_name, 'w')
         self.script = ''
         self._write_header(walltime, cpus, mem, job_name, log_file, queue)
+        self.log(
+            'Written PBS header. Walltime: %s, cpus: %s, memory: %s, job name: %s, queue: %s' % (
+                walltime, cpus, mem, job_name, queue
+            )
+        )
+        self.log('Job will write stdout to: ' + log_file)
 
     def write_line(self, line):
         self.script += line + '\n'
@@ -26,4 +33,4 @@ class PBSWriter(AppLogger):
     def save(self):
         self.pbs_file.write(self.script)
         self.pbs_file.close()
-        return self.pbs_file
+        self.log('Closed pbs file')

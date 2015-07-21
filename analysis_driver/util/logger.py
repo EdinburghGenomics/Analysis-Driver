@@ -1,5 +1,4 @@
 __author__ = 'mwham'
-
 import logging
 
 

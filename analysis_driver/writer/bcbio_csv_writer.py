@@ -1,11 +1,14 @@
 __author__ = 'mwham'
 import csv
 import os.path
+from analysis_driver.util import AppLogger
 
 
-class BCBioCSVWriter:
+class BCBioCSVWriter(AppLogger):
     def __init__(self, fastq_dir, run_dir, sample_sheet):
-        self.samples = open(os.path.join(run_dir, 'samples.csv'), 'w')
+        csv_file = os.path.join(run_dir, 'samples.csv')
+        self.log('Csv file: ' + csv_file)
+        self.samples = open(csv_file, 'w')
 
         self.writer = csv.writer(self.samples)
         self.sample_sheet = sample_sheet
@@ -18,14 +21,15 @@ class BCBioCSVWriter:
             for fq in fastqs:
                 self.writer.writerow([fq, '', name])
         self.samples.close()
+        self.log('Written csv file')
 
-    @staticmethod
-    def _find_fastqs(location, sample_project):
+    def _find_fastqs(self, location, sample_project):
+        # TODO: push this up to util
         fastqs = []
         fastq_dir = os.path.join(location, sample_project)
         sample_ids = [os.path.join(fastq_dir, x) for x in os.listdir(fastq_dir)]
         for id in sample_ids:
             fastqs = fastqs + [os.path.join(id, fq) for fq in os.listdir(id) if fq.endswith('.fastq.gz')]
 
+        self.log('Found ' + str(len(fastqs)) + 'fastq files')
         return fastqs
-
