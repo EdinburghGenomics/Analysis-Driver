@@ -1,29 +1,40 @@
 import logging
 import os
 import yaml
+from util import AnalysisDriverError
 
 
-home = os.getenv('HOME')
-user_config_file = os.path.join(home, '.analysisdriver.yaml')
-local_config_file = os.path.join(os.path.dirname(__file__), 'example_analysisdriver.yaml')
+class Configuration:
+    def __init__(self):
+        user_config_file = os.path.join(os.getenv('HOME'), '.analysisdriver.yaml')
+        local_config_file = os.path.join(os.path.dirname(__file__), 'example_analysisdriver.yaml')
 
-if os.path.exists(user_config_file):
-    config_file = user_config_file
-else:
-    config_file = local_config_file
+        if os.path.exists(user_config_file):
+            self.config_file = user_config_file
+        else:
+            self.config_file = local_config_file
 
-run_env = os.getenv('ANALYSISDRIVERENV', 'testing')
+        run_env = os.getenv('ANALYSISDRIVERENV')
+        if not run_env:
+            run_env = 'testing'
 
-config = yaml.load(open(config_file, 'r'))[run_env]
+        self.config = yaml.load(open(self.config_file, 'r'))[run_env]
 
-work_home = config['shared']['work_home']
-fastq = config['shared']['fastq_dir']
-jobs = config['shared']['jobs_dir']
+        self.work_home = self._get_param('shared', 'work_home')
+        self.fastq = self._get_param('shared', 'fastq_dir')
+        self.jobs = self._get_param('shared', 'jobs_dir')
 
-job_execution = config['analysisdriver']['job_execution']
+        self.job_execution = self._get_param('analysisdriver', 'job_execution')
+        self.bcbio = self._get_param('analysisdriver', 'bcbio')
+
+    def _get_param(self, domain, param):
+        try:
+            return self.config[domain][param]
+        except KeyError:
+            raise AnalysisDriverError('Could not find parameter: %s/%s' % (domain, param))
 
 
-class Config():
+class Config:
     """
     Loads a configuration file and returns a Config object
     """
@@ -31,13 +42,13 @@ class Config():
         self.config_file = open(self.__class__._find_config_file(), 'r')
         tmp_config = yaml.load(self.config_file)
         self._environment = None
-        #Select the config specific to the environment
+        # Select the config specific to the environment
         self.config = tmp_config[self.environment]
 
-        #Merge the shared and the specific environment
+        # Merge the shared and the specific environment
         self.content = dict(
-                self.__class__._merge_dicts(self.config.get('shared'), self.config.get('analysisdriver'))
-            )
+            self.__class__._merge_dicts(self.config.get('shared'), self.config.get('analysisdriver'))
+        )
 
     @property
     def environment(self):
@@ -50,7 +61,7 @@ class Config():
 
     @classmethod
     def _find_config_file(cls):
-        possible_paths = [os.path.join(home, '.analysisdriver.yaml'),
+        possible_paths = [os.path.expanduser('~/.analysisdriver.yaml'),
                           os.path.join(os.path.dirname(__file__), 'example_analysisdriver.yaml')]
         for p in possible_paths:
             if p and os.path.isfile(p):
@@ -76,24 +87,23 @@ class Config():
                 yield (k, override[k])
 
     def __getitem__(self, item):
-        #Allow access to the element of the config with dictionary style
+        # Allow access to the element of the config with dictionary style
         return self.content[item]
 
-
     def __getattr__(self, item):
-        #Allow access to the first layer with attribute style
+        # Allow access to the first layer with attribute style
         return self.content[item]
 
 
 
 from unittest import TestCase
 
-class test_config(TestCase):
+class TestConfig(TestCase):
     def setUp(self):
-        self.config=Config()
+        self.config = Config()
 
     def test_getitem(self):
-        self.assertEqual(self.config['raw_dir'],'raw')
+        self.assertEqual(self.config['raw_dir'], 'raw')
 
     def test_getattr(self):
-        self.assertEqual(self.config.raw_dir,'raw')
+        self.assertEqual(self.config.raw_dir, 'raw')
