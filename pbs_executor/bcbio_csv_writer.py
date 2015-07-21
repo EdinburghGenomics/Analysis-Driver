@@ -5,7 +5,9 @@ import os.path
 
 class BCBioCSVWriter:
     def __init__(self, fastq_dir, run_dir, sample_sheet):
-        self.writer = csv.writer(open(os.path.join(run_dir, 'samples.csv'), 'w'))
+        self.samples = open(os.path.join(run_dir, 'samples.csv'), 'w')
+
+        self.writer = csv.writer(self.samples)
         self.sample_sheet = sample_sheet
         self.fastq_dir = fastq_dir
 
@@ -15,6 +17,7 @@ class BCBioCSVWriter:
             fastqs = self._find_fastqs(self.fastq_dir, name)
             for fq in fastqs:
                 self.writer.writerow([fq, '', name])
+        self.samples.close()
 
     @staticmethod
     def _find_fastqs(location, sample_project):

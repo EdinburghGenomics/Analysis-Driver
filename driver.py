@@ -80,6 +80,7 @@ def main():
     fastqc_writer.write(fastq_path, job_dir)
 
     # submit the BCL2FASTQ script to batch scheduler
+    
     if config.job_execution == 'pbs':
         logger.info('Submitting: ' + os.path.join(job_dir, bcl2fastq_pbs_name))
         bcl2fastq_jobid = str(
@@ -100,7 +101,7 @@ def main():
             sleep(15)
 
         logger.info('Fastqc complete, executing alignment')
-
+    
     csv_writer = pbs_executor.BCBioCSVWriter(fastq_path, job_dir, sample_sheet)
     csv_writer.write()
     fastqs = []
@@ -108,23 +109,28 @@ def main():
     for sample_project in sample_sheet.sample_projects:
         fastqs = fastqs + util.find_fastqs(os.path.join(fastq_path, sample_project))
 
-    util.localexecute(
+    os.chdir(job_dir)
+
+    bcbio_pbs = os.path.join(job_dir, 'bcbio.pbs')
+    bcbio_writer = pbs_executor.BCBioPBSWriter(bcbio_pbs, 'bcbio', 'bcbio.log')
+    bcbio_writer.setup_bcbio_run(
         config.bcbio,
-        '-w', 'template',
         os.path.join(os.path.dirname(__file__), 'etc', 'bcbio_alignment.yaml'),
         os.path.join(job_dir, 'bcbio'),
         os.path.join(job_dir, 'samples.csv'),
-        *fastqs
+        fastqs
     )
-    print('this')
-    util.localexecute(
+
+    bcbio_writer.write(
         config.bcbio,
-        os.path.join(job_dir, 'bcbio.yaml'),
-        '--workdir',
-        os.path.join(job_dir, 'bcbio', 'work')
+        os.path.join(job_dir, 'samples', 'config', 'samples.yaml'),
+        os.path.join(job_dir, 'samples', 'work')
     )
-
-
+    bcbio_jobid = str(
+        # qsub_dependents.qsub_dependents([bcbio_pbs], jobid=fastqc_jobid)
+        qsub_dependents.qsub([bcbio_pbs])
+    ).lstrip('b\'').rstrip('\'')
+    logger.info('BCBio jobId: ' + bcbio_jobid)
 
     logger.info('Done')
 
