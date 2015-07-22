@@ -55,6 +55,7 @@ class Mask:
         assert not self._is_indexed_read(self.reads[-1])
         for index in self.indexes:
             assert self._is_indexed_read(index), str([x.attrib for x in self.indexes])
+        return True
 
     def tostring(self, sample_sheet_barcode_len):
         mask = 'y' + str(self._num_cycles(self.upstream_read) - 1) + 'n,'

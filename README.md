@@ -1,31 +1,90 @@
-# Scripts information #
+# Analysis Driver
 ---------------------
 
-**driver.py** ->  Main script with calls to the different scripts located at imports directory.
+## Scripts
+==========
+These can be found in bin/. Currently, these are:
 
-## IMPORTS ##
-==============
+- analysis_driver.py - The main entry point for the pipeline, currently called by ProcTrigger with an input
+  data dir.
+- run-tests.py - An entry point for pytest unit tests, should the user wish to run the tests outside of
+  PyCharm
 
-Directory containing python files with functions used in the main program.
-The files included are:
+## Modules
+==========
 
-**args.py** -> Parses the arguments of the script. At the moment it only expects the path to a sequencing data.
+The Analysis Driver consists of several modules, each in turn consisting of several files/functions/classes:
 
-**checkFinishRun.py** -> Checks when a file has been created indicating the end of a run (Not used at the moment).
+### legacy
+Contains code from the original version of the pipeline as developed by EPCC. At the moment, this includes
+only the qsub_dependents module, which interacts with the PBS resource manager and submits scripts written by
+the writer.PBSWriter subclasses.
 
-**getFastqFiles.py** -> returns a list of all fastq files in a given path (Not used at the moment).a
+### reader
+Classes that read various files that come off the sequencer.
 
-**xmlparsing.py** -> Parses RunInfo.xml which contains information of the mask required to run `bcl2fastq`.
+#### run_info
+This contains two classes:
 
-**csvparsing.py** -> Parses a SampleSheet.csv file needed to run `bcl2fastq`. The script expects to find a SampleSheet.csv file within the input directory
+- RunInfo - A class that represents an instance of RunInfo.xml. Its purpose is to parse the .xml file and
+  construct a Mask object.
+- Mask - A class that represents a read mask to be passed to bcl2fastq via self.tostring()
 
-**makeProject.py** -> Creates a local project where all the temp files and results will be located before sending them back to the RDF.
+#### sample_sheet
+This contains three classes:
 
-**createBCL2FASTQ_PBS.py** -> Creates a PBS script with all the required information to run `bcl2fastq`.
+- SampleSheet - Reads SampleSheet.csv, validates the barcode lengths contained, and constructs a series of
+  SampleProject objects.
+- SampleProject - Represents a sample project in SampleSheet.csv, e.g., '10015AT', and contains appropriate
+  matching lines from the file. Effectively grouping the sample sheet by sample project. Each SampleProject
+  can have its own read length, as long as all its reads are consistent.
+- Sample - Represents a line in SampleSheet.csv
 
-**createBCBIO_PBS.py** -> Create a PBS script with all the required information to run `bcbio`. This script contais hardcoded paths such as Java or bcbio paths. Make sure they are pointing to the right path for you.
+### util
+Contains various utility classes and functions used by the app, both in __init__ and logger:
 
-**qsub_dependents.py** -> Submits jobs to the queue 
+- AnalysisDriverError - An Exception class that can be raised in error handling
+- AppLogger - A class that can be mixed in to any class in the Analysis Driver to allow it to write to the
+  logging streams set in configuration.
+- localexecute - Uses subprocess.Popen to execute arbitrary shell commands
+- shellexecute - Same as localexecute, but with `shell` set to `True`.
+- find_fastqs - Uses `os.walk` to iterate through a directory and return a list of all fastq.gz files within.
+- setup_bcbio_run - Uses localexecute to run `bcbio -w template` on a given yaml config, a run directory, a
+  csv sample file and a list of fastqs
+
+### writer
+Contains classes that write various files to be used/executed in the pipeline
+
+#### pbs_writer
+This contains four classes that can write PBS-submittable shell scripts:
+
+- PBSWriter - A base class that can open a file for writing, write a PBS header with job parameters
+  (`walltime`, `cpus`, `mem`, job name, stdout file and queue id), and save the file.
+- BCL2FastqWriter - A PBSWriter that also writes out the bcl2fastq command:
+  `bcl2fastq -l INFO --runfolder-dir <run_dir> --output-dir <out_dir> --sample-sheet <sample_sheet> --use-bases-mask <mask>`
+- FastqcWriter - Writes the fastqc command:
+  `fastqc --nogroup -t 8 -q $(find <input_dir> -name '*.fastq.gz')`
+  and also creates an empty `.fastqc_complete` lock file
+- BCBioWriter - Exports some Java paths for gatk, and writes out the BCBio command:
+  `bcbio <run_yaml> -n <cores> --workdir <workdir>`
+
+#### BCBioCSVWriter
+Used to write out a sample file for use with `bcbio -w template`. It takes a reader.SampleSheet object, a
+directory to be used in the BCBio run and a directory to search for fastqs. Based on the SampleProject objects
+in self.sample_sheet, it writes out a .csv file with the fastq files appropriately grouped.
+
+### config
+Defines a class, Configuration, that represents the appropriate environment in the user's .analysisdriver.yaml
+config file. Contains configurations for:
+
+- Job submission (currently only PBS)
+- Data directories (rdf raw data, input_data, fastqs, BCBio jobs)
+- Python interpreter
+- Logging (via dictConfig)
+
+### driver
+The main 'client' script for the Analysis Driver.
+
 
 
 # HOWTO #

@@ -5,7 +5,7 @@ import sys
 from analysis_driver.util import AppLogger, AnalysisDriverError
 
 
-class Config(AppLogger):
+class Configuration(AppLogger):
     """
     Loads a yaml config file from the user's home, '~/.analysisdriver.yaml'
     """
@@ -65,7 +65,7 @@ class Config(AppLogger):
         # Allow access to the element of the config with dictionary style
         return self.content[item]
 
-    def logging(self):
+    def logging(self, log_level='INFO'):
         logging_config = self['logging']
         dict_config = {
             'version': 1,
@@ -80,19 +80,21 @@ class Config(AppLogger):
         }
         for name, formatter in logging_config['formatters'].items():
             dict_config['formatters'][name] = formatter
+
         for name, handler in logging_config['handlers'].items():
             dict_config['handlers'][name] = {
                 'level': handler['level'],
                 'formatter': handler['formatter'],
-                'stream': handler['stream']
+                'stream': handler['stream'],
+                'class': 'logging.StreamHandler'
             }
-            if handler['stream'] == 'stdout':  # Special case if the user wants to log to sys.stdout
+            if 'sys.stdout' in handler['stream']:  # Special case if the user wants to log to sys.stdout
                 dict_config['handlers'][name]['stream'] = sys.stdout
 
             dict_config['loggers']['']['handlers'].append(name)
 
         dict_config['loggers']['']['level'] = logging_config['default_level']
-    return dict_config
+        return dict_config
 
 
 from unittest import TestCase
@@ -100,7 +102,7 @@ from unittest import TestCase
 
 class TestConfig(TestCase):
     def setUp(self):
-        self.config = Config()
+        self.config = Configuration()
 
     def test_getitem(self):
         self.assertEqual(self.config['raw_dir'], 'raw')

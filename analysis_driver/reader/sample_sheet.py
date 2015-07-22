@@ -1,7 +1,6 @@
 __author__ = 'mwham'
 import csv
 import os
-
 from analysis_driver.util import AppLogger
 
 
@@ -47,6 +46,7 @@ class SampleSheet(AppLogger):
         :return: The DNA barcode length for each sample project
         :rtype: int
         """
+        last_sample = None
         for name, sample_project in self.sample_projects.items():
             last_sample = None
             for sample in sample_project.samples:
@@ -74,7 +74,9 @@ class SampleProject:
 
     def add_sample(self, sample):
         if sample.sample_project != self.name:
-            raise AssertionError
+            raise AssertionError(
+                'Adding invalid sample project to ' + self.name + ': ' + sample.sample_project
+            )
         else:
             self.samples.append(sample)
 

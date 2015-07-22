@@ -2,7 +2,6 @@ __author__ = 'mwham'
 import subprocess
 import logging
 import os
-
 from .logger import AppLogger
 
 app_logger = logging.getLogger(__name__)
@@ -12,18 +11,16 @@ def localexecute(*args):
 
     proc = subprocess.Popen(list(args), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     out, err = proc.communicate()
-    app_logger.info(out.decode('utf-8'))
-    app_logger.info(err.decode('utf-8'))
     app_logger.info('Done')
+    return out.decode('utf-8'), err.decode('utf-8')
 
 def shellexecute(*args):
     app_logger.info('shellexecute: ' + ' '.join(args))
 
     proc = subprocess.Popen(' '.join(args), stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
     out, err = proc.communicate()
-    app_logger.info(out.decode('utf-8'))
-    app_logger.info(err.decode('utf-8'))
     app_logger.info('Done')
+    return out.decode('utf-8'), err.decode('utf-8')
 
 def find_fastqs(path):
     fastqs = []

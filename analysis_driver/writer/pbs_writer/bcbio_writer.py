@@ -2,9 +2,9 @@ __author__ = 'mwham'
 from .pbs_writer import PBSWriter
 
 
-class BCBioPBSWriter(PBSWriter):
-    def __init__(self, pbs_name, job_name, log_file, walltime='72', cpus='8', mem='64'):
-        super().__init__(pbs_name, walltime, cpus, mem, job_name, log_file)
+class BCBioWriter(PBSWriter):
+    def __init__(self, pbs_name, job_name, log_file, walltime='72', cpus='8', mem='64', queue='uv2000'):
+        super().__init__(pbs_name, walltime, cpus, mem, job_name, log_file, queue)
 
     def _bcbio(self, bcbio_path, run_yaml, workdir, cores=16):
         self.log('Writing BCBio command')

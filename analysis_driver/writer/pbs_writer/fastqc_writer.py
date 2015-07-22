@@ -1,7 +1,7 @@
 from analysis_driver.writer.pbs_writer import PBSWriter
 
 
-class FastqcPBSWriter(PBSWriter):
+class FastqcWriter(PBSWriter):
     def __init__(self, pbs_name, job_name, log_file, walltime='6', cpus='8', mem='3', queue='uv2000'):
         super().__init__(pbs_name, walltime, cpus, mem, job_name, log_file, queue)
 

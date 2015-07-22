@@ -2,7 +2,7 @@ import os.path
 from analysis_driver.writer.pbs_writer import PBSWriter
 
 
-class BCL2FastqPBSWriter(PBSWriter):
+class BCL2FastqWriter(PBSWriter):
     def __init__(self, pbs_name, job_name, log_file, walltime='24', cpus='12', mem='24', queue='uv2000'):
         super().__init__(pbs_name, walltime, cpus, mem, job_name, log_file, queue)
 

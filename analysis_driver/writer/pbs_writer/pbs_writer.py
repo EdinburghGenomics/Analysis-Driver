@@ -32,5 +32,6 @@ class PBSWriter(AppLogger):
 
     def save(self):
         self.pbs_file.write(self.script)
+        print(self.pbs_file)
         self.pbs_file.close()
         self.log('Closed pbs file')

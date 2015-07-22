@@ -2,21 +2,21 @@
 ---
 testing:
     shared:
-        work_home: /home/U008/mwham
-        raw_dir: raw
-        input_data_dir: input_data
-        fastq_dir: fastq
-        jobs_dir : jobs
+        work_home: /Users/mwham/workspace/EdGen_Analysis_Driver
+        raw_dir: /Users/mwham/workspace/EdGen_Analysis_Driver/raw
+        input_data_dir: /Users/mwham/workspace/EdGen_Analysis_Driver/input_data
+        fastq_dir: /Users/mwham/workspace/EdGen_Analysis_Driver/fastq
+        jobs_dir : /Users/mwham/workspace/EdGen_Analysis_Driver/jobs
         # python: /opt/anaconda/bin/python
-        python: /home/U008/mwham/python/envs/23_06_15/bin/python
+        python: /Users/mwham/workspace/EdGen_Analysis_Driver/Application/envs/3_7_15/bin/python
 
     proctrigger:
-        location: /home/U008/mwham/Process-Trigger  # absolute path
+        location: /Users/mwham/workspace/EdGen_Analysis_Driver/Applications/Process-Trigger  # absolute path
         tt_agent_delay: 120
         age_cutoff: 5  # In mins
     analysisdriver:
-        location: /home/U008/mwham/Analysis-Driver  # absolute path
-        job_execution: pbs  # pbs, local or None
+        location: /Users/mwham/workspace/EdGen_Analysis_Driver/Applications/Analysis-Driver  # absolute path
+        job_execution: pbs  # pbs or None
 
         logging:
             formatters:
@@ -28,7 +28,6 @@ testing:
                     formatter: default_fmt
                     stream: stdout
             default_level: INFO
-
 
 production:
     shared:
