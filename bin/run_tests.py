@@ -3,7 +3,7 @@ import pytest
 import sys
 
 
-def main(profile, coverage):
+def main(profile=False, coverage=False, pr_ignore=('site-packages', 'lib', 'tests')):
     if profile:
         import cProfile
         pr = cProfile.Profile()
@@ -25,12 +25,27 @@ def main(profile, coverage):
     if type(pr) is not Null:
         import pstats
         ps = pstats.Stats(pr, stream=sys.stdout).sort_stats('cumulative')
+
         print('\n================== reporting profiling ==================')
-        ps.print_stats(20)
+        ps.print_title()
+
+        ignore_func = lambda path: any([ignorable for ignorable in pr_ignore if ignorable in path])
+        counter = 0
+
+        width, l = ps.get_print_list(tuple())
+        for func in l:
+            if ignore_func(func[0]):
+                pass
+            else:
+                ps.print_line(func)
+                counter += 1
+
+            if counter > 20:
+                break
 
     if type(cov) is not Null:
         print('\n=================== reporting coverage ===================')
-        cov.report(file=sys.stdout)
+        cov.report(file=sys.stdout, omit='tests/*')
 
 
 class Null:
@@ -52,4 +67,7 @@ class Null:
 
 
 if __name__ == '__main__':
-    main(True, True)
+    main(
+        profile=True,
+        coverage=True
+    )

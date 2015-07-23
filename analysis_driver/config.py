@@ -2,7 +2,7 @@ import os
 import yaml
 import sys
 
-from analysis_driver.util import AppLogger, AnalysisDriverError
+from analysis_driver.util import AppLogger
 
 
 class Configuration(AppLogger):
@@ -65,7 +65,7 @@ class Configuration(AppLogger):
         # Allow access to the element of the config with dictionary style
         return self.content[item]
 
-    def logging(self, log_level='INFO'):
+    def logging(self, log_level='INFO'):  # TODO: add logging override via a --log_level flag
         logging_config = self['logging']
         dict_config = {
             'version': 1,

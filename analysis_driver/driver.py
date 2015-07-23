@@ -33,8 +33,6 @@ def main(argv):
     logging.config.dictConfig(config.logging())
     main_logger = logging.getLogger('main')
 
-    main_logger.debug('lol')
-
     setup_working_dirs(fastq_dir, job_dir)
     main_logger.info('Reading bcl data from ' + args.input_run_folder)
     main_logger.info('Fastq path is ' + fastq_dir)

@@ -16,6 +16,7 @@ class TestBCBioCSVWriter(TestAnalysisDriver):
     def test_write(self):
         self.writer.write()
         with open(os.path.join(self.tmp_run_dir, 'samples.csv')) as f:
+            print(f)
             assert True
             # TODO: assert that the file has correct content
 
@@ -23,4 +24,3 @@ class TestBCBioCSVWriter(TestAnalysisDriver):
         fastqs = self.writer._find_fastqs(self.fastq_path, '10015AT')
         for file_name in ['this.fastq.gz', 'that.fastq.gz', 'other.fastq.gz']:
             assert os.path.join(self.fastq_path, '10015AT', '10015ATA0001L05', file_name) in fastqs
-

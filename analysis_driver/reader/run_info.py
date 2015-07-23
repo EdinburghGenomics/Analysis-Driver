@@ -1,12 +1,12 @@
 import os.path
-import xml.etree.ElementTree as ET
+import xml.etree.ElementTree as eT
 from analysis_driver.util import AppLogger
 
 
 class RunInfo(AppLogger):
     def __init__(self, data_dir):
         run_info = os.path.join(data_dir, 'RunInfo.xml')
-        self.root = ET.parse(run_info).getroot()
+        self.root = eT.parse(run_info).getroot()
         reads = self.root.find('Run/Reads').getchildren()
 
         self.mask = Mask()
@@ -80,13 +80,3 @@ class Mask:
     @staticmethod
     def _num_cycles(read):
         return int(read.attrib['NumCycles'])
-
-
-
-# Unit Test
-if __name__ == '__main__':
-    file_path = "/home/U008/lcebaman/scripts/data/RunInfo.xml"
-    print(file_path)
-
-    # mask = get_mask(file_path)
-    # print(mask)

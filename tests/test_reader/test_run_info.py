@@ -1,10 +1,11 @@
 __author__ = 'mwham'
 from tests.test_analysisdriver import TestAnalysisDriver
 from analysis_driver.reader.run_info import RunInfo, Mask
-import xml.etree.ElementTree as et
+import xml.etree.ElementTree as eT
+
 
 def new_read(number, num_cycles, is_indexed_read):
-    return et.Element(
+    return eT.Element(
         'Read', attrib={'Number': str(number), 'NumCycles': str(num_cycles), 'IsIndexedRead': is_indexed_read}
     )
 

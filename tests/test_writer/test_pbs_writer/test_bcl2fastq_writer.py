@@ -21,9 +21,9 @@ class TestBCL2FastqWriter(TestPBSWriter):
         self.writer._bcl2fastq(mask='this,that,other', input_dir=self.assets_path, fastq_path='a_fastq_path')
         expected_ending = 'bcl2fastq -l INFO --runfolder-dir %s --output-dir %s --sample-sheet %s ' \
                           '--use-bases-mask %s\n\n' % (self.assets_path,
-                                                     'a_fastq_path',
-                                                     os.path.join(self.assets_path, 'SampleSheet.csv'),
-                                                     'this,that,other')
+                                                       'a_fastq_path',
+                                                       os.path.join(self.assets_path, 'SampleSheet.csv'),
+                                                       'this,that,other')
         print(self.writer.script)
         print(expected_ending)
         assert self.writer.script.endswith(expected_ending)

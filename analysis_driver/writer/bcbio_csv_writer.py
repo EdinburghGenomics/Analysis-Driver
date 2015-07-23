@@ -28,8 +28,10 @@ class BCBioCSVWriter(AppLogger):
         fastqs = []
         fastq_dir = os.path.join(location, sample_project)
         sample_ids = [os.path.join(fastq_dir, x) for x in os.listdir(fastq_dir)]
-        for id in sample_ids:
-            fastqs = fastqs + [os.path.join(id, fq) for fq in os.listdir(id) if fq.endswith('.fastq.gz')]
+        for sample_id in sample_ids:
+            fastqs = fastqs + [
+                os.path.join(sample_id, fq) for fq in os.listdir(sample_id) if fq.endswith('.fastq.gz')
+            ]
 
         self.log('Found ' + str(len(fastqs)) + 'fastq files')
         return fastqs

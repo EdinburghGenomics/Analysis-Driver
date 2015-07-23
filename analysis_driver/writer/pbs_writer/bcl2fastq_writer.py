@@ -1,3 +1,4 @@
+__author__ = 'mwham'
 import os.path
 from analysis_driver.writer.pbs_writer import PBSWriter
 

@@ -6,6 +6,12 @@ from .logger import AppLogger
 
 app_logger = logging.getLogger(__name__)
 
+
+class AnalysisDriverError(Exception):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+
 def localexecute(*args):
     app_logger.info('localexecute: ' + ' '.join(args))
 
@@ -13,6 +19,7 @@ def localexecute(*args):
     out, err = proc.communicate()
     app_logger.info('Done')
     return out.decode('utf-8'), err.decode('utf-8')
+
 
 def shellexecute(*args):
     app_logger.info('shellexecute: ' + ' '.join(args))
@@ -22,6 +29,7 @@ def shellexecute(*args):
     app_logger.info('Done')
     return out.decode('utf-8'), err.decode('utf-8')
 
+
 def find_fastqs(path):
     fastqs = []
     for root, dirs, files in os.walk(path):
@@ -29,6 +37,7 @@ def find_fastqs(path):
             if f.endswith('.fastq.gz'):
                 fastqs.append(os.path.join(root, f))
     return fastqs
+
 
 def setup_bcbio_run(bcbio, template, csv_file, run_dir, fastqs):
     localexecute(
@@ -40,8 +49,3 @@ def setup_bcbio_run(bcbio, template, csv_file, run_dir, fastqs):
         csv_file,
         *fastqs
     )
-
-
-class AnalysisDriverError(Exception):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
