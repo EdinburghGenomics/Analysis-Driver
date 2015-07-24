@@ -4,8 +4,6 @@ import logging
 import os
 from .logger import AppLogger
 
-app_logger = logging.getLogger(__name__)
-
 
 class AnalysisDriverError(Exception):
     def __init__(self, *args, **kwargs):
@@ -13,20 +11,14 @@ class AnalysisDriverError(Exception):
 
 
 def localexecute(*args):
-    app_logger.info('localexecute: ' + ' '.join(args))
-
     proc = subprocess.Popen(list(args), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     out, err = proc.communicate()
-    app_logger.info('Done')
     return out.decode('utf-8'), err.decode('utf-8')
 
 
 def shellexecute(*args):
-    app_logger.info('shellexecute: ' + ' '.join(args))
-
     proc = subprocess.Popen(' '.join(args), stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
     out, err = proc.communicate()
-    app_logger.info('Done')
     return out.decode('utf-8'), err.decode('utf-8')
 
 
@@ -40,7 +32,7 @@ def find_fastqs(path):
 
 
 def setup_bcbio_run(bcbio, template, csv_file, run_dir, fastqs):
-    localexecute(
+    out, err = localexecute(
         bcbio,
         '-w',
         'template',
@@ -49,3 +41,5 @@ def setup_bcbio_run(bcbio, template, csv_file, run_dir, fastqs):
         csv_file,
         *fastqs
     )
+    return out, err
+

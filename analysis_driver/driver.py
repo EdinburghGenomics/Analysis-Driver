@@ -94,7 +94,7 @@ def run_pbs(logger=None, config=None, input_run_folder=None, job_dir=None,
         fastqc_pbs_name, 'fastqc', os.path.join(job_dir, 'fastqc_pbs.log')
     )
     fastqc_writer.write(fastq_dir, job_dir)
-
+    
     # submit the bcl2fastq script to batch scheduler
     logger.info('Submitting: ' + os.path.join(job_dir, bcl2fastq_pbs_name))
     bcl2fastq_jobid = str(
@@ -113,28 +113,32 @@ def run_pbs(logger=None, config=None, input_run_folder=None, job_dir=None,
     logger.info('Waiting for creation of ' + fastqc_complete)
     while not os.path.exists(fastqc_complete):
         sleep(15)
-
+    
     logger.info('Fastqc complete, executing alignment')
 
     csv_writer = writer.BCBioCSVWriter(fastq_dir, job_dir, sample_sheet)
     csv_writer.write()
     fastqs = []
-
     for sample_project in sample_sheet.sample_projects:
+        logger.info('Looking for fastqs in ' + os.path.join(fastq_dir, sample_project))
         fastqs = fastqs + util.find_fastqs(os.path.join(fastq_dir, sample_project))
-
+    logger.info('Found ' + str(len(fastqs)) + ' fastqs')
     os.chdir(job_dir)
 
-    bcbio_pbs = os.path.join(job_dir, 'bcbio.pbs')
-    bcbio_writer = writer.pbs_writer.BCBioWriter(bcbio_pbs, 'bcbio', 'bcbio.log')
-    util.setup_bcbio_run(
+    logger.info('Setting up BCBio run')
+    # TODO: make the .yaml template location configurable
+    out, err = util.setup_bcbio_run(
         config['bcbio'],
-        os.path.join(os.path.dirname(__file__), 'etc', 'bcbio_alignment.yaml'),
+        os.path.join(os.path.dirname(os.path.dirname(__file__)), 'etc', 'bcbio_alignment.yaml'),
         os.path.join(job_dir, 'bcbio'),
         os.path.join(job_dir, 'samples.csv'),
         fastqs
     )
+    logger.info(out)
+    logger.warn(err)
 
+    bcbio_pbs = os.path.join(job_dir, 'bcbio.pbs')
+    bcbio_writer = writer.pbs_writer.BCBioWriter(bcbio_pbs, 'bcbio', 'bcbio.log')
     bcbio_writer.write(
         config['bcbio'],
         os.path.join(job_dir, 'samples', 'config', 'samples.yaml'),
