@@ -65,7 +65,9 @@ class Configuration(AppLogger):
         # Allow access to the element of the config with dictionary style
         return self.content[item]
 
-    def logging(self, log_level='INFO'):  # TODO: add logging override via a --log_level flag
+    def logging(self, log_level='INFO'):
+        # TODO: add logging override via a --log_level flag
+        # TODO: rename, load in more directly from the yaml content
         logging_config = self['logging']
         dict_config = {
             'version': 1,
@@ -94,15 +96,8 @@ class Configuration(AppLogger):
             dict_config['loggers']['']['handlers'].append(name)
 
         dict_config['loggers']['']['level'] = logging_config['default_level']
+
         return dict_config
 
 
-from unittest import TestCase
-
-
-class TestConfig(TestCase):
-    def setUp(self):
-        self.config = Configuration()
-
-    def test_getitem(self):
-        self.assertEqual(self.config['raw_dir'], 'raw')
+default = Configuration()  # Singleton for access by other modules

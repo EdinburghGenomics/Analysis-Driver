@@ -1,8 +1,9 @@
 __author__ = 'mwham'
 import subprocess
-import logging
 import os
 from .logger import AppLogger
+
+app_logger = AppLogger()
 
 
 class AnalysisDriverError(Exception):
@@ -11,8 +12,10 @@ class AnalysisDriverError(Exception):
 
 
 def localexecute(*args):
+    app_logger.log('Executing: ' + ', '.join(args), 'DEBUG')
     proc = subprocess.Popen(list(args), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     out, err = proc.communicate()
+    # TODO: stream the stdout to the log instead
     return out.decode('utf-8'), err.decode('utf-8')
 
 
@@ -28,6 +31,7 @@ def find_fastqs(path):
         for f in files:
             if f.endswith('.fastq.gz'):
                 fastqs.append(os.path.join(root, f))
+                # TODO: merge this into BCBioCSVWriter._find_fastqs()
     return fastqs
 
 
@@ -42,4 +46,3 @@ def setup_bcbio_run(bcbio, template, csv_file, run_dir, fastqs):
         *fastqs
     )
     return out, err
-

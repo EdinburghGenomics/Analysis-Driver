@@ -7,7 +7,8 @@ from time import sleep
 from analysis_driver import writer, util
 from analysis_driver.legacy import qsub_dependents
 import analysis_driver.reader
-import analysis_driver.config as cfg
+
+from analysis_driver.config import default as config  # imports the default config singleton
 
 logging_helper = logging.getLogger('driver')
 
@@ -24,7 +25,6 @@ def main(argv):
     parser.add_argument('input_run_folder', type=str, help='An absolute path to an input data directory')
 
     args = parser.parse_args(argv)
-    config = cfg.Configuration()
 
     run_id = os.path.basename(args.input_run_folder)
     fastq_dir = os.path.join(config['fastq_dir'], run_id)
@@ -56,7 +56,7 @@ def main(argv):
 
     if config['job_execution'] == 'pbs':
         run_pbs(
-            logger=main_logger, config=config, input_run_folder=args.input_run_folder, job_dir=job_dir,
+            logger=main_logger, input_run_folder=args.input_run_folder, job_dir=job_dir,
             run_id=run_id, fastq_dir=fastq_dir, mask=mask, sample_sheet=sample_sheet
         )
 
@@ -73,7 +73,7 @@ def setup_working_dirs(*args):
             logging_helper.debug('Already exists: ' + wd)
 
 
-def run_pbs(logger=None, config=None, input_run_folder=None, job_dir=None,
+def run_pbs(logger=None, input_run_folder=None, job_dir=None,
             run_id=None, fastq_dir=None, mask=None, sample_sheet=None):
 
     # Write bcl2fastq PBS script

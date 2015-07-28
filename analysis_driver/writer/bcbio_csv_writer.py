@@ -25,6 +25,7 @@ class BCBioCSVWriter(AppLogger):
 
     def _find_fastqs(self, location, sample_project):
         # TODO: push this up to util
+        # TODO: have this search per sample within a sample project
         fastqs = []
         fastq_dir = os.path.join(location, sample_project)
         sample_ids = [os.path.join(fastq_dir, x) for x in os.listdir(fastq_dir)]

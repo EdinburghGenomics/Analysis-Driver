@@ -65,6 +65,7 @@ class SampleSheet(AppLogger):
                     last_sample = sample
 
         return len(last_sample.barcode)
+        # TODO: check same lengths for the entire sample sheet. We don't intend to mix barcodes.
 
 
 class SampleProject:
