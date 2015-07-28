@@ -17,10 +17,10 @@ class RunInfo(AppLogger):
         barcode_reads = self.mask.index_lengths
 
         if len(barcode_reads):
-            self.log('Barcode reads: ' + str(barcode_reads), 'DEBUG')
+            self.debug('Barcode reads: ' + str(barcode_reads))
             self.barcode_len = int(barcode_reads[0])
         else:
-            self.log('RunInfo.xml has no barcode reads', 'WARN')
+            self.warn('RunInfo.xml has no barcode reads')
 
 
 class Mask:

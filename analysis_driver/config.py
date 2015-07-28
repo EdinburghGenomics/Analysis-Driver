@@ -11,7 +11,7 @@ class Configuration(AppLogger):
     """
     def __init__(self):
         config_file = self.__class__._find_config_file()
-        self.log('Using config file at ' + config_file)
+        self.info('Using config file at ' + config_file)
         self.config_file = open(config_file, 'r')
 
         yaml_content = yaml.load(self.config_file)

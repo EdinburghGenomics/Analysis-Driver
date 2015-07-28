@@ -5,22 +5,30 @@ import logging
 class AppLogger:
     __logger = None
 
-    def log(self, msg, level='INFO', error_class=None):
+    def debug(self, msg):
+        self._check_logger()
+        self.__logger.debug(msg)
+
+    def info(self, msg):
+        self._check_logger()
+        self.__logger.info(msg)
+
+    def warn(self, msg):
+        self._check_logger()
+        self.__logger.warn(msg)
+
+    def error(self, msg):
+        self._check_logger()
+        self.__logger.error(msg)
+
+    def critical(self, msg, error_class=None):
+        self._check_logger()
+
+        if error_class:
+            raise error_class(msg)
+        else:
+            self.__logger.critical(msg)
+
+    def _check_logger(self):
         if self.__logger is None:
             self.__logger = logging.getLogger(self.__class__.__name__)
-
-        if level == 'DEBUG':
-            self.__logger.debug(msg)
-        elif level == 'INFO':
-            self.__logger.info(msg)
-        elif level == 'WARN':
-            self.__logger.warn(msg)
-        elif level == 'ERROR':
-            self.__logger.error(msg)
-        elif level == 'CRITICAL':
-            if error_class:
-                raise error_class(msg)
-            else:
-                self.__logger.critical(msg)
-        else:
-            raise ValueError('Invalid log level: ' + level)

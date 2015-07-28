@@ -60,6 +60,8 @@ def main(argv):
             run_id=run_id, fastq_dir=fastq_dir, mask=mask, sample_sheet=sample_sheet
         )
 
+    util.demultiplex_feedback(run_id)
+
     main_logger.info('Done')
     return 0
 

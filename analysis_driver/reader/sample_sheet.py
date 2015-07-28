@@ -12,11 +12,11 @@ class SampleSheet(AppLogger):
         while not next(self.file).startswith('[Data]'):
             pass  # Do nothing until [Data]
             counter += 1
-        self.log('Start reading sample sheet at line ' + str(counter), 'DEBUG')
+        self.debug('Start reading sample sheet at line ' + str(counter))
 
         self.sample_projects = {}  # {name: samples} {str: Sample}
         self._populate(self.sample_projects)
-        self.log('Sample project entries: ' + str(self.sample_projects), 'DEBUG')
+        self.debug('Sample project entries: ' + str(self.sample_projects))
 
     def _populate(self, samples):
         reader = csv.DictReader(self.file)

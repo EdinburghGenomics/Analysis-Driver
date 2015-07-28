@@ -8,7 +8,7 @@ class FastqcWriter(PBSWriter):
 
     def _fastqc(self, input_dir):
         # TODO: find fastqs through Python rather than Bash
-        self.log('Writing fastqc command')
+        self.info('Writing fastqc command')
         self.write_line('FASTQ_FILES=`find ' + input_dir + ' -name \'*.fastq.gz\'`\n')
         self.write_line('fastqc --nogroup -t 8 -q $FASTQ_FILES\n')
 
