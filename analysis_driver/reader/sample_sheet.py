@@ -48,7 +48,6 @@ class SampleSheet(AppLogger):
         """
         last_sample = None
         for name, sample_project in self.sample_projects.items():
-            last_sample = None
             for sample in sample_project.samples:
                 try:
                     if len(sample.barcode) == len(last_sample.barcode):
@@ -65,7 +64,6 @@ class SampleSheet(AppLogger):
                     last_sample = sample
 
         return len(last_sample.barcode)
-        # TODO: check same lengths for the entire sample sheet. We don't intend to mix barcodes.
 
 
 class SampleProject:

@@ -65,39 +65,48 @@ class Configuration(AppLogger):
         # Allow access to the element of the config with dictionary style
         return self.content[item]
 
-    def logging(self, log_level='INFO'):
-        # TODO: add logging override via a --log_level flag
-        # TODO: rename, load in more directly from the yaml content
-        logging_config = self['logging']
-        dict_config = {
-            'version': 1,
-            'formatters': {},
-            'handlers': {},
-            'loggers': {
-                '': {
-                    'handlers': [],
-                    'propagate': False
-                }
-            }
-        }
-        for name, formatter in logging_config['formatters'].items():
-            dict_config['formatters'][name] = formatter
+    def logging_config(self, log_level=None):
 
-        for name, handler in logging_config['handlers'].items():
-            dict_config['handlers'][name] = {
-                'level': handler['level'],
-                'formatter': handler['formatter'],
-                'stream': handler['stream'],
-                'class': 'logging.StreamHandler'
-            }
-            if 'sys.stdout' in handler['stream']:  # Special case if the user wants to log to sys.stdout
-                dict_config['handlers'][name]['stream'] = sys.stdout
+        dict_config = self['logging']
+        dict_config['version'] = 1
 
-            dict_config['loggers']['']['handlers'].append(name)
+        if log_level:
+            assert log_level in ['DEBUG', 'INFO', 'WARN', 'ERROR', 'CRITICAL']
 
-        dict_config['loggers']['']['level'] = logging_config['default_level']
+            for domain in ['handlers', 'loggers']:
+                for k, v in dict_config[domain].items():
+                    if dict_config[domain][k]['level']:
+                        dict_config[domain][k]['level'] = log_level
+
+            if dict_config['root']['level']:
+                dict_config['root']['level'] = log_level
 
         return dict_config
+
+x = {
+    'handlers': {
+        'default_hnd': {
+            'formatter': 'default_fmt',
+            'stream': 'ext://sys.stdout',
+            'level': 'INFO'
+        }
+    },
+    'loggers': {
+        'default_logger': {
+            'handlers': ['default_hnd'],
+            'propagate': False,
+            'level': 'INFO'
+        }
+    },
+    'version': 1,
+    'formatters': {
+        'default_fmt': {
+            'datefmt': '%Y-%b-%d %H:%M:%S',
+            'format': '%(asctime)s [%(name)-12s][%(levelname)-5s] %(message)s'
+        }
+    }
+}
+
 
 
 default = Configuration()  # Singleton for access by other modules

@@ -3,23 +3,23 @@ import logging
 
 
 class AppLogger:
-    __logger = None
+    _logger = None
 
     def debug(self, msg):
         self._check_logger()
-        self.__logger.debug(msg)
+        self._logger.debug(msg)
 
     def info(self, msg):
         self._check_logger()
-        self.__logger.info(msg)
+        self._logger.info(msg)
 
     def warn(self, msg):
         self._check_logger()
-        self.__logger.warn(msg)
+        self._logger.warn(msg)
 
     def error(self, msg):
         self._check_logger()
-        self.__logger.error(msg)
+        self._logger.error(msg)
 
     def critical(self, msg, error_class=None):
         self._check_logger()
@@ -27,8 +27,13 @@ class AppLogger:
         if error_class:
             raise error_class(msg)
         else:
-            self.__logger.critical(msg)
+            self._logger.critical(msg)
 
     def _check_logger(self):
-        if self.__logger is None:
-            self.__logger = logging.getLogger(self.__class__.__name__)
+        if self._logger is None:
+            self._logger = logging.getLogger(self.__class__.__name__)
+
+
+class NamedAppLogger(AppLogger):
+    def __init__(self, name):
+        self._logger = logging.getLogger(name)

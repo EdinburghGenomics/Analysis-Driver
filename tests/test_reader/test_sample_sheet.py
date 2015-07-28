@@ -65,7 +65,4 @@ class TestSampleProject(TestAnalysisDriver):
                 barcode='ATGCAG'
             )
             self.sample_project.add_sample(new_sample)
-            print(e)
-            assert e.value == 'Invalid sample project: another_test_sp'
-        print('This test doesn\'t work')
-        assert False
+        assert 'Adding invalid sample project to test_sp: another_test_sp' == str(e.value)

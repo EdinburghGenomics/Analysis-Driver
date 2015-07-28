@@ -1,5 +1,6 @@
 __author__ = 'mwham'
 from .pbs_writer import PBSWriter
+from analysis_driver import config
 
 
 class BCBioWriter(PBSWriter):
@@ -8,10 +9,10 @@ class BCBioWriter(PBSWriter):
 
     def _bcbio(self, bcbio_path, run_yaml, workdir, cores=16):
         self.info('Writing BCBio command')
-        # Java paths. TODO: get these into the YAML config
-        self.write_line('export JAVA_HOME=/home/U008/edingen/Applications/jdk1.7.0_76/')
-        self.write_line('export JAVA_BINDIR=/home/U008/edingen/Applications/jdk1.7.0_76/bin')
-        self.write_line('export JAVA_ROOT=/home/edingen/Applications/jdk1.7.0_76/\n')
+
+        self.write_line('export JAVA_HOME=' + config.default['gatk']['java_home'])
+        self.write_line('export JAVA_BINDIR=' + config.default['gatk']['java_bindir'])
+        self.write_line('export JAVA_ROOT=' + config.default['gatk']['java_root'] + '\n')
 
         cmd = '%s %s -n %s --workdir %s\n' % (bcbio_path, run_yaml, cores, workdir)
         self.info(cmd)

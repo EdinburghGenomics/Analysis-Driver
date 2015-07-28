@@ -23,6 +23,7 @@ def main(argv):
 
     parser = argparse.ArgumentParser()
     parser.add_argument('input_run_folder', type=str, help='An absolute path to an input data directory')
+    # TODO: add a --log-level flag
 
     args = parser.parse_args(argv)
 
@@ -30,7 +31,7 @@ def main(argv):
     fastq_dir = os.path.join(config['fastq_dir'], run_id)
     job_dir = os.path.join(config['jobs_dir'], run_id)
 
-    logging.config.dictConfig(config.logging())
+    logging.config.dictConfig(config.logging_config())
     main_logger = logging.getLogger('main')
 
     setup_working_dirs(fastq_dir, job_dir)
@@ -120,21 +121,16 @@ def run_pbs(logger=None, input_run_folder=None, job_dir=None,
 
     csv_writer = writer.BCBioCSVWriter(fastq_dir, job_dir, sample_sheet)
     csv_writer.write()
-    fastqs = []
-    for sample_project in sample_sheet.sample_projects:
-        logger.info('Looking for fastqs in ' + os.path.join(fastq_dir, sample_project))
-        fastqs = fastqs + util.find_fastqs(os.path.join(fastq_dir, sample_project))
-    logger.info('Found ' + str(len(fastqs)) + ' fastqs')
+
     os.chdir(job_dir)
 
     logger.info('Setting up BCBio run')
-    # TODO: make the .yaml template location configurable
     out, err = util.setup_bcbio_run(
         config['bcbio'],
-        os.path.join(os.path.dirname(os.path.dirname(__file__)), 'etc', 'bcbio_alignment.yaml'),
+        os.path.join(config['location'], 'etc', 'bcbio_alignment.yaml'),
         os.path.join(job_dir, 'bcbio'),
         os.path.join(job_dir, 'samples.csv'),
-        fastqs
+        util.fastq_handler.flatten_fastqs(fastq_dir, sample_sheet.sample_projects)
     )
     logger.info(out)
     logger.warn(err)
