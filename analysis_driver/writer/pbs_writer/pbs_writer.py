@@ -3,7 +3,22 @@ from analysis_driver.util.logger import AppLogger
 
 
 class PBSWriter(AppLogger):
+    """
+    Writes a basic PBS submission script. Subclassed by BCL2FastqWriter, FastqcWriter and BCBioWriter.
+    Initialises with self.script as an empty string, which is appended by self._write_line. This string is
+    then saved to self.pbs_file by self.save.
+    """
     def __init__(self, pbs_name, walltime, cpus, mem, job_name, log_file, queue='uv2000'):
+        # TODO: pass dates, ints, etc. to constructor
+        """
+        :param pbs_name: Desired full path to the pbs script to write
+        :param walltime: Desired walltime for the job
+        :param cpus: Number of cpus to allocate to the job
+        :param mem: Amount of memory to allocate to the job
+        :param job_name: A name to assign the job
+        :param log_file: A file to direct the job's stdout/stderr to
+        :param queue: ID of the queue to submit to
+        """
         self.info('Writing PBS file: ' + pbs_name)
         self.pbs_file = open(pbs_name, 'w')
         self.script = ''
@@ -19,6 +34,9 @@ class PBSWriter(AppLogger):
         self.script += line + '\n'
 
     def _write_header(self, walltime, cpus, mem, job_name, log_file, queue):
+        """
+        Write a base PBS header using args from constructor.
+        """
         self.write_line('#!/bin/bash\n')
 
         self.write_line('#PBS -l walltime=%s:00:00' % walltime)
@@ -31,6 +49,9 @@ class PBSWriter(AppLogger):
         self.write_line('\n')
 
     def save(self):
+        """
+        Save self.script to self.pbs_file. Also closes self.pbs_script. This is important!
+        """
         self.pbs_file.write(self.script)
         self.pbs_file.close()
         self.info('Closed pbs file')

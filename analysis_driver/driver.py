@@ -10,39 +10,32 @@ import analysis_driver.reader
 
 from analysis_driver.config import default as config  # imports the default config singleton
 
-logging_helper = logging.getLogger('driver')
+logging_helper = util.NamedAppLogger('driver')
 
 
-def main(argv):
+def main(input_run_folder):
     """
-    :args:
-        input_run_folder - absolute path to the input data directory, e.g. /abs/path/to/INPUT_DATA/run_id
-    :return: exit status
+    :param str input_run_folder: Absolute path to the input data directory, e.g. /abs/path/to/INPUT_DATA/run_id
+    :return: Exit status
     :rtype: int
     """
 
-    parser = argparse.ArgumentParser()
-    parser.add_argument('input_run_folder', type=str, help='An absolute path to an input data directory')
-    # TODO: add a --log-level flag
-
-    args = parser.parse_args(argv)
-
-    run_id = os.path.basename(args.input_run_folder)
+    run_id = os.path.basename(input_run_folder)
     fastq_dir = os.path.join(config['fastq_dir'], run_id)
     job_dir = os.path.join(config['jobs_dir'], run_id)
 
     logging.config.dictConfig(config.logging_config())
-    main_logger = logging.getLogger('main')
+    main_logger = util.NamedAppLogger('main')
 
     setup_working_dirs(fastq_dir, job_dir)
-    main_logger.info('Reading bcl data from ' + args.input_run_folder)
+    main_logger.info('Reading bcl data from ' + input_run_folder)
     main_logger.info('Fastq path is ' + fastq_dir)
 
     # Read RunInfo.xml and SampleSheet.csv for barcodes and masks
-    main_logger.info('Reading the reads info from ' + args.input_run_folder)
+    main_logger.info('Reading the reads info from ' + input_run_folder)
 
-    sample_sheet = analysis_driver.reader.sample_sheet.SampleSheet(args.input_run_folder)
-    run_info = analysis_driver.reader.run_info.RunInfo(args.input_run_folder)
+    sample_sheet = analysis_driver.reader.sample_sheet.SampleSheet(input_run_folder)
+    run_info = analysis_driver.reader.run_info.RunInfo(input_run_folder)
     if run_info.barcode_len:
         if not sample_sheet.check_barcodes() == run_info.barcode_len:
             main_logger.warn('Barcode mismatch: %s (SampleSheet.csv) and %s (RunInfo.xml)' % (
@@ -57,7 +50,7 @@ def main(argv):
 
     if config['job_execution'] == 'pbs':
         run_pbs(
-            logger=main_logger, input_run_folder=args.input_run_folder, job_dir=job_dir,
+            logger=main_logger, input_run_folder=input_run_folder, job_dir=job_dir,
             run_id=run_id, fastq_dir=fastq_dir, mask=mask, sample_sheet=sample_sheet
         )
 
@@ -68,6 +61,10 @@ def main(argv):
 
 
 def setup_working_dirs(*args):
+    """
+    Check for existence of working dirs and create them if necessary
+    :param str args: Directories to check/create
+    """
     for wd in args:
         if not os.path.exists(wd):
             logging_helper.debug('Creating: ' + wd)
@@ -78,6 +75,16 @@ def setup_working_dirs(*args):
 
 def run_pbs(logger=None, input_run_folder=None, job_dir=None,
             run_id=None, fastq_dir=None, mask=None, sample_sheet=None):
+    """
+    Run PBS submission for compute jobs.
+    :param logger: A main logger to use
+    :param input_run_folder: input_run_folder as passed to main
+    :param job_dir: The job dir for PBS scripts, BCBio, etc.
+    :param run_id: The basename of input_run_folder
+    :param fastq_dir: Expected path to generated fastq files
+    :param mask: A mask for bcl2fastq to use
+    :param sample_sheet: The run's SampleSheet object
+    """
 
     # Write bcl2fastq PBS script
     logger.info('Create bcl2fastq PBS script')
@@ -130,7 +137,7 @@ def run_pbs(logger=None, input_run_folder=None, job_dir=None,
         os.path.join(config['location'], 'etc', 'bcbio_alignment.yaml'),
         os.path.join(job_dir, 'bcbio'),
         os.path.join(job_dir, 'samples.csv'),
-        util.fastq_handler.flatten_fastqs(fastq_dir, sample_sheet.sample_projects)
+        *util.fastq_handler.flatten_fastqs(fastq_dir, sample_sheet.sample_projects)
     )
     logger.info(out)
     logger.warn(err)
@@ -150,5 +157,14 @@ def run_pbs(logger=None, input_run_folder=None, job_dir=None,
 
 
 if __name__ == '__main__':
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('input_run_folder', type=str, help='An absolute path to an input data directory')
+    # TODO: add a --log-level flag
+
     from sys import argv
-    main(argv)
+    args = parser.parse_args(argv)
+
+    main(
+        input_run_folder=args.input_run_folder
+    )
