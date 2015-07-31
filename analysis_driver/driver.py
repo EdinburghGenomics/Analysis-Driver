@@ -1,7 +1,6 @@
 import os
 import logging
 import logging.config
-import argparse
 from time import sleep
 
 from analysis_driver import writer, util
@@ -154,17 +153,3 @@ def run_pbs(logger=None, input_run_folder=None, job_dir=None,
         qsub_dependents.qsub([bcbio_pbs])
     ).lstrip('b\'').rstrip('\'')
     logger.info('BCBio jobId: ' + bcbio_jobid)
-
-
-if __name__ == '__main__':
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument('input_run_folder', type=str, help='An absolute path to an input data directory')
-    # TODO: add a --log-level flag
-
-    from sys import argv
-    args = parser.parse_args(argv)
-
-    main(
-        input_run_folder=args.input_run_folder
-    )

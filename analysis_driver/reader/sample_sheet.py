@@ -35,17 +35,17 @@ class SampleSheet(AppLogger):
         reader = csv.DictReader(self.file)
         for row in reader:
             if any(row):
-                sample_project = row['Sample_Project']
+                sample_project = row['Project_Name']
                 new_sample = Sample(
                     sample_project=sample_project,
                     lane=row['Lane'],
                     id=row['Sample_ID'],
                     name=row['Sample_Name'],
-                    index_id=row['I7_Index_ID'],
-                    barcode=row['index'],
+                    index=row['Index'],
+                    index2=row['Index2'],
                     plate=row['Sample_Plate'],
                     well=row['Sample_Well'],
-                    description=row['Description']
+                    genome_folder=row['GenomeFolder']
                 )
                 try:
                     samples[sample_project].add_sample(new_sample)
@@ -62,7 +62,7 @@ class SampleSheet(AppLogger):
         for name, sample_project in self.sample_projects.items():
             for sample in sample_project.samples:
                 try:
-                    if len(sample.barcode) == len(last_sample.barcode):
+                    if len(sample.index) == len(last_sample.index):
                         pass
                     else:
                         raise ValueError(
@@ -75,7 +75,7 @@ class SampleSheet(AppLogger):
                 finally:
                     last_sample = sample
 
-        return len(last_sample.barcode)
+        return len(last_sample.index)
 
 
 class SampleProject:
@@ -123,8 +123,8 @@ class Sample:
         self.data = {}
         for k, v in kwargs.items():
             assert k in [
-                'sample_project', 'lane', 'id', 'name', 'index_id', 'barcode', 'plate', 'well',
-                'description'
+                'sample_project', 'lane', 'id', 'name', 'index', 'index2', 'plate', 'well',
+                'genome_folder'
             ]
             self.data[k] = v
 
