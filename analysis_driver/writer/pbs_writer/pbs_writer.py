@@ -44,7 +44,7 @@ class PBSWriter(AppLogger):
         if job_name:
             self.write_line('#PBS -N %s' % job_name)
         self.write_line('#PBS -q %s' % queue)  # queue name
-        self.write_line('#PBS -j oe')  # input/output
+        self.write_line('#PBS -j oe')  # stdout/stderr
         self.write_line('#PBS -o %s' % log_file)  # output file name
         self.write_line('\n')
 

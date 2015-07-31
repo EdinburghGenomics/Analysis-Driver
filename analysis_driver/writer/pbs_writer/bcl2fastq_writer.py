@@ -27,6 +27,8 @@ class BCL2FastqWriter(PBSWriter):
             )
         )
 
-    def write(self, mask, input_dir, fastq_path):
+    def write(self, job_dir, mask, input_dir, fastq_path):
         self._bcl2fastq(mask, input_dir, fastq_path)
+        self.write_line('touch ' + job_dir + '/.fastqc_complete')
+
         self.save()

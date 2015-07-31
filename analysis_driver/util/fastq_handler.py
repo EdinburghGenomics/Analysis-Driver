@@ -35,7 +35,7 @@ def find_fastqs(location, sample_project):
 
 def flatten_fastqs(location, sample_projects):
     """
-    Find all *.fastq.gz files as a flat list. Calls find_fastqs as part of its functionality.
+    Return the results of find_fastqs as a flat list.
     :param str location: A file path to the input_data folder containing
     :param list/tuple sample_projects: A list of sample projects to search in the fastq dir.
     :return: Full paths to all *.fastq.gz files in the input dir

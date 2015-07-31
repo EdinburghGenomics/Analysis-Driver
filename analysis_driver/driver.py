@@ -92,17 +92,7 @@ def run_pbs(logger=None, input_run_folder=None, job_dir=None,
     bcl2fastq_writer = writer.pbs_writer.BCL2FastqWriter(
         bcl2fastq_pbs_name, 'bcl2fastq', os.path.join(job_dir, 'bcl2fastq_pbs.log')
     )
-    bcl2fastq_writer.write(mask, input_run_folder, fastq_dir)
-
-    # Write fastqc PBS script
-    logger.info('Creating fastqc PBS script')
-    fastqc_pbs_name = os.path.join(job_dir, 'fastqc_' + run_id + '.pbs')
-    logger.info('Fastqc PBS file is ' + fastqc_pbs_name)
-
-    fastqc_writer = writer.pbs_writer.FastqcWriter(
-        fastqc_pbs_name, 'fastqc', os.path.join(job_dir, 'fastqc_pbs.log')
-    )
-    fastqc_writer.write(fastq_dir, job_dir)
+    bcl2fastq_writer.write(job_dir, mask, input_run_folder, fastq_dir)
 
     # submit the bcl2fastq script to batch scheduler
     logger.info('Submitting: ' + os.path.join(job_dir, bcl2fastq_pbs_name))
@@ -118,10 +108,22 @@ def run_pbs(logger=None, input_run_folder=None, job_dir=None,
         sleep(15)
     logger.info('bcl2fastq complete, executing fastqc and BCBio')
 
+    # Write fastqc PBS script
+    logger.info('Creating fastqc PBS script')
+    fastqc_pbs_name = os.path.join(job_dir, 'fastqc_' + run_id + '.pbs')
+    logger.info('Fastqc PBS file is ' + fastqc_pbs_name)
+
+    sample_projects = list(sample_sheet.sample_projects.keys())
+    fastqs = util.fastq_handler.flatten_fastqs(fastq_dir, sample_projects)
+    fastqc_writer = writer.pbs_writer.FastqcWriter(
+        fastqc_pbs_name, 'fastqc_' + run_id, os.path.join(job_dir, 'fastqc_pbs.log'), fastqs
+    )
+    fastqc_writer.write()
+
     # submit the fastqc script to the batch scheduler
     logger.info('Submitting: ' + os.path.join(job_dir, fastqc_pbs_name))
     fastqc_jobid = str(
-        qsub_dependents.qsub_dependents([os.path.join(job_dir, fastqc_pbs_name)], jobid=bcl2fastq_jobid)
+        qsub_dependents.qsub([os.path.join(job_dir, fastqc_pbs_name)])
     ).lstrip('b\'').rstrip('\'')
     logger.info('FASTQC jobId: ' + fastqc_jobid)
 
@@ -131,15 +133,13 @@ def run_pbs(logger=None, input_run_folder=None, job_dir=None,
     os.chdir(job_dir)
 
     logger.info('Setting up BCBio run')
-    out, err = util.setup_bcbio_run(
+    util.setup_bcbio_run(
         config['bcbio'],
         os.path.join(config['location'], 'etc', 'bcbio_alignment.yaml'),
         os.path.join(job_dir, 'bcbio'),
         os.path.join(job_dir, 'samples.csv'),
         *util.fastq_handler.flatten_fastqs(fastq_dir, sample_sheet.sample_projects)
     )
-    logger.info(out)
-    logger.warn(err)
 
     bcbio_pbs = os.path.join(job_dir, 'bcbio.pbs')
     bcbio_writer = writer.pbs_writer.BCBioWriter(bcbio_pbs, 'bcbio', 'bcbio.log')
