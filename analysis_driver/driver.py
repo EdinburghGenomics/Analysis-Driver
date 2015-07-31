@@ -103,7 +103,7 @@ def run_pbs(logger=None, input_run_folder=None, job_dir=None,
         fastqc_pbs_name, 'fastqc', os.path.join(job_dir, 'fastqc_pbs.log')
     )
     fastqc_writer.write(fastq_dir, job_dir)
-    
+
     # submit the bcl2fastq script to batch scheduler
     logger.info('Submitting: ' + os.path.join(job_dir, bcl2fastq_pbs_name))
     bcl2fastq_jobid = str(
@@ -111,19 +111,19 @@ def run_pbs(logger=None, input_run_folder=None, job_dir=None,
     ).lstrip('b\'').rstrip('\'')
     logger.info('BCL2FASTQ jobId: ' + bcl2fastq_jobid)
 
+    # Wait for fastqs to be created
+    bcl2fastq_complete = os.path.join(job_dir, '.bcl2fastq_complete')
+    logger.info('Waiting for creation of ' + bcl2fastq_complete)
+    while not os.path.exists(bcl2fastq_complete):
+        sleep(15)
+    logger.info('bcl2fastq complete, executing fastqc and BCBio')
+
     # submit the fastqc script to the batch scheduler
     logger.info('Submitting: ' + os.path.join(job_dir, fastqc_pbs_name))
     fastqc_jobid = str(
         qsub_dependents.qsub_dependents([os.path.join(job_dir, fastqc_pbs_name)], jobid=bcl2fastq_jobid)
     ).lstrip('b\'').rstrip('\'')
     logger.info('FASTQC jobId: ' + fastqc_jobid)
-
-    fastqc_complete = os.path.join(job_dir, '.fastqc_complete')
-    logger.info('Waiting for creation of ' + fastqc_complete)
-    while not os.path.exists(fastqc_complete):
-        sleep(15)
-    
-    logger.info('Fastqc complete, executing alignment')
 
     csv_writer = writer.BCBioCSVWriter(fastq_dir, job_dir, sample_sheet)
     csv_writer.write()
