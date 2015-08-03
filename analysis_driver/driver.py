@@ -22,7 +22,7 @@ def main(input_run_folder):
     run_id = os.path.basename(input_run_folder)
     fastq_dir = os.path.join(config['fastq_dir'], run_id)
     job_dir = os.path.join(config['jobs_dir'], run_id)
-
+    
     logging.config.dictConfig(config.logging_config())
     main_logger = util.NamedAppLogger('main')
 
@@ -153,3 +153,4 @@ def run_pbs(logger=None, input_run_folder=None, job_dir=None,
         qsub_dependents.qsub([bcbio_pbs])
     ).lstrip('b\'').rstrip('\'')
     logger.info('BCBio jobId: ' + bcbio_jobid)
+

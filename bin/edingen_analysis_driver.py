@@ -3,11 +3,11 @@ __author__ = 'mwham'
 import sys
 import os.path
 import argparse
-import analysis_driver
 
 if __name__ == '__main__':
 
     sys.path.append(os.path.dirname(os.path.dirname(__file__)))
+    import analysis_driver
 
     parser = argparse.ArgumentParser()
     parser.add_argument('input_run_folder', type=str, help='An absolute path to an input data directory')

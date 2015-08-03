@@ -35,7 +35,10 @@ class SampleSheet(AppLogger):
         reader = csv.DictReader(self.file)
         for row in reader:
             if any(row):
-                sample_project = row['Project_Name']
+                try:
+                    sample_project = row['Project_Name']
+                except KeyError:
+                    sample_project = row['Sample_Project']
                 new_sample = Sample(
                     sample_project=sample_project,
                     lane=row['Lane'],

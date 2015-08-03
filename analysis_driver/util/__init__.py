@@ -51,7 +51,7 @@ def localexecute(*args, stream=True, dry_run=False):
         return out, err
 
 
-def setup_bcbio_run(bcbio, template, csv_file, run_dir, fastqs):
+def setup_bcbio_run(bcbio, template, csv_file, run_dir, *fastqs):
     """
     Call localexecute to run 'bcbio -w template' on relevant input files.
     :param str bcbio: Path to the bcbio_nextgen.py executable

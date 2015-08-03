@@ -42,11 +42,18 @@ class PBSWriter(AppLogger):
         self.write_line('#PBS -l walltime=%s:00:00' % walltime)
         self.write_line('#PBS -l ncpus=%s,mem=%sgb' % (cpus, mem))
         if job_name:
-            self.write_line('#PBS -N %s' % job_name)
+            self.write_line('#PBS -N %s' % self._trim_field(job_name, 15))
         self.write_line('#PBS -q %s' % queue)  # queue name
         self.write_line('#PBS -j oe')  # stdout/stderr
         self.write_line('#PBS -o %s' % log_file)  # output file name
         self.write_line('\n')
+
+    @staticmethod
+    def _trim_field(field, max_length):
+        if len(field) > max_length:
+            return field[0:max_length]
+        else:
+            return field
 
     def save(self):
         """
