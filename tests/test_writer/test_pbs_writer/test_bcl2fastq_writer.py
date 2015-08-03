@@ -29,6 +29,11 @@ class TestBCL2FastqWriter(TestPBSWriter):
         assert self.writer.script.endswith(expected_ending)
 
     def test_write(self):
-        self.writer.write(mask='this,that,other', input_dir=self.assets_path, fastq_path='a_fastq_path')
+        self.writer.write(
+            job_dir=self.assets_path,
+            mask='this,that,other',
+            input_dir=self.assets_path,
+            fastq_path='a_fastq_path'
+        )
         with open(self.tmp_script) as f:
             assert f.read() == self.writer.script

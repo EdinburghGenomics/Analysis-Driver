@@ -12,14 +12,14 @@ class TestSampleSheet(TestAnalysisDriver):
     def test_init(self):
         expected_lane = 1
         for sample in self.samples:
-            assert sample.index_id in [
+            assert sample.index2 in [
                 'IL-TP-002', 'IL-TP-005', 'IL-TP-006', 'IL-TP-007', 'IL-TP-012', 'IL-TP-013', 'IL-TP-014'
             ]
             assert sample.sample_project == '10015AT'
             assert sample.id == '10015TA0001L05'
             assert sample.lane == str(expected_lane)
             assert sample.name == '10015ATpool01'
-            assert sample.barcode == sample.barcode.upper()
+            assert sample.index == sample.index.upper()
 
             expected_lane += 1
 
@@ -34,7 +34,7 @@ class TestSampleProject(TestAnalysisDriver):
             lane='1337',
             id='test_id',
             name='test_name',
-            barcode='ATGCAT'
+            index='ATGCAT'
         )
         self.sample_project = SampleProject('test_sp', self.test_sample)
 
@@ -48,7 +48,7 @@ class TestSampleProject(TestAnalysisDriver):
             lane='1338',
             id='another_test_id',
             name='test_name',
-            barcode='ATGCAG'
+            index='ATGCAG'
         )
         self.sample_project.add_sample(new_sample)
 
@@ -62,7 +62,7 @@ class TestSampleProject(TestAnalysisDriver):
                 lane='1338',
                 id='another_test_id',
                 name='another_test_name',
-                barcode='ATGCAG'
+                index='ATGCAG'
             )
             self.sample_project.add_sample(new_sample)
         assert 'Adding invalid sample project to test_sp: another_test_sp' == str(e.value)
