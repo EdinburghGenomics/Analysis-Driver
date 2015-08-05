@@ -103,7 +103,7 @@ def run_pbs(logger=None, input_run_folder=None, job_dir=None,
 
     # submit the bcl2fastq script to batch scheduler
     logger.info('Submitting: ' + os.path.join(job_dir, bcl2fastq_pbs_name))
-    '''
+    
     bcl2fastq_jobid = str(
         qsub_dependents.qsub([os.path.join(job_dir, bcl2fastq_pbs_name)])
     ).lstrip('b\'').rstrip('\'')
@@ -134,7 +134,7 @@ def run_pbs(logger=None, input_run_folder=None, job_dir=None,
         qsub_dependents.qsub([os.path.join(job_dir, fastqc_pbs_name)])
     ).lstrip('b\'').rstrip('\'')
     logger.info('FASTQC jobId: ' + fastqc_jobid)
-    '''
+    
     csv_writer = writer.BCBioSamplePrep(fastq_dir, job_dir, sample_sheet)
     samples = csv_writer.write()
 
@@ -169,11 +169,10 @@ def run_pbs(logger=None, input_run_folder=None, job_dir=None,
         )
 
     bcbio_writer.write()
-    '''
+    
     bcbio_jobid = str(
         # qsub_dependents.qsub_dependents([bcbio_pbs], jobid=fastqc_jobid)
         qsub_dependents.qsub([bcbio_pbs])
     ).lstrip('b\'').rstrip('\'')
     logger.info('BCBio jobId: ' + bcbio_jobid)
-    '''
 
