@@ -7,7 +7,7 @@ class BCL2FastqWriter(PBSWriter):
     """
     Writes a PBS script to run bcl2fastq
     """
-    def __init__(self, pbs_name, job_name, log_file, walltime='24', cpus='12', mem='24', queue='uv2000'):
+    def __init__(self, pbs_name, job_name, log_file, walltime='32', cpus='12', mem='24', queue='uv2000'):
         """
         See superclass
         """
