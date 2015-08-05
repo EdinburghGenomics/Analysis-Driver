@@ -27,11 +27,15 @@ class BCBioCSVWriter(AppLogger):
         Iterate through sample_projects in self.sample_sheet. For each, find relevant fastq files and write a
         line to self.samples mapping the fastq name to the sample project id.
         """
-        self.writer.writerow(['samplename', 'description', 'batch'])
+        self.writer.writerow(['samplename', 'description'])
         for name, sample_project in self.sample_sheet.sample_projects.items():
             fastqs = fastq_handler.find_fastqs(self.fastq_dir, name)
-            for fq in fastqs:
-                self.writer.writerow([fq, '', name])
+            print(fastqs)
+
+            for sample_id in sample_project.sample_ids:
+                for fq in fastqs[sample_id]:
+                    self.writer.writerow([fq, sample_id])
         self.samples.close()
-        # TODO: check that this works on Ultra
         self.info('Written csv file')
+
+# TODO: write one csv per sample, pass through bcbio_prepare_samples

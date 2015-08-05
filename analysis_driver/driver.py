@@ -19,6 +19,13 @@ def main(input_run_folder):
     :rtype: int
     """
 
+    # TODO: take all args, pass them to sub-functions in driver.py
+    # def analysis_driver():
+    #     run all the things
+    #
+    # def main():
+    #     validate arguments and pass them on
+
     run_id = os.path.basename(input_run_folder)
     fastq_dir = os.path.join(config['fastq_dir'], run_id)
     job_dir = os.path.join(config['jobs_dir'], run_id)
@@ -76,13 +83,13 @@ def run_pbs(logger=None, input_run_folder=None, job_dir=None,
             run_id=None, fastq_dir=None, mask=None, sample_sheet=None):
     """
     Run PBS submission for compute jobs.
-    :param logger: A main logger to use
-    :param input_run_folder: input_run_folder as passed to main
-    :param job_dir: The job dir for PBS scripts, BCBio, etc.
-    :param run_id: The basename of input_run_folder
-    :param fastq_dir: Expected path to generated fastq files
-    :param mask: A mask for bcl2fastq to use
-    :param sample_sheet: The run's SampleSheet object
+    :param logging.Logger logger: A main logger to use
+    :param str input_run_folder: input_run_folder as passed to main
+    :param str job_dir: The job dir for PBS scripts, BCBio, etc.
+    :param str run_id: The basename of input_run_folder
+    :param str fastq_dir: Expected path to generated fastq files
+    :param str mask: A mask for bcl2fastq to use
+    :param analysis_driver.reader.SampleSheet sample_sheet: The run's SampleSheet object
     """
 
     # Write bcl2fastq PBS script

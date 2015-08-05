@@ -35,20 +35,18 @@ class SampleSheet(AppLogger):
         reader = csv.DictReader(self.file)
         for row in reader:
             if any(row):
-                try:
-                    sample_project = row['Project_Name']
-                except KeyError:
-                    sample_project = row['Sample_Project']
+                sample_project = row['Sample_Project']
+
                 new_sample = Sample(
                     sample_project=sample_project,
                     lane=row['Lane'],
                     id=row['Sample_ID'],
                     name=row['Sample_Name'],
-                    index=row['Index'],
-                    index2=row['Index2'],
-                    plate=row['Sample_Plate'],
-                    well=row['Sample_Well'],
-                    genome_folder=row['GenomeFolder']
+                    index=row['Index']  # ,
+                    # index2=row['Index2'],
+                    # plate=row['Sample_Plate'],
+                    # well=row['Sample_Well'],
+                    # genome_folder=row['GenomeFolder']
                 )
                 try:
                     samples[sample_project].add_sample(new_sample)
@@ -111,6 +109,11 @@ class SampleProject:
             )
         else:
             self.samples.append(sample)
+
+    @property
+    def sample_ids(self):
+        return [sample.id for sample in self.samples]
+
 
 
 class Sample:
