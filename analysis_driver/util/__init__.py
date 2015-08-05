@@ -30,17 +30,15 @@ def localexecute(*args, stream=True, dry_run=False):
 
     proc = subprocess.Popen(list(args), stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     if stream:
-        funclogger = NamedAppLogger(args[0])
-
         # log stdout while the process is running
         while proc.poll() is None:  # while no exit status
             line = proc.stdout.readline()
             if line:
-                funclogger.info(line.decode('utf-8').rstrip('\n'))
+                print(line.decode('utf-8').rstrip('\n'))
 
         # log any remaining stdout after the process has finished
         for remaining_line in proc.stdout:
-            funclogger.info(remaining_line.decode('utf-8').rstrip('\n'))
+            print(remaining_line.decode('utf-8').rstrip('\n'))
 
     else:
         out, err = proc.communicate()
@@ -49,6 +47,17 @@ def localexecute(*args, stream=True, dry_run=False):
         if type(err) is bytes:
             err = err.decode('utf-8')
         return out, err
+
+
+def bcbio_prepare_samples(bcbio_prepare_samples, csv_file):
+    localexecute(
+        bcbio_prepare_samples,
+        '--out',
+        'merged',
+        '--csv',
+        csv_file
+    )
+    return csv_file.rstrip('.csv') + '-merged.csv'
 
 
 def setup_bcbio_run(bcbio, template, csv_file, run_dir, *fastqs):
