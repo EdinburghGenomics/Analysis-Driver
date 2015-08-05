@@ -19,7 +19,7 @@ Adapter,AGATCGGAAGAGCACACGTCTGAACTCCAGTCA,,,,,,,
 AdapterRead2,AGATCGGAAGAGCGTCGTGTAGGGAAAGAGTGT,,,,,,,
 ,,,,,,,,
 [Data],,,,,,,,
-Lane,Sample_ID,Sample_Name,Sample_Plate,Sample_Well,I7_Index_ID,index,Sample_Project,Description
+Lane,Sample_ID,Sample_Name,Sample_Plate,Sample_Well,Index2,Index,Sample_Project,GenomeFolder
 1,10015TA0001L05,10015ATpool01,,,IL-TP-006,GCCAAT,10015AT,
 2,10015TA0001L05,10015ATpool01,,,IL-TP-002,CGATGT,10015AT,
 3,10015TA0001L05,10015ATpool01,,,IL-TP-007,CAGATC,10015AT,

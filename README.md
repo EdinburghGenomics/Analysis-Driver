@@ -47,8 +47,7 @@ Contains various utility classes and functions used by the app, both in __init__
 - AppLogger - A class that can be mixed in to any class in the Analysis Driver to allow it to write to the
   logging streams set in configuration.
 - localexecute - Uses subprocess.Popen to execute arbitrary shell commands
-- shellexecute - Same as localexecute, but with `shell` set to `True`.
-- find_fastqs - Uses `os.walk` to iterate through a directory and return a list of all fastq.gz files within.
+- find_fastqs - Iterates through a directory (intended to be a sample_project folder) and returns a dict of all contained fastq.gz files within, organised per sample.
 - setup_bcbio_run - Uses localexecute to run `bcbio -w template` on a given yaml config, a run directory, a
   csv sample file and a list of fastqs
 

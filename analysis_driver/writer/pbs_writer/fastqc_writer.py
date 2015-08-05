@@ -3,16 +3,40 @@ from analysis_driver.writer.pbs_writer import PBSWriter
 
 
 class FastqcWriter(PBSWriter):
-    def __init__(self, pbs_name, job_name, log_file, walltime='6', cpus='8', mem='3', queue='uv2000'):
+    """
+    Writes a PBS script to run fastqc
+    """
+    def __init__(self, pbs_name, job_name, log_file, fastqs=None, walltime='6', cpus='8', mem='3', queue='uv2000'):
+        """
+        See superclass
+        """
         super().__init__(pbs_name, walltime, cpus, mem, job_name, log_file, queue)
+        self.fastqs = fastqs
 
-    def _fastqc(self, input_dir):
-        # TODO: find fastqs through Python rather than Bash
-        self.log('Writing fastqc command')
-        self.write_line('FASTQ_FILES=`find ' + input_dir + ' -name \'*.fastq.gz\'`\n')
-        self.write_line('fastqc --nogroup -t 8 -q $FASTQ_FILES\n')
+    def _fastqc(self, fastqs):
+        """
+        Write commands to run fastqc
+        :param input_dir: Path to a directory containing input .fastq files
+        """
+        self.info('Writing fastqc command')
+        wt = self.write_line
 
-    def write(self, input_dir, run_dir):
-        self._fastqc(input_dir)
-        self.write_line('touch ' + run_dir + '/.fastqc_complete')
+        wt('#PBS -J 1-' + str(len(fastqs)) + '\n')
+
+        wt('case $PBS_ARRAY_INDEX in')
+        for idx, fastq in enumerate(fastqs):
+            wt('%s) fastqc --nogroup -q %s' % (self._shidx(idx), fastq))
+            wt(';;')
+        wt('*) echo "Unexpected PBS_ARRAY_INDEX: $PBS_ARRAY_INDEX"')
+        wt('esac')
+
+    def write(self):
+        """
+        Create a .fastqc_complete lock file to tell the AnalysisDriver when to proceed to later steps
+        """
+        self._fastqc(self.fastqs)
         self.save()
+
+    @staticmethod
+    def _shidx(idx):
+        return str(idx + 1)

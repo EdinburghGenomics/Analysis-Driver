@@ -1,6 +1,5 @@
 import os
 import yaml
-import sys
 
 from analysis_driver.util import AppLogger
 
@@ -11,7 +10,7 @@ class Configuration(AppLogger):
     """
     def __init__(self):
         config_file = self.__class__._find_config_file()
-        self.log('Using config file at ' + config_file)
+        self.info('Using config file at ' + config_file)
         self.config_file = open(config_file, 'r')
 
         yaml_content = yaml.load(self.config_file)
@@ -27,7 +26,8 @@ class Configuration(AppLogger):
     @property
     def environment(self):
         """
-        Detects the current environment. Returns 'testing' by default.
+        Detects the current yaml config environment. Returns 'testing' by default. The environment is set by
+        the environment variable 'ANALYSISDRIVERENV'
         """
         if not self._environment:
             self._environment = os.getenv('ANALYSISDRIVERENV', 'testing')  # Default to 'testing'
@@ -35,8 +35,12 @@ class Configuration(AppLogger):
 
     @classmethod
     def _find_config_file(cls):
+        """
+        Find either ~/.analysisdriver.yaml or Analysis-Driver/etc/example_analysisdriver.yaml
+        :return: Path to the config
+        """
         home_config = os.path.expanduser('~/.analysisdriver.yaml')
-        local_config = os.path.join(os.path.dirname(__file__), 'example_analysisdriver.yaml')
+        local_config = os.path.join(os.path.dirname(__file__), 'etc', 'example_analysisdriver.yaml')
 
         if os.path.isfile(home_config):
             return home_config
@@ -49,6 +53,10 @@ class Configuration(AppLogger):
         Recursively merges an 'override' dictionary into a 'default' dictionary.
 
         Adopted from http://stackoverflow.com/a/7205672/1167094
+
+        :param default: The default dict/yaml domain
+        :param override: The dict that will override values from the default
+        :return: Overridden values
         """
         for k in set(default.keys()).union(override.keys()):
             if k in default and k in override:
@@ -62,40 +70,32 @@ class Configuration(AppLogger):
                 yield (k, override[k])
 
     def __getitem__(self, item):
-        # Allow access to the element of the config with dictionary style
+        """
+        Allow access to the element of the config dict-style, e.g. 'config['this']' or 'config['this']['that']'
+        :param str item: A config item to retrieve
+        :return: A string or deeper dict value
+        """
         return self.content[item]
 
-    def logging(self, log_level='INFO'):
-        # TODO: add logging override via a --log_level flag
-        # TODO: rename, load in more directly from the yaml content
-        logging_config = self['logging']
-        dict_config = {
-            'version': 1,
-            'formatters': {},
-            'handlers': {},
-            'loggers': {
-                '': {
-                    'handlers': [],
-                    'propagate': False
-                }
-            }
-        }
-        for name, formatter in logging_config['formatters'].items():
-            dict_config['formatters'][name] = formatter
+    def logging_config(self, log_level=None):
+        """
+        Parse the 'logging' configuration of the yaml config to configure logging in driver.py
+        :param log_level: An optional overriding log level
+        :return: A dict to pass to logging.config.dictConfig
+        """
+        dict_config = self['logging']
+        dict_config['version'] = 1
 
-        for name, handler in logging_config['handlers'].items():
-            dict_config['handlers'][name] = {
-                'level': handler['level'],
-                'formatter': handler['formatter'],
-                'stream': handler['stream'],
-                'class': 'logging.StreamHandler'
-            }
-            if 'sys.stdout' in handler['stream']:  # Special case if the user wants to log to sys.stdout
-                dict_config['handlers'][name]['stream'] = sys.stdout
+        if log_level:
+            assert log_level in ['DEBUG', 'INFO', 'WARN', 'ERROR', 'CRITICAL']
 
-            dict_config['loggers']['']['handlers'].append(name)
+            for domain in ['handlers', 'loggers']:
+                for k, v in dict_config[domain].items():
+                    if dict_config[domain][k]['level']:
+                        dict_config[domain][k]['level'] = log_level
 
-        dict_config['loggers']['']['level'] = logging_config['default_level']
+            if dict_config['root']['level']:
+                dict_config['root']['level'] = log_level
 
         return dict_config
 
