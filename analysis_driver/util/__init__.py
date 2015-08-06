@@ -49,9 +49,9 @@ def localexecute(*args, stream=True, dry_run=False):
         return out, err
 
 
-def bcbio_prepare_samples(bcbio_prepare_samples, csv_file):
+def bcbio_prepare_samples(prepare_script, csv_file):
     localexecute(
-        bcbio_prepare_samples,
+        prepare_script,
         '--out',
         'merged',
         '--csv',
