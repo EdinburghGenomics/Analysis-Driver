@@ -139,9 +139,9 @@ def run_pbs(logger=None, input_run_folder=None, job_dir=None,
     samples = csv_writer.write()
 
     os.chdir(job_dir)
-
+    bcbio_pbs = os.path.join(job_dir, 'bcbio_jobs.pbs')
     bcbio_writer = writer.pbs_writer.BCBioWriter(
-        os.path.join(job_dir, 'bcbio_jobs.pbs'),
+        bcbio_pbs,
         'bcbio_' + run_id,
         'bcbio.log',
         len(samples)
