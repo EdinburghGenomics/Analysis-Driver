@@ -44,7 +44,7 @@ class StreamExecutor(Executor, threading.Thread):
 
             for stream, emit in ((proc.stdout, self.info), (proc.stderr, self.error)):
                 if stream in rlist:
-                    line = stream.readline().strip()
+                    line = stream.readline().decode('utf-8').strip()
                     if line:
                         emit(line)
                     else:

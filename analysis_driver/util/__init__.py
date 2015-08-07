@@ -18,10 +18,10 @@ def localexecute(*args, stream=True, dry_run=False):
     """
     Uses subprocess to run arbitrary shell commands.
     :param str args: Args to pass to subprocess.Popen. For example:
-        localexecute('this', 'that', 'other') -> Popen(['this', 'that', 'other'])
+    localexecute('this', 'that', 'other') -> Popen(['this', 'that', 'other'])
     :param bool stream: Whether to stream the stdout, or write all stdout once the process completes.
     :param bool dry_run: Whether the function should run the command, or just log the shell command.
-    :return: None if stream==True, the stdout and stderr if stream==False
+    :return: None if stream == True, the stdout and stderr if stream == False
     :rtype: None or tuple[str, str]
     """
     app_logger.debug('Executing: ' + ' '.join(args))
