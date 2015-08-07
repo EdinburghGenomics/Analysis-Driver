@@ -1,0 +1,46 @@
+
+---
+testing:
+    python: /Users/mwham/workspace/EdGen_Analysis_Driver/Application/envs/3_7_15/bin/python
+    bcbio: /scratch/U008/edingen/bin/bcbio/bin/bcbio_nextgen.py
+    bcl2fastq: /home/U008/edingen/Applications/bcl2fastq/bcl2fastq_2.17.1.14/bin/bcl2fastq
+    fastqc: /scratch/U008/edingen/bin/fastqc/bin/fastqc
+    gatk:
+        java_home: /home/U008/edingen/Applications/jdk1.7.0_76/
+        java_bindir: /home/U008/edingen/Applications/jdk1.7.0_76/bin
+        java_root: /home/edingen/Applications/jdk1.7.0_76/
+
+    input_dir: /Users/mwham/workspace/EdGen_Analysis_Driver/input_data
+    fastq_dir: /Users/mwham/workspace/EdGen_Analysis_Driver/fastq
+    jobs_dir : /Users/mwham/workspace/EdGen_Analysis_Driver/jobs
+
+    transfer_delay: 120
+    run_age_cutoff: 5  # in mins
+
+    job_execution: None  # pbs or None
+
+    logging:
+        formatters:
+            default_format:
+                format: '%(asctime)s [%(name)s] %(message)s'
+        handlers:
+            h_driver:
+                level: INFO
+                class: logging.StreamHandler
+                formatter: default_format
+                stream: ext://sys.stdout
+            h_trigger:
+                   level: INFO
+                   class: logging.StreamHandler
+                   formatter: default_format
+                   stream: ext://sys.stdout
+        loggers:
+            default_logger:
+                handlers:
+                    - h_driver
+                level: INFO
+                propagate: False
+        root:
+            level: INFO
+            handlers:
+                - h_driver

@@ -5,11 +5,9 @@ import logging
 import logging.config
 from time import sleep
 
-from analysis_driver import writer, util
+from analysis_driver import reader, writer, util
 from analysis_driver.legacy import qsub_dependents
-import analysis_driver.reader
-from analysis_driver.config import default as config  # imports the default config singleton
-
+from config import default as cfg  # imports the default config singleton
 logging_helper = util.NamedAppLogger('driver')
 
 
@@ -26,10 +24,12 @@ def main():
     args = parser.parse_args(sys.argv[1:])
 
     run_id = os.path.basename(args.input_run_folder)
-    fastq_dir = os.path.join(config['fastq_dir'], run_id)
-    job_dir = os.path.join(config['jobs_dir'], run_id)
+    fastq_dir = os.path.join(cfg['fastq_dir'], run_id)
+    job_dir = os.path.join(cfg['jobs_dir'], run_id)
+
+    print(cfg.logging_config())
     
-    logging.config.dictConfig(config.logging_config())
+    logging.config.dictConfig(cfg.logging_config())
     main_logger = util.NamedAppLogger('main')
 
     setup_working_dirs(fastq_dir, job_dir)
@@ -39,8 +39,8 @@ def main():
     # Read RunInfo.xml and SampleSheet.csv for barcodes and masks
     main_logger.info('Reading the reads info from ' + args.input_run_folder)
 
-    sample_sheet = analysis_driver.reader.sample_sheet.SampleSheet(args.input_run_folder)
-    run_info = analysis_driver.reader.run_info.RunInfo(args.input_run_folder)
+    sample_sheet = reader.sample_sheet.SampleSheet(args.input_run_folder)
+    run_info = reader.run_info.RunInfo(args.input_run_folder)
     if run_info.barcode_len:
         if not sample_sheet.check_barcodes() == run_info.barcode_len:
             main_logger.warn('Barcode mismatch: %s (SampleSheet.csv) and %s (RunInfo.xml)' % (
@@ -53,13 +53,13 @@ def main():
     mask = run_info.mask.tostring(sample_sheet.check_barcodes())
     main_logger.info('bcl2fastq mask: ' + mask)  # example_mask = 'y150n,i6,y150n'
 
-    if config['job_execution'] == 'pbs':
+    if cfg['job_execution'] == 'pbs':
         run_pbs(
             logger=main_logger, input_run_folder=args.input_run_folder, job_dir=job_dir,
             run_id=run_id, fastq_dir=fastq_dir, mask=mask, sample_sheet=sample_sheet
         )
 
-    util.demultiplex_feedback(run_id)
+    # util.demultiplex_feedback(run_id)
 
     main_logger.info('Done')
     return 0
@@ -149,15 +149,15 @@ def run_pbs(logger=None, input_run_folder=None, job_dir=None,
     for sample_id, csv_file, fastqs in samples:
         logger.info('Preparing samples for ' + sample_id)
         merged_csv = util.bcbio_prepare_samples(
-            os.path.join(os.path.dirname(config['bcbio']), 'bcbio_prepare_samples.py'),
+            os.path.join(os.path.dirname(cfg['bcbio']), 'bcbio_prepare_samples.py'),
             csv_file
         )
         logger.info('Merged csv: ' + merged_csv)
 
         logger.info('Setting up BCBio run for ' + sample_id)
         util.setup_bcbio_run(
-            config['bcbio'],
-            os.path.join(config['location'], 'etc', 'bcbio_alignment.yaml'),
+            cfg['bcbio'],
+            os.path.join(cfg['location'], 'etc', 'bcbio_alignment.yaml'),
             os.path.join(job_dir, 'bcbio'),
             csv_file,
             *fastqs

@@ -1,10 +1,10 @@
 __author__ = 'mwham'
 import subprocess
 import os
+
 from .logger import AppLogger, NamedAppLogger
 from . import fastq_handler
-from analysis_driver import config
-
+from config import default as cfg
 
 app_logger = NamedAppLogger('Util')
 
@@ -92,7 +92,7 @@ def demultiplex_feedback(run_id):
         'rsync',
         '-avu',
         '--exclude=Data',
-        os.path.join(config.default['input_data_dir'], run_id),
-        os.path.join(config.default['raw_dir'], run_id)
+        os.path.join(cfg['input_data_dir'], run_id),
+        os.path.join(cfg['raw_dir'], run_id)
     )
 

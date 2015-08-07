@@ -1,6 +1,5 @@
 import os
 import yaml
-
 from analysis_driver.util import AppLogger
 
 
@@ -16,12 +15,14 @@ class Configuration(AppLogger):
         yaml_content = yaml.load(self.config_file)
         self._environment = None
         # Select the correct config environment
-        self.config = yaml_content[self.environment]
+        # self.config = yaml_content[self.environment]
+
+        self.content = yaml_content[self.environment]
 
         # Merge the shared and the specific environment
-        self.content = dict(
-            self.__class__._merge_dicts(self.config.get('shared'), self.config.get('analysisdriver'))
-        )
+        # self.content = dict(
+        #     self.__class__._merge_dicts(self.config.get('shared'), self.config.get('analysisdriver'))
+        # )
 
     @property
     def environment(self):
@@ -40,7 +41,7 @@ class Configuration(AppLogger):
         :return: Path to the config
         """
         home_config = os.path.expanduser('~/.analysisdriver.yaml')
-        local_config = os.path.join(os.path.dirname(__file__), 'etc', 'example_analysisdriver.yaml')
+        local_config = os.path.join(os.path.dirname(__file__), 'etc', '.analysisdriver.yaml')
 
         if os.path.isfile(home_config):
             return home_config
@@ -100,4 +101,4 @@ class Configuration(AppLogger):
         return dict_config
 
 
-default = Configuration()  # Singleton for access by other modules
+default = Configuration()  # singleton for access by other modules

@@ -1,6 +1,6 @@
 __author__ = 'mwham'
 from .pbs_writer import PBSWriter
-from analysis_driver import config
+import config
 
 
 class BCBioWriter(PBSWriter):
