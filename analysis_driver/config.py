@@ -8,21 +8,43 @@ class Configuration(AppLogger):
     Loads a yaml config file from the user's home, '~/.analysisdriver.yaml'
     """
     def __init__(self):
+        self._environment = None
+
         config_file = self.__class__._find_config_file()
         self.info('Using config file at ' + config_file)
         self.config_file = open(config_file, 'r')
 
         yaml_content = yaml.load(self.config_file)
-        self._environment = None
         # Select the correct config environment
         # self.config = yaml_content[self.environment]
 
         self.content = yaml_content[self.environment]
-
+        self.content['location'] = os.path.dirname(__file__)  # special case for app location
         # Merge the shared and the specific environment
         # self.content = dict(
         #     self.__class__._merge_dicts(self.config.get('shared'), self.config.get('analysisdriver'))
         # )
+
+    def logging_config(self, debug=False):
+        """
+        Parse the 'logging' configuration of the yaml config to configure logging in driver.py
+        :param bool debug: An option to run with logging at the 'debug' level
+        :return: A dict to pass to logging.config.dictConfig
+        """
+        dict_config = self['logging']
+        dict_config['version'] = 1
+
+        if debug:
+
+            for domain in ['handlers', 'loggers']:
+                for k, v in dict_config[domain].items():
+                    if dict_config[domain][k]['level']:
+                        dict_config[domain][k]['level'] = 'DEBUG'
+
+            if dict_config['root']['level']:
+                dict_config['root']['level'] = 'DEBUG'
+
+        return dict_config
 
     @property
     def environment(self):
@@ -72,33 +94,10 @@ class Configuration(AppLogger):
 
     def __getitem__(self, item):
         """
-        Allow access to the element of the config dict-style, e.g. 'config['this']' or 'config['this']['that']'
+        Allow access to the element of the config dict-style, e.g. config['this'] or config['this']['that']
         :param str item: A config item to retrieve
         :return: A string or deeper dict value
         """
         return self.content[item]
-
-    def logging_config(self, log_level=None):
-        """
-        Parse the 'logging' configuration of the yaml config to configure logging in driver.py
-        :param log_level: An optional overriding log level
-        :return: A dict to pass to logging.config.dictConfig
-        """
-        dict_config = self['logging']
-        dict_config['version'] = 1
-
-        if log_level:
-            assert log_level in ['DEBUG', 'INFO', 'WARN', 'ERROR', 'CRITICAL']
-
-            for domain in ['handlers', 'loggers']:
-                for k, v in dict_config[domain].items():
-                    if dict_config[domain][k]['level']:
-                        dict_config[domain][k]['level'] = log_level
-
-            if dict_config['root']['level']:
-                dict_config['root']['level'] = log_level
-
-        return dict_config
-
 
 default = Configuration()  # singleton for access by other modules

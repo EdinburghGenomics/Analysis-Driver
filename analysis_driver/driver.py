@@ -1,50 +1,42 @@
-import os
-import sys
-import argparse
 import logging
-import logging.config
 from time import sleep
+
+import os
 
 from analysis_driver import reader, writer, util
 from analysis_driver.legacy import qsub_dependents
-from config import default as cfg  # imports the default config singleton
-logging_helper = util.NamedAppLogger('driver')
+from analysis_driver.config import default as cfg  # imports the default config singleton
+
+logging_helper = logging.getLogger('driver')
 
 
-def main():
+def pipeline(input_run_folder):
     """
+    :param str input_run_folder: Full path to an input data directory
     :return: Exit status
     :rtype: int
     """
 
-    parser = argparse.ArgumentParser()
-    parser.add_argument('input_run_folder', type=str, help='An absolute path to an input data directory')
-    # TODO: add a --log-level flag
-
-    args = parser.parse_args(sys.argv[1:])
-
-    run_id = os.path.basename(args.input_run_folder)
+    run_id = os.path.basename(input_run_folder)
     fastq_dir = os.path.join(cfg['fastq_dir'], run_id)
     job_dir = os.path.join(cfg['jobs_dir'], run_id)
 
-    print(cfg.logging_config())
-    
-    logging.config.dictConfig(cfg.logging_config())
-    main_logger = util.NamedAppLogger('main')
+    main_logger = logging.getLogger('main')
 
     setup_working_dirs(fastq_dir, job_dir)
-    main_logger.info('Reading bcl data from ' + args.input_run_folder)
+    main_logger.info('Reading bcl data from ' + input_run_folder)
     main_logger.info('Fastq path is ' + fastq_dir)
 
     # Read RunInfo.xml and SampleSheet.csv for barcodes and masks
-    main_logger.info('Reading the reads info from ' + args.input_run_folder)
+    main_logger.info('Reading the reads info from ' + input_run_folder)
 
-    sample_sheet = reader.sample_sheet.SampleSheet(args.input_run_folder)
-    run_info = reader.run_info.RunInfo(args.input_run_folder)
+    sample_sheet = reader.sample_sheet.SampleSheet(input_run_folder)
+    run_info = reader.run_info.RunInfo(input_run_folder)
     if run_info.barcode_len:
         if not sample_sheet.check_barcodes() == run_info.barcode_len:
-            main_logger.warn('Barcode mismatch: %s (SampleSheet.csv) and %s (RunInfo.xml)' % (
-                sample_sheet.check_barcodes(), run_info.barcode_len
+            main_logger.warn(
+                'Barcode mismatch: %s (SampleSheet.csv) and %s (RunInfo.xml)' % (
+                    sample_sheet.check_barcodes(), run_info.barcode_len
                 )
             )
     else:
@@ -55,7 +47,7 @@ def main():
 
     if cfg['job_execution'] == 'pbs':
         run_pbs(
-            logger=main_logger, input_run_folder=args.input_run_folder, job_dir=job_dir,
+            logger=main_logger, input_run_folder=input_run_folder, job_dir=job_dir,
             run_id=run_id, fastq_dir=fastq_dir, mask=mask, sample_sheet=sample_sheet
         )
 
@@ -157,7 +149,7 @@ def run_pbs(logger=None, input_run_folder=None, job_dir=None,
         logger.info('Setting up BCBio run for ' + sample_id)
         util.setup_bcbio_run(
             cfg['bcbio'],
-            os.path.join(cfg['location'], 'etc', 'bcbio_alignment.yaml'),
+            os.path.join(os.path.dirname(os.path.dirname(__file__)), 'etc', 'bcbio_alignment.yaml'),
             os.path.join(job_dir, 'bcbio'),
             csv_file,
             *fastqs

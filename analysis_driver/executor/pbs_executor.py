@@ -1,7 +1,8 @@
 __author__ = 'mwham'
 import subprocess
 import threading
-from .executor import StreamExecutor
+
+from analysis_driver.executor import StreamExecutor
 
 
 class PBSExecutor(StreamExecutor):

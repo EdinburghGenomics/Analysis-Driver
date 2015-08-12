@@ -43,6 +43,7 @@ class PBSWriter(AppLogger):
         self.write_line('#PBS -l ncpus=%s,mem=%sgb' % (cpus, mem))
         if job_name:
             self.write_line('#PBS -N %s' % self._trim_field(job_name, 15))
+        # TODO: -M <email_address>, -m aeb
         self.write_line('#PBS -q %s' % queue)  # queue name
         self.write_line('#PBS -j oe')  # stdout/stderr
         self.write_line('#PBS -o %s' % log_file)  # output file name
@@ -62,3 +63,9 @@ class PBSWriter(AppLogger):
         self.pbs_file.write(self.script)
         self.pbs_file.close()
         self.info('Closed pbs file')
+
+
+# TODO: less direct inheritance. subclasses should not be PBS-specific
+# base PBS/SGE writers, etc
+# helper bcl2fastq, etc. command generators
+#

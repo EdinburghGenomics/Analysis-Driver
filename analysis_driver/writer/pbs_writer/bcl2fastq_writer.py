@@ -32,4 +32,3 @@ class BCL2FastqWriter(PBSWriter):
         self.write_line('touch ' + job_dir + '/.bcl2fastq_complete')
 
         self.save()
-

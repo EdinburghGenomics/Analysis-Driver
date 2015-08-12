@@ -1,15 +1,20 @@
 __author__ = 'mwham'
 import subprocess
 import os
-
-from .logger import AppLogger, NamedAppLogger
+from logging import getLogger
+from .logger import AppLogger
 from . import fastq_handler
-from config import default as cfg
+from analysis_driver.config import default as cfg
 
-app_logger = NamedAppLogger('Util')
+app_logger = getLogger(__name__)
 
 
 class AnalysisDriverError(Exception):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+
+class ProcessTriggerError(Exception):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -95,4 +100,3 @@ def demultiplex_feedback(run_id):
         os.path.join(cfg['input_data_dir'], run_id),
         os.path.join(cfg['raw_dir'], run_id)
     )
-

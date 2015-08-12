@@ -1,8 +1,8 @@
 __author__ = 'mwham'
 import os
-from analysis_driver.util import NamedAppLogger
+from logging import getLogger
 
-app_logger = NamedAppLogger(__name__)
+app_logger = getLogger(__name__)
 
 
 def find_fastqs(location, sample_project):

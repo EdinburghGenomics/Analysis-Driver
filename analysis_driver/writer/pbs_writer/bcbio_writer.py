@@ -1,6 +1,6 @@
 __author__ = 'mwham'
 from .pbs_writer import PBSWriter
-import config
+from analysis_driver import config
 
 
 class BCBioWriter(PBSWriter):
@@ -50,4 +50,3 @@ class BCBioWriter(PBSWriter):
         self.info(cmd)
         self.write_line(str(self.job_number) + ') ' + cmd)
         self.write_line(';;')
-

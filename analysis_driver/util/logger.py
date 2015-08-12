@@ -4,8 +4,8 @@ import logging
 
 class AppLogger:
     """
-    Mixin class for logging. Contains a logging.Logger object, which is controlled by public methods. All
-    methods are voids, i.e. return None.
+    Mixin class for logging. An object subclassing this can log directly from itself. Contains a
+    logging.Logger object, which is controlled by public methods. All methods are voids, i.e. return None.
 
     Public methods:
         All of these tell self._logger to log at the corresponding level.
@@ -51,12 +51,3 @@ class AppLogger:
     def _check_logger(self):
         if self._logger is None:
             self._logger = logging.getLogger(self.__class__.__name__)
-
-
-class NamedAppLogger(AppLogger):
-    """
-    Subclass of AppLogger, which can be created with a name. Useful for logging from non-object-oriented
-    modules.
-    """
-    def __init__(self, name):
-        self._logger = logging.getLogger(name)
