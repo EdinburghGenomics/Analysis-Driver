@@ -6,15 +6,22 @@ import logging.config
 
 from analysis_driver import driver
 from analysis_driver.config import default as cfg
-from analysis_driver.util import ProcessTriggerError
 
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        '--report',
+        'report',
         action='store_true',
         help='Don\'t execute anything, report on status of datasets'
+    )
+    parser.add_argument(
+        '--skip',
+        help='Mark a dataset as completed'
+    )
+    parser.add_argument(
+        '--reset',
+        help='Unmark a dataset as complete/in progress for rerunning'
     )
     parser.add_argument(
         '--debug',
@@ -27,13 +34,12 @@ def main():
     logging.config.dictConfig(cfg.logging_config(debug=args.debug))
     logger = logging.getLogger(__name__)
 
-    pt_lock_file = os.path.join(cfg['input_dir'], '.proctrigger.lock', 'w')
-    if os.path.isfile(pt_lock_file):
-        raise ProcessTriggerError(
-            'Lock file present. Is another Process Trigger running? Check for ' + pt_lock_file
-        )
     if args.report:
         report()
+    elif args.skip:
+        skip(args.skip)
+    elif args.reset:
+        reset(args.reset)
     else:
         datasets = scan_datasets()
         # Only process the first new dataset to be found. The rest will need to wait until the next scan
@@ -44,67 +50,39 @@ def main():
 
 
 def report():
-    print('========= Process Trigger report =========\n')
+    all_datasets = scan_datasets(ready_only=False)
+
+    print('========= Process Trigger report =========')
     print('=== ready datasets ===')
-    for dataset in scan_datasets(get_all=True):
-        if is_ready(dataset):
-            print(dataset)
+    for d in all_datasets:
+        if is_ready(d):
+            print(d)
 
     print('=== unready datasets (RTA not complete) ===')
-    for dataset in scan_datasets(get_all=True):
-        if is_unprocessed(dataset) and not rta_complete(dataset):
-            print(dataset)
+    for d in all_datasets:
+        if is_unprocessed(d) and not rta_complete(d):
+            print(d)
 
     print('=== active datasets ===')
-    for dataset in scan_datasets(get_all=True):
-        if is_active(dataset):
-            print(dataset)
+    for d in all_datasets:
+        if is_active(d):
+            print(d)
 
     print('=== complete datasets ===')
-    for dataset in scan_datasets(get_all=True):
-        if is_complete(dataset):
-            print(dataset)
+    for d in all_datasets:
+        if is_complete(d):
+            print(d)
 
 
-def scan_datasets(get_all=False):
+def scan_datasets(ready_only=True):
     all_datasets = [x for x in os.listdir(cfg['input_dir']) if os.path.isdir(os.path.join(cfg['input_dir'], x))]
-    if get_all:
-        return all_datasets
-    else:
+    if ready_only:
         return [
             x for x in all_datasets
             if is_ready(x)
         ]
-
-
-def is_unprocessed(dataset):
-    if not is_active(dataset) and not is_complete(dataset):
-        return True
     else:
-        return False
-
-
-def is_active(dataset):
-    return os.path.isfile(lock_file(dataset, 'active'))
-
-
-def is_complete(dataset):
-    return os.path.isfile(lock_file(dataset, 'complete'))
-
-
-def is_ready(dataset):
-    if is_unprocessed(dataset) and rta_complete(dataset):
-        return True
-    else:
-        return False
-
-
-def lock_file(dataset, status):
-    return os.path.join(cfg['input_dir'], '.' + dataset + '.' + status)
-
-
-def rta_complete(dataset):
-    return os.path.isfile(os.path.join(cfg['input_dir'], dataset, 'RTAComplete.txt'))
+        return all_datasets
 
 
 def trigger(dataset):
@@ -120,5 +98,50 @@ def trigger(dataset):
     touch(complete_lock)
 
 
+def skip(dataset):
+    active_lock = lock_file(dataset, 'active')
+    if os.path.isfile(active_lock):
+        os.remove(active_lock)
+    touch(lock_file(dataset, 'complete'))
+
+
+def reset(dataset):
+    for l in [lock_file(dataset, 'active'), lock_file(dataset, 'complete')]:
+        if os.path.isfile(l):
+            os.remove(l)
+
+
+def is_unprocessed(dataset):
+    if not is_active(dataset) and not is_complete(dataset):
+        return True
+    else:
+        return False
+
+
+def is_ready(dataset):
+    if is_unprocessed(dataset) and rta_complete(dataset):
+        return True
+    else:
+        return False
+
+
+def is_active(dataset):
+    return os.path.isfile(lock_file(dataset, 'active'))
+
+
+def is_complete(dataset):
+    return os.path.isfile(lock_file(dataset, 'complete'))
+
+
+def rta_complete(dataset):
+    return os.path.isfile(os.path.join(cfg['input_dir'], dataset, 'RTAComplete.txt'))
+
+
+def lock_file(dataset, status):
+    return os.path.join(cfg['input_dir'], '.' + dataset + '.' + status)
+
+
 def touch(file):
     open(file, 'w').close()
+
+touch(lock_file('150723_esearbtaet', 'complete'))

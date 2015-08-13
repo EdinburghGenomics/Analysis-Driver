@@ -87,10 +87,11 @@ def run_pbs(logger=None, input_run_folder=None, job_dir=None,
     logger.info('Create bcl2fastq PBS script')
     bcl2fastq_pbs_name = os.path.join(job_dir, 'bcl2fastq_' + run_id + '.pbs')
     logger.info('bcl2fastq PBS file is ' + bcl2fastq_pbs_name)
-    bcl2fastq_writer = writer.pbs_writer.BCL2FastqWriter(
-        bcl2fastq_pbs_name, 'bcl2fastq', os.path.join(job_dir, 'bcl2fastq_pbs.log')
+    bcl2fastq_writer = writer.pbs_script_writer.PBSWriter(
+        bcl2fastq_pbs_name, 24, 12, 32, 'bcl2fastq', os.path.join(job_dir, 'bcl2fastq.log')
     )
-    bcl2fastq_writer.write(job_dir, mask, input_run_folder, fastq_dir)
+    bcl2fastq_writer.write_line(writer.command_writer.bcl2fastq(mask, input_run_folder, fastq_dir))
+    bcl2fastq_writer.save()
 
     # submit the bcl2fastq script to batch scheduler
     logger.info('Submitting: ' + os.path.join(job_dir, bcl2fastq_pbs_name))
@@ -114,10 +115,14 @@ def run_pbs(logger=None, input_run_folder=None, job_dir=None,
 
     sample_projects = list(sample_sheet.sample_projects.keys())
     fastqs = util.fastq_handler.flatten_fastqs(fastq_dir, sample_projects)
-    fastqc_writer = writer.pbs_writer.FastqcWriter(
-        fastqc_pbs_name, 'fastqc_' + run_id, os.path.join(job_dir, 'fastqc_pbs.log'), fastqs
+
+    fastqc_writer = writer.pbs_script_writer.PBSWriter(
+        fastqc_pbs_name, 6, 8, 3, 'fastqc', os.path.join(job_dir, 'fastqc.log'), array=len(fastqs)
     )
-    fastqc_writer.write()
+    for idx, fastq in enumerate(fastqs):
+        fastqc_writer.write_array_cmd(idx + 1, writer.command_writer.fastqc(fastq))
+    fastqc_writer.finish_array()
+    fastqc_writer.save()
     
     # submit the fastqc script to the batch scheduler
     logger.info('Submitting: ' + os.path.join(job_dir, fastqc_pbs_name))
@@ -131,14 +136,12 @@ def run_pbs(logger=None, input_run_folder=None, job_dir=None,
 
     os.chdir(job_dir)
     bcbio_pbs = os.path.join(job_dir, 'bcbio_jobs.pbs')
-    bcbio_writer = writer.pbs_writer.BCBioWriter(
-        bcbio_pbs,
-        'bcbio_' + run_id,
-        'bcbio.log',
-        len(samples)
+
+    bcbio_writer = writer.pbs_script_writer.PBSWriter(
+        bcbio_pbs, 72, 8, 64, 'bcbio', 'bcbio.log', array=len(samples)
     )
 
-    for sample_id, csv_file, fastqs in samples:
+    for idx, (sample_id, csv_file, fastqs) in enumerate(samples):
         logger.info('Preparing samples for ' + sample_id)
         merged_csv = util.bcbio_prepare_samples(
             os.path.join(os.path.dirname(cfg['bcbio']), 'bcbio_prepare_samples.py'),
@@ -155,12 +158,16 @@ def run_pbs(logger=None, input_run_folder=None, job_dir=None,
             *fastqs
         )
 
-        bcbio_writer.add_bcbio_job(
-            run_yaml=os.path.join(job_dir, 'samples_' + sample_id, 'config', 'samples_' + sample_id + '.yaml'),
-            workdir=os.path.join(job_dir, 'samples_' + sample_id, 'work')
+        bcbio_writer.write_array_cmd(
+            idx + 1,
+            writer.command_writer.bcbio(
+                os.path.join(job_dir, 'samples_' + sample_id, 'config', 'samples_' + sample_id + '.yaml'),
+                os.path.join(job_dir, 'samples_' + sample_id, 'work')
+            )
         )
 
-    bcbio_writer.write()
+    bcbio_writer.finish_array()
+    bcbio_writer.save()
     
     bcbio_jobid = str(
         # qsub_dependents.qsub_dependents([bcbio_pbs], jobid=fastqc_jobid)

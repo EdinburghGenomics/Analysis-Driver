@@ -6,7 +6,7 @@ class PBSWriter(AppLogger):
     """
     Writes a basic PBS submission script. Subclassed by BCL2FastqWriter, FastqcWriter and BCBioWriter.
     Initialises with self.script as an empty string, which is appended by self._write_line. This string is
-    then saved to self.pbs_file by self.save.
+    then saved to self.script_file by self.save.
     """
     def __init__(self, pbs_name, walltime, cpus, mem, job_name, log_file, queue='uv2000'):
         # TODO: pass dates, ints, etc. to constructor
@@ -58,7 +58,7 @@ class PBSWriter(AppLogger):
 
     def save(self):
         """
-        Save self.script to self.pbs_file. Also closes self.pbs_script. This is important!
+        Save self.script to self.script_file. Also closes self.pbs_script. This is important!
         """
         self.pbs_file.write(self.script)
         self.pbs_file.close()
