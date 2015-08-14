@@ -11,22 +11,22 @@ from analysis_driver.config import default as cfg
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        'report',
+        '--report',
         action='store_true',
-        help='Don\'t execute anything, report on status of datasets'
+        help='don\'t execute anything, report on status of datasets'
     )
     parser.add_argument(
         '--skip',
-        help='Mark a dataset as completed'
+        help='mark a dataset as completed'
     )
     parser.add_argument(
         '--reset',
-        help='Unmark a dataset as complete/in progress for rerunning'
+        help='unmark a dataset as complete/in progress for rerunning'
     )
     parser.add_argument(
         '--debug',
         action='store_true',
-        help='Override pipeline log level to debug'
+        help='override pipeline log level to debug'
     )
 
     args = parser.parse_args()
@@ -106,7 +106,11 @@ def skip(dataset):
 
 
 def reset(dataset):
-    for l in [lock_file(dataset, 'active'), lock_file(dataset, 'complete')]:
+    for l in [
+        lock_file(dataset, 'active'),
+        lock_file(dataset, 'complete'),
+        os.path.join(cfg['jobs_dir'], dataset, '.bcl2fastq_complete')
+    ]:
         if os.path.isfile(l):
             os.remove(l)
 

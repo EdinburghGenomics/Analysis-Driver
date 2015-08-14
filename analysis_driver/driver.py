@@ -152,7 +152,7 @@ def run_pbs(logger=None, input_run_folder=None, job_dir=None,
         logger.info('Setting up BCBio run for ' + sample_id)
         util.setup_bcbio_run(
             cfg['bcbio'],
-            os.path.join(os.path.dirname(os.path.dirname(__file__)), 'etc', 'bcbio_alignment.yaml'),
+            os.path.join(os.path.dirname(__file__), '..', 'etc', 'bcbio_alignment.yaml'),
             os.path.join(job_dir, 'bcbio'),
             csv_file,
             *fastqs

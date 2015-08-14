@@ -25,7 +25,7 @@ class ScriptWriter(AppLogger):
         self.lines.append(line)
 
     def write_array_cmd(self, job_number, cmd):
-        self.write_line(str(job_number + ') ') + cmd + '\n' + ';;')
+        self.write_line(str(job_number) + ') ' + cmd + '\n' + ';;')
         self.array_len += 1
 
     def finish_array(self):
@@ -39,7 +39,7 @@ class ScriptWriter(AppLogger):
         Save self.script to self.script_file. Also closes it. This is important!
         """
         for line in self.lines:
-            self.script_file.write(line)
+            self.script_file.write(line + '\n')
         self.script_file.close()
         self.info('Finished writing script')
         if self.array and self.array_len != self.array:

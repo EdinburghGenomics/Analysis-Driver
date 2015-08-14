@@ -54,5 +54,6 @@ class PBSWriter(ScriptWriter):
         wt('#PBS -j oe')  # stdout/stderr
         wt('#PBS -o %s' % log_file)  # output file name
         if self.array:
-            wt('#PBS -J 1-' + str(self.array))
+            wt('#PBS -J 1-' + str(self.array) + '\n')
+            wt('case $PBS_ARRAY_INDEX in')
         self.line_break()

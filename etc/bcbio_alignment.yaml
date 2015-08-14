@@ -3,7 +3,6 @@
 details:
 - algorithm:
     aligner: bwa
-    mark_duplicates: picard
     realign: gatk
     recalibrate: gatk
     variantcaller: gatk-haplotype
