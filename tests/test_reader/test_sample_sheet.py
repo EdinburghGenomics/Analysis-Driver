@@ -7,7 +7,8 @@ import pytest
 class TestSampleSheet(TestAnalysisDriver):
     def setUp(self):
         self.sample_sheet = SampleSheet(self.assets_path)
-        self.samples = self.sample_sheet.sample_projects['10015AT'].samples
+        self.samples = []
+        self.sample_ids = self.sample_sheet.sample_projects['10015AT'].sample_ids
 
     def test_init(self):
         expected_lane = 1
@@ -36,24 +37,25 @@ class TestSampleProject(TestAnalysisDriver):
             name='test_name',
             index='ATGCAT'
         )
-        self.sample_project = SampleProject('test_sp', self.test_sample)
+        self.sample_project = SampleProject('test_sp')
+        self.sample_project.get_sample_id(self.test_sample.id).add_sample(self.test_sample)
 
     def test_init(self):
         assert self.sample_project.name == 'test_sp'
-        assert self.sample_project.samples[0] == self.test_sample
+        assert self.sample_project.sample_ids['test_id'].samples[0] == self.test_sample
 
     def test_add_sample(self):
         new_sample = Sample(
             sample_project='test_sp',
             lane='1338',
-            id='another_test_id',
+            id='test_id',
             name='test_name',
             index='ATGCAG'
         )
-        self.sample_project.add_sample(new_sample)
+        self.sample_project.get_sample_id('test_id').add_sample(new_sample)
 
-        assert self.sample_project.samples[1] == new_sample
         assert new_sample != self.test_sample
+        assert new_sample in self.sample_project.get_sample_id('test_id').samples
 
     def test_add_faulty_sample(self):
         with pytest.raises(AssertionError) as e:
@@ -64,5 +66,5 @@ class TestSampleProject(TestAnalysisDriver):
                 name='another_test_name',
                 index='ATGCAG'
             )
-            self.sample_project.add_sample(new_sample)
-        assert 'Adding invalid sample project to test_sp: another_test_sp' == str(e.value)
+            self.sample_project.get_sample_id('test_id').add_sample(new_sample)
+        assert 'Adding invalid sample project to test_id: another_test_sp' == str(e.value)

@@ -54,18 +54,17 @@ def localexecute(*args, stream=True, dry_run=False):
         return out, err
 
 
-def bcbio_prepare_samples(prepare_script, csv_file):
+def bcbio_prepare_samples(csv_file):
     localexecute(
-        prepare_script,
+        os.path.join(os.path.dirname(cfg['bcbio']), 'bcbio_prepare_samples.py'),
         '--out',
         'merged',
         '--csv',
         csv_file
     )
-    return csv_file.rstrip('.csv') + '-merged.csv'
 
 
-def setup_bcbio_run(bcbio, template, csv_file, run_dir, *fastqs):
+def setup_bcbio_run(template, csv_file, run_dir, *fastqs):
     """
     Call localexecute to run 'bcbio -w template' on relevant input files.
     :param str bcbio: Path to the bcbio_nextgen.py executable
@@ -76,7 +75,7 @@ def setup_bcbio_run(bcbio, template, csv_file, run_dir, *fastqs):
     :return: None
     """
     localexecute(
-        bcbio,
+        cfg['bcbio'],
         '-w',
         'template',
         template,

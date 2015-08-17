@@ -16,31 +16,21 @@ def pipeline(input_run_folder):
     :return: Exit status
     :rtype: int
     """
+    main_logger = logging.getLogger('main')
 
     run_id = os.path.basename(input_run_folder)
     fastq_dir = os.path.join(cfg['fastq_dir'], run_id)
     job_dir = os.path.join(cfg['jobs_dir'], run_id)
 
-    main_logger = logging.getLogger('main')
+    main_logger.info('Input run folder (bcl data source): ' + input_run_folder)
+    main_logger.info('Fastq dir: ' + fastq_dir)
+    main_logger.info('Job dir: ' + job_dir)
 
     setup_working_dirs(fastq_dir, job_dir)
-    main_logger.info('Reading bcl data from ' + input_run_folder)
-    main_logger.info('Fastq path is ' + fastq_dir)
-
-    # Read RunInfo.xml and SampleSheet.csv for barcodes and masks
-    main_logger.info('Reading the reads info from ' + input_run_folder)
 
     sample_sheet = reader.sample_sheet.SampleSheet(input_run_folder)
     run_info = reader.run_info.RunInfo(input_run_folder)
-    if run_info.barcode_len:
-        if not sample_sheet.check_barcodes() == run_info.barcode_len:
-            main_logger.warn(
-                'Barcode mismatch: %s (SampleSheet.csv) and %s (RunInfo.xml)' % (
-                    sample_sheet.check_barcodes(), run_info.barcode_len
-                )
-            )
-    else:
-        main_logger.warn('No barcode in RunInfo.xml')
+    validate_run_info(run_info, sample_sheet)
 
     mask = run_info.mask.tostring(sample_sheet.check_barcodes())
     main_logger.info('bcl2fastq mask: ' + mask)  # example_mask = 'y150n,i6,y150n'
@@ -55,6 +45,12 @@ def pipeline(input_run_folder):
 
     main_logger.info('Done')
     return 0
+
+
+def validate_run_info(run_info, sample_sheet):
+    assert run_info.barcode_len, 'No barcode found in RunInfo.xml'
+    assert sample_sheet.check_barcodes() == run_info.barcode_len, 'Barcode mismatch: %s (SampleSheet.csv) and %s (RunInfo.xml)' %\
+        (sample_sheet.check_barcodes(), run_info.barcode_len)
 
 
 def setup_working_dirs(*args):
@@ -84,36 +80,35 @@ def run_pbs(logger=None, input_run_folder=None, job_dir=None,
     """
     
     # Write bcl2fastq PBS script
-    logger.info('Create bcl2fastq PBS script')
     bcl2fastq_pbs_name = os.path.join(job_dir, 'bcl2fastq_' + run_id + '.pbs')
-    logger.info('bcl2fastq PBS file is ' + bcl2fastq_pbs_name)
+    logger.info('Writing bcl2fastq PBS script ' + bcl2fastq_pbs_name)
     bcl2fastq_writer = writer.pbs_script_writer.PBSWriter(
-        bcl2fastq_pbs_name, 24, 12, 32, 'bcl2fastq', os.path.join(job_dir, 'bcl2fastq.log')
+        bcl2fastq_pbs_name, 24, 12, 32, 'bcl2fastq_' + run_id, os.path.join(job_dir, 'bcl2fastq.log')
     )
     bcl2fastq_writer.write_line(writer.command_writer.bcl2fastq(mask, input_run_folder, fastq_dir))
     bcl2fastq_writer.save()
 
     # submit the bcl2fastq script to batch scheduler
-    logger.info('Submitting: ' + os.path.join(job_dir, bcl2fastq_pbs_name))
-    
+    logger.info('Submitting ' + bcl2fastq_pbs_name)
+
     bcl2fastq_jobid = str(
         qsub_dependents.qsub([os.path.join(job_dir, bcl2fastq_pbs_name)])
     ).lstrip('b\'').rstrip('\'')
-    logger.info('BCL2FASTQ jobId: ' + bcl2fastq_jobid)
-    
+    logger.info('bcl2fastq job id: ' + bcl2fastq_jobid)
+
     # Wait for fastqs to be created
     bcl2fastq_complete = os.path.join(job_dir, '.bcl2fastq_complete')
     logger.info('Waiting for creation of ' + bcl2fastq_complete)
     while not os.path.exists(bcl2fastq_complete):
         sleep(15)
-    logger.info('bcl2fastq complete, executing fastqc and BCBio')
-    
+    logger.info('Bcl2fastq complete, proceeding')
+
     # Write fastqc PBS script
-    logger.info('Creating fastqc PBS script')
     fastqc_pbs_name = os.path.join(job_dir, 'fastqc_' + run_id + '.pbs')
-    logger.info('Fastqc PBS file is ' + fastqc_pbs_name)
+    logger.info('Writing fastqc PBS script ' + fastqc_pbs_name)
 
     sample_projects = list(sample_sheet.sample_projects.keys())
+    print(sample_sheet.sample_projects['10015AT'].sample_ids)
     fastqs = util.fastq_handler.flatten_fastqs(fastq_dir, sample_projects)
 
     fastqc_writer = writer.pbs_script_writer.PBSWriter(
@@ -123,57 +118,63 @@ def run_pbs(logger=None, input_run_folder=None, job_dir=None,
         fastqc_writer.write_array_cmd(idx + 1, writer.command_writer.fastqc(fastq))
     fastqc_writer.finish_array()
     fastqc_writer.save()
-    
+
     # submit the fastqc script to the batch scheduler
     logger.info('Submitting: ' + os.path.join(job_dir, fastqc_pbs_name))
     fastqc_jobid = str(
         qsub_dependents.qsub([os.path.join(job_dir, fastqc_pbs_name)])
     ).lstrip('b\'').rstrip('\'')
     logger.info('FASTQC jobId: ' + fastqc_jobid)
-    
-    csv_writer = writer.BCBioSamplePrep(fastq_dir, job_dir, sample_sheet)
-    samples = csv_writer.write()
-    logger.info(str(samples))
+
     os.chdir(job_dir)
     bcbio_pbs = os.path.join(job_dir, 'bcbio_jobs.pbs')
 
+    bcbio_array_cmds = []
+    for sample_project, proj_obj in sample_sheet.sample_projects.items():
+        proj_fastqs = util.fastq_handler.find_fastqs(fastq_dir, sample_project)
+
+        for sample_id, id_obj in proj_obj.sample_ids.items():
+
+            bcbio_array_cmds.append(
+                writer.command_writer.bcbio(
+                    os.path.join(job_dir, 'samples_' + sample_id, 'config', 'samples_' + sample_id + '.yaml'),
+                    os.path.join(job_dir, 'samples_' + sample_id, 'work')
+                )
+            )
+
+            id_fastqs = proj_fastqs[sample_id]
+
+            csv_writer = writer.BCBioCSVWriter(job_dir, sample_id, id_fastqs)
+
+            util.bcbio_prepare_samples(csv_writer.csv_file)
+            util.setup_bcbio_run(
+                os.path.join(os.path.dirname(__file__), '..', 'etc', 'bcbio_alignment.yaml'),
+                os.path.join(job_dir, 'bcbio'),
+                csv_writer.csv_file,
+                *fastqs
+            )
+
     bcbio_writer = writer.pbs_script_writer.PBSWriter(
-        bcbio_pbs, 72, 8, 64, 'bcbio', 'bcbio.log', array=len(samples)
+        bcbio_pbs,
+        72,
+        8,
+        64,
+        'bcbio',
+        'bcbio.log',
+        array=len(bcbio_array_cmds)
     )
 
     for cmd in writer.command_writer.bcbio_java_paths():
         bcbio_writer.write_line(cmd)
-
     bcbio_writer.start_array()
 
-    for idx, (sample_id, csv_file, fastqs) in enumerate(samples):
-        logger.info('Preparing samples for ' + sample_id)
-        merged_csv = util.bcbio_prepare_samples(
-            os.path.join(os.path.dirname(cfg['bcbio']), 'bcbio_prepare_samples.py'),
-            csv_file
-        )
-        logger.info('Merged csv: ' + merged_csv)
-
-        logger.info('Setting up BCBio run for ' + sample_id)
-        util.setup_bcbio_run(
-            cfg['bcbio'],
-            os.path.join(os.path.dirname(__file__), '..', 'etc', 'bcbio_alignment.yaml'),
-            os.path.join(job_dir, 'bcbio'),
-            csv_file,
-            *fastqs
-        )
-
-        bcbio_writer.write_array_cmd(
-            idx + 1,
-            writer.command_writer.bcbio(
-                os.path.join(job_dir, 'samples_' + sample_id, 'config', 'samples_' + sample_id + '.yaml'),
-                os.path.join(job_dir, 'samples_' + sample_id, 'work')
-            )
-        )
+    for idx, cmd in enumerate(bcbio_array_cmds):
+        bcbio_writer.write_array_cmd(idx + 1, cmd)
+        logger.info('Written command number ' + str(idx))
 
     bcbio_writer.finish_array()
     bcbio_writer.save()
-    
+
     bcbio_jobid = str(
         # qsub_dependents.qsub_dependents([bcbio_pbs], jobid=fastqc_jobid)
         qsub_dependents.qsub([bcbio_pbs])

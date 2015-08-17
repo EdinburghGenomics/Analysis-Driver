@@ -24,8 +24,8 @@ class PBSWriter(ScriptWriter):
         super().__init__(script_name, array)
         self._write_header(walltime, cpus, mem, job_name, log_file, queue)
         self.info(
-            'Written PBS header. Walltime: %s, cpus: %s, memory: %s, job name: %s, queue: %s' % (
-                walltime, cpus, mem, job_name, queue
+            'Written PBS header. Walltime %s, cpus %s, memory %s, job name %s, queue %s, array %s' % (
+                walltime, cpus, mem, job_name, queue, array
             )
         )
         self.info('Job will write stdout to: ' + log_file)

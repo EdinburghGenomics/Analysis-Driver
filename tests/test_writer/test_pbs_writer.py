@@ -1,6 +1,6 @@
 __author__ = 'mwham'
 from tests.test_analysisdriver import TestAnalysisDriver
-from analysis_driver.writer.pbs_writer.pbs_writer import PBSWriter
+from analysis_driver.writer.pbs_script_writer import PBSWriter
 import os.path
 
 
@@ -10,9 +10,9 @@ class TestPBSWriter(TestAnalysisDriver):
         self.tmp_script = os.path.join(os.path.dirname(__file__), self.pbs_name)
         self.writer = PBSWriter(
             self.tmp_script,
-            walltime='24',
-            cpus='2',
-            mem='1',
+            walltime=24,
+            cpus=2,
+            mem=1,
             job_name='test',
             log_file='test.log',
             queue='test'
@@ -20,21 +20,23 @@ class TestPBSWriter(TestAnalysisDriver):
 
     def test_init(self):
         for line in [
-            '#!/bin/bash\n\n',
-            '#PBS -l walltime=24:00:00\n',
-            '#PBS -l ncpus=2,mem=1gb\n',
-            '#PBS -N test\n',
-            '#PBS -q test\n',
-            '#PBS -j oe\n',
-            '#PBS -o test.log\n'
+            '#!/bin/bash\n',
+            '#PBS -l walltime=24:00:00',
+            '#PBS -l ncpus=2,mem=1gb',
+            '#PBS -N test',
+            '#PBS -q test',
+            '#PBS -j oe',
+            '#PBS -o test.log'
         ]:
-            assert line in self.writer.script
+            assert line in self.writer.lines
 
     def test_write_line(self):
         self.writer.write_line('test line')
-        assert self.writer.script.endswith('test line\n')
+        assert self.writer.lines[-1] == 'test line'
 
     def test_save(self):
         self.writer.save()
         with open(self.tmp_script) as f:
-            assert f.read() == self.writer.script
+            file_lines = f.read().split('\n')
+            for line in self.writer.lines:
+                assert line.strip() in file_lines

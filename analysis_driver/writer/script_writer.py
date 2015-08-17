@@ -9,7 +9,6 @@ class ScriptWriter(AppLogger):
     then saved to self.script_file by self.save.
     """
     def __init__(self, script_name, array=None):
-        # TODO: pass dates, ints, etc. to constructor
         """
         :param str script_name: Desired full path to the pbs script to write
         :param int array: A number of jobs to submit in an array
@@ -36,7 +35,7 @@ class ScriptWriter(AppLogger):
 
     def save(self):
         """
-        Save self.script to self.script_file. Also closes it. This is important!
+        Save self.script to self.script_file. Also closes it. Always close it.
         """
         for line in self.lines:
             self.script_file.write(line + '\n')
