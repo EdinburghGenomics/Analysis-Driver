@@ -133,13 +133,18 @@ def run_pbs(logger=None, input_run_folder=None, job_dir=None,
     
     csv_writer = writer.BCBioSamplePrep(fastq_dir, job_dir, sample_sheet)
     samples = csv_writer.write()
-
+    logger.info(str(samples))
     os.chdir(job_dir)
     bcbio_pbs = os.path.join(job_dir, 'bcbio_jobs.pbs')
 
     bcbio_writer = writer.pbs_script_writer.PBSWriter(
         bcbio_pbs, 72, 8, 64, 'bcbio', 'bcbio.log', array=len(samples)
     )
+
+    for cmd in writer.command_writer.bcbio_java_paths():
+        bcbio_writer.write_line(cmd)
+
+    bcbio_writer.start_array()
 
     for idx, (sample_id, csv_file, fastqs) in enumerate(samples):
         logger.info('Preparing samples for ' + sample_id)

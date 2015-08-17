@@ -30,6 +30,9 @@ class PBSWriter(ScriptWriter):
         )
         self.info('Job will write stdout to: ' + log_file)
 
+    def start_array(self):
+        self.write_line('case $PBS_ARRAY_INDEX in\n')
+
     def finish_array(self):
         self.write_line('*) echo "Unexpected PBS_ARRAY_INDEX: $PBS_ARRAY_INDEX"')
         self.write_line('esac')
@@ -55,5 +58,3 @@ class PBSWriter(ScriptWriter):
         wt('#PBS -o %s' % log_file)  # output file name
         if self.array:
             wt('#PBS -J 1-' + str(self.array) + '\n')
-            wt('case $PBS_ARRAY_INDEX in')
-        self.line_break()
