@@ -3,7 +3,6 @@ import threading
 import subprocess
 import select  # asynchronous IO
 from analysis_driver.util.logger import AppLogger
-from analysis_driver import driver
 
 
 class Executor(AppLogger):
@@ -29,6 +28,7 @@ class StreamExecutor(Executor, threading.Thread):
         :param list cmd: A field-separated command to be executed
         """
         self.cmd = cmd
+        self.returncode = None
         threading.Thread.__init__(self)
 
     def run(self):
@@ -37,6 +37,7 @@ class StreamExecutor(Executor, threading.Thread):
         :return:
         """
         proc = self._process()
+        self.returncode = proc.wait()
         read_set = [proc.stdout, proc.stderr]
 
         while read_set:
@@ -51,11 +52,7 @@ class StreamExecutor(Executor, threading.Thread):
                         stream.close()
                         read_set.remove(stream)
 
+    def join(self, timeout=None):
+        super().join(timeout=timeout)
+        return self.returncode
 
-class ProcessTrigger(Executor, threading.Thread):
-    def __init__(self, **kwargs):
-        self.kwargs = kwargs
-        threading.Thread.__init__(self)
-
-    def run(self):
-        driver.pipeline(**self.kwargs)

@@ -5,6 +5,7 @@ import os
 
 from analysis_driver import reader, writer, util
 from analysis_driver.legacy import qsub_dependents
+import analysis_driver.executor
 from analysis_driver.config import default as cfg  # imports the default config singleton
 
 logging_helper = logging.getLogger('driver')
@@ -91,18 +92,20 @@ def run_pbs(logger=None, input_run_folder=None, job_dir=None,
     # submit the bcl2fastq script to batch scheduler
     logger.info('Submitting ' + bcl2fastq_pbs_name)
 
-    bcl2fastq_jobid = str(
-        qsub_dependents.qsub([os.path.join(job_dir, bcl2fastq_pbs_name)])
-    ).lstrip('b\'').rstrip('\'')
-    logger.info('bcl2fastq job id: ' + bcl2fastq_jobid)
+    bcl2fastq_executor = analysis_driver.executor.PBSExecutor(os.path.join(job_dir, bcl2fastq_pbs_name), block=True)
+    bcl2fastq_executor.start()
+    bcl2fastq_exit_status = bcl2fastq_executor.join()
+    if bcl2fastq_exit_status:
+        raise AnalysisDriverError('Bcl2fastq failed')
 
+    '''
     # Wait for fastqs to be created
     bcl2fastq_complete = os.path.join(job_dir, '.bcl2fastq_complete')
     logger.info('Waiting for creation of ' + bcl2fastq_complete)
     while not os.path.exists(bcl2fastq_complete):
         sleep(15)
     logger.info('Bcl2fastq complete, proceeding')
-
+    '''
     # Write fastqc PBS script
     fastqc_pbs_name = os.path.join(job_dir, 'fastqc_' + run_id + '.pbs')
     logger.info('Writing fastqc PBS script ' + fastqc_pbs_name)
@@ -121,10 +124,8 @@ def run_pbs(logger=None, input_run_folder=None, job_dir=None,
 
     # submit the fastqc script to the batch scheduler
     logger.info('Submitting: ' + os.path.join(job_dir, fastqc_pbs_name))
-    fastqc_jobid = str(
-        qsub_dependents.qsub([os.path.join(job_dir, fastqc_pbs_name)])
-    ).lstrip('b\'').rstrip('\'')
-    logger.info('FASTQC jobId: ' + fastqc_jobid)
+    fastqc_executor = analysis_driver.executor.PBSExecutor(os.path.join(job_dir, fastqc_pbs_name))
+    fastqc_executor.start()
 
     os.chdir(job_dir)
     bcbio_pbs = os.path.join(job_dir, 'bcbio_jobs.pbs')
@@ -145,6 +146,7 @@ def run_pbs(logger=None, input_run_folder=None, job_dir=None,
             id_fastqs = proj_fastqs[sample_id]
 
             csv_writer = writer.BCBioCSVWriter(job_dir, sample_id, id_fastqs)
+            csv_writer.write()
 
             util.bcbio_prepare_samples(csv_writer.csv_file)
             util.setup_bcbio_run(
@@ -175,8 +177,7 @@ def run_pbs(logger=None, input_run_folder=None, job_dir=None,
     bcbio_writer.finish_array()
     bcbio_writer.save()
 
-    bcbio_jobid = str(
-        # qsub_dependents.qsub_dependents([bcbio_pbs], jobid=fastqc_jobid)
-        qsub_dependents.qsub([bcbio_pbs])
-    ).lstrip('b\'').rstrip('\'')
-    logger.info('BCBio jobId: ' + bcbio_jobid)
+    bcbio_executor = analysis_driver.executor.PBSExecutor(bcbio_pbs)
+    bcbio_executor.start()
+
+
