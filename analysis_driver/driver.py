@@ -1,11 +1,10 @@
 import logging
-from time import sleep
-
 import os
 
 from analysis_driver import reader, writer, util
+from analysis_driver.util import AnalysisDriverError
 from analysis_driver.legacy import qsub_dependents
-import analysis_driver.executor
+from analysis_driver import executor
 from analysis_driver.config import default as cfg  # imports the default config singleton
 
 logging_helper = logging.getLogger('driver')
@@ -92,7 +91,7 @@ def run_pbs(logger=None, input_run_folder=None, job_dir=None,
     # submit the bcl2fastq script to batch scheduler
     logger.info('Submitting ' + bcl2fastq_pbs_name)
 
-    bcl2fastq_executor = analysis_driver.executor.PBSExecutor(os.path.join(job_dir, bcl2fastq_pbs_name), block=True)
+    bcl2fastq_executor = executor.ClusterExecutor(os.path.join(job_dir, bcl2fastq_pbs_name), block=True)
     bcl2fastq_executor.start()
     bcl2fastq_exit_status = bcl2fastq_executor.join()
     if bcl2fastq_exit_status:
@@ -124,7 +123,7 @@ def run_pbs(logger=None, input_run_folder=None, job_dir=None,
 
     # submit the fastqc script to the batch scheduler
     logger.info('Submitting: ' + os.path.join(job_dir, fastqc_pbs_name))
-    fastqc_executor = analysis_driver.executor.PBSExecutor(os.path.join(job_dir, fastqc_pbs_name))
+    fastqc_executor = executor.ClusterExecutor(os.path.join(job_dir, fastqc_pbs_name))
     fastqc_executor.start()
 
     os.chdir(job_dir)
@@ -177,7 +176,7 @@ def run_pbs(logger=None, input_run_folder=None, job_dir=None,
     bcbio_writer.finish_array()
     bcbio_writer.save()
 
-    bcbio_executor = analysis_driver.executor.PBSExecutor(bcbio_pbs)
+    bcbio_executor = executor.ClusterExecutor(bcbio_pbs)
     bcbio_executor.start()
 
 
