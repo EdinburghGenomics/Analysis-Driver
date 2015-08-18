@@ -1,8 +1,9 @@
 __author__ = 'mwham'
 import subprocess
 import os
-from logging import getLogger
 from .logger import AppLogger
+from ..executor import StreamExecutor
+from logging import getLogger
 from . import fastq_handler
 from analysis_driver.config import default as cfg
 
@@ -18,7 +19,7 @@ class ProcessTriggerError(Exception):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-
+'''
 def localexecute(*args, stream=True, dry_run=False):
     """
     Uses subprocess to run arbitrary shell commands.
@@ -52,7 +53,12 @@ def localexecute(*args, stream=True, dry_run=False):
         if type(err) is bytes:
             err = err.decode('utf-8')
         return out, err
+'''
 
+def localexecute(*args, dry_run=False):
+    executor = StreamExecutor(list(args))
+    executor.start()
+    app_logger.info('Exit status: ' + str(executor.join()))
 
 def bcbio_prepare_samples(csv_file):
     localexecute(

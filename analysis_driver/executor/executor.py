@@ -36,15 +36,14 @@ class StreamExecutor(Executor, threading.Thread):
     def run(self):
         """
         Run self._process and stream its stdout and stderr
-        :return:
         """
         proc = self._process()
         read_set = [proc.stdout, proc.stderr]
-
         while read_set:
             rlist, wlist, xlist = select.select(read_set, [], [])
 
             for stream, emit in ((proc.stdout, self.info), (proc.stderr, self.error)):
+                # if stream in rlist:
                 if stream in rlist:
                     line = stream.readline().decode('utf-8').strip()
                     if line:
@@ -59,7 +58,7 @@ class StreamExecutor(Executor, threading.Thread):
 
 
 class ClusterExecutor(StreamExecutor):
-    def __init__(self, script, block):
+    def __init__(self, script, block=False):
         """
         :param str script: Full path to a PBS script
         :param bool block: Whether to run the job in blocking ('monitor') mode

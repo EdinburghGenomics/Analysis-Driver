@@ -90,13 +90,13 @@ def run_pbs(logger=None, input_run_folder=None, job_dir=None,
 
     # submit the bcl2fastq script to batch scheduler
     logger.info('Submitting ' + bcl2fastq_pbs_name)
-
     bcl2fastq_executor = executor.ClusterExecutor(os.path.join(job_dir, bcl2fastq_pbs_name), block=True)
     bcl2fastq_executor.start()
     bcl2fastq_exit_status = bcl2fastq_executor.join()
+    logger.info('Exit status: ' + str(bcl2fastq_exit_status))
     if bcl2fastq_exit_status:
         raise AnalysisDriverError('Bcl2fastq failed')
-
+    
     '''
     # Wait for fastqs to be created
     bcl2fastq_complete = os.path.join(job_dir, '.bcl2fastq_complete')
@@ -110,12 +110,12 @@ def run_pbs(logger=None, input_run_folder=None, job_dir=None,
     logger.info('Writing fastqc PBS script ' + fastqc_pbs_name)
 
     sample_projects = list(sample_sheet.sample_projects.keys())
-    print(sample_sheet.sample_projects['10015AT'].sample_ids)
     fastqs = util.fastq_handler.flatten_fastqs(fastq_dir, sample_projects)
 
     fastqc_writer = writer.pbs_script_writer.PBSWriter(
         fastqc_pbs_name, 6, 8, 3, 'fastqc', os.path.join(job_dir, 'fastqc.log'), array=len(fastqs)
     )
+    fastqc_writer.start_array()
     for idx, fastq in enumerate(fastqs):
         fastqc_writer.write_array_cmd(idx + 1, writer.command_writer.fastqc(fastq))
     fastqc_writer.finish_array()
