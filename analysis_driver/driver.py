@@ -178,5 +178,3 @@ def run_pbs(logger=None, input_run_folder=None, job_dir=None,
 
     bcbio_executor = executor.ClusterExecutor(bcbio_pbs)
     bcbio_executor.start()
-
-

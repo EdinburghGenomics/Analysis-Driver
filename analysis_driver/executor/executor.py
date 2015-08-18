@@ -9,6 +9,7 @@ from analysis_driver.config import default as cfg
 class Executor(AppLogger):
     def __init__(self, cmd):
         self.cmd = cmd
+        self.proc = None
 
     def run(self):
         out, err = self._process().communicate()
@@ -20,7 +21,8 @@ class Executor(AppLogger):
         resource managers
         :rtype: subprocess.Popen
         """
-        return subprocess.Popen(self.cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        self.proc = subprocess.Popen(self.cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        return self.proc
 
 
 class StreamExecutor(Executor, threading.Thread):
@@ -28,8 +30,7 @@ class StreamExecutor(Executor, threading.Thread):
         """
         :param list cmd: A field-separated command to be executed
         """
-        self.cmd = cmd
-        self.returncode = None
+        Executor.__init__(self, cmd)
         threading.Thread.__init__(self)
 
     def run(self):
@@ -38,7 +39,6 @@ class StreamExecutor(Executor, threading.Thread):
         :return:
         """
         proc = self._process()
-        self.returncode = proc.wait()
         read_set = [proc.stdout, proc.stderr]
 
         while read_set:
@@ -55,7 +55,7 @@ class StreamExecutor(Executor, threading.Thread):
 
     def join(self, timeout=None):
         super().join(timeout=timeout)
-        return self.returncode
+        return self.proc.poll()
 
 
 class ClusterExecutor(StreamExecutor):
@@ -67,16 +67,9 @@ class ClusterExecutor(StreamExecutor):
         super().__init__([script])
         self.block = block
 
-    def run(self):
-        proc = self._process()
-        self.returncode = proc.wait()
-
-        job_id = proc.stdout.readline()
-        self.info(job_id)
-
     def _process(self):
         """
-        Override to supply a qsub command with self.script
+        Override to supply a qsub command
         :rtype: subprocess.Popen
         """
         cmd = []
@@ -84,7 +77,8 @@ class ClusterExecutor(StreamExecutor):
             cmd = self._pbs_cmd(self.block)
 
         cmd.extend(self.cmd)
-        return subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        self.proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        return self.proc
 
     @staticmethod
     def _pbs_cmd(block):
@@ -92,5 +86,4 @@ class ClusterExecutor(StreamExecutor):
         if block:
             cmd.append('-W')
             cmd.append('block=true')
-
         return cmd
