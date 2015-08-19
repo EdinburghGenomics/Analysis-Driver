@@ -147,5 +147,3 @@ def lock_file(dataset, status):
 
 def touch(file):
     open(file, 'w').close()
-
-touch(lock_file('150723_esearbtaet', 'complete'))

@@ -11,13 +11,11 @@ app_logger = getLogger(__name__)
 
 
 class AnalysisDriverError(Exception):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    pass
 
 
 class ProcessTriggerError(Exception):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    pass
 
 '''
 def localexecute(*args, stream=True, dry_run=False):
@@ -55,10 +53,11 @@ def localexecute(*args, stream=True, dry_run=False):
         return out, err
 '''
 
-def localexecute(*args, dry_run=False):
+def localexecute(*args):
     executor = StreamExecutor(list(args))
     executor.start()
     app_logger.info('Exit status: ' + str(executor.join()))
+
 
 def bcbio_prepare_samples(csv_file):
     localexecute(

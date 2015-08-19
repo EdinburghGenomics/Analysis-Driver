@@ -18,6 +18,12 @@ class TestPBSWriter(TestAnalysisDriver):
             queue='test'
         )
 
+    def tearDown(self):
+        try:
+            os.remove(self.tmp_script)
+        except FileNotFoundError:
+            print('No ' + self.tmp_script + ' to remove')
+
     def test_init(self):
         for line in [
             '#!/bin/bash\n',

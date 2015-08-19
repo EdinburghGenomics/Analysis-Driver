@@ -32,7 +32,8 @@ def pipeline(input_run_folder):
     run_info = reader.run_info.RunInfo(input_run_folder)
     validate_run_info(run_info, sample_sheet)
 
-    mask = run_info.mask.tostring(sample_sheet.check_barcodes())
+    mask = run_info.mask.tostring(sample_sheet.check_barcodes())  # barcode len does come from sample sheet
+    # TODO: make this cleaner
     main_logger.info('bcl2fastq mask: ' + mask)  # example_mask = 'y150n,i6,y150n'
 
     if cfg['job_execution'] == 'pbs':
@@ -48,9 +49,13 @@ def pipeline(input_run_folder):
 
 
 def validate_run_info(run_info, sample_sheet):
-    assert run_info.barcode_len, 'No barcode found in RunInfo.xml'
-    assert sample_sheet.check_barcodes() == run_info.barcode_len, 'Barcode mismatch: %s (SampleSheet.csv) and %s (RunInfo.xml)' %\
-        (sample_sheet.check_barcodes(), run_info.barcode_len)
+    if not run_info.barcode_len:
+        logging_helper.critical('No barcode found in RunInfo.xml')
+    if sample_sheet.check_barcodes() != run_info.barcode_len:
+        logging_helper.error(
+            'Barcode mismatch: %s (SampleSheet.csv) and %s (RunInfo.xml)' %
+            (sample_sheet.check_barcodes(), run_info.barcode_len)
+        )
 
 
 def setup_working_dirs(*args):
@@ -92,19 +97,12 @@ def run_pbs(logger=None, input_run_folder=None, job_dir=None,
     logger.info('Submitting ' + bcl2fastq_pbs_name)
     bcl2fastq_executor = executor.ClusterExecutor(os.path.join(job_dir, bcl2fastq_pbs_name), block=True)
     bcl2fastq_executor.start()
+
     bcl2fastq_exit_status = bcl2fastq_executor.join()
     logger.info('Exit status: ' + str(bcl2fastq_exit_status))
     if bcl2fastq_exit_status:
         raise AnalysisDriverError('Bcl2fastq failed')
-    
-    '''
-    # Wait for fastqs to be created
-    bcl2fastq_complete = os.path.join(job_dir, '.bcl2fastq_complete')
-    logger.info('Waiting for creation of ' + bcl2fastq_complete)
-    while not os.path.exists(bcl2fastq_complete):
-        sleep(15)
-    logger.info('Bcl2fastq complete, proceeding')
-    '''
+
     # Write fastqc PBS script
     fastqc_pbs_name = os.path.join(job_dir, 'fastqc_' + run_id + '.pbs')
     logger.info('Writing fastqc PBS script ' + fastqc_pbs_name)
@@ -120,6 +118,9 @@ def run_pbs(logger=None, input_run_folder=None, job_dir=None,
         fastqc_writer.write_array_cmd(idx + 1, writer.command_writer.fastqc(fastq))
     fastqc_writer.finish_array()
     fastqc_writer.save()
+
+    # TODO: writer should be able to decide for itself what the execution type is, and whether it needs to
+    # write a job array
 
     # submit the fastqc script to the batch scheduler
     logger.info('Submitting: ' + os.path.join(job_dir, fastqc_pbs_name))
@@ -143,15 +144,13 @@ def run_pbs(logger=None, input_run_folder=None, job_dir=None,
             )
 
             id_fastqs = proj_fastqs[sample_id]
+            bcbio_csv_file = writer.write_bcbio_csv(job_dir, sample_id, id_fastqs)
 
-            csv_writer = writer.BCBioCSVWriter(job_dir, sample_id, id_fastqs)
-            csv_writer.write()
-
-            util.bcbio_prepare_samples(csv_writer.csv_file)
+            util.bcbio_prepare_samples(bcbio_csv_file)
             util.setup_bcbio_run(
                 os.path.join(os.path.dirname(__file__), '..', 'etc', 'bcbio_alignment.yaml'),
                 os.path.join(job_dir, 'bcbio'),
-                csv_writer.csv_file,
+                bcbio_csv_file,
                 *fastqs
             )
 

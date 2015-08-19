@@ -48,7 +48,7 @@ class PBSWriter(ScriptWriter):
         if job_name:
             wt('-N', self._trim_field(job_name, 15))
         try:
-            wt('-M', ','.join(cfg['notification_emails']))
+            wt('-M', ','.join(cfg['notification_emails']))  # TODO: we don't want this to be permanent
             wt('-m', 'aeb')
         except KeyError:
             pass
