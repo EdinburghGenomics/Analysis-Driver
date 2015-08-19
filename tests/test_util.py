@@ -1,22 +1,10 @@
 __author__ = 'mwham'
 from tests.test_analysisdriver import TestAnalysisDriver
-from analysis_driver.util import localexecute, AppLogger, fastq_handler
+from analysis_driver.util import AppLogger, fastq_handler
 import os.path
 
 helper = TestAnalysisDriver()
 
-
-def test_localexecute():
-    out, err = localexecute('ls', os.path.dirname(__file__), stream=False)
-    print(out)
-    for f in ['__init__.py', 'assets', 'test_reader', 'test_util.py', 'test_writer']:
-        assert f in out.split('\n')
-
-
-def test_localexecute_faulty():
-    out, err = localexecute('ls', '-z', os.path.dirname(__file__), stream=False)
-    assert out == ('ls: illegal option -- z\n'
-                   'usage: ls [-ABCFGHLOPRSTUWabcdefghiklmnopqrstuwx1] [file ...]\n')
 
 def test_setup_bcbio_run():
     print('Currently untestable')

@@ -8,12 +8,6 @@ class SampleSheet(AppLogger):
     """
     Represents an instance of SampleSheet.csv. It ignores all lines until '[Data]' is found in the first
     column, then starts reading the CSV.
-
-    Public properties:
-        sample_projects: A dict mapping sample project names to SampleProject objects (dict[str, SampleProject])
-
-    Public methods:
-        check_barcodes()
     """
     def __init__(self, data_dir):
         """
@@ -28,19 +22,20 @@ class SampleSheet(AppLogger):
         self.debug('Starting reading sample sheet at line ' + str(counter))
 
         self.sample_projects = {}  # {name: samples} {str: Sample}
-        self._populate(self.sample_projects)
+        self._populate()
         self.debug('Sample project entries: ' + str(self.sample_projects))
 
-    def _populate(self, samples):
+    def _populate(self):
         reader = csv.DictReader(self.file)
         for row in reader:
             if any(row):
                 sample_project = row['Sample_Project']
+                sample_id = row['Sample_ID']
 
                 new_sample = Sample(
                     sample_project=sample_project,
                     lane=row['Lane'],
-                    id=row['Sample_ID'],
+                    id=sample_id,
                     name=row['Sample_Name'],
                     index=row['Index']  # ,
                     # index2=row['Index2'],
@@ -48,10 +43,10 @@ class SampleSheet(AppLogger):
                     # well=row['Sample_Well'],
                     # genome_folder=row['GenomeFolder']
                 )
-                try:
-                    samples[sample_project].add_sample(new_sample)
-                except KeyError:
-                    samples[sample_project] = SampleProject(sample_project, new_sample)
+
+                sample_project_obj = self._get_sample_project(sample_project)
+                sample_id_obj = sample_project_obj.get_sample_id(sample_id)
+                sample_id_obj.add_sample(new_sample)
 
     def check_barcodes(self):
         """
@@ -61,58 +56,68 @@ class SampleSheet(AppLogger):
         """
         last_sample = None
         for name, sample_project in self.sample_projects.items():
-            for sample in sample_project.samples:
-                try:
-                    if len(sample.index) == len(last_sample.index):
-                        pass
-                    else:
-                        raise ValueError(
-                            'Odd barcode length for %s: %s (%s) in sample project \'%s\' ' % (
-                                sample.id, sample.barcode, len(sample.barcode), name
+            for name2, sample_id in sample_project.sample_ids.items():
+                for sample in sample_id.samples:
+                    try:
+                        if len(sample.index) == len(last_sample.index):
+                            pass
+                        else:
+                            raise ValueError(
+                                'Odd barcode length for %s: %s (%s) in sample project \'%s\' ' % (
+                                    sample.id, sample.barcode, len(sample.barcode), name
+                                )
                             )
-                        )
-                except AttributeError:
-                    pass
-                finally:
-                    last_sample = sample
+                    except AttributeError:
+                        pass
+                    finally:
+                        last_sample = sample
 
         return len(last_sample.index)
+
+    def _get_sample_project(self, name):
+        sample_project = ValueError('Could not add sample project ' + name)
+        try:
+            sample_project = self.sample_projects[name]
+        except KeyError:
+            sample_project = SampleProject(name)
+            self.sample_projects[name] = sample_project
+        finally:
+            return sample_project
 
 
 class SampleProject:
     """
-    Represents a sample project, and contains a list of Sample objects.
-
-    Public properties:
-        name: The sample project name
-        samples: A list of Sample objects
-
-    Public methods:
-        add_sample()
+    Represents a sample project, and contains a list of SampleID objects.
     """
-    def __init__(self, name, new_sample):
+    def __init__(self, name):
         """
-        :param name: The saple project name
-        :param new_sample: The first Sample to initialise the SampleProject with
+        :param name: The sample project name
         """
         self.name = name
-        self.samples = [new_sample]
+        self.sample_ids = {}
+
+    def get_sample_id(self, name):
+        sample_id = ValueError('Could not add sample id ' + name)
+        try:
+            sample_id = self.sample_ids[name]
+        except KeyError:
+            sample_id = SampleID(name, self.name)
+            self.sample_ids[name] = sample_id
+        finally:
+            return sample_id
+
+
+class SampleID:
+    def __init__(self, name, sample_project):
+        self.name = name
+        self.sample_project = sample_project
+        self.samples = []
+        self.fastq_files = []
 
     def add_sample(self, sample):
-        """
-        Append a Sample object to self.samples
-        :param sample: A Sample object to append
-        """
-        if sample.sample_project != self.name:
-            raise AssertionError(
-                'Adding invalid sample project to ' + self.name + ': ' + sample.sample_project
-            )
-        else:
-            self.samples.append(sample)
-
-    @property
-    def sample_ids(self):
-        return [sample.id for sample in self.samples]
+        assert sample.sample_project == self.sample_project and sample.id == self.name,\
+            'Adding invalid sample project to ' + self.name + ': ' + sample.sample_project
+        self.samples.append(sample)
 
 
 

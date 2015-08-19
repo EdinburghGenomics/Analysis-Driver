@@ -1,27 +1,31 @@
 __author__ = 'mwham'
 import subprocess
 import os
-from .logger import AppLogger, NamedAppLogger
+from .logger import AppLogger
+from ..executor import StreamExecutor
+from logging import getLogger
 from . import fastq_handler
-from analysis_driver import config
+from analysis_driver.config import default as cfg
 
-
-app_logger = NamedAppLogger('Util')
+app_logger = getLogger(__name__)
 
 
 class AnalysisDriverError(Exception):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    pass
 
 
+class ProcessTriggerError(Exception):
+    pass
+
+'''
 def localexecute(*args, stream=True, dry_run=False):
     """
     Uses subprocess to run arbitrary shell commands.
     :param str args: Args to pass to subprocess.Popen. For example:
-        localexecute('this', 'that', 'other') -> Popen(['this', 'that', 'other'])
+    localexecute('this', 'that', 'other') -> Popen(['this', 'that', 'other'])
     :param bool stream: Whether to stream the stdout, or write all stdout once the process completes.
     :param bool dry_run: Whether the function should run the command, or just log the shell command.
-    :return: None if stream==True, the stdout and stderr if stream==False
+    :return: None if stream == True, the stdout and stderr if stream == False
     :rtype: None or tuple[str, str]
     """
     app_logger.debug('Executing: ' + ' '.join(args))
@@ -47,20 +51,25 @@ def localexecute(*args, stream=True, dry_run=False):
         if type(err) is bytes:
             err = err.decode('utf-8')
         return out, err
+'''
+
+def localexecute(*args):
+    executor = StreamExecutor(list(args))
+    executor.start()
+    app_logger.info('Exit status: ' + str(executor.join()))
 
 
-def bcbio_prepare_samples(bcbio_prepare_samples, csv_file):
+def bcbio_prepare_samples(csv_file):
     localexecute(
-        bcbio_prepare_samples,
+        os.path.join(os.path.dirname(cfg['bcbio']), 'bcbio_prepare_samples.py'),
         '--out',
         'merged',
         '--csv',
         csv_file
     )
-    return csv_file.rstrip('.csv') + '-merged.csv'
 
 
-def setup_bcbio_run(bcbio, template, csv_file, run_dir, *fastqs):
+def setup_bcbio_run(template, csv_file, run_dir, *fastqs):
     """
     Call localexecute to run 'bcbio -w template' on relevant input files.
     :param str bcbio: Path to the bcbio_nextgen.py executable
@@ -71,7 +80,7 @@ def setup_bcbio_run(bcbio, template, csv_file, run_dir, *fastqs):
     :return: None
     """
     localexecute(
-        bcbio,
+        cfg['bcbio'],
         '-w',
         'template',
         template,
@@ -92,7 +101,6 @@ def demultiplex_feedback(run_id):
         'rsync',
         '-avu',
         '--exclude=Data',
-        os.path.join(config.default['input_data_dir'], run_id),
-        os.path.join(config.default['raw_dir'], run_id)
+        os.path.join(cfg['input_data_dir'], run_id),
+        os.path.join(cfg['raw_dir'], run_id)
     )
-
