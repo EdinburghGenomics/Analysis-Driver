@@ -1,6 +1,6 @@
 __author__ = 'mwham'
 from tests.test_analysisdriver import TestAnalysisDriver
-from analysis_driver.writer.pbs_script_writer import PBSWriter
+from analysis_driver.writer.pbs_writer import PBSWriter
 import os.path
 
 

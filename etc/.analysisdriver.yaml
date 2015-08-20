@@ -24,23 +24,18 @@ testing:
             default_format:
                 format: '%(asctime)s [%(name)s] %(message)s'
         handlers:
-            h_driver:
+            stdout:
                 level: INFO
                 class: logging.StreamHandler
-                formatter: default_format
+                formatter: default_fmt
                 stream: ext://sys.stdout
-            h_trigger:
-                   level: INFO
-                   class: logging.StreamHandler
-                   formatter: default_format
-                   stream: ext://sys.stdout
-        loggers:
-            default_logger:
-                handlers:
-                    - h_driver
-                level: INFO
-                propagate: False
+#        loggers:
+#            default_logger:
+#                handlers:
+#                    - stdout
+#                level: INFO
+#                propagate: False
         root:
             level: INFO
             handlers:
-                - h_driver
+                - stdout

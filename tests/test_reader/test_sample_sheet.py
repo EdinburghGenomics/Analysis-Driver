@@ -27,18 +27,21 @@ class TestSampleSheet(TestAnalysisDriver):
     def test_check_barcodes(self):
         assert self.sample_sheet.check_barcodes() == 6
 
+    def test_generate_mask(self):
+        assert self.sample_sheet.generate_mask() == 'y150n,i6,y150n'
+
 
 class TestSampleProject(TestAnalysisDriver):
     def setUp(self):
         self.test_sample = Sample(
             sample_project='test_sp',
             lane='1337',
-            id='test_id',
+            sample_id='test_id',
             name='test_name',
-            index='ATGCAT'
+            barcode='ATGCAT'
         )
         self.sample_project = SampleProject('test_sp')
-        self.sample_project.get_sample_id(self.test_sample.id).add_sample(self.test_sample)
+        self.sample_project.get_sample_id(self.test_sample.sample_id).add_sample(self.test_sample)
 
     def test_init(self):
         assert self.sample_project.name == 'test_sp'
@@ -48,9 +51,9 @@ class TestSampleProject(TestAnalysisDriver):
         new_sample = Sample(
             sample_project='test_sp',
             lane='1338',
-            id='test_id',
+            sample_id='test_id',
             name='test_name',
-            index='ATGCAG'
+            barcode='ATGCAG'
         )
         self.sample_project.get_sample_id('test_id').add_sample(new_sample)
 
@@ -62,9 +65,9 @@ class TestSampleProject(TestAnalysisDriver):
             new_sample = Sample(
                 sample_project='another_test_sp',
                 lane='1338',
-                id='another_test_id',
+                sample_id='another_test_id',
                 name='another_test_name',
-                index='ATGCAG'
+                barcode='ATGCAG'
             )
             self.sample_project.get_sample_id('test_id').add_sample(new_sample)
         assert 'Adding invalid sample project to test_id: another_test_sp' == str(e.value)

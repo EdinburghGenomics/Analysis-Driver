@@ -1,5 +1,5 @@
 __author__ = 'mwham'
-from analysis_driver.util import AppLogger
+from analysis_driver.app_logging import AppLogger
 
 
 class ScriptWriter(AppLogger):

@@ -6,14 +6,6 @@ class AppLogger:
     """
     Mixin class for logging. An object subclassing this can log directly from itself. Contains a
     logging.Logger object, which is controlled by public methods. All methods are voids, i.e. return None.
-
-    Public methods:
-        All of these tell self._logger to log at the corresponding level.
-        debug()
-        info()
-        warn()
-        error()
-        critical()
     """
     _logger = None
 

@@ -4,7 +4,7 @@ from logging import getLogger
 from analysis_driver.config import default as cfg
 
 
-logger = getLogger(__name__)
+app_logger = getLogger(__name__)
 
 
 def bcl2fastq(mask, input_dir, fastq_path):
@@ -14,11 +14,10 @@ def bcl2fastq(mask, input_dir, fastq_path):
     :param fastq_path: Path to the dir in which to send generated .fastqs
     :rtype: str
     """
-    # TODO: make bcl2fastq executable configurable
-    cmd = 'bcl2fastq -l INFO --runfolder-dir %s --output-dir %s --sample-sheet %s --use-bases-mask %s' % (
-        input_dir, fastq_path, os.path.join(input_dir, 'SampleSheet.csv'), mask
+    cmd = '%s -l INFO --runfolder-dir %s --output-dir %s --sample-sheet %s --use-bases-mask %s' % (
+        cfg['bcl2fastq'], input_dir, fastq_path, os.path.join(input_dir, 'SampleSheet.csv'), mask
     )
-    logger.info('Writing command: ' + cmd)
+    app_logger.debug('Writing command: ' + cmd)
     return cmd
 
 
@@ -27,8 +26,8 @@ def fastqc(fastq):
     :param str fastq: An input fastq file
     :rtype: str
     """
-    cmd = 'fastqc --nogroup -q ' + fastq
-    logger.info('Writing: ' + cmd)
+    cmd = cfg['fastqc'] + ' --nogroup -q ' + fastq
+    app_logger.debug('Writing: ' + cmd)
     return cmd
 
 
@@ -39,7 +38,7 @@ def bcbio_java_paths():
     :rtype: list[str]
     """
     cmds = []
-    logger.info('Writing bcbio command')
+    app_logger.debug('Writing Java paths')
 
     cmds.append('export JAVA_HOME=' + cfg['gatk']['java_home'])
     cmds.append('export JAVA_BINDIR=' + cfg['gatk']['java_bindir'])
@@ -56,5 +55,5 @@ def bcbio(run_yaml, workdir, cores=16):
     :rtype: str
     """
     cmd = ('%s %s -n %s --workdir %s' % (cfg['bcbio'], run_yaml, cores, workdir))
-    logger.info('Writing: ' + cmd)
+    app_logger.debug('Writing: ' + cmd)
     return cmd

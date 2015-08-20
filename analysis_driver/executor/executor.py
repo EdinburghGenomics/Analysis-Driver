@@ -2,7 +2,8 @@ __author__ = 'mwham'
 import threading
 import subprocess
 import select  # asynchronous IO
-from analysis_driver.util.logger import AppLogger
+
+from analysis_driver.app_logging import AppLogger
 from analysis_driver.config import default as cfg
 
 
@@ -21,6 +22,7 @@ class Executor(AppLogger):
         resource managers
         :rtype: subprocess.Popen
         """
+        self.info('Executing: ' + str(self.cmd))
         self.proc = subprocess.Popen(self.cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         return self.proc
 
@@ -43,7 +45,6 @@ class StreamExecutor(Executor, threading.Thread):
             rlist, wlist, xlist = select.select(read_set, [], [])
 
             for stream, emit in ((proc.stdout, self.info), (proc.stderr, self.error)):
-                # if stream in rlist:
                 if stream in rlist:
                     line = stream.readline().decode('utf-8').strip()
                     if line:
@@ -76,6 +77,7 @@ class ClusterExecutor(StreamExecutor):
             cmd = self._pbs_cmd(self.block)
 
         cmd.extend(self.cmd)
+        self.info('Executing: ' + str(cmd))
         self.proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         return self.proc
 

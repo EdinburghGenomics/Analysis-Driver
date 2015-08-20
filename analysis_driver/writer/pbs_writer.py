@@ -41,23 +41,20 @@ class PBSWriter(ScriptWriter):
         """
         self.write_line('#!/bin/bash\n')
 
-        wt = self._write_pbs_param
+        wt = self.write_line
 
-        wt('-l', 'walltime=%s:00:00' % walltime)
-        wt('-l', 'ncpus=%s,mem=%sgb' % (cpus, mem))
+        wt('#PBS -l walltime=%s:00:00' % walltime)
+        wt('#PBS -l ncpus=%s,mem=%sgb' % (cpus, mem))
         if job_name:
-            wt('-N', self._trim_field(job_name, 15))
+            wt('#PBS -N ' + self._trim_field(job_name, 15))
         try:
-            wt('-M', ','.join(cfg['notification_emails']))  # TODO: we don't want this to be permanent
-            wt('-m', 'aeb')
+            wt('#PBS -M ' + ','.join(cfg['notification_emails']))  # TODO: we don't want this to be permanent
+            wt('#PBS -m aeb')
         except KeyError:
             pass
-        wt('-q', queue)
-        wt('-j', 'oe')
-        wt('-o', log_file)
+        wt('#PBS -q ' + queue)
+        wt('#PBS -j ' + 'oe')
+        wt('#PBS -o ' + log_file)
 
         if self.array:
-            wt('-J', ' 1-' + str(self.array) + '\n')
-
-    def _write_pbs_param(self, flag, line):
-        self.write_line('#PBS %s %s' % (flag, line))
+            wt('#PBS -J 1-' + str(self.array) + '\n')
