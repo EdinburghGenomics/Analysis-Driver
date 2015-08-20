@@ -18,6 +18,7 @@ testing:
     run_age_cutoff: 5  # in mins
 
     job_execution: None  # pbs or None
+    job_queue: uv2000
 
     logging:
         formatters:

@@ -72,9 +72,10 @@ class ClusterExecutor(StreamExecutor):
         Override to supply a qsub command
         :rtype: subprocess.Popen
         """
-        cmd = []
         if cfg['job_execution'] == 'pbs':
             cmd = self._pbs_cmd(self.block)
+        else:
+            cmd = ['sh']
 
         cmd.extend(self.cmd)
         self.info('Executing: ' + str(cmd))

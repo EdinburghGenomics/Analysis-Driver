@@ -197,7 +197,7 @@ class Sample:
     def __init__(self, sample_project, sample_id, lane, barcode, **kwargs):
         self.sample_project = sample_project
         self.sample_id = sample_id
-        self.land = lane
+        self.lane = lane
         self.barcode = barcode
         self.extra_data = kwargs
 

@@ -1,5 +1,7 @@
 __author__ = 'mwham'
+import os.path
 from analysis_driver.app_logging import AppLogger
+from analysis_driver.config import default as cfg
 
 
 class ScriptWriter(AppLogger):
@@ -8,17 +10,21 @@ class ScriptWriter(AppLogger):
     list, which is appended by self.write_line. This list is then saved line by line to self.script_file by
     self.save.
     """
-    def __init__(self, script_name, array=None):
+    suffix = '.sh'
+
+    def __init__(self, job_name, run_id, jobs=1):
         """
-        :param str script_name: Desired full path to the pbs script to write
-        :param int array: A number of jobs to submit in an array
+        :param str job_name: Desired full path to the pbs script to write
+        :param int jobs: A number of jobs to submit in an array
         """
-        self.script_name = script_name
+        self.script_name = os.path.join(cfg['jobs_dir'], run_id, job_name + self.suffix)
+        self.log_file = os.path.join(cfg['jobs_dir'], run_id, job_name + '.log')
+        self.queue = cfg['job_queue']
         self.info('Writing: ' + self.script_name)
+        self.info('Log file: ' + self.log_file)
         self.lines = []
-        self.array = array
-        if self.array:
-            self.array_len = 0
+        self.job_total = jobs
+        self.jobs_written = 0
 
     def write_line(self, line):
         self.lines.append(line)
@@ -29,13 +35,14 @@ class ScriptWriter(AppLogger):
         :param str cmd: The command to write
         """
         self.write_line(str(job_number) + ') ' + cmd + '\n' + ';;')
-        self.array_len += 1
+        self.jobs_written += 1
 
     def start_array(self):
-        raise NotImplementedError
+        self.write_line('case $JOB_INDEX in')
 
     def finish_array(self):
-        raise NotImplementedError
+        self.write_line('*) echo "Unexpected JOBINDEX: $JOB_INDEX')
+        self.write_line('esac')
 
     def line_break(self):
         self.lines.append('')
@@ -44,9 +51,9 @@ class ScriptWriter(AppLogger):
         """
         Save self.lines to self.script_file. Also closes it. Always close it.
         """
-        if self.array and self.array_len != self.array:
+        if self.job_total > 1 and self.job_total != self.jobs_written:
             self.critical(
-                'Bad number of array jobs: %s written, %s expected' % (self.array_len, self.array),
+                'Bad number of array jobs: %s written, %s expected' % (self.jobs_written, self.job_total),
                 ValueError
             )
         script_file = open(self.script_name, 'w')

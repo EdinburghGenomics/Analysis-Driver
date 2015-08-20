@@ -40,6 +40,18 @@ def setup_bcbio_run(template, csv_file, run_dir, *fastqs):
     )
 
 
+def transfer_output_data(dataset):
+    out_dir = os.path.join(cfg['output_dir'], dataset)
+    if not os.path.isdir(out_dir):
+        os.mkdir(out_dir)
+    _localexecute(
+        'rsync',
+        '-avu',
+        os.path.join(cfg['jobs_dir'], dataset),
+        cfg['output_dir']
+    )
+
+
 def _localexecute(*args):
     executor = StreamExecutor(list(args))
     executor.start()

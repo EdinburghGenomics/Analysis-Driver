@@ -8,19 +8,23 @@ class TestSampleSheet(TestAnalysisDriver):
     def setUp(self):
         self.sample_sheet = SampleSheet(self.assets_path)
         self.samples = []
+        for name, p in self.sample_sheet.sample_projects.items():
+            for name2, i in p.sample_ids.items():
+                for sample in i.samples:
+                    self.samples.append(sample)
         self.sample_ids = self.sample_sheet.sample_projects['10015AT'].sample_ids
 
     def test_init(self):
         expected_lane = 1
         for sample in self.samples:
-            # assert sample.index2 in [
-            #     'IL-TP-002', 'IL-TP-005', 'IL-TP-006', 'IL-TP-007', 'IL-TP-012', 'IL-TP-013', 'IL-TP-014'
-            # ]
+            assert sample.extra_data['Index2'] in [
+                'IL-TP-002', 'IL-TP-005', 'IL-TP-006', 'IL-TP-007', 'IL-TP-012', 'IL-TP-013', 'IL-TP-014'
+            ]
             assert sample.sample_project == '10015AT'
-            assert sample.id == '10015TA0001L05'
+            assert sample.sample_id == '10015TA0001L05'
             assert sample.lane == str(expected_lane)
-            assert sample.name == '10015ATpool01'
-            assert sample.index == sample.index.upper()
+            assert sample.extra_data['Sample_Name'] == '10015ATpool01'
+            assert sample.barcode == sample.barcode.upper()
 
             expected_lane += 1
 
