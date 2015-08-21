@@ -1,10 +1,9 @@
 import os
 import yaml
-from .app_logging import AppLogger
 from .exceptions import AnalysisDriverError
 
 
-class Configuration(AppLogger):
+class Configuration:
     """
     Loads a yaml config file from the user's home, '~/.analysisdriver.yaml'
     """
@@ -12,7 +11,6 @@ class Configuration(AppLogger):
         self._environment = None
 
         config_file = self.__class__._find_config_file()
-        self.info('Using config file at ' + config_file)
         self.config_file = open(config_file, 'r')
 
         try:
@@ -20,35 +18,6 @@ class Configuration(AppLogger):
         except KeyError as e:
             raise AnalysisDriverError('Could not load environment \'%s\'' % self.environment) from e
         self.content['location'] = os.path.dirname(__file__)  # special case for app location
-
-    def logging_config(self, debug=False, d_handler=None, no_stdout=False):
-        """
-        Parse the 'logging' configuration of the yaml config to configure logging in driver.py
-        :param bool debug: An option to run with logging at the 'debug' level
-        :return: A dict to pass to logging.config.dictConfig
-        """
-        dict_config = self['logging']
-        dict_config['version'] = 1
-
-        if d_handler:
-            dict_config['handlers']['d_handler'] = d_handler
-            dict_config['root']['handlers'].append('d_handler')
-
-        if no_stdout:
-            for name, handler in dict_config['handlers'].items():
-                if 'stream' in handler:
-                    if handler['stream'] == 'ext://sys.stdout' or handler['stream'] == 'ext://sys.stderr':
-                        handler['stream'] = open(os.devnull, 'w')
-
-        if debug:
-            for domain in ['handlers', 'loggers']:
-                if domain in dict_config:
-                    for k, v in dict_config[domain].items():
-                        if dict_config[domain][k]['level']:
-                            dict_config[domain][k]['level'] = 'DEBUG'
-            dict_config['root']['level'] = 'DEBUG'
-
-        return dict_config
 
     @property
     def environment(self):

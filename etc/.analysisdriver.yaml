@@ -28,15 +28,17 @@ testing:
             stdout:
                 level: INFO
                 class: logging.StreamHandler
-                formatter: default_fmt
+                formatter: default_format
                 stream: ext://sys.stdout
+#           other_handler:
+#               level: DEBUG
+#               class: logging.FileHandler
+#               formatter: default_format
+#               filename: /Users/mwham/workspace/EdGen_Analysis_Driver/Applications/analysis_driver.log
+
 #        loggers:
 #            default_logger:
 #                handlers:
 #                    - stdout
 #                level: INFO
 #                propagate: False
-        root:
-            level: INFO
-            handlers:
-                - stdout

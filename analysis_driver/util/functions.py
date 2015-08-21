@@ -10,7 +10,7 @@ app_logger = getLogger(__name__)
 def bcbio_prepare_samples(csv_file):
     app_logger.info('Setting up BCBio samples from ' + csv_file)
     _localexecute(
-        os.path.join(os.path.dirname(cfg['bcbio']), 'bcbio_prepare_samples.py'),
+        cfg['bcbio_prepare_samples'],
         '--out',
         'merged',
         '--csv',
@@ -30,7 +30,7 @@ def setup_bcbio_run(template, csv_file, run_dir, *fastqs):
     """
     app_logger.info('Setting up BCBio run')
     _localexecute(
-        cfg['bcbio'],
+        cfg['bcbio_nextgen'],
         '-w',
         'template',
         template,

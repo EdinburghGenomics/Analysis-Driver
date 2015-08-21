@@ -3,6 +3,7 @@ import argparse
 import os
 import logging
 import logging.config
+import sys
 from analysis_driver.config import default as cfg
 
 
@@ -120,23 +121,22 @@ def setup_run(dataset, logger):
 
 
 def setup_logging(dataset, args):
-    if dataset is None:
-        d_handler = None
-    else:
-        d_handler = {
-            'level': 'INFO',
-            'class': 'logging.FileHandler',
-            'formatter': 'default_fmt',
-            'filename': os.path.join(cfg['jobs_dir'], dataset, 'analysis_driver.log')
-        }
-
-    logging.config.dictConfig(
-        cfg.logging_config(
-            debug=args.debug,
-            d_handler=d_handler,
-            no_stdout=args.quiet
-        )
+    logging.basicConfig(
+        level=logging.INFO,
+        format=cfg['logging']['formatters']['default_fmt']['format'],
+        datefmt=cfg['logging']['formatters']['default_fmt']['datefmt'],
+        stream=sys.stdout
     )
+
+    handlers = []
+    if dataset:
+        d_handler = logging.FileHandler(
+            filename=os.path.join(cfg['jobs_dir'], dataset, 'analysis_driver.log')
+        )
+        d_handler.setLevel(logging.INFO)
+        handlers.append(d_handler)
+    for h in handlers + _get_handlers():
+        logging.getLogger('').addHandler(h)
 
 
 def skip(dataset):
@@ -188,3 +188,17 @@ def lock_file(dataset, status):
 
 def touch(file):
     open(file, 'w').close()
+
+
+def _get_handlers():
+    handlers = []
+    if cfg['logging']['handlers']:
+        for name, info in cfg['logging']['handlers'].items():
+            h = logging.FileHandler(info['filename'])
+            try:
+                h.setLevel(logging.getLevelName(info['level']))
+            except KeyError:
+                h.setLevel(logging.INFO)
+            handlers.append(h)
+
+    return handlers

@@ -54,6 +54,6 @@ def bcbio(run_yaml, workdir, cores=16):
     :param cores: The number of cores for BCBio to use
     :rtype: str
     """
-    cmd = ('%s %s -n %s --workdir %s' % (cfg['bcbio'], run_yaml, cores, workdir))
+    cmd = ('%s %s -n %s --workdir %s' % (cfg['bcbio_nextgen'], run_yaml, cores, workdir))
     app_logger.debug('Writing: ' + cmd)
     return cmd
