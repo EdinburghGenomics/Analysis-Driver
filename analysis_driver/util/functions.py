@@ -4,7 +4,7 @@ from logging import getLogger
 from analysis_driver.executor import StreamExecutor
 from analysis_driver.config import default as cfg
 
-app_logger = getLogger(__name__)
+app_logger = getLogger('util')
 
 
 def bcbio_prepare_samples(csv_file):

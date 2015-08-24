@@ -15,7 +15,11 @@ def bcl2fastq(mask, input_dir, fastq_path):
     :rtype: str
     """
     cmd = '%s -l INFO --runfolder-dir %s --output-dir %s --sample-sheet %s --use-bases-mask %s' % (
-        cfg['bcl2fastq'], input_dir, fastq_path, os.path.join(input_dir, 'SampleSheet.csv'), mask
+        cfg['bcl2fastq'],
+        input_dir,
+        fastq_path,
+        os.path.join(input_dir, 'SampleSheet_analysis_driver.csv'),
+        mask
     )
     app_logger.debug('Writing command: ' + cmd)
     return cmd

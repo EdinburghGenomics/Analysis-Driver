@@ -2,9 +2,43 @@ __author__ = 'mwham'
 import csv
 import os.path
 from analysis_driver.app_logging import AppLogger
+from logging import getLogger
 from .run_info import RunInfo
-from analysis_driver.exceptions import AnalysisDriverError
 from analysis_driver.config import default as cfg
+
+
+app_logger = getLogger('reader')
+
+
+def transform_sample_sheet(data_dir):
+    before, header = _read_sample_sheet(data_dir, 'SampleSheet.csv')
+    cols = before.readline().strip().split(',')
+    after = open(os.path.join(data_dir, 'SampleSheet_analysis_driver.csv'), 'w')
+    for idx, col in enumerate(cols):
+        if col in cfg['sample_sheet']['transformations']:
+            cols[idx] = cfg['sample_sheet']['transformations'][col]
+    for line in header:
+        after.write(line + '\n')
+    after.write('[Data],\n')
+    after.write(','.join(cols) + '\n')
+    for line in before:
+        after.write(line)
+    before.close()
+
+
+def _read_sample_sheet(data_dir, name):
+    f = open(os.path.join(data_dir, name), 'r')
+    counter = 1
+    header = []
+    for line in f:
+        if line.startswith('[Data]'):
+            app_logger.debug('Starting reading sample sheet from line ' + str(counter))
+            return f, header
+        else:
+            counter += 1
+            header.append(line)
+
+    return None, None
 
 
 class SampleSheet(AppLogger):
@@ -77,54 +111,23 @@ class SampleSheet(AppLogger):
             )
         self.debug('Done')
 
-    def _detect_format(self):
-        f = self._read_sample_sheet()
-        header = f.readline().strip().split(',')
-        header.sort()
-        for name, form in cfg['sample_sheet_formats'].items():
-            if header == self._get_column_names(form):
-                self.info('Detected sample sheet format: ' + name)
-                return ColumnSet(**cfg['sample_sheet_formats'][name])
-
-        raise AnalysisDriverError('No valid format for sample sheet found in config')
-
-    @staticmethod
-    def _get_column_names(form):
-        names = []
-
-        for name in form.values():
-            if type(name) is str:
-                names.append(name)
-            elif type(name) is list:
-                names.extend(name)
-        names.sort()
-        return names
-
-    @staticmethod
-    def _get_other_cols(line, form):
-        d = {}
-        for col, val in line.items():
-            if col in form.other_cols:
-                d[col] = val
-        return d
-
     def _populate(self):
-        form = self._detect_format()
-        f = self._read_sample_sheet()
+        f, header = _read_sample_sheet(self.data_dir, 'SampleSheet_analysis_driver.csv')
         reader = csv.DictReader(f)
+        cols = reader.fieldnames
         counter = 0
         for line in reader:
             if any(line):
                 counter += 1
-                sample_project = line[form.sample_project]
-                sample_id = line[form.sample_id]
+                sample_project = line[self._get_column(cols, 'sample_project')]
+                sample_id = line[self._get_column(cols, 'sample_id')]
 
                 new_sample = Sample(
                     sample_project=sample_project,
-                    lane=line[form.lane],
+                    lane=line[self._get_column(cols, 'lane')],
                     sample_id=sample_id,
-                    barcode=line[form.barcode],
-                    **self._get_other_cols(line, form)
+                    barcode=line[self._get_column(cols, 'barcode')],
+                    **self._get_all_cols(line, ignore=['sample_project', 'sample_id', 'lane', 'barcode'])
                 )
 
                 sample_project_obj = self._get_sample_project(sample_project)
@@ -133,15 +136,21 @@ class SampleSheet(AppLogger):
         f.close()
         self.debug('Added %s samples' % counter)
 
-    def _read_sample_sheet(self):
-        f = open(os.path.join(self.data_dir, 'SampleSheet.csv'), 'r')
-        counter = 1
-        while not next(f).startswith('[Data]'):
-            pass  # do nothing until [Data]
-            counter += 1
+    @staticmethod
+    def _get_column(header, name):
+        possible_fields = cfg['sample_sheet']['column_names'][name]
+        for f in possible_fields:
+            if f in header:
+                return f
+        return None
 
-        self.debug('Starting reading sample sheet from line ' + str(counter))
-        return f
+    @staticmethod
+    def _get_all_cols(line_dict, ignore=None):
+        d = {}
+        for k, v in line_dict.items():
+            if k not in ignore:
+                d[k] = v
+        return d
 
     def _get_sample_project(self, name):
         sample_project = ValueError('Could not add sample project ' + name)
@@ -192,7 +201,6 @@ class Sample:
     """
     This represents a Sample, i.e. a line in SampleSheet.csv below the '[Data]' marker. Supports dict-style
     attribute fetching, e.g. sample_object['lane']
-    For practical purposes, this has the same functionality as ColumnSet
     """
     def __init__(self, sample_project, sample_id, lane, barcode, **kwargs):
         self.sample_project = sample_project
@@ -201,13 +209,4 @@ class Sample:
         self.barcode = barcode
         self.extra_data = kwargs
 
-
-class ColumnSet:
-    def __init__(self, **kwargs):
-        self.data = {}
-        for k, v in kwargs.items():
-            self.data[k] = v
-
-    def __getattr__(self, attr):
-        return self.data[attr]
 

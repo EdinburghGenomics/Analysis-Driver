@@ -48,6 +48,7 @@ def main():
             d = datasets[0]
             setup_logging(d, args)
             logger = logging.getLogger(__name__)
+            logger.info('Using config file at ' + cfg.config_file.name)
             setup_run(d, logger)
             trigger(d)
         else:
@@ -117,14 +118,18 @@ def setup_run(dataset, logger):
         try:
             os.makedirs(os.path.join(cfg[d], dataset))
         except FileExistsError:
-            logger.info(d + ' already exists for dataset')
+            logger.info(d + ' already exists for dataset.')
 
 
 def setup_logging(dataset, args):
+    if args.debug:
+        log_level = logging.DEBUG
+    else:
+        log_level = logging.INFO
     logging.basicConfig(
-        level=logging.INFO,
-        format=cfg['logging']['formatters']['default_fmt']['format'],
-        datefmt=cfg['logging']['formatters']['default_fmt']['datefmt'],
+        level=log_level,
+        format=cfg['logging']['format'],
+        datefmt=cfg['logging']['datefmt'],
         stream=sys.stdout
     )
 
@@ -133,7 +138,7 @@ def setup_logging(dataset, args):
         d_handler = logging.FileHandler(
             filename=os.path.join(cfg['jobs_dir'], dataset, 'analysis_driver.log')
         )
-        d_handler.setLevel(logging.INFO)
+        d_handler.setLevel(log_level)
         handlers.append(d_handler)
     for h in handlers + _get_handlers():
         logging.getLogger('').addHandler(h)

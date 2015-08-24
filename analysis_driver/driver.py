@@ -23,6 +23,8 @@ def pipeline(input_run_folder):
 
     setup_working_dirs(fastq_dir, job_dir)
 
+    reader.transform_sample_sheet(input_run_folder)
+
     sample_sheet = reader.SampleSheet(input_run_folder)
     sample_sheet.validate()
 
