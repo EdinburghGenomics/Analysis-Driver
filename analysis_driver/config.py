@@ -9,7 +9,6 @@ class Configuration:
     """
     def __init__(self):
         self._environment = None
-
         config_file = self.__class__._find_config_file()
         self.config_file = open(config_file, 'r')
 
@@ -36,8 +35,7 @@ class Configuration:
         :return: Path to the config
         """
         home_config = os.path.expanduser('~/.analysisdriver.yaml')
-        local_config = os.path.join(os.path.dirname(__file__), 'etc', '.analysisdriver.yaml')
-
+        local_config = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'etc', '.analysisdriver.yaml')
         if os.path.isfile(home_config):
             return home_config
         elif os.path.isfile(local_config):
