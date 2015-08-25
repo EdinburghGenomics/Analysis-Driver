@@ -63,7 +63,6 @@ class Configuration(AppLogger):
         """
         home_config = os.path.expanduser('~/.analysisdriver.yaml')
         local_config = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'etc', '.analysisdriver.yaml')
-        print(local_config)
         if os.path.isfile(home_config):
             return home_config
         elif os.path.isfile(local_config):
