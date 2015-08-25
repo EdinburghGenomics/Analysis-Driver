@@ -1,2 +1,2 @@
-from . import sample_sheet
-from . import run_info
+from .sample_sheet import SampleSheet, transform_sample_sheet
+from .run_info import RunInfo

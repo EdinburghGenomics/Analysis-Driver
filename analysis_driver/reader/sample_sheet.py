@@ -1,7 +1,44 @@
 __author__ = 'mwham'
 import csv
-import os
-from analysis_driver.util import AppLogger
+import os.path
+from analysis_driver.app_logging import AppLogger
+from logging import getLogger
+from .run_info import RunInfo
+from analysis_driver.config import default as cfg
+
+
+app_logger = getLogger('reader')
+
+
+def transform_sample_sheet(data_dir):
+    before, header = _read_sample_sheet(data_dir, 'SampleSheet.csv')
+    cols = before.readline().strip().split(',')
+    after = open(os.path.join(data_dir, 'SampleSheet_analysis_driver.csv'), 'w')
+    for idx, col in enumerate(cols):
+        if col in cfg['sample_sheet']['transformations']:
+            cols[idx] = cfg['sample_sheet']['transformations'][col]
+    for line in header:
+        after.write(line + '\n')
+    after.write('[Data],\n')
+    after.write(','.join(cols) + '\n')
+    for line in before:
+        after.write(line)
+    before.close()
+
+
+def _read_sample_sheet(data_dir, name):
+    f = open(os.path.join(data_dir, name), 'r')
+    counter = 1
+    header = []
+    for line in f:
+        if line.startswith('[Data]'):
+            app_logger.debug('Starting reading sample sheet from line ' + str(counter))
+            return f, header
+        else:
+            counter += 1
+            header.append(line)
+
+    return None, None
 
 
 class SampleSheet(AppLogger):
@@ -13,40 +50,12 @@ class SampleSheet(AppLogger):
         """
         :param str data_dir:  A file path to the input_data folder containing SampleSheet.csv
         """
-        self.file = open(os.path.join(data_dir, 'SampleSheet.csv'), 'r')
-        # read lines until [Data] marker
-        counter = 1
-        while not next(self.file).startswith('[Data]'):
-            pass  # Do nothing until [Data]
-            counter += 1
-        self.debug('Starting reading sample sheet at line ' + str(counter))
+        self.data_dir = data_dir
 
+        self.run_info = RunInfo(self.data_dir)
         self.sample_projects = {}  # {name: samples} {str: Sample}
         self._populate()
         self.debug('Sample project entries: ' + str(self.sample_projects))
-
-    def _populate(self):
-        reader = csv.DictReader(self.file)
-        for row in reader:
-            if any(row):
-                sample_project = row['Sample_Project']
-                sample_id = row['Sample_ID']
-
-                new_sample = Sample(
-                    sample_project=sample_project,
-                    lane=row['Lane'],
-                    id=sample_id,
-                    name=row['Sample_Name'],
-                    index=row['Index']  # ,
-                    # index2=row['Index2'],
-                    # plate=row['Sample_Plate'],
-                    # well=row['Sample_Well'],
-                    # genome_folder=row['GenomeFolder']
-                )
-
-                sample_project_obj = self._get_sample_project(sample_project)
-                sample_id_obj = sample_project_obj.get_sample_id(sample_id)
-                sample_id_obj.add_sample(new_sample)
 
     def check_barcodes(self):
         """
@@ -56,10 +65,12 @@ class SampleSheet(AppLogger):
         """
         last_sample = None
         for name, sample_project in self.sample_projects.items():
+            self.debug('Checking sample project ' + name)
             for name2, sample_id in sample_project.sample_ids.items():
+                self.debug('Checking sample id ' + name2)
                 for sample in sample_id.samples:
                     try:
-                        if len(sample.index) == len(last_sample.index):
+                        if len(sample.barcode) == len(last_sample.barcode):
                             pass
                         else:
                             raise ValueError(
@@ -71,8 +82,75 @@ class SampleSheet(AppLogger):
                         pass
                     finally:
                         last_sample = sample
+        self.debug('Barcode check done. Barcode len: %s' % len(last_sample.barcode))
+        return len(last_sample.barcode)
 
-        return len(last_sample.index)
+    def generate_mask(self):
+        self.debug('Generating mask...')
+        mask = self.run_info.mask
+        barcode_len = self.check_barcodes()
+
+        out = ['y' + str(mask.num_cycles(mask.upstream_read) - 1) + 'n']
+
+        for i in mask.index_lengths:
+            diff = i - barcode_len
+            out.append('i' + str(barcode_len) + 'n' * diff)
+
+        out.append('y' + str(mask.num_cycles(mask.downstream_read) - 1) + 'n')
+        self.debug(out)
+        return ','.join(out)
+
+    def validate(self):
+        self.debug('Validating...')
+        if not self.run_info.barcode_len:
+            self.run_info.critical('No barcode found in RunInfo.xml')
+        if self.check_barcodes() != self.run_info.barcode_len:
+            self.error(
+                'Barcode mismatch: %s (SampleSheet.csv) and %s (RunInfo.xml)' %
+                (self.check_barcodes(), self.run_info.barcode_len)
+            )
+        self.debug('Done')
+
+    def _populate(self):
+        f, header = _read_sample_sheet(self.data_dir, 'SampleSheet_analysis_driver.csv')
+        reader = csv.DictReader(f)
+        cols = reader.fieldnames
+        counter = 0
+        for line in reader:
+            if any(line):
+                counter += 1
+                sample_project = line[self._get_column(cols, 'sample_project')]
+                sample_id = line[self._get_column(cols, 'sample_id')]
+
+                new_sample = Sample(
+                    sample_project=sample_project,
+                    lane=line[self._get_column(cols, 'lane')],
+                    sample_id=sample_id,
+                    barcode=line[self._get_column(cols, 'barcode')],
+                    **self._get_all_cols(line, ignore=['sample_project', 'sample_id', 'lane', 'barcode'])
+                )
+
+                sample_project_obj = self._get_sample_project(sample_project)
+                sample_id_obj = sample_project_obj.get_sample_id(sample_id)
+                sample_id_obj.add_sample(new_sample)
+        f.close()
+        self.debug('Added %s samples' % counter)
+
+    @staticmethod
+    def _get_column(header, name):
+        possible_fields = cfg['sample_sheet']['column_names'][name]
+        for f in possible_fields:
+            if f in header:
+                return f
+        return None
+
+    @staticmethod
+    def _get_all_cols(line_dict, ignore=None):
+        d = {}
+        for k, v in line_dict.items():
+            if k not in ignore:
+                d[k] = v
+        return d
 
     def _get_sample_project(self, name):
         sample_project = ValueError('Could not add sample project ' + name)
@@ -112,13 +190,11 @@ class SampleID:
         self.name = name
         self.sample_project = sample_project
         self.samples = []
-        self.fastq_files = []
 
     def add_sample(self, sample):
-        assert sample.sample_project == self.sample_project and sample.id == self.name,\
+        assert sample.sample_project == self.sample_project and sample.sample_id == self.name,\
             'Adding invalid sample project to ' + self.name + ': ' + sample.sample_project
         self.samples.append(sample)
-
 
 
 class Sample:
@@ -126,18 +202,11 @@ class Sample:
     This represents a Sample, i.e. a line in SampleSheet.csv below the '[Data]' marker. Supports dict-style
     attribute fetching, e.g. sample_object['lane']
     """
-    def __init__(self, **kwargs):
-        """
-        :param kwargs: The columns of SampleSheet.csv and corresponding values to assign
-        :raises: AssertionError if  a column is invalid
-        """
-        self.data = {}
-        for k, v in kwargs.items():
-            assert k in [
-                'sample_project', 'lane', 'id', 'name', 'index', 'index2', 'plate', 'well',
-                'genome_folder'
-            ]
-            self.data[k] = v
+    def __init__(self, sample_project, sample_id, lane, barcode, **kwargs):
+        self.sample_project = sample_project
+        self.sample_id = sample_id
+        self.lane = lane
+        self.barcode = barcode
+        self.extra_data = kwargs
 
-    def __getattr__(self, attr):
-        return self.data[attr]
+

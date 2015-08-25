@@ -1,6 +1,6 @@
 import os.path
 import xml.etree.ElementTree as eT
-from analysis_driver.util import AppLogger
+from analysis_driver.app_logging import AppLogger
 
 
 class RunInfo(AppLogger):
@@ -18,20 +18,20 @@ class RunInfo(AppLogger):
         :param str data_dir: A file path to the input_data folder containing RunInfo.xml
         """
         run_info = os.path.join(data_dir, 'RunInfo.xml')
-        self.root = eT.parse(run_info).getroot()
-        reads = self.root.find('Run/Reads').getchildren()
+        root = eT.parse(run_info).getroot()
+        reads = root.find('Run/Reads').getchildren()
 
         # Populate a Mask object with Read XML entities
         self.mask = Mask()
         for read in reads:
+            self.debug('Adding read: ' + str(read.attrib))
             self.mask.add(read)
         self.mask.validate()
 
         barcode_reads = self.mask.index_lengths
-
         if len(barcode_reads):
             self.debug('Barcode reads: ' + str(barcode_reads))
-            self.barcode_len = int(barcode_reads[0])
+            self.barcode_len = barcode_reads[0]
         else:
             self.warn('RunInfo.xml has no barcode reads')
 
@@ -52,18 +52,6 @@ class Mask:
     The Reads are stored in order. NumCycles represents the read length and IsIndexedRead represents
     whether the Read is a barcode. These are translated to a string to be passed to bcl2fastq as a mask. The
     example here would be translated to a mask of: 'y150n,i6,y150n'.
-
-    Public properties:
-        reads: All contained Read entities from RunInfo.xml
-        barcode_len: The read length of the barcode to be added
-        upstream_read: The read that will appear on the left hand side of the final mask
-        downstream_read: Same, but for the right hand side.
-        indexes: A list of all reads in between
-
-    Public methods:
-        add()
-        validate()
-        tostring()
     """
 
     def __init__(self):
@@ -84,14 +72,13 @@ class Mask:
 
     @property
     def index_lengths(self):
-        return [read.attrib['NumCycles'] for read in self.indexes]
+        return [self.num_cycles(read) for read in self.indexes]
 
     def add(self, read):
         """
         Add a Read entity to self.reads. If Read is a barcode, assert that its length is consistent with the
         Reads already contained.
         :param xml.etree.ElementTree.Element read: A read entity from RunInfo.xml
-        :return: None
         """
         self.reads.append(read)
         if self._is_indexed_read(read):
@@ -101,9 +88,7 @@ class Mask:
     def validate(self):
         """
         Ensure that the first and last items of self.reads are not barcodes, and that all others are.
-        :return: True if successful. Raises AssertionErrors if not.
-        :rtype: bool
-        :raises: AssertionError
+        :return: True if successful
         """
         assert not self._is_indexed_read(self.reads[0])
         assert not self._is_indexed_read(self.reads[-1])
@@ -111,22 +96,14 @@ class Mask:
             assert self._is_indexed_read(index), str([x.attrib for x in self.indexes])
         return True
 
-    def tostring(self, sample_sheet_barcode_len):
+    @staticmethod
+    def num_cycles(read):
         """
-        Translate self.reads to a formatted string that can be passed as an argument to bcl2fastq.
-        :param int sample_sheet_barcode_len: An expected barcode length from SampleSheet.csv.
-        :return: A bcl2fastq mask, e.g. 'y150n,i6,y150n'
-        :rtype: str
+        Translate a Read's NumCycles attrib into a read length
+        :param xml.etree.ElementTree.Element read: A Read from self.reads
+        :return: The Read's NumCycles attrib as a read length
         """
-        mask = 'y' + str(self._num_cycles(self.upstream_read) - 1) + 'n,'
-
-        for i in self.index_lengths:
-            diff = int(i) - sample_sheet_barcode_len
-            mask += 'i' + str(sample_sheet_barcode_len) + 'n'*diff + ','
-
-        mask += 'y' + str(self._num_cycles(self.downstream_read) - 1) + 'n'
-
-        return mask
+        return int(read.attrib['NumCycles'])
 
     @staticmethod
     def _is_indexed_read(read):
@@ -142,13 +119,3 @@ class Mask:
             return False
         else:
             raise ValueError('Invalid IsIndexedRead parameter: ' + read.attrib['IsIndexedRead'])
-
-    @staticmethod
-    def _num_cycles(read):
-        """
-        Translate a Read's NumCycles attrib into a read length
-        :param xml.etree.ElementTree.Element read: A Read from self.reads
-        :return: The Read's NumCycles attrib as a read length.
-        :rtype: int
-        """
-        return int(read.attrib['NumCycles'])

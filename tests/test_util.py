@@ -1,6 +1,7 @@
 __author__ = 'mwham'
 from tests.test_analysisdriver import TestAnalysisDriver
-from analysis_driver.util import AppLogger, fastq_handler
+from analysis_driver.util import fastq_handler
+from analysis_driver.app_logging import AppLogger
 import os.path
 
 helper = TestAnalysisDriver()

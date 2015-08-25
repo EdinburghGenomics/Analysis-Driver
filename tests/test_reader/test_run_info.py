@@ -50,10 +50,7 @@ class TestMask(TestAnalysisDriver):
         assert [x.attrib['NumCycles'] for x in self.run_info_helper.mask.indexes] == ['6']
 
     def test_index_lengths(self):
-        assert self.mask_helper.index_lengths == ['6']
+        assert self.mask_helper.index_lengths == [6]
 
     def test_validate(self):
         assert self.mask_helper.validate()
-
-    def test_tostring(self):
-        assert self.mask_helper.tostring(6) == 'y150n,i6,y150n'
