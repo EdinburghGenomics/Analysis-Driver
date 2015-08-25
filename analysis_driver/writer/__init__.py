@@ -24,11 +24,11 @@ def write_bcbio_csv(run_dir, sample_id, fastqs):
     return csv_file
 
 
-def get_script_writer(job_name, run_id, walltime, cpus, mem):
+def get_script_writer(job_name, run_id, walltime, cpus, mem, jobs=1):
     if cfg['job_execution'] == 'pbs':
-        return PBSWriter(job_name, run_id, walltime, cpus, mem)
+        return PBSWriter(job_name, run_id, walltime, cpus, mem, jobs)
     else:
-        return ScriptWriter(job_name, run_id)
+        return ScriptWriter(job_name, run_id, jobs)
 
 
 def write_jobs(writer, jobs):

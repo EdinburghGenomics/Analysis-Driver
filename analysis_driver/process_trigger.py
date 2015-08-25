@@ -42,67 +42,55 @@ def main():
     elif args.reset:
         reset(args.reset)
     else:
-        datasets = scan_datasets()
-        # only process the first new dataset to be found. The rest will need to wait until the next scan
-        if datasets:
-            d = datasets[0]
-            setup_logging(d, args)
-            logger = logging.getLogger(__name__)
-            logger.info('Using config file at ' + cfg.config_file.name)
-            setup_run(d, logger)
-            trigger(d)
-        else:
-            setup_logging(None, args)
-            logger = logging.getLogger(__name__)
-            logger.debug('No new datasets found')
+        for d, s in scan_datasets():
+            if s == 'ready':
+                setup_logging(d, args)
+                logger = logging.getLogger('trigger')
+                logger.info('Using config file at ' + cfg.config_file.name)
+                setup_run(d, logger)
+                trigger(d)
+                # only process the first new dataset found. The rest will need to wait until the next scan
+                logger.info('Done')
+                return 0
+
+        setup_logging(None, args)
+        logger = logging.getLogger('trigger')
+        logger.debug('No new datasets found')
 
     return 0
 
 
 def report():
-    all_datasets = scan_datasets(ready_only=False)
+    datasets = scan_datasets()
 
     print('========= Process Trigger report =========')
     print('=== ready datasets ===')
-    for d in all_datasets:
-        if is_ready(d):
-            print(d)
+    print('\n'.join(_fetch_by_status(datasets, 'ready')))
 
     print('=== unready datasets (RTA not complete) ===')
-    for d in all_datasets:
-        if is_unprocessed(d) and not rta_complete(d):
-            print(d)
+    print('\n'.join(_fetch_by_status(datasets, 'unready')))
 
     print('=== active datasets ===')
-    for d in all_datasets:
-        if is_active(d):
-            print(d)
+    print('\n'.join(_fetch_by_status(datasets, 'active')))
 
     print('=== complete datasets ===')
-    for d in all_datasets:
-        if is_complete(d):
-            print(d)
+    print('\n'.join(_fetch_by_status(datasets, 'complete')))
 
 
-def scan_datasets(ready_only=True):
-    all_datasets = [
-        x for x in os.listdir(cfg['input_dir']) if os.path.isdir(os.path.join(cfg['input_dir'], x))
-    ]
+def scan_datasets():
+    all_datasets = []
+    for d in os.listdir(cfg['input_dir']):
+        if os.path.isdir(os.path.join(cfg['input_dir'], d)):
+            all_datasets.append((d, _status(d)))
+            
     all_datasets.sort()
-    if ready_only:
-        return [
-            x for x in all_datasets
-            if is_ready(x)
-        ]
-    else:
-        return all_datasets
+    return all_datasets
 
 
 def trigger(dataset):
     active_lock = lock_file(dataset, 'active')
     complete_lock = lock_file(dataset, 'complete')
-    assert not is_active(dataset)
-    assert not is_complete(dataset)
+    assert not is_active(dataset) and not is_complete(dataset)
 
     touch(active_lock)
     from analysis_driver import driver
@@ -133,14 +121,16 @@ def setup_logging(dataset, args):
         stream=sys.stdout
     )
 
+    formatter = logging.Formatter(fmt=cfg['logging']['format'], datefmt=cfg['logging']['datefmt'])
     handlers = []
     if dataset:
         d_handler = logging.FileHandler(
             filename=os.path.join(cfg['jobs_dir'], dataset, 'analysis_driver.log')
         )
         d_handler.setLevel(log_level)
+        d_handler.setFormatter(formatter)
         handlers.append(d_handler)
-    for h in handlers + _get_handlers():
+    for h in handlers + _get_handlers(formatter):
         logging.getLogger('').addHandler(h)
 
 
@@ -161,41 +151,62 @@ def reset(dataset):
             os.remove(l)
 
 
-def is_unprocessed(dataset):
-    if not is_active(dataset) and not is_complete(dataset):
+def _fetch_by_status(all_datasets, status):
+    datasets = [d for (d, s) in all_datasets if s == status]
+    if datasets:
+        return datasets
+    else:
+        return ['none']
+
+
+def _status(dataset):
+    if _is_ready(dataset):
+        return 'ready'
+    elif not _is_processed(dataset) and not _rta_complete(dataset):
+        return 'unready'
+    elif _is_active(dataset):
+        return 'active'
+    elif _is_complete(dataset):
+        return 'complete'
+    else:
+        return 'unknown'
+
+
+def _is_processed(d):
+    if _is_active(d) or _is_complete(d):
         return True
     else:
         return False
 
 
-def is_ready(dataset):
-    if is_unprocessed(dataset) and rta_complete(dataset):
+def _is_ready(d):
+    if not _is_processed(d) and _rta_complete(d):
         return True
     else:
         return False
 
 
-def is_active(dataset):
-    return os.path.isfile(lock_file(dataset, 'active'))
+def _is_active(d):
+    return os.path.isfile(lock_file(d, 'active'))
 
 
-def is_complete(dataset):
-    return os.path.isfile(lock_file(dataset, 'complete'))
+def _is_complete(d):
+    return os.path.isfile(lock_file(d, 'complete'))
 
 
-def rta_complete(dataset):
-    return os.path.isfile(os.path.join(cfg['input_dir'], dataset, 'RTAComplete.txt'))
+def _rta_complete(d):
+    return os.path.isfile(os.path.join(cfg['input_dir'], d, 'RTAComplete.txt'))
 
 
-def lock_file(dataset, status):
-    return os.path.join(cfg['input_dir'], '.' + dataset + '.' + status)
+def lock_file(d, status):
+    return os.path.join(cfg['input_dir'], '.' + d + '.' + status)
 
 
 def touch(file):
     open(file, 'w').close()
 
 
-def _get_handlers():
+def _get_handlers(formatter):
     handlers = []
     if cfg['logging']['handlers']:
         for name, info in cfg['logging']['handlers'].items():
@@ -203,7 +214,8 @@ def _get_handlers():
             try:
                 h.setLevel(logging.getLevelName(info['level']))
             except KeyError:
-                h.setLevel(logging.INFO)
+                h.setLevel(logging.WARN)
+            h.setFormatter(formatter)
             handlers.append(h)
 
     return handlers

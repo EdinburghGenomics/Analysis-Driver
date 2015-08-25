@@ -59,14 +59,15 @@ def pipeline(input_run_folder):
         run_id,
         walltime=6,
         cpus=8,
-        mem=3
+        mem=3,
+        jobs=len(fastqs)
     )
     fastqc_script = writer.write_jobs(
         fastqc_writer,
         [writer.command_writer.fastqc(fq) for fq in fastqs]
     )
-    app_logger.info('Submitting: ' + os.path.join(job_dir, fastqc_script))
-    fastqc_executor = executor.ClusterExecutor(os.path.join(job_dir, fastqc_script))
+    app_logger.info('Submitting: ' + fastqc_script)
+    fastqc_executor = executor.ClusterExecutor(fastqc_script, block=True)
     fastqc_executor.start()
 
     os.chdir(job_dir)
@@ -100,7 +101,8 @@ def pipeline(input_run_folder):
         run_id,
         walltime=72,
         cpus=8,
-        mem=64
+        mem=64,
+        jobs=len(bcbio_array_cmds)
     )
     for cmd in writer.command_writer.bcbio_java_paths():
         bcbio_writer.write_line(cmd)
@@ -110,11 +112,18 @@ def pipeline(input_run_folder):
         bcbio_array_cmds
     )
 
-    bcbio_executor = executor.ClusterExecutor(bcbio_script)
+    bcbio_executor = executor.ClusterExecutor(bcbio_script, block=True)
     bcbio_executor.start()
 
-    util.transfer_output_data(os.path.basename(input_run_folder))
+    fastqc_exit_status = fastqc_executor.join()
+    bcbio_exit_status = bcbio_executor.join()
 
+    app_logger.info('rsync goes here')
+    # util.transfer_output_data(os.path.basename(input_run_folder))
+
+    app_logger.info('bcl2fastq exit status: ' + str(bcl2fastq_exit_status))
+    app_logger.info('fastqc exit status: ' + str(fastqc_exit_status))
+    app_logger.info('bcbio exit status: ' + str(bcbio_exit_status))
     app_logger.info('Done')
     return 0
 

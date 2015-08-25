@@ -10,7 +10,7 @@ class PBSWriter(ScriptWriter):
     """
     suffix = '.pbs'
 
-    def __init__(self, job_name, run_id, walltime, cpus, mem, jobs=None):
+    def __init__(self, job_name, run_id, walltime, cpus, mem, jobs=1):
         """
         :param str job_name: A name to assign the job
         :param int walltime: Desired walltime for the job
