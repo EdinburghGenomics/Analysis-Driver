@@ -1,11 +1,12 @@
 __author__ = 'mwham'
 from tests.test_analysisdriver import TestAnalysisDriver
-from analysis_driver.reader.sample_sheet import SampleSheet, SampleProject, Sample
+from analysis_driver.reader.sample_sheet import SampleSheet, SampleProject, Sample, transform_sample_sheet
 import pytest
 
 
 class TestSampleSheet(TestAnalysisDriver):
     def setUp(self):
+        transform_sample_sheet(self.assets_path)
         self.sample_sheet = SampleSheet(self.assets_path)
         self.samples = []
         for name, p in self.sample_sheet.sample_projects.items():
