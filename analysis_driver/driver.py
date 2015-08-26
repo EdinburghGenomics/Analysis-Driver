@@ -80,8 +80,8 @@ def pipeline(input_run_folder):
 
             bcbio_array_cmds.append(
                 writer.commands.bcbio(
-                    os.path.join(job_dir, 'samples_' + sample_id, 'config', 'samples_' + sample_id + '.yaml'),
-                    os.path.join(job_dir, 'samples_' + sample_id, 'work')
+                    os.path.join(job_dir, 'samples_' + sample_id + '-merged', 'config', 'samples_' + sample_id + '-merged.yaml'),
+                    os.path.join(job_dir, 'samples_' + sample_id + '-merged', 'work')
                 )
             )
 

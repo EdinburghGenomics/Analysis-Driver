@@ -44,10 +44,11 @@ def main():
     else:
         for d, s in scan_datasets():
             if s == 'ready':
+                setup_run(d)
                 setup_logging(d, args)
                 logger = logging.getLogger('trigger')
                 logger.info('Using config file at ' + cfg.config_file.name)
-                setup_run(d, logger)
+                logger.info('Triggering for dataset: ' + d)
                 trigger(d)
                 # only process the first new dataset found. The rest will need to wait until the next scan
                 logger.info('Done')
@@ -100,13 +101,12 @@ def trigger(dataset):
     touch(complete_lock)
 
 
-def setup_run(dataset, logger):
-    logger.info('Setting up run folders for ' + dataset)
+def setup_run(dataset):
     for d in ['fastq_dir', 'jobs_dir']:
         try:
             os.makedirs(os.path.join(cfg[d], dataset))
         except FileExistsError:
-            logger.info(d + ' already exists for dataset.')
+            pass
 
 
 def setup_logging(dataset, args):
