@@ -1,10 +1,10 @@
-import logging
 import os
 from analysis_driver import reader, writer, util, executor
 from analysis_driver.exceptions import AnalysisDriverError
+from analysis_driver.app_logging import get_logger
 from analysis_driver.config import default as cfg  # imports the default config singleton
 
-app_logger = logging.getLogger('driver')
+app_logger = get_logger('driver')
 
 
 def pipeline(input_run_folder):

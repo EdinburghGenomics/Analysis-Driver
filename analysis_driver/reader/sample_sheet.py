@@ -1,13 +1,12 @@
 __author__ = 'mwham'
 import csv
 import os.path
-from analysis_driver.app_logging import AppLogger
-from logging import getLogger
+from analysis_driver.app_logging import AppLogger, get_logger
 from .run_info import RunInfo
 from analysis_driver.config import default as cfg
 
 
-app_logger = getLogger('reader')
+app_logger = get_logger('reader')
 
 
 def transform_sample_sheet(data_dir):

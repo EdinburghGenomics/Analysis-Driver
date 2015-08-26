@@ -4,10 +4,10 @@ from .pbs_writer import PBSWriter
 from . import commands
 import csv
 import os.path
-from logging import getLogger
+from analysis_driver.app_logging import get_logger
 from analysis_driver.config import default as cfg
 
-app_logger = getLogger(__name__)
+app_logger = get_logger(__name__)
 
 
 def write_bcbio_csv(run_dir, sample_id, fastqs):

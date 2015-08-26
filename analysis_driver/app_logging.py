@@ -1,5 +1,6 @@
 __author__ = 'mwham'
 import logging
+from analysis_driver.config import logging_default as log_cfg
 
 
 class AppLogger:
@@ -42,4 +43,13 @@ class AppLogger:
 
     def _check_logger(self):
         if self._logger is None:
-            self._logger = logging.getLogger(self.__class__.__name__)
+            self._logger = get_logger(self.__class__.__name__)
+
+
+def get_logger(name):
+    logger = logging.getLogger(name)
+    logger.setLevel(log_cfg.log_level)
+    for h in log_cfg.handlers:
+        logger.addHandler(h)
+
+    return logger

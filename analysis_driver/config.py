@@ -1,5 +1,6 @@
 import os
 import yaml
+import logging
 from .exceptions import AnalysisDriverError
 
 
@@ -49,4 +50,25 @@ class Configuration:
         """
         return self.content[item]
 
+
+class LoggingConfiguration:
+    def __init__(self):
+        self.formatter = logging.Formatter(
+            fmt=default['logging']['format'],
+            datefmt=default['logging']['datefmt']
+        )
+        self.handlers = []
+        self.log_level = logging.INFO
+
+    def add_handler(self, handler):
+        """
+        :param logging.FileHandler handler:
+        :param level:
+        :return:
+        """
+        handler.setFormatter(self.formatter)
+        handler.setLevel(self.log_level)
+        self.handlers.append(handler)
+
 default = Configuration()  # singleton for access by other modules
+logging_default = LoggingConfiguration()

@@ -2,9 +2,9 @@ __author__ = 'mwham'
 import argparse
 import os
 import logging
-import logging.config
-import sys
+from sys import stdout
 from analysis_driver.config import default as cfg
+from analysis_driver.config import logging_default as log_cfg
 
 
 def main():
@@ -30,7 +30,7 @@ def main():
     parser.add_argument(
         '--quiet',
         action='store_true',
-        help='Do not log stdout (sent to /dev/null'
+        help='Do not log stdout'
     )
 
     args = parser.parse_args()
@@ -111,27 +111,33 @@ def setup_run(dataset, logger):
 
 def setup_logging(dataset, args):
     if args.debug:
-        log_level = logging.DEBUG
+        log_cfg.log_level = logging.DEBUG
     else:
-        log_level = logging.INFO
-    logging.basicConfig(
-        level=log_level,
-        format=cfg['logging']['format'],
-        datefmt=cfg['logging']['datefmt'],
-        stream=sys.stdout
-    )
+        log_cfg.log_level = logging.INFO
 
-    formatter = logging.Formatter(fmt=cfg['logging']['format'], datefmt=cfg['logging']['datefmt'])
-    handlers = []
+    # add stdout StreamHandler
+    if not args.quiet:
+        log_cfg.add_handler(logging.StreamHandler(stream=stdout))
+
+    # add dataset-specific FileHandler
     if dataset:
-        d_handler = logging.FileHandler(
-            filename=os.path.join(cfg['jobs_dir'], dataset, 'analysis_driver.log')
+        log_cfg.add_handler(
+            logging.FileHandler(
+                filename=os.path.join(
+                    cfg['jobs_dir'],
+                    dataset,
+                    'analysis_driver.log'
+                )
+            )
         )
-        d_handler.setLevel(log_level)
-        d_handler.setFormatter(formatter)
-        handlers.append(d_handler)
-    for h in handlers + _get_handlers(formatter):
-        logging.getLogger('').addHandler(h)
+
+    # add user-defined handlers
+    if cfg['logging']['handlers']:
+        for name, info in cfg['logging']['handlers'].items():
+            h = logging.FileHandler(info['filename'])
+            log_level = info.get('level', logging.WARN)
+
+            log_cfg.add_handler(h, log_level)
 
 
 def skip(dataset):
@@ -204,18 +210,3 @@ def lock_file(d, status):
 
 def touch(file):
     open(file, 'w').close()
-
-
-def _get_handlers(formatter):
-    handlers = []
-    if cfg['logging']['handlers']:
-        for name, info in cfg['logging']['handlers'].items():
-            h = logging.FileHandler(info['filename'])
-            try:
-                h.setLevel(logging.getLevelName(info['level']))
-            except KeyError:
-                h.setLevel(logging.WARN)
-            h.setFormatter(formatter)
-            handlers.append(h)
-
-    return handlers

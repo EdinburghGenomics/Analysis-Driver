@@ -1,4 +1,4 @@
-from analysis_driver.util.logger import AppLogger
+from analysis_driver.app_logging import AppLogger
 
 __author__ = 'tcezard'
 
@@ -17,4 +17,3 @@ class LogNotification(AppLogger):
 
     def fail_step(self, step_name, **kwargs):
         self.error('Failed {}'.format(step_name))
-

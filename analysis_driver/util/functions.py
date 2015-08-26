@@ -1,10 +1,10 @@
 __author__ = 'mwham'
 import os.path
-from logging import getLogger
+from analysis_driver.app_logging import get_logger
 from analysis_driver.executor import StreamExecutor
 from analysis_driver.config import default as cfg
 
-app_logger = getLogger('util')
+app_logger = get_logger('util')
 
 
 def bcbio_prepare_samples(csv_file):
