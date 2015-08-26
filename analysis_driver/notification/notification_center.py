@@ -9,19 +9,22 @@ class _Method:
     def __init__(self, send, name):
         self.__send = send
         self.__name = name
+
     def __call__(self, *args, **kwargs):
         return self.__send(self.__name, *args, **kwargs)
 
 
 class NotificationCenter:
-    '''Object dispatching notification to subscribers.
-    The suscribers are defined in a config file'''
+    """
+    Object dispatching notification to subscribers.
+    The suscribers are defined in a config file
+    """
     def __init__(self, config):
-        self.subscribers=[]
+        self.subscribers = []
         if config:
             self._init_with_config(config['notification'])
 
-    def _init_with_config(self,config):
+    def _init_with_config(self, config):
         if 'email_notification' in config:
             self.subscribers.append(EmailNotification(config['email_notification']))
         if 'log_notification' in config:

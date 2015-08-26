@@ -57,18 +57,17 @@ class LoggingConfiguration:
             fmt=default['logging']['format'],
             datefmt=default['logging']['datefmt']
         )
-        self.handlers = []
+        self.handlers = {}
         self.log_level = logging.INFO
 
-    def add_handler(self, handler):
+    def add_handler(self, name, handler):
         """
         :param logging.FileHandler handler:
-        :param level:
         :return:
         """
         handler.setFormatter(self.formatter)
         handler.setLevel(self.log_level)
-        self.handlers.append(handler)
+        self.handlers[name] = handler
 
 default = Configuration()  # singleton for access by other modules
 logging_default = LoggingConfiguration()

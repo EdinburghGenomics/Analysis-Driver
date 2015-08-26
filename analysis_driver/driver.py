@@ -2,6 +2,7 @@ import os
 from analysis_driver import reader, writer, util, executor
 from analysis_driver.exceptions import AnalysisDriverError
 from analysis_driver.app_logging import get_logger
+from analysis_driver.notification import default_notification_center as ntf
 from analysis_driver.config import default as cfg  # imports the default config singleton
 
 app_logger = get_logger('driver')
@@ -13,6 +14,8 @@ def pipeline(input_run_folder):
     :return: Exit status
     :rtype: int
     """
+    ntf.start_step('setup')
+
     run_id = os.path.basename(input_run_folder)
     fastq_dir = os.path.join(cfg['fastq_dir'], run_id)
     job_dir = os.path.join(cfg['jobs_dir'], run_id)
@@ -30,6 +33,9 @@ def pipeline(input_run_folder):
 
     mask = sample_sheet.generate_mask()
     app_logger.info('bcl2fastq mask: ' + mask)  # example_mask = 'y150n,i6,y150n'
+
+    ntf.finish_step('setup')
+    ntf.start_step('bcl2fastq')
 
     bcl2fastq_writer = writer.get_script_writer(
         'bcl2fastq',
@@ -49,7 +55,11 @@ def pipeline(input_run_folder):
     bcl2fastq_exit_status = bcl2fastq_executor.join()
     app_logger.info('Exit status: ' + str(bcl2fastq_exit_status))
     if bcl2fastq_exit_status:
+        ntf.fail_step('bcl2fastq')
         raise AnalysisDriverError('Bcl2fastq failed')
+
+    ntf.finish_step('bcl2fastq')
+    ntf.start_step('fastqc')
 
     sample_projects = list(sample_sheet.sample_projects.keys())
     fastqs = util.fastq_handler.flatten_fastqs(fastq_dir, sample_projects)
@@ -69,6 +79,8 @@ def pipeline(input_run_folder):
     app_logger.info('Submitting: ' + fastqc_script)
     fastqc_executor = executor.ClusterExecutor(fastqc_script, block=True)
     fastqc_executor.start()
+
+    ntf.start_step('bcbio')
 
     os.chdir(job_dir)
 
@@ -116,14 +128,20 @@ def pipeline(input_run_folder):
     bcbio_executor.start()
 
     fastqc_exit_status = fastqc_executor.join()
+    if fastqc_exit_status:
+        ntf.fail_step('fastqc')
+    else:
+        ntf.finish_step('fastqc')
+
     bcbio_exit_status = bcbio_executor.join()
+    if bcbio_exit_status:
+        ntf.fail_step('bcbio')
+    else:
+        ntf.finish_step('bcbio')
 
     app_logger.info('rsync goes here')
     # util.transfer_output_data(os.path.basename(input_run_folder))
 
-    app_logger.info('bcl2fastq exit status: ' + str(bcl2fastq_exit_status))
-    app_logger.info('fastqc exit status: ' + str(fastqc_exit_status))
-    app_logger.info('bcbio exit status: ' + str(bcbio_exit_status))
     app_logger.info('Done')
     return 0
 

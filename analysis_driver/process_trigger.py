@@ -117,11 +117,12 @@ def setup_logging(dataset, args):
 
     # add stdout StreamHandler
     if not args.quiet:
-        log_cfg.add_handler(logging.StreamHandler(stream=stdout))
+        log_cfg.add_handler('stdout', logging.StreamHandler(stream=stdout))
 
     # add dataset-specific FileHandler
     if dataset:
         log_cfg.add_handler(
+            'file',
             logging.FileHandler(
                 filename=os.path.join(
                     cfg['jobs_dir'],
@@ -134,10 +135,7 @@ def setup_logging(dataset, args):
     # add user-defined handlers
     if cfg['logging']['handlers']:
         for name, info in cfg['logging']['handlers'].items():
-            h = logging.FileHandler(info['filename'])
-            log_level = info.get('level', logging.WARN)
-
-            log_cfg.add_handler(h, log_level)
+            log_cfg.add_handler(name, logging.FileHandler(info['filename']))
 
 
 def skip(dataset):
