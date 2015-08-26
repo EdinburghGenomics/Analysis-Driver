@@ -40,7 +40,7 @@ def pipeline(input_run_folder):
     )
     bcl2fastq_script = writer.write_jobs(
         bcl2fastq_writer,
-        [writer.command_writer.bcl2fastq(mask, input_run_folder, fastq_dir)]
+        [writer.commands.bcl2fastq(mask, input_run_folder, fastq_dir)]
     )
 
     app_logger.info('Submitting ' + bcl2fastq_script)
@@ -64,7 +64,7 @@ def pipeline(input_run_folder):
     )
     fastqc_script = writer.write_jobs(
         fastqc_writer,
-        [writer.command_writer.fastqc(fq) for fq in fastqs]
+        [writer.commands.fastqc(fq) for fq in fastqs]
     )
     app_logger.info('Submitting: ' + fastqc_script)
     fastqc_executor = executor.ClusterExecutor(fastqc_script, block=True)
@@ -79,7 +79,7 @@ def pipeline(input_run_folder):
         for sample_id, id_obj in proj_obj.sample_ids.items():
 
             bcbio_array_cmds.append(
-                writer.command_writer.bcbio(
+                writer.commands.bcbio(
                     os.path.join(job_dir, 'samples_' + sample_id, 'config', 'samples_' + sample_id + '.yaml'),
                     os.path.join(job_dir, 'samples_' + sample_id, 'work')
                 )
@@ -92,7 +92,7 @@ def pipeline(input_run_folder):
             util.setup_bcbio_run(
                 os.path.join(os.path.dirname(__file__), '..', 'etc', 'bcbio_alignment.yaml'),
                 os.path.join(job_dir, 'bcbio'),
-                bcbio_csv_file,
+                os.path.join(job_dir, 'samples_' + sample_id + '-merged.csv'),
                 *id_fastqs
             )
 
@@ -104,7 +104,7 @@ def pipeline(input_run_folder):
         mem=64,
         jobs=len(bcbio_array_cmds)
     )
-    for cmd in writer.command_writer.bcbio_java_paths():
+    for cmd in writer.commands.bcbio_java_paths():
         bcbio_writer.write_line(cmd)
 
     bcbio_script = writer.write_jobs(

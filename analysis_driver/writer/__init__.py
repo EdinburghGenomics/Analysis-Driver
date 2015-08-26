@@ -1,7 +1,7 @@
 __author__ = 'mwham'
 from .script_writer import ScriptWriter
 from .pbs_writer import PBSWriter
-from . import command_writer
+from . import commands
 import csv
 import os.path
 from logging import getLogger

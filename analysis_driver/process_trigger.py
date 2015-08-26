@@ -90,7 +90,7 @@ def scan_datasets():
 def trigger(dataset):
     active_lock = lock_file(dataset, 'active')
     complete_lock = lock_file(dataset, 'complete')
-    assert not is_active(dataset) and not is_complete(dataset)
+    assert not _is_active(dataset) and not _is_complete(dataset)
 
     touch(active_lock)
     from analysis_driver import driver
