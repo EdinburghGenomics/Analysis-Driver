@@ -46,11 +46,10 @@ class PBSWriter(ScriptWriter):
         wt('#PBS -l ncpus=%s,mem=%sgb' % (cpus, mem))
         if job_name:
             wt('#PBS -N ' + self._trim_field(job_name, 15))
-        try:
-            wt('#PBS -M ' + ','.join(cfg['notification_emails']))  # TODO: we don't want this to be permanent
+        notification_emails = cfg.get('notification_emails')
+        if notification_emails:
+            wt('#PBS -M ' + ','.join(notification_emails))  # TODO: replace with notifications
             wt('#PBS -m aeb')
-        except KeyError:
-            pass
         wt('#PBS -q ' + queue)
         wt('#PBS -j ' + 'oe')
         wt('#PBS -o ' + self.log_file)

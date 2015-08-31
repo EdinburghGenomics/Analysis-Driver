@@ -117,7 +117,7 @@ def setup_logging(dataset, args):
 
     # add stdout StreamHandler
     if not args.quiet:
-        log_cfg.add_handler('stdout', logging.StreamHandler(stream=stdout))
+        log_cfg.add_handler('stdout', logging.StreamHandler(stream=stdout))  # TODO: do tthis via the config instead
 
     # add dataset-specific FileHandler
     if dataset:
@@ -136,6 +136,8 @@ def setup_logging(dataset, args):
     if cfg['logging']['handlers']:
         for name, info in cfg['logging']['handlers'].items():
             log_cfg.add_handler(name, logging.FileHandler(info['filename']))
+
+    log_cfg.lock()
 
 
 def skip(dataset):

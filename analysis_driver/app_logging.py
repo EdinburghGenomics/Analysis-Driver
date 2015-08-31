@@ -20,7 +20,7 @@ class AppLogger:
 
     def warn(self, msg):
         self._check_logger()
-        self._logger.warn(msg)
+        self._logger.warning(msg)
 
     def error(self, msg):
         self._check_logger()

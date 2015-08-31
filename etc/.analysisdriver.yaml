@@ -41,4 +41,3 @@ testing:
 #            reporter_email: timothee.cezard@ed.ac.uk
 #            recipient_emails: [timothee.cezard@ed.ac.uk]
         log_notification: /Users/mwham/workspace/EdGen_Analysis_Driver/analysis_driver_notifications.log
-

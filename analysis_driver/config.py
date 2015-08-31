@@ -17,7 +17,17 @@ class Configuration:
             self.content = yaml.load(self.config_file)[self.environment]
         except KeyError as e:
             raise AnalysisDriverError('Could not load environment \'%s\'' % self.environment) from e
-        self.content['location'] = os.path.dirname(__file__)  # special case for app location
+
+    def get(self, item, return_default=None):
+        """
+        Dict-style item retrieval with default
+        :param item: The key to search for
+        :param return_default: What to return if the key is not present
+        """
+        try:
+            return self[item]
+        except KeyError:
+            return return_default
 
     @property
     def environment(self):
@@ -52,6 +62,10 @@ class Configuration:
 
 
 class LoggingConfiguration:
+    """
+    Stores logging Formatters and Handlers. self.add_handler should only be called when initially
+    setting up logging.
+    """
     def __init__(self):
         self.formatter = logging.Formatter(
             fmt=default['logging']['format'],
@@ -59,15 +73,22 @@ class LoggingConfiguration:
         )
         self.handlers = {}
         self.log_level = logging.INFO
+        self.locked = False
 
     def add_handler(self, name, handler):
         """
+        :param str name:
         :param logging.FileHandler handler:
-        :return:
         """
+        if self.locked:
+            raise AnalysisDriverError('Tried to add a handler outside of setup')
+
         handler.setFormatter(self.formatter)
         handler.setLevel(self.log_level)
         self.handlers[name] = handler
+
+    def lock(self):
+        self.locked = True
 
 default = Configuration()  # singleton for access by other modules
 logging_default = LoggingConfiguration()

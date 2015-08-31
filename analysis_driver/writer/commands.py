@@ -4,7 +4,7 @@ from analysis_driver.app_logging import get_logger
 from analysis_driver.config import default as cfg
 
 
-app_logger = get_logger(__name__)
+app_logger = get_logger('command_writer')
 
 
 def bcl2fastq(mask, input_dir, fastq_path):

@@ -24,19 +24,57 @@ def pipeline(input_run_folder):
     app_logger.info('Fastq dir: ' + fastq_dir)
     app_logger.info('Job dir: ' + job_dir)
 
-    setup_working_dirs(fastq_dir, job_dir)
-
     reader.transform_sample_sheet(input_run_folder)
 
     sample_sheet = reader.SampleSheet(input_run_folder)
-    sample_sheet.validate()
+    sample_sheet_errors = sample_sheet.validate()
+    if sample_sheet_errors:
+        raise AnalysisDriverError('Sample sheet validation failed. See log messages.')
 
     mask = sample_sheet.generate_mask()
     app_logger.info('bcl2fastq mask: ' + mask)  # example_mask = 'y150n,i6,y150n'
 
     ntf.finish_step('setup')
-    ntf.start_step('bcl2fastq')
 
+    # bcl2fastq
+    ntf.start_step('bcl2fastq')
+    bcl2fastq_exit_status = _run_bcl2fastq(input_run_folder, run_id, fastq_dir, mask).join()
+
+    if bcl2fastq_exit_status:
+        ntf.fail_step('bcl2fastq')
+        raise AnalysisDriverError('Bcl2fastq failed')
+
+    ntf.finish_step('bcl2fastq')
+
+    # fastqc
+    ntf.start_step('fastqc')
+    fastqc_executor = _run_fastqc(run_id, fastq_dir, sample_sheet)
+
+    # bcbio
+    ntf.start_step('bcbio')
+    bcbio_executor = _run_bcbio(run_id, fastq_dir, job_dir, sample_sheet)
+
+    # wait for fastqc and bcbio to finish
+    fastqc_exit_status = fastqc_executor.join()
+    if fastqc_exit_status:
+        ntf.fail_step('fastqc')
+    else:
+        ntf.finish_step('fastqc')
+
+    bcbio_exit_status = bcbio_executor.join()
+    if bcbio_exit_status:
+        ntf.fail_step('bcbio')
+    else:
+        ntf.finish_step('bcbio')
+
+    app_logger.info('rsync goes here')
+    # util.transfer_output_data(os.path.basename(input_run_folder))
+
+    app_logger.info('Done')
+    return 0
+
+
+def _run_bcl2fastq(input_run_folder, run_id, fastq_dir, mask):
     bcl2fastq_writer = writer.get_script_writer(
         'bcl2fastq',
         run_id,
@@ -52,14 +90,11 @@ def pipeline(input_run_folder):
     app_logger.info('Submitting ' + bcl2fastq_script)
     bcl2fastq_executor = executor.ClusterExecutor(bcl2fastq_script, block=True)
     bcl2fastq_executor.start()
-    bcl2fastq_exit_status = bcl2fastq_executor.join()
-    app_logger.info('Exit status: ' + str(bcl2fastq_exit_status))
-    if bcl2fastq_exit_status:
-        ntf.fail_step('bcl2fastq')
-        raise AnalysisDriverError('Bcl2fastq failed')
 
-    ntf.finish_step('bcl2fastq')
-    ntf.start_step('fastqc')
+    return bcl2fastq_executor
+
+
+def _run_fastqc(run_id, fastq_dir, sample_sheet):
 
     sample_projects = list(sample_sheet.sample_projects.keys())
     fastqs = util.fastq_handler.flatten_fastqs(fastq_dir, sample_projects)
@@ -80,8 +115,11 @@ def pipeline(input_run_folder):
     fastqc_executor = executor.ClusterExecutor(fastqc_script, block=True)
     fastqc_executor.start()
 
-    ntf.start_step('bcbio')
+    return fastqc_executor
 
+
+def _run_bcbio(run_id, fastq_dir, job_dir, sample_sheet):
+    original_dir = os.getcwd()
     os.chdir(job_dir)
 
     bcbio_array_cmds = []
@@ -92,8 +130,17 @@ def pipeline(input_run_folder):
 
             bcbio_array_cmds.append(
                 writer.commands.bcbio(
-                    os.path.join(job_dir, 'samples_' + sample_id, 'config', 'samples_' + sample_id + '.yaml'),
-                    os.path.join(job_dir, 'samples_' + sample_id, 'work')
+                    os.path.join(
+                        job_dir,
+                        'samples_' + sample_id + '-merged',
+                        'config',
+                        'samples_' + sample_id + '.yaml'
+                    ),
+                    os.path.join(
+                        job_dir,
+                        'samples_' + sample_id + '-merged',
+                        'work'
+                    )
                 )
             )
 
@@ -127,33 +174,6 @@ def pipeline(input_run_folder):
     bcbio_executor = executor.ClusterExecutor(bcbio_script, block=True)
     bcbio_executor.start()
 
-    fastqc_exit_status = fastqc_executor.join()
-    if fastqc_exit_status:
-        ntf.fail_step('fastqc')
-    else:
-        ntf.finish_step('fastqc')
+    os.chdir(original_dir)
 
-    bcbio_exit_status = bcbio_executor.join()
-    if bcbio_exit_status:
-        ntf.fail_step('bcbio')
-    else:
-        ntf.finish_step('bcbio')
-
-    app_logger.info('rsync goes here')
-    # util.transfer_output_data(os.path.basename(input_run_folder))
-
-    app_logger.info('Done')
-    return 0
-
-
-def setup_working_dirs(*args):
-    """
-    Check for existence of working dirs and create them if necessary
-    :param str args: Directories to check/create
-    """
-    for wd in args:
-        if not os.path.exists(wd):
-            app_logger.debug('Creating: ' + wd)
-            os.makedirs(wd)
-        else:
-            app_logger.debug('Already exists: ' + wd)
+    return bcbio_executor
