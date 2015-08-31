@@ -134,7 +134,7 @@ def _run_bcbio(run_id, fastq_dir, job_dir, sample_sheet):
                         job_dir,
                         'samples_' + sample_id + '-merged',
                         'config',
-                        'samples_' + sample_id + '.yaml'
+                        'samples_' + sample_id + '-merged.yaml'
                     ),
                     os.path.join(
                         job_dir,
@@ -145,14 +145,14 @@ def _run_bcbio(run_id, fastq_dir, job_dir, sample_sheet):
             )
 
             id_fastqs = proj_fastqs[sample_id]
-            bcbio_csv_file = writer.write_bcbio_csv(job_dir, sample_id, id_fastqs)
 
-            util.bcbio_prepare_samples(bcbio_csv_file)
+            merged_fastqs = util.bcbio_prepare_samples(job_dir, sample_id, id_fastqs)
+            #TODO: check that the merged fastqs exists
             util.setup_bcbio_run(
                 os.path.join(os.path.dirname(__file__), '..', 'etc', 'bcbio_alignment.yaml'),
                 os.path.join(job_dir, 'bcbio'),
                 os.path.join(job_dir, 'samples_' + sample_id + '-merged.csv'),
-                *id_fastqs
+                *merged_fastqs
             )
 
     bcbio_writer = writer.get_script_writer(
