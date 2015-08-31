@@ -1,8 +1,7 @@
-import glob
-from analysis_driver import writer
-
 __author__ = 'mwham'
+import glob
 import os.path
+from analysis_driver import writer
 from analysis_driver.app_logging import get_logger
 from analysis_driver.executor import StreamExecutor
 from analysis_driver.config import default as cfg
@@ -11,11 +10,11 @@ app_logger = get_logger('util')
 
 
 def bcbio_prepare_samples(job_dir, sample_id, id_fastqs):
-    #Setup the Bcbio merge csv file
+    # setup the BCBio merged csv file
     bcbio_csv_file = writer.write_bcbio_csv(job_dir, sample_id, id_fastqs)
     app_logger.info('Setting up BCBio samples from ' + bcbio_csv_file)
 
-    merged_dir = os.path.join(job_dir,'merged')
+    merged_dir = os.path.join(job_dir, 'merged')
     return_code = _localexecute(
         cfg['bcbio_prepare_samples'],
         '--out',
@@ -23,9 +22,9 @@ def bcbio_prepare_samples(job_dir, sample_id, id_fastqs):
         '--csv',
         bcbio_csv_file
     )
-    #Find the merged fastq files
-    new_fastq_files = glob.glob(merged_dir, sample_id+'R?.fastq.gz')
-    if return_code == 0 :
+    # find the merged fastq files
+    new_fastq_files = glob.glob(os.path.join(merged_dir, sample_id + '_R?.fastq.gz'))
+    if return_code == 0:
         return new_fastq_files
 
 
