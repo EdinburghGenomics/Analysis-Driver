@@ -24,7 +24,7 @@ def bcbio_prepare_samples(job_dir, sample_id, id_fastqs):
     )
     # find the merged fastq files
     new_fastq_files = glob.glob(os.path.join(merged_dir, sample_id + '_R?.fastq.gz'))
-    if return_code == 0:
+    if new_fastq_files and return_code == 0:
         return new_fastq_files
 
 

@@ -24,6 +24,9 @@ testing:
         format: '%(asctime)s [%(name)s] %(message)s'
         datefmt: '%Y-%b-%d %H:%M:%S'
         handlers:
+            stdout:
+                level: INFO
+                stream: ext://sys.stdout
 #           other_handler:
 #               level: DEBUG
 #               filename: /Users/mwham/workspace/EdGen_Analysis_Driver/Applications/analysis_driver.log

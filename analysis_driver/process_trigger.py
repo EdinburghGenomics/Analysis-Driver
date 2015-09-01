@@ -2,7 +2,8 @@ __author__ = 'mwham'
 import argparse
 import os
 import logging
-from sys import stdout
+from analysis_driver import app_logging
+from sys import stdout, stderr
 from analysis_driver.config import default as cfg
 from analysis_driver.config import logging_default as log_cfg
 
@@ -27,11 +28,6 @@ def main():
         action='store_true',
         help='override pipeline log level to debug'
     )
-    parser.add_argument(
-        '--quiet',
-        action='store_true',
-        help='Do not log stdout'
-    )
 
     args = parser.parse_args()
 
@@ -46,16 +42,17 @@ def main():
             if s == 'ready':
                 setup_run(d)
                 setup_logging(d, args)
-                logger = logging.getLogger('trigger')
+                logger = app_logging.get_logger('trigger')
                 logger.info('Using config file at ' + cfg.config_file.name)
                 logger.info('Triggering for dataset: ' + d)
                 trigger(d)
-                # only process the first new dataset found. The rest will need to wait until the next scan
+                # Only process the first new dataset found. Run through Cron, this will result in
+                # one new pipeline being kicked off per minute.
                 logger.info('Done')
                 return 0
 
         setup_logging(None, args)
-        logger = logging.getLogger('trigger')
+        logger = app_logging.get_logger('trigger')
         logger.debug('No new datasets found')
 
     return 0
@@ -115,10 +112,6 @@ def setup_logging(dataset, args):
     else:
         log_cfg.log_level = logging.INFO
 
-    # add stdout StreamHandler
-    if not args.quiet:
-        log_cfg.add_handler('stdout', logging.StreamHandler(stream=stdout))  # TODO: do tthis via the config instead
-
     # add dataset-specific FileHandler
     if dataset:
         log_cfg.add_handler(
@@ -135,9 +128,18 @@ def setup_logging(dataset, args):
     # add user-defined handlers
     if cfg['logging']['handlers']:
         for name, info in cfg['logging']['handlers'].items():
-            log_cfg.add_handler(name, logging.FileHandler(info['filename']))
-
-    log_cfg.lock()
+            if 'filename' in info:
+                handler = logging.FileHandler(filename=info['filename'])
+            elif 'stream' in info:
+                s = None
+                if info['stream'] == 'ext://sys.stdout':
+                    s = stdout
+                elif info['stream'] == 'ext://sys.stderr':
+                    s = stderr
+                handler = logging.StreamHandler(stream=s)
+            else:
+                raise AnalysisDriverError('Invalid logging configuration: %s %s' % name, str(info))
+            log_cfg.add_handler(name, handler)
 
 
 def skip(dataset):

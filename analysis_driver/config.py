@@ -73,22 +73,15 @@ class LoggingConfiguration:
         )
         self.handlers = {}
         self.log_level = logging.INFO
-        self.locked = False
 
     def add_handler(self, name, handler):
         """
         :param str name:
         :param logging.FileHandler handler:
         """
-        if self.locked:
-            raise AnalysisDriverError('Tried to add a handler outside of setup')
-
         handler.setFormatter(self.formatter)
         handler.setLevel(self.log_level)
         self.handlers[name] = handler
-
-    def lock(self):
-        self.locked = True
 
 default = Configuration()  # singleton for access by other modules
 logging_default = LoggingConfiguration()

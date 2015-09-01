@@ -40,11 +40,7 @@ def pipeline(input_run_folder):
     ntf.start_step('bcl2fastq')
     bcl2fastq_exit_status = _run_bcl2fastq(input_run_folder, run_id, fastq_dir, mask).join()
 
-    if bcl2fastq_exit_status:
-        ntf.fail_step('bcl2fastq')
-        raise AnalysisDriverError('Bcl2fastq failed')
-
-    ntf.finish_step('bcl2fastq')
+    ntf.finish_step('bcl2fastq', bcl2fastq_exit_status, stop_on_error=True)
 
     # fastqc
     ntf.start_step('fastqc')
@@ -56,18 +52,12 @@ def pipeline(input_run_folder):
 
     # wait for fastqc and bcbio to finish
     fastqc_exit_status = fastqc_executor.join()
-    if fastqc_exit_status:
-        ntf.fail_step('fastqc')
-    else:
-        ntf.finish_step('fastqc')
+    ntf.finish_step('fastqc', fastqc_exit_status)
 
     bcbio_exit_status = bcbio_executor.join()
-    if bcbio_exit_status:
-        ntf.fail_step('bcbio')
-    else:
-        ntf.finish_step('bcbio')
+    ntf.finish_step('bcbio', bcbio_exit_status)
 
-    app_logger.info('rsync goes here')
+    # rsync goes here
     # util.transfer_output_data(os.path.basename(input_run_folder))
 
     app_logger.info('Done')
