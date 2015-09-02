@@ -1,26 +1,10 @@
 __author__ = 'tcezard'
+# email modules
 import smtplib
-# Import the email modules we'll need
+import smtpd
 from email.mime.text import MIMEText
+import subprocess
 from analysis_driver.exceptions import AnalysisDriverError
-
-
-def _send_mail(mailhost, reporter_email, recipient_emails, subject, body):
-    """
-    Send out an email with subject and sender if specified.
-    :param mailhost: the smtp host as a string
-    :param reporter_email: the sender email as a string
-    :param recipient_emails: a list of emails the message will be sent to
-    :param subject: the subject of the message
-    :param body: the body of the message
-    """
-    msg = MIMEText(body)
-    msg['Subject'] = subject
-    msg['From'] = reporter_email
-    msg['To'] = recipient_emails
-    smtpserver = smtplib.SMTP(mailhost, 25)
-    smtpserver.send_message(msg, reporter_email, recipient_emails)
-    smtpserver.quit()
 
 
 class EmailNotification:
@@ -29,22 +13,21 @@ class EmailNotification:
         self.reporter_email = config['reporter_email']
         self.recipient_emails = config['recipient_emails']
 
+        # self.server = smtpd.SMTPServer(('localhost', 5000), None)
+        # self.connection = smtplib.SMTP(self.mailhost, 465)
+
     def _send_mail_i(self, subject, body):
-        """
-        Convenience method allowing EmailNotification to call _send_mail
-        """
-        _send_mail(
-            self.mailhost,
-            self.reporter_email,
-            self.recipient_emails,
-            subject,
-            body
-        )
+        msg = MIMEText(body, 'plain')
+        msg['Subject'] = subject
+        msg['From'] = self.reporter_email
+        msg['To'] = ','.join(self.recipient_emails)
+
+        p = subprocess.Popen(['sendmail', '-t'], stdin=subprocess.PIPE)
+        print(p.communicate(msg.as_bytes()))
+        # self.connection.send_message(msg, self.reporter_email, self.recipient_emails)
 
     def start_step(self, step_name):
-        subject = step_name + ' started'
-        body = step_name + ' started'
-        self._send_mail_i(subject, body)
+        pass
 
     def finish_step(self, step_name, exit_status=0, stop_on_error=False):
         if exit_status == 0:
@@ -60,6 +43,4 @@ class EmailNotification:
             raise AnalysisDriverError(subject)
 
     def _succeed(self, step_name):
-        subject = step_name + ' finished'
-        body = step_name + ' finished'
-        self._send_mail_i(subject, body)
+        pass
