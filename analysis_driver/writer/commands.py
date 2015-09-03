@@ -29,12 +29,12 @@ def bcl2fastq(mask, input_dir, fastq_path):
     return cmd
 
 
-def fastqc(fastq):
+def fastqc(fastq, threads=4):
     """
     :param str fastq: An input fastq file
     :rtype: str
     """
-    cmd = cfg['fastqc'] + ' --nogroup -q ' + fastq
+    cmd = cfg['fastqc'] + ' --nogroup -t %s -q %s' % (threads, fastq)
     app_logger.debug('Writing: ' + cmd)
     return cmd
 

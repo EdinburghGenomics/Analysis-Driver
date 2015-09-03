@@ -69,7 +69,7 @@ def _run_bcl2fastq(input_run_folder, run_id, fastq_dir, mask):
         'bcl2fastq',
         run_id,
         walltime=24,
-        cpus=12,
+        cpus=8,
         mem=32
     )
     bcl2fastq_script = writer.write_jobs(
@@ -93,8 +93,8 @@ def _run_fastqc(run_id, fastq_dir, sample_sheet):
         'fastqc',
         run_id,
         walltime=6,
-        cpus=8,
-        mem=3,
+        cpus=4,
+        mem=2,
         jobs=len(fastqs)
     )
     fastqc_script = writer.write_jobs(
@@ -148,7 +148,7 @@ def _run_bcbio(run_id, fastq_dir, job_dir, sample_sheet):
         'bcbio',
         run_id,
         walltime=72,
-        cpus=8,
+        cpus=16,
         mem=64,
         jobs=len(bcbio_array_cmds)
     )
