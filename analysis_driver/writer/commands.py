@@ -14,7 +14,7 @@ def bcl2fastq(mask, input_dir, fastq_path):
     :param fastq_path: Path to the dir in which to send generated .fastqs
     :rtype: str
     """
-    cmd = '%s -l INFO --runfolder-dir %s --output-dir %s --sample-sheet %s --use-bases-mask %s' % (
+    cmd = '%s -l INFO --runfolder-dir %s --output-dir %s --sample-sheet %s --use-bases-mask %s -r 8 -d 8 -p 8 -w 8' % (
         cfg['bcl2fastq'],
         input_dir,
         fastq_path,
