@@ -4,13 +4,14 @@ import smtplib
 import smtpd
 from email.mime.text import MIMEText
 import subprocess
+from analysis_driver.app_logging import AppLogger
 from analysis_driver.exceptions import AnalysisDriverError
 
 
-class EmailNotification:
+class EmailNotification(AppLogger):
     def __init__(self, config):
         self.mailhost = config['mailhost']
-        self.reporter_email = config['reporter_email']
+        # self.reporter_email = config['reporter_email']
         self.recipient_emails = config['recipient_emails']
 
         # self.server = smtpd.SMTPServer(('localhost', 5000), None)
@@ -19,11 +20,14 @@ class EmailNotification:
     def _send_mail_i(self, subject, body):
         msg = MIMEText(body, 'plain')
         msg['Subject'] = subject
-        msg['From'] = self.reporter_email
+        # msg['From'] = self.reporter_email
         msg['To'] = ','.join(self.recipient_emails)
 
-        p = subprocess.Popen(['sendmail', '-t'], stdin=subprocess.PIPE)
-        print(p.communicate(msg.as_bytes()))
+        p = subprocess.Popen(['mail', '-vt'], stdin=subprocess.PIPE)
+        p.communicate(msg.as_bytes())
+        exit_status = p.poll()
+        if exit_status:
+            self.error('Email notification for %s failed with exit status %s' % (subject, exit_status))
         # self.connection.send_message(msg, self.reporter_email, self.recipient_emails)
 
     def start_step(self, step_name):
