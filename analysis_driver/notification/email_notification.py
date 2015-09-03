@@ -23,8 +23,19 @@ class EmailNotification(AppLogger):
         # msg['From'] = self.reporter_email
         msg['To'] = ','.join(self.recipient_emails)
 
-        p = subprocess.Popen(['mail', '-vt'], stdin=subprocess.PIPE)
-        p.communicate(msg.as_bytes())
+        p = subprocess.Popen(
+            ['mail', '-t'],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE
+        )
+        out, err = p.communicate(msg.as_bytes())
+        if out:
+            for line in out.decode('utf-8').split('\n'):
+                self.info(line)
+        if err:
+            for line in err.decode('utf-8').split('\n'):
+                self.error(line)
         exit_status = p.poll()
         if exit_status:
             self.error('Email notification for %s failed with exit status %s' % (subject, exit_status))
@@ -33,15 +44,15 @@ class EmailNotification(AppLogger):
     def start_step(self, step_name):
         pass
 
-    def finish_step(self, step_name, exit_status=0, stop_on_error=False):
+    def finish_step(self, step_name, run_id, exit_status=0, stop_on_error=False):
         if exit_status == 0:
             self._succeed(step_name)
         else:
-            self._fail(step_name, stop_on_error)
+            self._fail(step_name, run_id, stop_on_error)
 
-    def _fail(self, step_name, stop_on_error):
+    def _fail(self, step_name, run_id, stop_on_error):
         subject = step_name + ' failed'
-        body = step_name + ' failed'
+        body = step_name + ' failed for run ' + run_id
         self._send_mail_i(subject, body)
         if stop_on_error:
             raise AnalysisDriverError(subject)

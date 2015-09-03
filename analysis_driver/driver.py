@@ -34,13 +34,13 @@ def pipeline(input_run_folder):
     mask = sample_sheet.generate_mask()
     app_logger.info('bcl2fastq mask: ' + mask)  # example_mask = 'y150n,i6,y150n'
 
-    ntf.finish_step('setup')
+    ntf.finish_step('setup', run_id)
 
     # bcl2fastq
     ntf.start_step('bcl2fastq')
     bcl2fastq_exit_status = _run_bcl2fastq(input_run_folder, run_id, fastq_dir, mask).join()
 
-    ntf.finish_step('bcl2fastq', bcl2fastq_exit_status, stop_on_error=True)
+    ntf.finish_step('bcl2fastq', run_id, bcl2fastq_exit_status, stop_on_error=True)
 
     # fastqc
     ntf.start_step('fastqc')
@@ -52,10 +52,10 @@ def pipeline(input_run_folder):
 
     # wait for fastqc and bcbio to finish
     fastqc_exit_status = fastqc_executor.join()
-    ntf.finish_step('fastqc', fastqc_exit_status)
+    ntf.finish_step('fastqc', run_id, fastqc_exit_status)
 
     bcbio_exit_status = bcbio_executor.join()
-    ntf.finish_step('bcbio', bcbio_exit_status)
+    ntf.finish_step('bcbio', run_id, bcbio_exit_status)
 
     # rsync goes here
     # util.transfer_output_data(os.path.basename(input_run_folder))

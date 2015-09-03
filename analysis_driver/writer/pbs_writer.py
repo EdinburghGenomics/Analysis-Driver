@@ -1,6 +1,5 @@
 __author__ = 'mwham'
 from .script_writer import ScriptWriter
-from analysis_driver.config import default as cfg
 
 
 class PBSWriter(ScriptWriter):
@@ -45,10 +44,6 @@ class PBSWriter(ScriptWriter):
         wt('#PBS -l ncpus=%s,mem=%sgb' % (cpus, mem))
         if job_name:
             wt('#PBS -N ' + self._trim_field(job_name, 15))
-        notification_emails = cfg.get('notification_emails')
-        if notification_emails:
-            wt('#PBS -M ' + ','.join(notification_emails))  # TODO: replace with notifications
-            wt('#PBS -m aeb')
         wt('#PBS -q ' + queue)
         wt('#PBS -j ' + 'oe')
         wt('#PBS -o ' + self.log_file)

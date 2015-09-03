@@ -14,7 +14,7 @@ class LogNotification(AppLogger):
     def start_step(self, step_name, **kwargs):
         self.info('Started {}'.format(step_name))
 
-    def finish_step(self, step_name, exit_status=0, stop_on_error=False):
+    def finish_step(self, step_name, run_id, exit_status=0, stop_on_error=False):
         if exit_status == 0:
             self._succeed(step_name)
         else:
