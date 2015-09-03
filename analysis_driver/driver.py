@@ -137,7 +137,6 @@ def _run_bcbio(run_id, fastq_dir, job_dir, sample_sheet):
             id_fastqs = proj_fastqs[sample_id]
 
             merged_fastqs = util.bcbio_prepare_samples(job_dir, sample_id, id_fastqs)
-            #TODO: check that the merged fastqs exists
             util.setup_bcbio_run(
                 os.path.join(os.path.dirname(__file__), '..', 'etc', 'bcbio_alignment.yaml'),
                 os.path.join(job_dir, 'bcbio'),

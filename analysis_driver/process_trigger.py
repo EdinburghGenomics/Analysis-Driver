@@ -6,6 +6,7 @@ from analysis_driver import app_logging
 from sys import stdout, stderr
 from analysis_driver.config import default as cfg
 from analysis_driver.config import logging_default as log_cfg
+from analysis_driver.exceptions import AnalysisDriverError
 
 
 def main():
@@ -14,6 +15,11 @@ def main():
         '--report',
         action='store_true',
         help='don\'t execute anything, report on status of datasets'
+    )
+    parser.add_argument(
+        '--report-all',
+        action='store_true',
+        help='report all datasets, including finished ones'
     )
     parser.add_argument(
         '--skip',
@@ -33,6 +39,8 @@ def main():
 
     if args.report:
         report()
+    elif args.report_all:
+        report(all_datasets=True)
     elif args.skip:
         skip(args.skip)
     elif args.reset:
@@ -58,7 +66,7 @@ def main():
     return 0
 
 
-def report():
+def report(all_datasets=False):
     datasets = scan_datasets()
 
     print('========= Process Trigger report =========')
@@ -72,7 +80,14 @@ def report():
     print('\n'.join(_fetch_by_status(datasets, 'active')))
 
     print('=== complete datasets ===')
-    print('\n'.join(_fetch_by_status(datasets, 'complete')))
+    complete_datasets = _fetch_by_status(datasets, 'complete')
+    if all_datasets:
+        pass
+    elif complete_datasets == ['none']:
+        pass
+    else:
+        complete_datasets = ['completed datasets are present', 'use --report-all to show']
+    print('\n'.join(complete_datasets))
 
 
 def scan_datasets():

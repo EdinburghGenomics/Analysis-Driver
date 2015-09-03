@@ -14,13 +14,17 @@ def bcl2fastq(mask, input_dir, fastq_path):
     :param fastq_path: Path to the dir in which to send generated .fastqs
     :rtype: str
     """
-    cmd = '%s -l INFO --runfolder-dir %s --output-dir %s --sample-sheet %s --use-bases-mask %s -r 8 -d 8 -p 8 -w 8' % (
+    cmd = ' '.join(['%s -l INFO --runfolder-dir %s',
+                    '--output-dir %s --sample-sheet %s',
+                    '--use-bases-mask %s',
+                    '-r 8 -d 8 -p 8 -w 8']) % (
         cfg['bcl2fastq'],
         input_dir,
         fastq_path,
         os.path.join(input_dir, 'SampleSheet_analysis_driver.csv'),
         mask
     )
+
     app_logger.debug('Writing command: ' + cmd)
     return cmd
 

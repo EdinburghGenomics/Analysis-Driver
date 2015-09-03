@@ -212,5 +212,3 @@ class Sample:
         self.lane = lane
         self.barcode = barcode
         self.extra_data = kwargs
-
-

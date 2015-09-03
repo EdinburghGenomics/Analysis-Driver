@@ -16,8 +16,7 @@ class PBSWriter(ScriptWriter):
         :param int walltime: Desired walltime for the job
         :param int cpus: Number of cpus to allocate to the job
         :param int mem: Amount of memory to allocate to the job
-        :param int array: A number of jobs to submit in an array
-        :param str queue: ID of the queue to submit to
+        :param int jobs: A number of jobs to submit in an array
         """
         super().__init__(job_name, run_id, jobs)
         self._write_header(walltime, cpus, mem, job_name, self.queue, jobs)
