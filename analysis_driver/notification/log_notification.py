@@ -11,22 +11,31 @@ class LogNotification(AppLogger):
         self.handler.setFormatter(log_cfg.formatter)
         self.handler.setLevel(log_cfg.log_level)
 
-    def start_step(self, step_name, **kwargs):
-        self.info('Started {}'.format(step_name))
+    def start_pipeline(self, *args):
+        self.info('Started pipeline')
 
-    def finish_step(self, step_name, run_id, exit_status=0, stop_on_error=False):
+    def start_stage(self, stage_name):
+        self.info('Started stage: ' + stage_name)
+
+    def end_stage(self, stage_name, run_id, exit_status=0, stop_on_error=False):
         if exit_status == 0:
-            self._succeed(step_name)
+            self._succeed_stage(stage_name)
         else:
-            self._fail(step_name, stop_on_error)
+            self._fail_stage(stage_name, stop_on_error)
 
-    def _succeed(self, step_name, **kwargs):
-        self.info('Finished {}'.format(step_name))
+    def end_pipeline(self, *args):
+        self.info('Finished pipeline')
 
-    def _fail(self, step_name, stop_on_error):
-        self.error('Failed {}'.format(step_name))
+    def close(self):
+        pass
+
+    def _succeed_stage(self, stage_name):
+        self.info('Finished stage ' + stage_name)
+
+    def _fail_stage(self, stage_name, stop_on_error):
+        self.error('Failed stage ' + stage_name)
         if stop_on_error:
-            raise AnalysisDriverError(step_name + ' failed')
+            raise AnalysisDriverError(stage_name + ' failed')
 
     def _check_logger(self):
         if self._logger is None:

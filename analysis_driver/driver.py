@@ -14,18 +14,18 @@ def pipeline(input_run_folder):
     :return: Exit status
     :rtype: int
     """
-    ntf.start_step('setup')
-
     run_id = os.path.basename(input_run_folder)
+
+    ntf.start_pipeline(run_id)
+    ntf.start_stage('setup')
+
     fastq_dir = os.path.join(cfg['fastq_dir'], run_id)
     job_dir = os.path.join(cfg['jobs_dir'], run_id)
-
     app_logger.info('Input run folder (bcl data source): ' + input_run_folder)
     app_logger.info('Fastq dir: ' + fastq_dir)
     app_logger.info('Job dir: ' + job_dir)
 
     reader.transform_sample_sheet(input_run_folder)
-
     sample_sheet = reader.SampleSheet(input_run_folder)
     sample_sheet_errors = sample_sheet.validate()
     if sample_sheet_errors:
@@ -34,33 +34,33 @@ def pipeline(input_run_folder):
     mask = sample_sheet.generate_mask()
     app_logger.info('bcl2fastq mask: ' + mask)  # example_mask = 'y150n,i6,y150n'
 
-    ntf.finish_step('setup', run_id)
+    ntf.end_stage('setup', run_id)
 
     # bcl2fastq
-    ntf.start_step('bcl2fastq')
+    ntf.start_stage('bcl2fastq')
     bcl2fastq_exit_status = _run_bcl2fastq(input_run_folder, run_id, fastq_dir, mask).join()
-
-    ntf.finish_step('bcl2fastq', run_id, bcl2fastq_exit_status, stop_on_error=True)
+    
+    ntf.end_stage('bcl2fastq', run_id, bcl2fastq_exit_status, stop_on_error=True)
 
     # fastqc
-    ntf.start_step('fastqc')
+    ntf.start_stage('fastqc')
     fastqc_executor = _run_fastqc(run_id, fastq_dir, sample_sheet)
 
     # bcbio
-    ntf.start_step('bcbio')
+    ntf.start_stage('bcbio')
     bcbio_executor = _run_bcbio(run_id, fastq_dir, job_dir, sample_sheet)
 
     # wait for fastqc and bcbio to finish
     fastqc_exit_status = fastqc_executor.join()
-    ntf.finish_step('fastqc', run_id, fastqc_exit_status)
+    ntf.end_stage('fastqc', run_id, fastqc_exit_status)
 
     bcbio_exit_status = bcbio_executor.join()
-    ntf.finish_step('bcbio', run_id, bcbio_exit_status)
+    ntf.end_stage('bcbio', run_id, bcbio_exit_status)
 
     # rsync goes here
     # util.transfer_output_data(os.path.basename(input_run_folder))
-
-    app_logger.info('Done')
+    ntf.close()
+    ntf.end_pipeline(run_id)
     return 0
 
 

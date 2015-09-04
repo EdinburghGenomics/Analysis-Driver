@@ -1,61 +1,49 @@
 __author__ = 'tcezard'
-# email modules
 import smtplib
-import smtpd
 from email.mime.text import MIMEText
-import subprocess
 from analysis_driver.app_logging import AppLogger
 from analysis_driver.exceptions import AnalysisDriverError
+from analysis_driver.config import default
+cfg = default['notification']['email_notification']
 
 
 class EmailNotification(AppLogger):
-    def __init__(self, config):
-        self.mailhost = config['mailhost']
-        # self.reporter_email = config['reporter_email']
-        self.recipient_emails = config['recipient_emails']
+    def __init__(self):
+        self.connection = smtplib.SMTP(cfg['mailhost'], cfg['port'])
 
-        # self.server = smtpd.SMTPServer(('localhost', 5000), None)
-        # self.connection = smtplib.SMTP(self.mailhost, 465)
+    def start_pipeline(self, run_id):
+        self._send_mail('Run ' + run_id, 'Pipeline started for run ' + run_id)
 
-    def _send_mail_i(self, subject, body):
+    def start_stage(self, stage_name):
+        pass
+
+    def end_stage(self, stage_name, run_id, exit_status=0, stop_on_error=False):
+        if exit_status == 0:
+            pass
+        else:
+            self._fail_stage(stage_name, run_id, stop_on_error)
+
+    def end_pipeline(self, run_id):
+        self._send_mail('Run ' + run_id, 'Pipeline finished for run ' + run_id)
+
+    def close(self):
+        self.info('Closing connection')
+        self.connection.quit()
+
+    def _fail_stage(self, stage_name, run_id, stop_on_error):
+        self._send_mail('Run ' + run_id, stage_name + ' failed for run ' + run_id)
+        if stop_on_error:
+            raise AnalysisDriverError(stage_name + ' failed')
+
+    def _send_mail(self, subject, body):
         msg = MIMEText(body, 'plain')
         msg['Subject'] = subject
-        # msg['From'] = self.reporter_email
-        msg['To'] = ','.join(self.recipient_emails)
+        msg['From'] = cfg['reporter_email']
+        msg['To'] = ','.join(cfg['recipient_emails'])
 
-        p = subprocess.Popen(
-            ['mail', '-t'],
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE
+        self.connection.send_message(
+            msg,
+            cfg['reporter_email'],
+            cfg['recipient_emails']
         )
-        out, err = p.communicate(msg.as_bytes())
-        if out:
-            for line in out.decode('utf-8').split('\n'):
-                self.info(line)
-        if err:
-            for line in err.decode('utf-8').split('\n'):
-                self.error(line)
-        exit_status = p.poll()
-        if exit_status:
-            self.error('Email notification for %s failed with exit status %s' % (subject, exit_status))
-        # self.connection.send_message(msg, self.reporter_email, self.recipient_emails)
 
-    def start_step(self, step_name):
-        pass
-
-    def finish_step(self, step_name, run_id, exit_status=0, stop_on_error=False):
-        if exit_status == 0:
-            self._succeed(step_name)
-        else:
-            self._fail(step_name, run_id, stop_on_error)
-
-    def _fail(self, step_name, run_id, stop_on_error):
-        subject = step_name + ' failed'
-        body = step_name + ' failed for run ' + run_id
-        self._send_mail_i(subject, body)
-        if stop_on_error:
-            raise AnalysisDriverError(subject)
-
-    def _succeed(self, step_name):
-        pass
