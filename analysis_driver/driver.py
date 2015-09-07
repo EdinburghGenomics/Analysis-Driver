@@ -1,9 +1,10 @@
 import os
+import shutil
 from analysis_driver import reader, writer, util, executor
 from analysis_driver.exceptions import AnalysisDriverError
 from analysis_driver.app_logging import get_logger
-from analysis_driver.notification import default_notification_center as ntf
 from analysis_driver.config import default as cfg  # imports the default config singleton
+from analysis_driver.notification import default_notification_center as ntf
 
 app_logger = get_logger('driver')
 
@@ -39,7 +40,7 @@ def pipeline(input_run_folder):
     # bcl2fastq
     ntf.start_stage('bcl2fastq')
     bcl2fastq_exit_status = _run_bcl2fastq(input_run_folder, run_id, fastq_dir, mask).join()
-    
+
     ntf.end_stage('bcl2fastq', run_id, bcl2fastq_exit_status, stop_on_error=True)
 
     # fastqc
@@ -57,8 +58,10 @@ def pipeline(input_run_folder):
     bcbio_exit_status = bcbio_executor.join()
     ntf.end_stage('bcbio', run_id, bcbio_exit_status)
 
-    # rsync goes here
-    # util.transfer_output_data(os.path.basename(input_run_folder))
+    ntf.start_stage('data_transfer')
+    transfer_exit_status = _output_data(sample_sheet, job_dir)
+    ntf.end_stage('data_transfer', run_id, transfer_exit_status)
+
     ntf.close()
     ntf.end_pipeline(run_id)
     return 0
@@ -166,3 +169,45 @@ def _run_bcbio(run_id, fastq_dir, job_dir, sample_sheet):
     os.chdir(original_dir)
 
     return bcbio_executor
+
+
+def _output_data(sample_sheet, job_dir):
+    exit_status = 0
+    for name, sample_project in sample_sheet.sample_projects.items():
+        for name2, sample_id in sample_project.sample_ids.items():
+            for sample in sample_sheet.get_samples(name, name2):
+                sample_name = sample.sample_name
+
+                output_dir = os.path.join(cfg['output_dir'], name, name2, sample_name)
+                try:
+                    os.makedirs(output_dir)
+                except FileExistsError:
+                    pass
+
+                source_dir = os.path.join(
+                    job_dir,
+                    'samples_' + name2 + '-merged',
+                    'final',
+                    sample_name
+                )
+                merged_fastq_dir = os.path.join(
+                    job_dir,
+                    'merged'
+                )
+
+                for output_file in [
+                    os.path.join(source_dir, sample_name + '-gatk-haplotype.vcf.gz'),
+                    os.path.join(source_dir, sample_name + '-gatk-haplotype.vcf.gz.tbi'),
+                    os.path.join(source_dir, sample_name + '-ready.bam'),
+                    os.path.join(source_dir, sample_name + '-ready.bam.bai'),
+                    os.path.join(merged_fastq_dir, sample_name + '_R1.fastq.gz'),
+                    os.path.join(merged_fastq_dir, sample_name + '_R2.fastq.gz')
+                ]:
+                    dest_file = os.path.join(output_dir, os.path.basename(output_file))
+                    if os.path.isfile(output_file):
+                        shutil.copyfile(output_file, dest_file)
+                    else:
+                        app_logger.error('Expected output file not found: ' + output_file)
+                        exit_status += 1
+
+    return exit_status
