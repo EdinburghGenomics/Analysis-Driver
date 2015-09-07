@@ -26,9 +26,6 @@ class LogNotification(AppLogger):
     def end_pipeline(self, *args):
         self.info('Finished pipeline')
 
-    def close(self):
-        pass
-
     def _succeed_stage(self, stage_name):
         self.info('Finished stage ' + stage_name)
 

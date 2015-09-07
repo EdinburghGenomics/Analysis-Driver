@@ -62,7 +62,6 @@ def pipeline(input_run_folder):
     transfer_exit_status = _output_data(sample_sheet, job_dir)
     ntf.end_stage('data_transfer', run_id, transfer_exit_status)
 
-    ntf.close()
     ntf.end_pipeline(run_id)
     return 0
 
