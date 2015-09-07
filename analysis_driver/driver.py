@@ -68,7 +68,7 @@ def _run_bcl2fastq(input_run_folder, run_id, fastq_dir, mask):
     bcl2fastq_writer = writer.get_script_writer(
         'bcl2fastq',
         run_id,
-        walltime=24,
+        walltime=32,
         cpus=8,
         mem=32
     )
