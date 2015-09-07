@@ -1,35 +1,32 @@
 
 ---
 testing:
-    python: /Users/mwham/workspace/EdGen_Analysis_Driver/Application/envs/3_7_15/bin/python
-    bcbio: /scratch/U008/edingen/bin/bcbio/bin/bcbio_nextgen.py
-    bcl2fastq: /home/U008/edingen/Applications/bcl2fastq/bcl2fastq_2.17.1.14/bin/bcl2fastq
-    fastqc: /scratch/U008/edingen/bin/fastqc/bin/fastqc
-    gatk:
-        java_home: /home/U008/edingen/Applications/jdk1.7.0_76/
-        java_bindir: /home/U008/edingen/Applications/jdk1.7.0_76/bin
-        java_root: /home/edingen/Applications/jdk1.7.0_76/
+    python: /path/to/python
+    input_dir: /path/to/input_data
+    fastq_dir: /path/to/fastq
+    jobs_dir : /path/to/jobs
+    output_dir: /path/to/output_data
 
-    input_dir: /Users/mwham/workspace/EdGen_Analysis_Driver/input_data
-    fastq_dir: /Users/mwham/workspace/EdGen_Analysis_Driver/fastq
-    jobs_dir : /Users/mwham/workspace/EdGen_Analysis_Driver/jobs
-
-    transfer_delay: 120
-    run_age_cutoff: 5  # in mins
-
-    job_execution: None  # pbs or None
+    bcl2fastq: /path/to/bcl2fastq
+    fastqc: /path/to/fastqc
+    bcbio_nextgen: /path/to/bcbio
+    bcbio_prepare_samples: /path/to/bcbio
+    job_execution: None  # pbs, local or None
     job_queue: uv2000
 
+    gatk:
+        java_home: /path/to/jdk1.7.0_76/
+        java_bindir: /path/to/jdk1.7.0_76/bin
+        java_root: /path/to/jdk1.7.0_76/
+
     logging:
-        format: '%(asctime)s [%(name)s] %(message)s'
+        format: '[%(asctime)s][%(name)s][%(levelname)s] %(message)s'
         datefmt: '%Y-%b-%d %H:%M:%S'
         handlers:
             stdout:
                 level: INFO
                 stream: ext://sys.stdout
-#           other_handler:
-#               level: DEBUG
-#               filename: /Users/mwham/workspace/EdGen_Analysis_Driver/Applications/analysis_driver.log
+
     sample_sheet:
         column_names:
             sample_project: [Sample_Project, SampleProject, Project_Name]
@@ -38,9 +35,11 @@ testing:
             barcode: [Index, index]
         transformations:
             Project_Name: Sample_Project
+
     notification:
 #        email_notification:
-#            mailhost: smtp.staffmail.ed.ac.uk
-#            reporter_email: timothee.cezard@ed.ac.uk
-#            recipient_emails: [timothee.cezard@ed.ac.uk]
+#            mailhost: renko.ucs.ed.ac.uk
+#            port: 25
+#            reporter_email: murray.wham@ed.ac.uk
+#            recipient_emails: [murray.wham@ed.ac.uk]
         log_notification: /Users/mwham/workspace/EdGen_Analysis_Driver/analysis_driver_notifications.log

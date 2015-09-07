@@ -185,7 +185,7 @@ def _fetch_by_status(all_datasets, status):
 def _status(dataset):
     if _is_ready(dataset):
         return 'ready'
-    elif not _is_processed(dataset) and not _rta_complete(dataset):
+    elif _is_not_ready(dataset):
         return 'unready'
     elif _is_active(dataset):
         return 'active'
@@ -208,6 +208,12 @@ def _is_ready(d):
     else:
         return False
 
+
+def _is_not_ready(d):
+    if not _is_processed(d) and not _rta_complete(d):
+        return True
+    else:
+        return False
 
 def _is_active(d):
     return os.path.isfile(lock_file(d, 'active'))

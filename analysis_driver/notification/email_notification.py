@@ -3,12 +3,12 @@ import smtplib
 from email.mime.text import MIMEText
 from analysis_driver.app_logging import AppLogger
 from analysis_driver.exceptions import AnalysisDriverError
-from analysis_driver.config import default
-cfg = default['notification']['email_notification']
 
 
 class EmailNotification(AppLogger):
-    def __init__(self):
+    def __init__(self, cfg):
+        self.reporter = cfg['reporter_email']
+        self.recipients = cfg['recipient_emails']
         self.connection = smtplib.SMTP(cfg['mailhost'], cfg['port'])
 
     def start_pipeline(self, run_id):
@@ -38,12 +38,12 @@ class EmailNotification(AppLogger):
     def _send_mail(self, subject, body):
         msg = MIMEText(body, 'plain')
         msg['Subject'] = subject
-        msg['From'] = cfg['reporter_email']
-        msg['To'] = ','.join(cfg['recipient_emails'])
+        msg['From'] = self.reporter
+        msg['To'] = ','.join(self.recipients)
 
         self.connection.send_message(
             msg,
-            cfg['reporter_email'],
-            cfg['recipient_emails']
+            self.reporter,
+            self.recipients
         )
 

@@ -26,7 +26,7 @@ class NotificationCenter(AppLogger):
 
     def _init_with_config(self, config):
         if 'email_notification' in config:
-            self.subscribers.append(EmailNotification())
+            self.subscribers.append(EmailNotification(config['email_notification']))
         if 'log_notification' in config:
             self.subscribers.append(LogNotification(config['log_notification']))
 
