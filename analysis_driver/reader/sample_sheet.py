@@ -1,13 +1,12 @@
 __author__ = 'mwham'
 import csv
 import os.path
-from analysis_driver.app_logging import AppLogger
-from logging import getLogger
+from analysis_driver.app_logging import AppLogger, get_logger
 from .run_info import RunInfo
 from analysis_driver.config import default as cfg
 
 
-app_logger = getLogger('reader')
+app_logger = get_logger('reader')
 
 
 def transform_sample_sheet(data_dir):
@@ -18,7 +17,7 @@ def transform_sample_sheet(data_dir):
         if col in cfg['sample_sheet']['transformations']:
             cols[idx] = cfg['sample_sheet']['transformations'][col]
     for line in header:
-        after.write(line + '\n')
+        after.write(line)
     after.write('[Data],\n')
     after.write(','.join(cols) + '\n')
     for line in before:
@@ -28,6 +27,7 @@ def transform_sample_sheet(data_dir):
 
 def _read_sample_sheet(data_dir, name):
     f = open(os.path.join(data_dir, name), 'r')
+    app_logger.debug('Opened ' + f.name)
     counter = 1
     header = []
     for line in f:
@@ -102,14 +102,18 @@ class SampleSheet(AppLogger):
 
     def validate(self):
         self.debug('Validating...')
+        error = 0
         if not self.run_info.barcode_len:
             self.run_info.critical('No barcode found in RunInfo.xml')
+            error = 1
         if self.check_barcodes() != self.run_info.barcode_len:
             self.error(
                 'Barcode mismatch: %s (SampleSheet.csv) and %s (RunInfo.xml)' %
                 (self.check_barcodes(), self.run_info.barcode_len)
             )
+            error = 1
         self.debug('Done')
+        return error
 
     def _populate(self):
         f, header = _read_sample_sheet(self.data_dir, 'SampleSheet_analysis_driver.csv')
@@ -208,5 +212,3 @@ class Sample:
         self.lane = lane
         self.barcode = barcode
         self.extra_data = kwargs
-
-

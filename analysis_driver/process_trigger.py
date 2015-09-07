@@ -2,9 +2,11 @@ __author__ = 'mwham'
 import argparse
 import os
 import logging
-import logging.config
-import sys
+from analysis_driver import app_logging
+from sys import stdout, stderr
 from analysis_driver.config import default as cfg
+from analysis_driver.config import logging_default as log_cfg
+from analysis_driver.exceptions import AnalysisDriverError
 
 
 def main():
@@ -13,6 +15,11 @@ def main():
         '--report',
         action='store_true',
         help='don\'t execute anything, report on status of datasets'
+    )
+    parser.add_argument(
+        '--report-all',
+        action='store_true',
+        help='report all datasets, including finished ones'
     )
     parser.add_argument(
         '--skip',
@@ -27,16 +34,13 @@ def main():
         action='store_true',
         help='override pipeline log level to debug'
     )
-    parser.add_argument(
-        '--quiet',
-        action='store_true',
-        help='Do not log stdout (sent to /dev/null'
-    )
 
     args = parser.parse_args()
 
     if args.report:
         report()
+    elif args.report_all:
+        report(all_datasets=True)
     elif args.skip:
         skip(args.skip)
     elif args.reset:
@@ -46,22 +50,23 @@ def main():
             if s == 'ready':
                 setup_run(d)
                 setup_logging(d, args)
-                logger = logging.getLogger('trigger')
+                logger = app_logging.get_logger('trigger')
                 logger.info('Using config file at ' + cfg.config_file.name)
                 logger.info('Triggering for dataset: ' + d)
                 trigger(d)
-                # only process the first new dataset found. The rest will need to wait until the next scan
+                # Only process the first new dataset found. Run through Cron, this will result in
+                # one new pipeline being kicked off per minute.
                 logger.info('Done')
                 return 0
 
         setup_logging(None, args)
-        logger = logging.getLogger('trigger')
+        logger = app_logging.get_logger('trigger')
         logger.debug('No new datasets found')
 
     return 0
 
 
-def report():
+def report(all_datasets=False):
     datasets = scan_datasets()
 
     print('========= Process Trigger report =========')
@@ -75,7 +80,14 @@ def report():
     print('\n'.join(_fetch_by_status(datasets, 'active')))
 
     print('=== complete datasets ===')
-    print('\n'.join(_fetch_by_status(datasets, 'complete')))
+    complete_datasets = _fetch_by_status(datasets, 'complete')
+    if all_datasets:
+        pass
+    elif complete_datasets == ['none']:
+        pass
+    else:
+        complete_datasets = ['completed datasets are present', 'use --report-all to show']
+    print('\n'.join(complete_datasets))
 
 
 def scan_datasets():
@@ -111,27 +123,38 @@ def setup_run(dataset):
 
 def setup_logging(dataset, args):
     if args.debug:
-        log_level = logging.DEBUG
+        log_cfg.log_level = logging.DEBUG
     else:
-        log_level = logging.INFO
-    logging.basicConfig(
-        level=log_level,
-        format=cfg['logging']['format'],
-        datefmt=cfg['logging']['datefmt'],
-        stream=sys.stdout
-    )
+        log_cfg.log_level = logging.INFO
 
-    formatter = logging.Formatter(fmt=cfg['logging']['format'], datefmt=cfg['logging']['datefmt'])
-    handlers = []
+    # add dataset-specific FileHandler
     if dataset:
-        d_handler = logging.FileHandler(
-            filename=os.path.join(cfg['jobs_dir'], dataset, 'analysis_driver.log')
+        log_cfg.add_handler(
+            'file',
+            logging.FileHandler(
+                filename=os.path.join(
+                    cfg['jobs_dir'],
+                    dataset,
+                    'analysis_driver.log'
+                )
+            )
         )
-        d_handler.setLevel(log_level)
-        d_handler.setFormatter(formatter)
-        handlers.append(d_handler)
-    for h in handlers + _get_handlers(formatter):
-        logging.getLogger('').addHandler(h)
+
+    # add user-defined handlers
+    if cfg['logging']['handlers']:
+        for name, info in cfg['logging']['handlers'].items():
+            if 'filename' in info:
+                handler = logging.FileHandler(filename=info['filename'])
+            elif 'stream' in info:
+                s = None
+                if info['stream'] == 'ext://sys.stdout':
+                    s = stdout
+                elif info['stream'] == 'ext://sys.stderr':
+                    s = stderr
+                handler = logging.StreamHandler(stream=s)
+            else:
+                raise AnalysisDriverError('Invalid logging configuration: %s %s' % name, str(info))
+            log_cfg.add_handler(name, handler)
 
 
 def skip(dataset):
@@ -204,18 +227,3 @@ def lock_file(d, status):
 
 def touch(file):
     open(file, 'w').close()
-
-
-def _get_handlers(formatter):
-    handlers = []
-    if cfg['logging']['handlers']:
-        for name, info in cfg['logging']['handlers'].items():
-            h = logging.FileHandler(info['filename'])
-            try:
-                h.setLevel(logging.getLevelName(info['level']))
-            except KeyError:
-                h.setLevel(logging.WARN)
-            h.setFormatter(formatter)
-            handlers.append(h)
-
-    return handlers

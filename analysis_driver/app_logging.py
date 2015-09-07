@@ -1,5 +1,6 @@
 __author__ = 'mwham'
 import logging
+from analysis_driver.config import logging_default as log_cfg
 
 
 class AppLogger:
@@ -19,7 +20,7 @@ class AppLogger:
 
     def warn(self, msg):
         self._check_logger()
-        self._logger.warn(msg)
+        self._logger.warning(msg)
 
     def error(self, msg):
         self._check_logger()
@@ -30,8 +31,7 @@ class AppLogger:
         Log at the level logging.CRITICAL. Can also raise an error if an error_class is given.
         :param msg: Log message
         :param error_class: An Error to be raised, e.g. ValueError, AssertionError
-        :return: None
-        :raises: An arbitrary Error class if error_class is specified
+        :raises: An Exception object if error_class is specified
         """
         self._check_logger()
 
@@ -42,4 +42,19 @@ class AppLogger:
 
     def _check_logger(self):
         if self._logger is None:
-            self._logger = logging.getLogger(self.__class__.__name__)
+            self._logger = get_logger(self.__class__.__name__)
+
+
+def get_logger(name):
+    """
+    Return a logging.Logger object with formatters and handlers already added. Omit the notifications handler,
+     which is only meant to take notifications
+    :param name: A name to assign to the logger (usually __name__)
+    :rtype: logging.Logger
+    """
+    logger = logging.getLogger(name)
+    logger.setLevel(log_cfg.log_level)
+    for name, h in log_cfg.handlers.items():
+        logger.addHandler(h)
+
+    return logger

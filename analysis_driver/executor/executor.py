@@ -55,7 +55,7 @@ class StreamExecutor(Executor, threading.Thread):
 
     def join(self, timeout=None):
         super().join(timeout=timeout)
-        return self.proc.poll()
+        return self.proc.wait()
 
 
 class ClusterExecutor(StreamExecutor):

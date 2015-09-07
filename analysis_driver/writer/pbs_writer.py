@@ -1,6 +1,5 @@
 __author__ = 'mwham'
 from .script_writer import ScriptWriter
-from analysis_driver.config import default as cfg
 
 
 class PBSWriter(ScriptWriter):
@@ -16,8 +15,7 @@ class PBSWriter(ScriptWriter):
         :param int walltime: Desired walltime for the job
         :param int cpus: Number of cpus to allocate to the job
         :param int mem: Amount of memory to allocate to the job
-        :param int array: A number of jobs to submit in an array
-        :param str queue: ID of the queue to submit to
+        :param int jobs: A number of jobs to submit in an array
         """
         super().__init__(job_name, run_id, jobs)
         self._write_header(walltime, cpus, mem, job_name, self.queue, jobs)
@@ -46,11 +44,6 @@ class PBSWriter(ScriptWriter):
         wt('#PBS -l ncpus=%s,mem=%sgb' % (cpus, mem))
         if job_name:
             wt('#PBS -N ' + self._trim_field(job_name, 15))
-        try:
-            wt('#PBS -M ' + ','.join(cfg['notification_emails']))  # TODO: we don't want this to be permanent
-            wt('#PBS -m aeb')
-        except KeyError:
-            pass
         wt('#PBS -q ' + queue)
         wt('#PBS -j ' + 'oe')
         wt('#PBS -o ' + self.log_file)

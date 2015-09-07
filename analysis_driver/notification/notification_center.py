@@ -1,7 +1,7 @@
 from analysis_driver.notification.email_notification import EmailNotification
+from analysis_driver.app_logging import AppLogger
 from analysis_driver.config import default as cfg
 from analysis_driver.notification.log_notification import LogNotification
-
 __author__ = 'tcezard'
 
 class _Method:
@@ -9,21 +9,24 @@ class _Method:
     def __init__(self, send, name):
         self.__send = send
         self.__name = name
+
     def __call__(self, *args, **kwargs):
         return self.__send(self.__name, *args, **kwargs)
 
 
-class NotificationCenter:
-    '''Object dispatching notification to subscribers.
-    The suscribers are defined in a config file'''
+class NotificationCenter(AppLogger):
+    """
+    Object dispatching notification to subscribers.
+    The suscribers are defined in a config file
+    """
     def __init__(self, config):
-        self.subscribers=[]
+        self.subscribers = []
         if config:
             self._init_with_config(config['notification'])
 
-    def _init_with_config(self,config):
+    def _init_with_config(self, config):
         if 'email_notification' in config:
-            self.subscribers.append(EmailNotification(config['email_notification']))
+            self.subscribers.append(EmailNotification())
         if 'log_notification' in config:
             self.subscribers.append(LogNotification(config['log_notification']))
 
@@ -33,7 +36,11 @@ class NotificationCenter:
             if f and callable(f):
                 f(*args, **kwargs)
             else:
-                raise(ValueError("Method {} does not exist in {}".format(function_name, subscriber.__name__)))
+                self.debug(
+                    'Tried to call nonexistent method %s in class %s' % (
+                        function_name, subscriber.__class__.__name__
+                    )
+                )
 
     def __getattr__(self, name):
         # magic method dispatcher
