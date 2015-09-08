@@ -9,6 +9,8 @@ class EmailNotification(AppLogger):
     def __init__(self, cfg):
         self.reporter = cfg['reporter_email']
         self.recipients = cfg['recipient_emails']
+        self.mailhost = cfg['mailhost']
+        self.port = cfg['port']
 
     def start_pipeline(self, run_id):
         self._send_mail('Run ' + run_id, 'Pipeline started for run ' + run_id)
@@ -31,7 +33,7 @@ class EmailNotification(AppLogger):
             raise AnalysisDriverError(stage_name + ' failed')
 
     def _send_mail(self, subject, body):
-        connection = smtplib.SMTP(cfg['mailhost'], cfg['port'])
+        connection = smtplib.SMTP(self.mailhost, self.port)
         msg = MIMEText(body, 'plain')
         msg['Subject'] = subject
         msg['From'] = self.reporter

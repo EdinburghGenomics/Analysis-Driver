@@ -16,7 +16,7 @@ def pipeline(input_run_folder):
     :rtype: int
     """
     run_id = os.path.basename(input_run_folder)
-
+    
     ntf.start_pipeline(run_id)
     ntf.start_stage('setup')
 
@@ -36,7 +36,7 @@ def pipeline(input_run_folder):
     app_logger.info('bcl2fastq mask: ' + mask)  # example_mask = 'y150n,i6,y150n'
 
     ntf.end_stage('setup', run_id)
-
+    
     # bcl2fastq
     ntf.start_stage('bcl2fastq')
     bcl2fastq_exit_status = _run_bcl2fastq(input_run_folder, run_id, fastq_dir, mask).join()
@@ -57,9 +57,11 @@ def pipeline(input_run_folder):
 
     bcbio_exit_status = bcbio_executor.join()
     ntf.end_stage('bcbio', run_id, bcbio_exit_status)
-
+    
+    # transfer output data
     ntf.start_stage('data_transfer')
     transfer_exit_status = _output_data(sample_sheet, job_dir)
+
     ntf.end_stage('data_transfer', run_id, transfer_exit_status)
 
     ntf.end_pipeline(run_id)
@@ -173,11 +175,11 @@ def _run_bcbio(run_id, fastq_dir, job_dir, sample_sheet):
 def _output_data(sample_sheet, job_dir):
     exit_status = 0
     for name, sample_project in sample_sheet.sample_projects.items():
-        for name2, sample_id in sample_project.sample_ids.items():
-            for sample in sample_sheet.get_samples(name, name2):
+        for sample_id in sample_project.sample_ids:
+            for sample in sample_sheet.get_samples(name, sample_id):
                 sample_name = sample.sample_name
 
-                output_dir = os.path.join(cfg['output_dir'], name, name2, sample_name)
+                output_dir = os.path.join(cfg['output_dir'], name, sample_id, sample_name)
                 try:
                     os.makedirs(output_dir)
                 except FileExistsError:
@@ -185,26 +187,36 @@ def _output_data(sample_sheet, job_dir):
 
                 source_dir = os.path.join(
                     job_dir,
-                    'samples_' + name2 + '-merged',
+                    'samples_' + sample_id + '-merged',
                     'final',
-                    sample_name
+                    sample_id
                 )
                 merged_fastq_dir = os.path.join(
                     job_dir,
                     'merged'
                 )
-
-                for output_file in [
-                    os.path.join(source_dir, sample_name + '-gatk-haplotype.vcf.gz'),
-                    os.path.join(source_dir, sample_name + '-gatk-haplotype.vcf.gz.tbi'),
-                    os.path.join(source_dir, sample_name + '-ready.bam'),
-                    os.path.join(source_dir, sample_name + '-ready.bam.bai'),
-                    os.path.join(merged_fastq_dir, sample_name + '_R1.fastq.gz'),
-                    os.path.join(merged_fastq_dir, sample_name + '_R2.fastq.gz')
-                ]:
-                    dest_file = os.path.join(output_dir, os.path.basename(output_file))
-                    if os.path.isfile(output_file):
-                        shutil.copyfile(output_file, dest_file)
+                expected_outputs = cfg['expected_output_files']
+                
+                # transfer vcfs and bams in source_dir
+                for extension in expected_outputs['vcf'] + expected_outputs['bam']:
+                    source_file = os.path.join(source_dir, extension.replace('*', sample_id))
+                    if os.path.isfile(source_file):
+                        shutil.copyfile(
+                            source_file,
+                            os.path.join(output_dir, os.path.basename(source_file))
+                        )
+                    else:
+                        app_logger.error('Expected output file not found: ' + output_file)
+                        exit_status += 1
+                
+                # transfer fastqs in merged_fastq_dir
+                for extension in expected_outputs['fastq']:
+                    source_file = os.path.join(merged_fastq_dir, extension.replace('*', sample_id))
+                    if os.path.isfile(source_file):
+                        shutil.copyfile(
+                            source_file,
+                            os.path.join(output_dir, os.path.basename(source_file))
+                        )
                     else:
                         app_logger.error('Expected output file not found: ' + output_file)
                         exit_status += 1
