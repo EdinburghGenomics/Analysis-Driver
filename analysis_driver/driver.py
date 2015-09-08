@@ -176,49 +176,47 @@ def _output_data(sample_sheet, job_dir):
     exit_status = 0
     for name, sample_project in sample_sheet.sample_projects.items():
         for sample_id in sample_project.sample_ids:
-            for sample in sample_sheet.get_samples(name, sample_id):
-                sample_name = sample.sample_name
 
-                output_dir = os.path.join(cfg['output_dir'], name, sample_id, sample_name)
-                try:
-                    os.makedirs(output_dir)
-                except FileExistsError:
-                    pass
+            output_dir = os.path.join(cfg['output_dir'], name, sample_id)
+            try:
+                os.makedirs(output_dir)
+            except FileExistsError:
+                pass
 
-                source_dir = os.path.join(
-                    job_dir,
-                    'samples_' + sample_id + '-merged',
-                    'final',
-                    sample_id
-                )
-                merged_fastq_dir = os.path.join(
-                    job_dir,
-                    'merged'
-                )
-                expected_outputs = cfg['expected_output_files']
-                
-                # transfer vcfs and bams in source_dir
-                for extension in expected_outputs['vcf'] + expected_outputs['bam']:
-                    source_file = os.path.join(source_dir, extension.replace('*', sample_id))
-                    if os.path.isfile(source_file):
-                        shutil.copyfile(
-                            source_file,
-                            os.path.join(output_dir, os.path.basename(source_file))
-                        )
-                    else:
-                        app_logger.error('Expected output file not found: ' + output_file)
-                        exit_status += 1
-                
-                # transfer fastqs in merged_fastq_dir
-                for extension in expected_outputs['fastq']:
-                    source_file = os.path.join(merged_fastq_dir, extension.replace('*', sample_id))
-                    if os.path.isfile(source_file):
-                        shutil.copyfile(
-                            source_file,
-                            os.path.join(output_dir, os.path.basename(source_file))
-                        )
-                    else:
-                        app_logger.error('Expected output file not found: ' + output_file)
-                        exit_status += 1
+            source_dir = os.path.join(
+                job_dir,
+                'samples_' + sample_id + '-merged',
+                'final',
+                sample_id
+            )
+            merged_fastq_dir = os.path.join(
+                job_dir,
+                'merged'
+            )
+            expected_outputs = cfg['expected_output_files']
+
+            # transfer vcfs and bams in source_dir
+            for extension in expected_outputs['vcf'] + expected_outputs['bam']:
+                source_file = os.path.join(source_dir, extension.replace('*', sample_id))
+                if os.path.isfile(source_file):
+                    shutil.copyfile(
+                        source_file,
+                        os.path.join(output_dir, os.path.basename(source_file))
+                    )
+                else:
+                    app_logger.error('Expected output file not found: ' + source_file)
+                    exit_status += 1
+
+            # transfer fastqs in merged_fastq_dir
+            for extension in expected_outputs['fastq']:
+                source_file = os.path.join(merged_fastq_dir, extension.replace('*', sample_id))
+                if os.path.isfile(source_file):
+                    shutil.copyfile(
+                        source_file,
+                        os.path.join(output_dir, os.path.basename(source_file))
+                    )
+                else:
+                    app_logger.error('Expected output file not found: ' + source_file)
+                    exit_status += 1
 
     return exit_status

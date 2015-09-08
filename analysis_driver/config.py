@@ -11,12 +11,15 @@ class Configuration:
     def __init__(self):
         self._environment = None
         config_file = self.__class__._find_config_file()
-        self.config_file = open(config_file, 'r')
-
+        self.config_file = config_file
         try:
-            self.content = yaml.load(self.config_file)[self.environment]
+            self.content = yaml.load(open(config_file, 'r'))[self.environment]
         except KeyError as e:
             raise AnalysisDriverError('Could not load environment \'%s\'' % self.environment) from e
+
+    def switch_config(self, config_file):
+        del self.content
+        self.content = yaml.load(open(config_file, 'r'))[self.environment]
 
     def get(self, item, return_default=None):
         """
