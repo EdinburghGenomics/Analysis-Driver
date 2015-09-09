@@ -29,12 +29,16 @@ class ScriptWriter(AppLogger):
     def write_line(self, line):
         self.lines.append(line)
 
-    def write_array_cmd(self, job_number, cmd):
+    def write_array_cmd(self, job_number, cmd, log_file=None):
         """
         :param int job_number: The index of the job (i.e. which number the job has in the array)
         :param str cmd: The command to write
         """
-        self.write_line(str(job_number) + ') ' + cmd + '\n' + ';;')
+        line = str(job_number) + ') ' + cmd
+        if log_file:
+            line += ' > ' + log_file
+        line += '\n' + ';;'
+        self.write_line(line)
         self.jobs_written += 1
 
     def start_array(self):

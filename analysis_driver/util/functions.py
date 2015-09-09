@@ -1,6 +1,8 @@
 __author__ = 'mwham'
 import glob
+import shutil
 import os.path
+import hashlib
 from analysis_driver import writer
 from analysis_driver.app_logging import get_logger
 from analysis_driver.executor import StreamExecutor
@@ -48,6 +50,46 @@ def setup_bcbio_run(template, csv_file, run_dir, *fastqs):
         csv_file,
         *fastqs
     )
+
+
+def transfer_output_files(sample_id, output_dir, source_path_mapping):
+    """
+    :param str sample_id: a sample id, acting as the basename for the file
+    :param str output_dir: where to send the output file
+    :param dict source_path_mapping: a mapping describing where to find each type of output file
+    :return: 0 if successful, 1 if expected file not found
+    """
+    exit_status = 0
+    for f in cfg['output_files']:
+        source_dir = source_path_mapping[f['type']]
+
+        base_name = f['name'].replace('*', sample_id)
+        source_file = os.path.join(source_dir, base_name)
+        rename_to = f.get('rename_to')
+        if rename_to:
+            base_name = base_name.replace(f['name'][1:], rename_to)
+
+        output_file = os.path.join(output_dir, base_name)
+
+        if os.path.isfile(source_file):
+            shutil.copyfile(
+                source_file,
+                output_file
+            )
+
+            md5 = hashlib.md5()
+            with open(output_file) as g:
+                for line in g:
+                    md5.update(line.encode())
+
+            with open(output_file + '.md5', 'w') as h:
+                h.write(md5.hexdigest())
+
+        else:
+            app_logger.info('Expected output file not found: ' + source_file)
+            exit_status += 1
+
+    return exit_status
 
 
 def _localexecute(*args):

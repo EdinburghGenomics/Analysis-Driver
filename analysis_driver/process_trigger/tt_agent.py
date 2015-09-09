@@ -22,7 +22,7 @@ def rsync(dataset):
                 cfg['input_data']
             ]
         )
-        executor.start()
+        executor.run()
         sleep(int(cfg['tt_agent_delay']))
 
     assert is_ready(dataset)

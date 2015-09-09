@@ -47,8 +47,7 @@ def skip(dataset):
 def reset(dataset):
     for l in [
         lock_file(dataset, 'active'),
-        lock_file(dataset, 'complete'),
-        os.path.join(cfg['jobs_dir'], dataset, '.bcl2fastq_complete')
+        lock_file(dataset, 'complete')
     ]:
         if os.path.isfile(l):
             os.remove(l)
@@ -75,41 +74,41 @@ def _status(dataset):
         return 'unknown'
 
 
-def _is_processed(d):
-    if _is_active(d) or _is_complete(d):
+def _is_processed(dataset):
+    if _is_active(dataset) or _is_complete(dataset):
         return True
     else:
         return False
 
 
-def is_ready(d):
-    if not _is_processed(d) and _rta_complete(d):
+def is_ready(dataset):
+    if not _is_processed(dataset) and _rta_complete(dataset):
         return True
     else:
         return False
 
 
-def is_not_ready(d):
-    if not _is_processed(d) and not _rta_complete(d):
+def is_not_ready(dataset):
+    if not _is_processed(dataset) and not _rta_complete(dataset):
         return True
     else:
         return False
 
 
-def _is_active(d):
-    return os.path.isfile(lock_file(d, 'active'))
+def _is_active(dataset):
+    return os.path.isfile(lock_file(dataset, 'active'))
 
 
-def _is_complete(d):
-    return os.path.isfile(lock_file(d, 'complete'))
+def _is_complete(dataset):
+    return os.path.isfile(lock_file(dataset, 'complete'))
 
 
-def _rta_complete(d):
-    return os.path.isfile(os.path.join(cfg['input_dir'], d, 'RTAComplete.txt'))
+def _rta_complete(dataset):
+    return os.path.isfile(os.path.join(cfg['input_dir'], dataset, 'RTAComplete.txt'))
 
 
-def lock_file(d, status):
-    return os.path.join(cfg['input_dir'], '.' + d + '.' + status)
+def lock_file(dataset, status):
+    return os.path.join(cfg['lock_file_dir'], '.' + dataset + '.' + status)
 
 
 def touch(file):
