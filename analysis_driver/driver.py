@@ -1,5 +1,4 @@
 import os
-import shutil
 from analysis_driver import reader, writer, util, executor
 from analysis_driver.exceptions import AnalysisDriverError
 from analysis_driver.app_logging import get_logger

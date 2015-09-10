@@ -14,7 +14,7 @@ class EmailNotification(AppLogger):
         self.port = cfg['port']
 
     def start_pipeline(self):
-        self._send_mail('Run ' + self.run_id, 'Pipeline started for run ' + self.run_id)
+        self._send_mail('Pipeline started for run ' + self.run_id)
 
     def start_stage(self, stage_name):
         pass
@@ -26,20 +26,42 @@ class EmailNotification(AppLogger):
             self._fail_stage(stage_name, stop_on_error)
 
     def end_pipeline(self):
-        self._send_mail('Run ' + self.run_id, 'Pipeline finished for run ' + self.run_id)
+        self._send_mail('Pipeline finished for run ' + self.run_id)
 
     def _fail_stage(self, stage_name, stop_on_error):
-        self._send_mail('Run ' + self.run_id, stage_name + ' failed for run ' + self.run_id)
+        self._send_mail(stage_name + ' failed for run ' + self.run_id)
         if stop_on_error:
             raise AnalysisDriverError(stage_name + ' failed')
 
-    def _send_mail(self, subject, body):
-        connection = smtplib.SMTP(self.mailhost, self.port)
+    def _send_mail(self, body):
+        mail_success = self._try_send(body)
+        if not mail_success:
+            self.critical('Failed to send message: ' + body, error_class=AnalysisDriverError)
+
+    def _try_send(self, body, retries=1):
+        msg = self._prepare_message(body)
+        try:
+            self._connect_and_send(msg)
+            return True
+        except smtplib.SMTPException as e:
+            self.warn('Encountered a ' + str(e) + ' exception. Retry number ' + str(retries))
+
+            retries += 1
+            if retries <= 3:
+                return self._try_send(body, retries)
+            else:
+                return False
+
+    def _prepare_message(self, body):
         msg = MIMEText(body, 'plain')
-        msg['Subject'] = subject
+        msg['Subject'] = 'Run ' + self.run_id
         msg['From'] = self.reporter
         msg['To'] = ','.join(self.recipients)
 
+        return msg
+
+    def _connect_and_send(self, msg):
+        connection = smtplib.SMTP(self.mailhost, self.port)
         connection.send_message(
             msg,
             self.reporter,
