@@ -34,15 +34,7 @@ def main():
         action='store_true',
         help='override pipeline log level to debug'
     )
-    parser.add_argument(
-        '--config',
-        help='a config file to be passed in place of ~/.analysisdriver.yaml'
-    )
-
     args = parser.parse_args()
-
-    if args.config:
-        cfg.switch_config(args.config)
 
     if args.report:
         proctrigger.report()
