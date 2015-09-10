@@ -3,14 +3,13 @@ import pytest
 from smtplib import SMTPException
 from analysis_driver.notification.notification_center import NotificationCenter
 from analysis_driver.notification.email_notification import EmailNotification
-from analysis_driver.config import default as cfg
 from analysis_driver.exceptions import AnalysisDriverError
 from tests.test_analysisdriver import TestAnalysisDriver
 
 
 class TestNotificationCenter(TestAnalysisDriver):
     def setUp(self):
-        self.notification_center = NotificationCenter(cfg, 'test_run')
+        self.notification_center = NotificationCenter()
 
         email_config = {
             'mailhost': 'renko.ucs.ed.ac.uk',
@@ -34,7 +33,6 @@ class TestNotificationCenter(TestAnalysisDriver):
         with pytest.raises(AnalysisDriverError) as e:
             self.email_notification._send_mail('dodgy')
             assert 'Failed to send message: dodgy' in str(e)
-
 
 
 class TestMailRetries(EmailNotification):

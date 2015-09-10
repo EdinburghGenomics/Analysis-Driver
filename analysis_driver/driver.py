@@ -2,8 +2,8 @@ import os
 from analysis_driver import reader, writer, util, executor
 from analysis_driver.exceptions import AnalysisDriverError
 from analysis_driver.app_logging import get_logger
-from analysis_driver.config import default as cfg  # imports the default config singleton
-from analysis_driver.notification import NotificationCenter
+from analysis_driver.config import default as cfg
+from analysis_driver.notification import default as ntf, LogNotification, EmailNotification
 
 app_logger = get_logger('driver')
 
@@ -16,7 +16,14 @@ def pipeline(input_run_folder):
     """
     run_id = os.path.basename(input_run_folder)
 
-    ntf = NotificationCenter(cfg, run_id)
+    ntf_config = cfg.get('notification')
+    if ntf_config:
+        ntf.add_subscribers(
+            run_id,
+            log_notification=(LogNotification, ntf_config.get('log_notification')),
+            email_notification=(EmailNotification, ntf_config.get('email_notification'))
+        )
+
     ntf.start_pipeline()
     ntf.start_stage('setup')
 
