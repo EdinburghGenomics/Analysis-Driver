@@ -106,6 +106,11 @@ class LoggingConfiguration:
         handler.setLevel(self.log_level)
         self.handlers[name] = handler
 
+    def switch_formatter(self, formatter):
+        self.formatter = formatter
+        for name in self.handlers:
+            self.handlers[name].setFormatter(self.formatter)
+
 
 default = Configuration()  # singleton for access by other modules
 logging_default = LoggingConfiguration()

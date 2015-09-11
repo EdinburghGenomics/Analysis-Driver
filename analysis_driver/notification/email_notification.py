@@ -23,15 +23,16 @@ class EmailNotification(AppLogger):
         if exit_status == 0:
             pass
         else:
-            self._fail_stage(stage_name, stop_on_error)
+            self._fail_stage(stage_name, exit_status, stop_on_error)
 
     def end_pipeline(self):
         self._send_mail('Pipeline finished for run ' + self.run_id)
 
-    def _fail_stage(self, stage_name, stop_on_error):
-        self._send_mail(stage_name + ' failed for run ' + self.run_id)
+    def _fail_stage(self, stage_name, exit_status, stop_on_error):
+        msg = ('%s failed for run %s with exit status %s' % (stage_name, self.run_id, exit_status))
+        self._send_mail(msg)
         if stop_on_error:
-            raise AnalysisDriverError(stage_name + ' failed')
+            raise AnalysisDriverError(msg)
 
     def _send_mail(self, body):
         mail_success = self._try_send(body)

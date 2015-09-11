@@ -72,7 +72,6 @@ def pipeline(input_run_folder):
     ntf.end_stage('data_transfer', transfer_exit_status)
 
     ntf.end_pipeline()
-    return 0
 
 
 def _run_bcl2fastq(input_run_folder, run_id, fastq_dir, mask):

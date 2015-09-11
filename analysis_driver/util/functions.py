@@ -78,9 +78,9 @@ def transfer_output_files(sample_id, output_dir, source_path_mapping):
             )
 
             md5 = hashlib.md5()
-            with open(output_file) as g:
+            with open(output_file, 'rb') as g:
                 for line in g:
-                    md5.update(line.encode())
+                    md5.update(line)
 
             with open(output_file + '.md5', 'w') as h:
                 h.write(md5.hexdigest())

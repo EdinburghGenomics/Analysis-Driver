@@ -26,7 +26,7 @@ class LogNotification(AppLogger):
         if exit_status == 0:
             self._succeed_stage(stage_name)
         else:
-            self._fail_stage(stage_name, stop_on_error)
+            self._fail_stage(stage_name, exit_status, stop_on_error)
 
     def end_pipeline(self):
         self.info('Finished pipeline')
@@ -34,10 +34,11 @@ class LogNotification(AppLogger):
     def _succeed_stage(self, stage_name):
         self.info('Finished stage ' + stage_name)
 
-    def _fail_stage(self, stage_name, stop_on_error):
-        self.error('Failed stage ' + stage_name)
+    def _fail_stage(self, stage_name, exit_status, stop_on_error):
+        msg = 'Stage ' + stage_name + ' failed with exit status ' + str(exit_status)
+        self.error(msg)
         if stop_on_error:
-            raise AnalysisDriverError(stage_name + ' failed')
+            raise AnalysisDriverError(msg)
 
     def _check_logger(self):
         if self._logger is None:
