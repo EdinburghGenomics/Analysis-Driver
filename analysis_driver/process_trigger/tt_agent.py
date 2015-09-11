@@ -1,29 +1,32 @@
 __author__ = 'mwham'
 import os.path
 from time import sleep
+from analysis_driver.dataset_scanner import dataset_status
 from analysis_driver.executor import StreamExecutor
-from analysis_driver.config import default as cfg
 from analysis_driver.app_logging import get_logger
-from .dataset_scanner import is_ready, is_not_ready
 
 app_logger = get_logger('tt_agent')
 
 
-def rsync(dataset):
+def transfer_to_int_dir(dataset, from_dir, to_dir, repeat_delay):
+    """
+    rsync -aqu --size-only --partial from_dir/dataset to_dir
+    :param str dataset:
+    :param str from_dir:
+    :param str to_dir:
+    :param int repeat_delay:
+    """
     app_logger.info('Starting transfer')
-    while is_not_ready(dataset):
-        executor = StreamExecutor(
-            [
-                'rsync',
-                '-aqu',
-                '--size-only',
-                '--partial',
-                os.path.join(cfg['raw_dir'], dataset),
-                cfg['input_data']
-            ]
-        )
-        executor.run()
-        sleep(int(cfg['tt_agent_delay']))
+    while dataset_status(dataset) != 'new, rta complete':
+        _run(['rsync', '-aqu', '--size-only', '--partial', os.path.join(from_dir, dataset), to_dir])
+        sleep(repeat_delay)
 
-    assert is_ready(dataset)
+    # one more rsync after the RTAComplete is created. After this, everything should be synced
+    _run(['rsync', '-avu', '--size-only', '--partial', os.path.join(from_dir, dataset), to_dir])
+    assert os.path.isfile(os.path.join(to_dir, dataset, 'RTAComplete.txt'))
     app_logger.info('Transfer complete')
+
+
+def _run(cmd):
+    executor = StreamExecutor(cmd)
+    executor.run()

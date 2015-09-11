@@ -3,7 +3,7 @@ import argparse
 import logging
 import os.path
 import sys
-from analysis_driver import process_trigger as proctrigger
+from analysis_driver import dataset_scanner as scanner
 from analysis_driver import app_logging
 from analysis_driver.config import default as cfg, logging_default as log_cfg
 from analysis_driver.exceptions import AnalysisDriverError
@@ -36,41 +36,53 @@ def main():
     )
     args = parser.parse_args()
 
+    _setup_logging(args)
+
     if args.report:
-        proctrigger.report()
+        scanner.report()
     elif args.report_all:
-        proctrigger.report(all_datasets=True)
+        scanner.report(all_datasets=True)
     elif args.skip:
-        proctrigger.skip(args.skip)
+        scanner.skip(args.skip)
     elif args.reset:
-        proctrigger.reset(args.reset)
+        scanner.reset(args.reset)
     else:
-        for d, s in proctrigger.scan_datasets():
-            if s == 'ready':
-                proctrigger.setup_run(d)
-                _setup_logging(d, args)
-                app_logger = app_logging.get_logger('trigger')
-                app_logger.info('Using config file at ' + cfg.config_file)
-                app_logger.info('Triggering for dataset: ' + d)
+        if cfg.get('intermediate_dir'):
+            use_int_dir = True
+            required_status = 'new'
+        else:
+            use_int_dir = False
+            required_status = 'new, rta complete'
+        for d, s in scanner.scan_datasets():
+            if required_status in s:
+                app_logger = app_logging.get_logger('client')
+                log_cfg.add_handler(
+                    'dataset',
+                    logging.FileHandler(filename=os.path.join(cfg['jobs_dir'], d, 'analysis_driver.log'))
+                )
 
                 try:
-                    proctrigger.trigger(d)
+                    from analysis_driver import process_trigger as proctrigger
+                    proctrigger.setup_run(d)
+                    app_logger.info('Using config file at ' + cfg.config_file)
+                    app_logger.info('Triggering for dataset: ' + d)
                     # Only process the first new dataset found. Run through Cron, this will result
                     # in one new pipeline being kicked off per minute.
-                    proctrigger.trigger(d)
+                    proctrigger.trigger(d, use_int_dir)
                     app_logger.info('Done')
                     return 0
+
                 except Exception:
-                    _log_stacktrace()
+                    _log_stacktrace(app_logger)
                     return 1
 
-        _setup_logging(None, args)
+        app_logger = app_logging.get_logger('client')
         app_logger.debug('No new datasets found')
 
     return 0
 
 
-def _setup_logging(dataset, args):
+def _setup_logging(args):
     if args.debug:
         log_cfg.log_level = logging.DEBUG
     else:
@@ -92,19 +104,12 @@ def _setup_logging(dataset, args):
                 raise AnalysisDriverError('Invalid logging configuration: %s %s' % name, str(info))
             log_cfg.add_handler(name, handler)
 
-    # dataset-specific FileHandler
-    if dataset:
-        dataset_log = os.path.join(cfg['jobs_dir'], dataset, 'analysis_driver.log')
-        log_cfg.add_handler('file', logging.FileHandler(filename=dataset_log)) 
 
-
-def _log_stacktrace():
+def _log_stacktrace(logger):
     import traceback
     lines = traceback.format_exc().splitlines()
 
     # switch all active logging handlers to a blank Formatter
     log_cfg.switch_formatter(logging.Formatter())
-    app_logger = app_logging.get_logger('trigger')
     for line in lines:
-        app_logger.error(line)
-
+        logger.error(line)

@@ -1,23 +1,28 @@
 __author__ = 'mwham'
 import os
 from analysis_driver.config import default as cfg
-from .dataset_scanner import report, skip, reset, scan_datasets, lock_file, touch
+from analysis_driver.dataset_scanner import dataset_status, switch_status
 from . import tt_agent
 
 
-def trigger(dataset):
-    active_lock = lock_file(dataset, 'active')
-    complete_lock = lock_file(dataset, 'complete')
-
-    touch(active_lock)
-    if cfg.get('raw_dir'):
-        tt_agent.rsync(dataset)
+def trigger(dataset, use_intermediate_dir):
+    if use_intermediate_dir:
+        assert dataset_status(dataset) in ('new', 'new, rta complete')
+        switch_status(dataset, 'transferring')
+        tt_agent.transfer_to_int_dir(
+            dataset,
+            cfg['input_dir'],
+            cfg['intermediate_dir'],
+            repeat_delay=int(cfg['tt_agent_delay'])
+        )
+    else:
+        assert dataset_status(dataset) == 'new, rta_complete'
+    switch_status(dataset, 'active')
 
     from analysis_driver import driver
-    driver.pipeline(os.path.join(cfg['input_dir'], dataset))
+    driver.pipeline(os.path.join(cfg['intermediate_dir'], dataset))
 
-    os.remove(active_lock)
-    touch(complete_lock)
+    switch_status(dataset, 'complete')
 
 
 def setup_run(dataset):
