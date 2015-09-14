@@ -1,6 +1,7 @@
 __author__ = 'tcezard'
 import smtplib
 from email.mime.text import MIMEText
+from time import sleep
 from analysis_driver.app_logging import AppLogger
 from analysis_driver.exceptions import AnalysisDriverError
 
@@ -49,6 +50,7 @@ class EmailNotification(AppLogger):
 
             retries += 1
             if retries <= 3:
+                sleep(2)
                 return self._try_send(body, retries)
             else:
                 return False

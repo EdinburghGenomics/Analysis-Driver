@@ -148,7 +148,7 @@ def _run_bcbio(run_id, fastq_dir, job_dir, sample_sheet):
 
             merged_fastqs = util.bcbio_prepare_samples(job_dir, sample_id, id_fastqs)
             util.setup_bcbio_run(
-                os.path.join(os.path.dirname(__file__), '..', 'etc', 'bcbio_alignment.yaml'),
+                os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'etc', 'bcbio_alignment.yaml'),
                 os.path.join(job_dir, 'bcbio'),
                 os.path.join(job_dir, 'samples_' + sample_id + '-merged.csv'),
                 *merged_fastqs

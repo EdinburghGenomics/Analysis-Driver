@@ -1,8 +1,9 @@
 __author__ = 'mwham'
 import argparse
 import logging
-import os.path
+import os
 import sys
+from datetime import datetime as dt
 from analysis_driver import dataset_scanner as scanner
 from analysis_driver import app_logging
 from analysis_driver.config import default as cfg, logging_default as log_cfg
@@ -55,19 +56,23 @@ def main():
             required_status = 'new, rta complete'
         for d, s in scanner.scan_datasets():
             if required_status in s:
-                app_logger = app_logging.get_logger('client')
+                _setup_run(d)
                 log_cfg.add_handler(
                     'dataset',
-                    logging.FileHandler(filename=os.path.join(cfg['jobs_dir'], d, 'analysis_driver.log'))
+                    logging.FileHandler(
+                        filename=os.path.join(cfg['jobs_dir'], d, 'analysis_driver.log'),
+                        mode='w'
+                    )
                 )
+                app_logger = app_logging.get_logger('client')
+                _log_app_info(app_logger)
+                app_logger.info('Using config file at ' + cfg.config_file)
+                app_logger.info('Triggering for dataset: ' + d)
 
                 try:
-                    from analysis_driver import process_trigger as proctrigger
-                    proctrigger.setup_run(d)
-                    app_logger.info('Using config file at ' + cfg.config_file)
-                    app_logger.info('Triggering for dataset: ' + d)
                     # Only process the first new dataset found. Run through Cron, this will result
                     # in one new pipeline being kicked off per minute.
+                    from analysis_driver import process_trigger as proctrigger
                     proctrigger.trigger(d, use_int_dir)
                     app_logger.info('Done')
                     return 0
@@ -105,11 +110,29 @@ def _setup_logging(args):
             log_cfg.add_handler(name, handler)
 
 
+def _setup_run(dataset):
+    for d in ['fastq_dir', 'jobs_dir']:
+        try:
+            os.makedirs(os.path.join(cfg[d], dataset))
+        except FileExistsError:
+            pass
+
+
 def _log_stacktrace(logger):
     import traceback
     lines = traceback.format_exc().splitlines()
 
     # switch all active logging handlers to a blank Formatter
-    log_cfg.switch_formatter(logging.Formatter())
+    log_cfg.switch_formatter(log_cfg.blank_formatter)
     for line in lines:
         logger.error(line)
+
+def _log_app_info(logger):
+    log = logger.info
+    log_cfg.switch_formatter(log_cfg.blank_formatter)
+    log('\nEdinburgh Genomics Analysis Driver')
+    version_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'version.txt')
+    with open(version_file, 'r') as f:
+        log('Version ' + open(version_file).read() + '\n')
+    log_cfg.switch_formatter(log_cfg.default_formatter)
+

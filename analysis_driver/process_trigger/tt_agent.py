@@ -17,12 +17,13 @@ def transfer_to_int_dir(dataset, from_dir, to_dir, repeat_delay):
     :param int repeat_delay:
     """
     app_logger.info('Starting transfer')
-    while dataset_status(dataset) != 'new, rta complete':
+    while dataset_status(dataset) != 'transferring, rta complete':
         _run(['rsync', '-aqu', '--size-only', '--partial', os.path.join(from_dir, dataset), to_dir])
         sleep(repeat_delay)
 
     # one more rsync after the RTAComplete is created. After this, everything should be synced
-    _run(['rsync', '-avu', '--size-only', '--partial', os.path.join(from_dir, dataset), to_dir])
+    sleep(repeat_delay)
+    _run(['rsync', '-aqu', '--size-only', '--partial', os.path.join(from_dir, dataset), to_dir])
     assert os.path.isfile(os.path.join(to_dir, dataset, 'RTAComplete.txt'))
     app_logger.info('Transfer complete')
 

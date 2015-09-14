@@ -69,7 +69,11 @@ class Configuration:
         for config in [
             os.getenv('ANALYSISDRIVERCONFIG'),
             os.path.expanduser('~/.analysisdriver.yaml'),
-            os.path.join(os.path.dirname(os.path.dirname(__file__)), 'etc', 'analysisdriver.yaml')
+            os.path.join(
+                os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                'etc',
+                'analysisdriver.yaml'
+            )
         ]:
             if config and os.path.isfile(config):
                 return config
@@ -90,10 +94,12 @@ class LoggingConfiguration:
     setting up logging.
     """
     def __init__(self):
-        self.formatter = logging.Formatter(
+        self.default_formatter = logging.Formatter(
             fmt=default['logging']['format'],
             datefmt=default['logging']['datefmt']
         )
+        self.blank_formatter = logging.Formatter()
+        self.formatter = self.default_formatter
         self.handlers = {}
         self.log_level = logging.INFO
 

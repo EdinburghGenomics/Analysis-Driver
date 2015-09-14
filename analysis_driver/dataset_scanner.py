@@ -9,7 +9,7 @@ def report(all_datasets=False):
 
     print('========= Process Trigger report =========')
     print('=== new datasets ===')
-    print('\n'.join(_fetch_by_status(datasets, 'new')))
+    print('\n'.join(_fetch_by_status(datasets, 'new', 'new, rta complete')))
     print('=== transferring datasets ===')
     print('\n'.join(_fetch_by_status(datasets, 'transferring')))
 
@@ -52,8 +52,8 @@ def switch_status(dataset, status):
     touch(lock_file(dataset, status))
 
 
-def _fetch_by_status(all_datasets, status):
-    datasets = [d for (d, s) in all_datasets if s == status]
+def _fetch_by_status(all_datasets, *statuses):
+    datasets = [d for (d, s) in all_datasets if s in statuses]
     if datasets:
         return datasets
     else:
@@ -72,10 +72,14 @@ def dataset_status(dataset):
     elif active:
         assert rta_complete
         return 'active'
+
+    elif transferring and rta_complete:
+        return 'transferring, rta complete'
     elif transferring:
         return 'transferring'
     elif rta_complete:
         return 'new, rta complete'
+    
     else:
         return 'new'
 

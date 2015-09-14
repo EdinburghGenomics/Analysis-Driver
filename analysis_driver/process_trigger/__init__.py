@@ -24,10 +24,3 @@ def trigger(dataset, use_intermediate_dir):
 
     switch_status(dataset, 'complete')
 
-
-def setup_run(dataset):
-    for d in ['fastq_dir', 'jobs_dir']:
-        try:
-            os.makedirs(os.path.join(cfg[d], dataset))
-        except FileExistsError:
-            pass
