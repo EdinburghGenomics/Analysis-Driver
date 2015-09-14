@@ -1,6 +1,6 @@
 __author__ = 'mwham'
 from tests.test_analysisdriver import TestAnalysisDriver
-from analysis_driver.util import fastq_handler
+from analysis_driver import util
 from analysis_driver.app_logging import AppLogger
 import os.path
 
@@ -23,15 +23,50 @@ class TestLogger(TestAnalysisDriver):
 class TestFastqHandler(TestAnalysisDriver):
 
     def test_find_fastqs(self):
-        fastqs = fastq_handler.find_fastqs(self.fastq_path, '10015AT')
+        fastqs = util.fastq_handler.find_fastqs(self.fastq_path, '10015AT')
         for file_name in ['this.fastq.gz', 'that.fastq.gz', 'other.fastq.gz']:
             assert os.path.join(
                 self.fastq_path, '10015AT', '10015ATA0001L05', file_name
             ) in fastqs['10015ATA0001L05']
 
     def test_flatten_fastqs(self):
-        fastqs = fastq_handler.flatten_fastqs(self.fastq_path, ['10015AT'])
+        fastqs = util.fastq_handler.flatten_fastqs(self.fastq_path, ['10015AT'])
         for file_name in ['this.fastq.gz', 'that.fastq.gz', 'other.fastq.gz']:
             assert os.path.join(
                 self.fastq_path, '10015AT', '10015ATA0001L05', file_name
             ) in fastqs
+
+
+def test_transfer_output_files():
+    sample_id = '10015AT0001'
+    destination = os.path.join(helper.data_output, 'output_data')
+    for f in os.listdir(destination):
+        os.remove(os.path.join(destination, f))
+    assert not os.listdir(destination)
+
+    source_path_mapping = {
+        'vcf': os.path.join(helper.data_output, 'samples_10015AT0001-merged', 'final'),
+        'bam': os.path.join(helper.data_output, 'samples_10015AT0001-merged', 'final'),
+        'fastq': os.path.join(helper.data_output, 'merged_fastqs')
+    }
+
+    util.transfer_output_files(sample_id, destination, source_path_mapping)
+
+    output_files = os.listdir(destination)
+    output_files.sort()
+
+    expected_outputs = [
+        '10015AT0001.bam',
+        '10015AT0001.bam.bai',
+        '10015AT0001.bam.bai.md5',
+        '10015AT0001.bam.md5',
+        '10015AT0001.g.vcf.gz',
+        '10015AT0001.g.vcf.gz.md5',
+        '10015AT0001.g.vcf.gz.tbi',
+        '10015AT0001.g.vcf.gz.tbi.md5',
+        '10015AT0001_R1.fastq.gz',
+        '10015AT0001_R1.fastq.gz.md5',
+        '10015AT0001_R2.fastq.gz',
+        '10015AT0001_R2.fastq.gz.md5'
+        ]
+    assert output_files == expected_outputs

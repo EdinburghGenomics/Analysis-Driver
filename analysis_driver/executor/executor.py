@@ -2,8 +2,8 @@ __author__ = 'mwham'
 import threading
 import subprocess
 import select  # asynchronous IO
-
 from analysis_driver.app_logging import AppLogger
+from analysis_driver.exceptions import AnalysisDriverError
 from analysis_driver.config import default as cfg
 
 
@@ -55,7 +55,10 @@ class StreamExecutor(Executor, threading.Thread):
 
     def join(self, timeout=None):
         super().join(timeout=timeout)
-        return self.proc.wait()
+        try:
+            return self.proc.wait()
+        except AttributeError as e:
+            raise AnalysisDriverError('Invalid parameters passed to self.proc: ' + str(self.cmd)) from e
 
 
 class ClusterExecutor(StreamExecutor):

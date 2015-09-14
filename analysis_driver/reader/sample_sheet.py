@@ -115,6 +115,9 @@ class SampleSheet(AppLogger):
         self.debug('Done')
         return error
 
+    def get_samples(self, sample_project, sample_id):
+        return self.sample_projects[sample_project].sample_ids[sample_id].samples
+
     def _populate(self):
         f, header = _read_sample_sheet(self.data_dir, 'SampleSheet_analysis_driver.csv')
         reader = csv.DictReader(f)
@@ -130,8 +133,9 @@ class SampleSheet(AppLogger):
                     sample_project=sample_project,
                     lane=line[self._get_column(cols, 'lane')],
                     sample_id=sample_id,
+                    sample_name=line[self._get_column(cols, 'sample_name')],
                     barcode=line[self._get_column(cols, 'barcode')],
-                    **self._get_all_cols(line, ignore=['sample_project', 'sample_id', 'lane', 'barcode'])
+                    **self._get_all_cols(line, ignore=['sample_project', 'sample_id', 'sample_name' 'lane', 'barcode'])
                 )
 
                 sample_project_obj = self._get_sample_project(sample_project)
@@ -206,9 +210,10 @@ class Sample:
     This represents a Sample, i.e. a line in SampleSheet.csv below the '[Data]' marker. Supports dict-style
     attribute fetching, e.g. sample_object['lane']
     """
-    def __init__(self, sample_project, sample_id, lane, barcode, **kwargs):
+    def __init__(self, sample_project, sample_id, sample_name, lane, barcode, **kwargs):
         self.sample_project = sample_project
         self.sample_id = sample_id
+        self.sample_name = sample_name
         self.lane = lane
         self.barcode = barcode
         self.extra_data = kwargs

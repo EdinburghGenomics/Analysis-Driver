@@ -4,7 +4,7 @@ from .script_writer import ScriptWriter
 
 class PBSWriter(ScriptWriter):
     """
-    Writes a basic PBS submission script. Contains methods specific to PBS header statements and environment
+    Writes a Bash script to be run on PBS. Contains methods specific to PBS header statements and environment
     variables.
     """
     suffix = '.pbs'

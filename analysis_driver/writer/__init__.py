@@ -31,18 +31,21 @@ def get_script_writer(job_name, run_id, walltime, cpus, mem, jobs=1):
         return ScriptWriter(job_name, run_id, jobs)
 
 
-def write_jobs(writer, jobs):
+def write_jobs(writer, jobs, log_file_base=None):
     """
     :param ScriptWriter writer:
-    :param jobs:
-    :return:
+    :param list jobs: a list of commands to be written
+    :return: the name of the script written
     """
     if len(jobs) == 1:
         writer.write_line(jobs[0])
     else:
         writer.start_array()
         for idx, job in enumerate(jobs):
-            writer.write_array_cmd(idx + 1, job)
+            if log_file_base:
+                writer.write_array_cmd(idx + 1, job, log_file_base + str(idx + 1) + '.log')
+            else:
+                writer.write_array_cmd(idx + 1, job)
         writer.finish_array()
     writer.save()
 
