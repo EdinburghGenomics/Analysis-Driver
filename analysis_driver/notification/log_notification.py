@@ -1,13 +1,13 @@
 __author__ = 'tcezard'
 import logging
+from .notification_center import Notification
 from analysis_driver.config import logging_default as log_cfg
-from analysis_driver.app_logging import AppLogger
 from analysis_driver.exceptions import AnalysisDriverError
 
 
-class LogNotification(AppLogger):
+class LogNotification(Notification):
     def __init__(self, run_id, log_file):
-        self.run_id = run_id
+        super().__init__(run_id)
         self.handler = logging.FileHandler(filename=log_file)
         self.formatter = logging.Formatter(
             fmt='[%(asctime)s][' + self.run_id + '] %(message)s',
@@ -30,6 +30,9 @@ class LogNotification(AppLogger):
 
     def end_pipeline(self):
         self.info('Finished pipeline')
+
+    def fail_pipeline(self, message='', **kwargs):
+        self.error(self._format_error_message(message, kwargs.get('stacktrace')))
 
     def _succeed_stage(self, stage_name):
         self.info('Finished stage ' + stage_name)

@@ -2,13 +2,13 @@ __author__ = 'tcezard'
 import smtplib
 from email.mime.text import MIMEText
 from time import sleep
-from analysis_driver.app_logging import AppLogger
+from .notification_center import Notification
 from analysis_driver.exceptions import AnalysisDriverError
 
 
-class EmailNotification(AppLogger):
+class EmailNotification(Notification):
     def __init__(self, run_id, cfg):
-        self.run_id = run_id
+        super().__init__(run_id)
         self.reporter = cfg['reporter_email']
         self.recipients = cfg['recipient_emails']
         self.mailhost = cfg['mailhost']
@@ -16,9 +16,6 @@ class EmailNotification(AppLogger):
 
     def start_pipeline(self):
         self._send_mail('Pipeline started for run ' + self.run_id)
-
-    def start_stage(self, stage_name):
-        pass
 
     def end_stage(self, stage_name, exit_status=0, stop_on_error=False):
         if exit_status == 0:
@@ -28,6 +25,9 @@ class EmailNotification(AppLogger):
 
     def end_pipeline(self):
         self._send_mail('Pipeline finished for run ' + self.run_id)
+
+    def fail_pipeline(self, message='', **kwargs):
+        self._send_mail(self._format_error_message(message, kwargs.get('stacktrace')))
 
     def _fail_stage(self, stage_name, exit_status, stop_on_error):
         msg = ('%s failed for run %s with exit status %s' % (stage_name, self.run_id, exit_status))

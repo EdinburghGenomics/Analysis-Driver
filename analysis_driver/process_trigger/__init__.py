@@ -17,7 +17,7 @@ def trigger(dataset, use_intermediate_dir):
         )
         dataset_dir = cfg['intermediate_dir']
     else:
-        assert dataset_status(dataset) == 'new, rta_complete'
+        assert dataset_status(dataset) == 'new, rta complete'
         dataset_dir = cfg['input_dir']
 
     switch_status(dataset, 'active')

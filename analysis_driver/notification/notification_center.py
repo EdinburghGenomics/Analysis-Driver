@@ -48,4 +48,31 @@ class NotificationCenter(AppLogger):
         return _Method(self._pass_to_subscriber, name)
 
 
+class Notification(AppLogger):
+    def __init__(self, run_id):
+        self.run_id = run_id
+
+    def start_pipeline(self):
+        pass
+
+    def start_stage(self, stage_name):
+        pass
+
+    def end_stage(self, stage_name, exit_status=0, stop_on_error=False):
+        pass
+
+    def end_pipeline(self):
+        pass
+
+    def fail_pipeline(self, message='', **kwargs):
+        pass
+
+    @staticmethod
+    def _format_error_message(message='', stacktrace=None):
+        msg = 'Run failed.' + message
+        if stacktrace:
+            msg += '\nStack trace below:\n\n' + stacktrace
+        return msg
+
+
 default = NotificationCenter()

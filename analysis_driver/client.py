@@ -24,11 +24,21 @@ def main():
     )
     parser.add_argument(
         '--skip',
+        nargs='+',
+        default=[],
         help='mark a dataset as completed'
     )
     parser.add_argument(
         '--reset',
+        nargs='+',
+        default=[],
         help='unmark a dataset as complete/in progress for rerunning'
+    )
+    parser.add_argument(
+        '--abort',
+        nargs='+',
+        default=[],
+        help='mark a dataset as aborted'
     )
     parser.add_argument(
         '--debug',
@@ -39,14 +49,19 @@ def main():
 
     _setup_logging(args)
 
+    if args.reset or args.skip or args.abort:
+        for d in args.abort:
+            scanner.abort(d)
+        for d in args.skip:
+            scanner.skip(d)
+        for d in args.reset:
+            scanner.reset(d)
+        return 0
+
     if args.report:
         scanner.report()
     elif args.report_all:
         scanner.report(all_datasets=True)
-    elif args.skip:
-        scanner.skip(args.skip)
-    elif args.reset:
-        scanner.reset(args.reset)
     else:
         if cfg.get('intermediate_dir'):
             use_int_dir = True
@@ -84,7 +99,7 @@ def main():
                     return 0
 
                 except Exception:
-                    _log_stacktrace(app_logger)
+                    _stacktrace()
                     return 1
 
         app_logger = app_logging.get_logger('client')
@@ -125,14 +140,11 @@ def _setup_run(dataset):
             pass
 
 
-def _log_stacktrace(logger):
+def _stacktrace():
     import traceback
-    lines = traceback.format_exc().splitlines()
-
     # switch all active logging handlers to a blank Formatter
     log_cfg.switch_formatter(log_cfg.blank_formatter)
-    for line in lines:
-        logger.error(line)
+    ntf.fail_pipeline(stacktrace=traceback.format_exc())
 
 
 def _log_app_info(logger):

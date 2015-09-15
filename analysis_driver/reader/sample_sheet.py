@@ -136,7 +136,10 @@ class SampleSheet(AppLogger):
                     sample_id=sample_id,
                     sample_name=line[self._get_column(cols, 'sample_name')],
                     barcode=line[self._get_column(cols, 'barcode')],
-                    **self._get_all_cols(line, ignore=['sample_project', 'sample_id', 'sample_name' 'lane', 'barcode'])
+                    **self._get_all_cols(
+                        line,
+                        ignore=['sample_project', 'sample_id', 'sample_name' 'lane', 'barcode']
+                    )
                 )
 
                 sample_project_obj = self._get_sample_project(sample_project)
