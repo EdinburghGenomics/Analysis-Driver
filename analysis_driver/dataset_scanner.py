@@ -5,13 +5,12 @@ from analysis_driver.config import default as cfg
 
 def report(all_datasets=False):
     datasets = scan_datasets()
-    print(datasets)
 
     print('========= Process Trigger report =========')
     print('=== new datasets ===')
     print('\n'.join(_fetch_by_status(datasets, 'new', 'new, rta complete')))
     print('=== transferring datasets ===')
-    print('\n'.join(_fetch_by_status(datasets, 'transferring')))
+    print('\n'.join(_fetch_by_status(datasets, 'transferring', 'transferring, rta complete')))
 
     print('=== active datasets ===')
     print('\n'.join(_fetch_by_status(datasets, 'active')))
@@ -28,9 +27,15 @@ def report(all_datasets=False):
 
 
 def scan_datasets():
+    triggerignore_file = os.path.join(cfg.get('lock_file_dir', cfg['input_dir']), '.triggerignore')
+    if os.path.isfile(triggerignore_file):
+        triggerignore = [x.strip() for x in open(triggerignore_file).readlines()]
+    else:
+        triggerignore = []
+
     all_datasets = []
     for d in os.listdir(cfg['input_dir']):
-        if os.path.isdir(os.path.join(cfg['input_dir'], d)):
+        if os.path.isdir(os.path.join(cfg['input_dir'], d)) and d not in triggerignore:
             all_datasets.append((d, dataset_status(d)))
             
     all_datasets.sort()
