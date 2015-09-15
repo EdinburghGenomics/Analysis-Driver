@@ -20,9 +20,14 @@ class NotificationCenter(AppLogger):
     def __init__(self):
         self.subscribers = []
 
-    def add_subscribers(self, run_id, **ntf_cfgs):
-        for k in ntf_cfgs:
-            notifier, config = ntf_cfgs[k]
+    def add_subscribers(self, run_id, *subscribers):
+        """
+        e.g: ntf.add_subscribers('a_run_id', (LogNotification, cfg.query('notification', 'log_notification'))
+        :param str run_id: A run id to assign to the subscriber
+        :param tuple[callable, dict] subscribers: This should be a tuple containing the ClassName and
+        configuration
+        """
+        for notifier, config in subscribers:
             if config:
                 self.subscribers.append(notifier(run_id, config))
 

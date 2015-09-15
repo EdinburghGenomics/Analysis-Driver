@@ -2,7 +2,8 @@ __author__ = 'tcezard'
 import pytest
 from smtplib import SMTPException
 from analysis_driver.notification.notification_center import NotificationCenter
-from analysis_driver.notification.email_notification import EmailNotification
+from analysis_driver.notification import EmailNotification, LogNotification
+from analysis_driver.config import default as cfg
 from analysis_driver.exceptions import AnalysisDriverError
 from tests.test_analysisdriver import TestAnalysisDriver
 
@@ -10,6 +11,11 @@ from tests.test_analysisdriver import TestAnalysisDriver
 class TestNotificationCenter(TestAnalysisDriver):
     def setUp(self):
         self.notification_center = NotificationCenter()
+        self.notification_center.add_subscribers(
+            'test_run_id',
+            (LogNotification, cfg.query('notification', 'log_notification')),
+            (TestEmailNotification, cfg.query('notification', 'email_notification'))
+        )
 
         email_config = {
             'mailhost': 'renko.ucs.ed.ac.uk',
@@ -17,7 +23,8 @@ class TestNotificationCenter(TestAnalysisDriver):
             'reporter_email': 'murray.wham@ed.ac.uk',
             'recipient_emails': ['murray.wham@ed.ac.uk']
         }
-        self.email_notification = TestMailRetries('test_run', email_config)
+        print(self.notification_center.subscribers)
+        self.email_notification = TestEmailNotification('test_run', email_config)
 
     def test_notification_center(self):
         self.notification_center.start_stage('test stage')
@@ -35,7 +42,7 @@ class TestNotificationCenter(TestAnalysisDriver):
             assert 'Failed to send message: dodgy' in str(e)
 
 
-class TestMailRetries(EmailNotification):
+class TestEmailNotification(EmailNotification):
 
     def _connect_and_send(self, msg):
         """

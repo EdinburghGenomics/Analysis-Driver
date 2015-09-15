@@ -87,7 +87,7 @@ class ClusterExecutor(StreamExecutor):
 
     @staticmethod
     def _pbs_cmd(block):
-        cmd = ['qsub']
+        cmd = [cfg['qsub']]
         if block:
             cmd.append('-W')
             cmd.append('block=true')

@@ -32,6 +32,27 @@ class Configuration:
         except KeyError:
             return return_default
 
+    def query(self, *parts, top_level=None):
+        """
+        Drill down into a config, e.g:
+            cfg.query('logging', 'handlers', 'a_handler', 'level')
+        :param str parts: Each part of the 'path' to the desired item
+        :return: The relevant item if it exists in the config, else None.
+        """
+        if top_level is None:
+            top_level = self.content
+        previous_level = top_level
+        item = None
+
+        for p in parts:
+            item = previous_level.get(p)
+            if item:
+                previous_level = item
+            else:
+                return None
+
+        return item
+
     @property
     def environment(self):
         """
@@ -39,7 +60,7 @@ class Configuration:
         the environment variable 'ANALYSISDRIVERENV'
         """
         if not self._environment:
-            self._environment = os.getenv('ANALYSISDRIVERENV', 'testing')  # Default to 'testing'
+            self._environment = os.getenv('ANALYSISDRIVERENV', 'testing')  # default to 'testing'
         return self._environment
 
     @classmethod
@@ -118,5 +139,6 @@ class LoggingConfiguration:
             self.handlers[name].setFormatter(self.formatter)
 
 
-default = Configuration()  # singleton for access by other modules
+# singletons for access by other modules
+default = Configuration()
 logging_default = LoggingConfiguration()

@@ -15,12 +15,14 @@ def trigger(dataset, use_intermediate_dir):
             cfg['intermediate_dir'],
             repeat_delay=int(cfg['tt_agent_delay'])
         )
+        dataset_dir = cfg['intermediate_dir']
     else:
         assert dataset_status(dataset) == 'new, rta_complete'
+        dataset_dir = cfg['input_dir']
+
     switch_status(dataset, 'active')
 
     from analysis_driver import driver
-    driver.pipeline(os.path.join(cfg['intermediate_dir'], dataset))
+    driver.pipeline(os.path.join(dataset_dir, dataset))
 
     switch_status(dataset, 'complete')
-

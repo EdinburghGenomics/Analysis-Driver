@@ -9,6 +9,3 @@ class TestExecutor(TestAnalysisDriver):
 
     def test_cmd(self):
         assert self.executor.cmd == ['ls', self.assets_path]
-
-    def test_process(self):
-        pass

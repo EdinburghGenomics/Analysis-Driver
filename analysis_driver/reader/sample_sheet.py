@@ -13,9 +13,10 @@ def transform_sample_sheet(data_dir):
     before, header = _read_sample_sheet(data_dir, 'SampleSheet.csv')
     cols = before.readline().strip().split(',')
     after = open(os.path.join(data_dir, 'SampleSheet_analysis_driver.csv'), 'w')
+    transformations = cfg['sample_sheet'].get('transformations', [])
     for idx, col in enumerate(cols):
-        if col in cfg['sample_sheet']['transformations']:
-            cols[idx] = cfg['sample_sheet']['transformations'][col]
+        if col in transformations:
+            cols[idx] = transformations[col]
     for line in header:
         after.write(line)
     after.write('[Data],\n')

@@ -27,7 +27,10 @@ def report(all_datasets=False):
 
 
 def scan_datasets():
-    triggerignore_file = os.path.join(cfg.get('lock_file_dir', cfg['input_dir']), '.triggerignore')
+    triggerignore_file = os.path.join(
+        cfg.get('lock_file_dir', cfg['input_dir']),
+        '.triggerignore'
+    )
     if os.path.isfile(triggerignore_file):
         triggerignore = [x.strip() for x in open(triggerignore_file).readlines()]
     else:
@@ -126,6 +129,7 @@ def lock_file(dataset, status):
 
 def touch(file):
     open(file, 'w').close()
+
 
 def _rm(file):
     if os.path.isfile(file):

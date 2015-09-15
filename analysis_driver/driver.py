@@ -3,7 +3,7 @@ from analysis_driver import reader, writer, util, executor
 from analysis_driver.exceptions import AnalysisDriverError
 from analysis_driver.app_logging import get_logger
 from analysis_driver.config import default as cfg
-from analysis_driver.notification import default as ntf, LogNotification, EmailNotification
+from analysis_driver.notification import default as ntf
 
 app_logger = get_logger('driver')
 
@@ -15,14 +15,6 @@ def pipeline(input_run_folder):
     :rtype: int
     """
     run_id = os.path.basename(input_run_folder)
-
-    ntf_config = cfg.get('notification')
-    if ntf_config:
-        ntf.add_subscribers(
-            run_id,
-            log_notification=(LogNotification, ntf_config.get('log_notification')),
-            email_notification=(EmailNotification, ntf_config.get('email_notification'))
-        )
 
     ntf.start_pipeline()
     ntf.start_stage('setup')
