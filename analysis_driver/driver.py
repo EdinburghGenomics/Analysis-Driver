@@ -19,8 +19,8 @@ def pipeline(input_run_folder):
     ntf.start_pipeline()
     ntf.start_stage('setup')
 
-    fastq_dir = os.path.join(cfg['fastq_dir'], run_id)
     job_dir = os.path.join(cfg['jobs_dir'], run_id)
+    fastq_dir = os.path.join(job_dir, 'fastq')
     app_logger.info('Input run folder (bcl data source): ' + input_run_folder)
     app_logger.info('Fastq dir: ' + fastq_dir)
     app_logger.info('Job dir: ' + job_dir)
@@ -53,14 +53,12 @@ def pipeline(input_run_folder):
     # wait for fastqc and bcbio to finish
     fastqc_exit_status = fastqc_executor.join()
     ntf.end_stage('fastqc', fastqc_exit_status)
-
     bcbio_exit_status = bcbio_executor.join()
-    ntf.end_stage('bcbio', bcbio_exit_status)
+    ntf.end_stage('bcbio', bcbio_exit_status, stop_on_error=True)
     
     # transfer output data
     ntf.start_stage('data_transfer')
     transfer_exit_status = _output_data(sample_sheet, job_dir)
-
     ntf.end_stage('data_transfer', transfer_exit_status)
 
     ntf.end_pipeline()
@@ -150,11 +148,11 @@ def _run_bcbio(run_id, fastq_dir, job_dir, sample_sheet):
         'bcbio',
         run_id,
         walltime=96,
-        cpus=16,
+        cpus=12,
         mem=64,
         jobs=len(bcbio_array_cmds)
     )
-    for cmd in writer.commands.bcbio_java_paths():
+    for cmd in writer.commands.bcbio_env_vars():
         bcbio_writer.write_line(cmd)
 
     bcbio_script = writer.write_jobs(
