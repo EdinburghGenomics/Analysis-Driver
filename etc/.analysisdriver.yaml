@@ -27,9 +27,7 @@ testing:
             stdout:
                 level: INFO
                 stream: ext://sys.stdout
-#           other_handler:
-#               level: DEBUG
-#               filename: /Users/mwham/workspace/EdGen_Analysis_Driver/Applications/analysis_driver.log
+
     sample_sheet:
         column_names:
             sample_project: [Sample_Project, SampleProject, Project_Name]
@@ -38,9 +36,14 @@ testing:
             barcode: [Index, index]
         transformations:
             Project_Name: Sample_Project
+
     notification:
-#        email_notification:
-#            mailhost: smtp.staffmail.ed.ac.uk
-#            reporter_email: timothee.cezard@ed.ac.uk
-#            recipient_emails: [timothee.cezard@ed.ac.uk]
         log_notification: /Users/mwham/workspace/EdGen_Analysis_Driver/analysis_driver_notifications.log
+
+    genotype-validation:
+        reference: /path/to/synthetic-reference
+        genotypes_repository: /path/to/genotype_repository
+        gatk: /path/to/gatk.jar
+        samblaster: /path/to/samblaster
+        samtools: /path/to/samtools
+        sambamba: /path/to/sambamba

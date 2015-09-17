@@ -67,28 +67,4 @@ def bcbio(run_yaml, workdir, cores=16):
     return cmd
 
 
-def align_with_bwa_aln(fastqs_files, sample_name, output_bam_file,  reference):
-    """
-    Contruct a command that will perform the alignment and duplicate removal using bwa aln.
-    :param fastqs_files: array containing 1 or 2 fastq files
-    :param sample_name: the name of the sample that should be added in the read group
-    :param output_bam_file: the name of the bam file that will be created
-    :param reference: the path to the reference file that will be used to align
-    :rtype: str
-    """
-    if len(fastqs_files) == 2:
-        command_aln1  = '%s aln %s %s' % (cfg.get('bwa', 'bwa'), reference, fastqs_files[0])
-        command_aln2  = '%s aln %s %s' % (cfg.get('bwa', 'bwa'), reference, fastqs_files[1])
-        command_bwa = "%s sampe -r '@RG\\tID:1\\tSM:%s' %s <(%s) <(%s) %s %s" % (cfg.get('bwa', 'bwa'), sample_name,
-                                                                                 reference, command_aln1, command_aln2,
-                                                                                 fastqs_files[0], fastqs_files[1])
-    elif len(fastqs_files) == 1:
-        command_aln1  = '%s aln %s %s' % (cfg.get('bwa', 'bwa'), reference, fastqs_files[0])
-        command_bwa = "%s samse -r '@RG\\tID:1\\tSM:%s' %s <(%s) %s" % (cfg.get('bwa', 'bwa'), sample_name, reference,
-                                                                        command_aln1, fastqs_files[0])
 
-    command_samblaster = '%s --removeDups'%(cfg.get('samblaster', 'samblaster'))
-    command_samtools = '%s view -F 4 -Sb -'%(cfg.get('samtools', 'samtools'))
-    command_sambamba = '%s sort -t 16 -o  %s /dev/stdin'%(cfg.get('sambamba', 'sambamba'), output_bam_file)
-
-    return ' | '.join([command_bwa, command_samblaster, command_samtools, command_sambamba])

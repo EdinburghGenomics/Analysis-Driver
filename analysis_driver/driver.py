@@ -4,6 +4,8 @@ from analysis_driver.exceptions import AnalysisDriverError
 from analysis_driver.app_logging import get_logger
 from analysis_driver.notification import default_notification_center as ntf
 from analysis_driver.config import default as cfg  # imports the default config singleton
+from analysis_driver.quality_control import genotype_validation
+from analysis_driver.quality_control.genotype_validation import GenotypeValidation
 
 app_logger = get_logger('driver')
 
@@ -46,9 +48,15 @@ def pipeline(input_run_folder):
     ntf.start_stage('fastqc')
     fastqc_executor = _run_fastqc(run_id, fastq_dir, sample_sheet)
 
+    #Merge the fastq files
+    ntf.start_stage('merge fastq')
+    sample_to_fastq_files = _bcio_prepare_sample(fastq_dir, job_dir, sample_sheet)
+    ntf.end_stage('merge fastq', run_id)
+
+    GenotypeValidation()
     # bcbio
     ntf.start_stage('bcbio')
-    bcbio_executor = _run_bcbio(run_id, fastq_dir, job_dir, sample_sheet)
+    bcbio_executor = _run_bcbio(run_id, job_dir, sample_to_fastq_files)
 
     # wait for fastqc and bcbio to finish
     fastqc_exit_status = fastqc_executor.join()
@@ -107,42 +115,50 @@ def _run_fastqc(run_id, fastq_dir, sample_sheet):
 
     return fastqc_executor
 
-
-def _run_bcbio(run_id, fastq_dir, job_dir, sample_sheet):
-    original_dir = os.getcwd()
-    os.chdir(job_dir)
-
-    bcbio_array_cmds = []
+def _bcio_prepare_sample(fastq_dir, job_dir, sample_sheet):
+    """
+    Merge the fastq files per sample using bcbio prepare sample
+    """
+    sample_name_to_fastqs = {}
     for sample_project, proj_obj in sample_sheet.sample_projects.items():
         proj_fastqs = util.fastq_handler.find_fastqs(fastq_dir, sample_project)
 
         for sample_id, id_obj in proj_obj.sample_ids.items():
+            merged_fastqs = util.bcbio_prepare_samples(job_dir, sample_id, proj_fastqs[sample_id])
+            sample_name_to_fastqs[sample_id]=merged_fastqs
+    return sample_name_to_fastqs
 
-            bcbio_array_cmds.append(
-                writer.commands.bcbio(
-                    os.path.join(
-                        job_dir,
-                        'samples_' + sample_id + '-merged',
-                        'config',
-                        'samples_' + sample_id + '-merged.yaml'
-                    ),
-                    os.path.join(
-                        job_dir,
-                        'samples_' + sample_id + '-merged',
-                        'work'
-                    )
+
+def _run_bcbio(run_id, job_dir, sample_name_to_fastqs):
+    original_dir = os.getcwd()
+    os.chdir(job_dir)
+
+    bcbio_array_cmds = []
+    list_fastq_files = []
+    sample_names = []
+    for sample_id in sample_name_to_fastqs:
+
+        util.setup_bcbio_run(
+            os.path.join(os.path.dirname(__file__), '..', 'etc', 'bcbio_alignment.yaml'),
+            os.path.join(job_dir, 'bcbio'),
+            os.path.join(job_dir, 'samples_' + sample_id + '-merged.csv'),
+            *sample_name_to_fastqs.get(sample_id)
+        )
+        bcbio_array_cmds.append(
+            writer.commands.bcbio(
+                os.path.join(
+                    job_dir,
+                    'samples_' + sample_id + '-merged',
+                    'config',
+                    'samples_' + sample_id + '-merged.yaml'
+                ),
+                os.path.join(
+                    job_dir,
+                    'samples_' + sample_id + '-merged',
+                    'work'
                 )
             )
-
-            id_fastqs = proj_fastqs[sample_id]
-
-            merged_fastqs = util.bcbio_prepare_samples(job_dir, sample_id, id_fastqs)
-            util.setup_bcbio_run(
-                os.path.join(os.path.dirname(__file__), '..', 'etc', 'bcbio_alignment.yaml'),
-                os.path.join(job_dir, 'bcbio'),
-                os.path.join(job_dir, 'samples_' + sample_id + '-merged.csv'),
-                *merged_fastqs
-            )
+        )
 
     bcbio_writer = writer.get_script_writer(
         'bcbio',
