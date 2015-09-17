@@ -1,19 +1,10 @@
 import os
 from threading import Thread
-from pip.commands import unzip
 from analysis_driver import writer
 from analysis_driver.executor import executor
-from analysis_driver.notification import default_notification_center as ntf
+from analysis_driver.notification import default as ntf
 from analysis_driver.config import default as cfg
-"""
-genotype-validation:
-    reference:
-    gatk:
-    genotypes_repository:
-    samblaster:
-    samtools:
-    sambamba:
-"""
+
 
 class GenotypeValidation(Thread):
     """ This class will perform the Genotype validation steps. It subclass Thread allowing it to be run in the background.
