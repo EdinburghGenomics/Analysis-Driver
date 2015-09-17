@@ -8,15 +8,18 @@ class Configuration:
     """
     Loads a yaml config file from the user's home, '~/.analysisdriver.yaml'
     """
-    def __init__(self):
+    def __init__(self, config_file=None):
         self._environment = None
-        config_file = self.__class__._find_config_file()
-        self.config_file = open(config_file, 'r')
-
+        if not config_file:
+            config_file = self.__class__._find_config_file()
+        self.config_file = config_file
         try:
-            self.content = yaml.load(self.config_file)[self.environment]
+            self.content = yaml.load(open(config_file, 'r'))[self.environment]
         except KeyError as e:
-            raise AnalysisDriverError('Could not load environment \'%s\'' % self.environment) from e
+            raise AnalysisDriverError(
+                'Could not load environment \'%s\' from %s' % (self.environment, self.config_file)
+            ) from e
+        self._validate_file_paths(self.content)
 
     def get(self, item, return_default=None):
         """
@@ -40,17 +43,41 @@ class Configuration:
         return self._environment
 
     @classmethod
-    def _find_config_file(cls):
+    def _validate_file_paths(cls, content=None):
         """
-        Find either ~/.analysisdriver.yaml or Analysis-Driver/etc/example_analysisdriver.yaml
+        Recursively search through the values of self.content and if the value is an absolute file path,
+         assert that it exists.
+        :param content: a dict, list or str (i.e. potential file path) to validate
+        """
+        if type(content) is dict:
+            for v in content.values():
+                cls._validate_file_paths(v)
+        elif type(content) is list:
+            for v in content:
+                cls._validate_file_paths(v)
+        elif type(content) is str:
+            if content.startswith('/'):
+                assert os.path.exists(content), 'Invalid file path: ' + content
+
+    @staticmethod
+    def _find_config_file():
+        """
+        Find $ANALYSISDRIVERCONFIG, ~/.analysisdriver.yaml or Analysis-Driver/etc/analysisdriver.yaml, in
+        that order
         :return: Path to the config
         """
-        home_config = os.path.expanduser('~/.analysisdriver.yaml')
-        local_config = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'etc', '.analysisdriver.yaml')
-        if os.path.isfile(home_config):
-            return home_config
-        elif os.path.isfile(local_config):
-            return local_config
+        for config in [
+            os.getenv('ANALYSISDRIVERCONFIG'),
+            os.path.expanduser('~/.analysisdriver.yaml'),
+            os.path.join(
+                os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                'etc',
+                'analysisdriver.yaml'
+            )
+        ]:
+            if config and os.path.isfile(config):
+                return config
+        raise AnalysisDriverError('Could not find config file in env variable, home or etc')
 
     def __getitem__(self, item):
         """
@@ -67,10 +94,12 @@ class LoggingConfiguration:
     setting up logging.
     """
     def __init__(self):
-        self.formatter = logging.Formatter(
+        self.default_formatter = logging.Formatter(
             fmt=default['logging']['format'],
             datefmt=default['logging']['datefmt']
         )
+        self.blank_formatter = logging.Formatter()
+        self.formatter = self.default_formatter
         self.handlers = {}
         self.log_level = logging.INFO
 
@@ -82,6 +111,12 @@ class LoggingConfiguration:
         handler.setFormatter(self.formatter)
         handler.setLevel(self.log_level)
         self.handlers[name] = handler
+
+    def switch_formatter(self, formatter):
+        self.formatter = formatter
+        for name in self.handlers:
+            self.handlers[name].setFormatter(self.formatter)
+
 
 default = Configuration()  # singleton for access by other modules
 logging_default = LoggingConfiguration()

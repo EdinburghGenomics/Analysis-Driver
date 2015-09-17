@@ -42,6 +42,7 @@ class TestSampleProject(TestAnalysisDriver):
             sample_project='test_sp',
             lane='1337',
             sample_id='test_id',
+            sample_name='test_name',
             name='test_name',
             barcode='ATGCAT'
         )
@@ -57,6 +58,7 @@ class TestSampleProject(TestAnalysisDriver):
             sample_project='test_sp',
             lane='1338',
             sample_id='test_id',
+            sample_name='test_name',
             name='test_name',
             barcode='ATGCAG'
         )
@@ -71,6 +73,7 @@ class TestSampleProject(TestAnalysisDriver):
                 sample_project='another_test_sp',
                 lane='1338',
                 sample_id='another_test_id',
+                sample_name='test_name',
                 name='another_test_name',
                 barcode='ATGCAG'
             )

@@ -27,7 +27,7 @@ def test_bcl2fastq():
 
 def test_fastqc():
     test_fastq = os.path.join(helper.fastq_path, '10015AT', '10015ATA0001L05', 'this.fastq.gz')
-    expected = '--nogroup -q ' + test_fastq
+    expected = '--nogroup -t 4 -q ' + test_fastq
 
     assert commands.fastqc(test_fastq).endswith(expected)
 
