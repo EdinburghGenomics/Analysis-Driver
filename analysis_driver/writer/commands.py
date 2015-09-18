@@ -39,20 +39,21 @@ def fastqc(fastq, threads=4):
     return cmd
 
 
-def bcbio_java_paths():
+def bcbio_env_vars():
     """
-    Write export statements for Java environment variables required by the execution of BCBio pipelines using
-    GATK.
+    Write export statements for environment variables required by BCBio
     :rtype: list[str]
     """
-    cmds = []
     app_logger.debug('Writing Java paths')
-
-    cmds.append('export JAVA_HOME=' + cfg['gatk']['java_home'])
-    cmds.append('export JAVA_BINDIR=' + cfg['gatk']['java_bindir'])
-    cmds.append('export JAVA_ROOT=' + cfg['gatk']['java_root'] + '\n')
-
-    return cmds
+    return (
+        _export('PATH', os.path.join(cfg['bcbio'], 'bin'), prepend=True),
+        _export('LD_LIBRARY_PATH', os.path.join(cfg['bcbio'], 'lib'), prepend=True),
+        _export('PERL5LIB', os.path.join(cfg['bcbio'], 'lib', 'perl5'), prepend=True),
+        _export('JAVA_HOME', cfg['jdk']),
+        _export('JAVA_BINDIR', os.path.join(cfg['jdk'], 'bin')),
+        _export('JAVA_ROOT', cfg['jdk']),
+        ''
+    )
 
 
 def bcbio(run_yaml, workdir, cores=16):
@@ -62,9 +63,15 @@ def bcbio(run_yaml, workdir, cores=16):
     :param cores: The number of cores for BCBio to use
     :rtype: str
     """
-    cmd = ('%s %s -n %s --workdir %s' % (cfg['bcbio_nextgen'], run_yaml, cores, workdir))
+    cmd = '%s %s -n %s --workdir %s' % (
+        os.path.join(cfg['bcbio'], 'bin', 'bcbio_nextgen.py'), run_yaml, cores, workdir
+    )
     app_logger.debug('Writing: ' + cmd)
     return cmd
 
 
-
+def _export(env_var, value, prepend=False):
+    statement = 'export %s=%s' % (env_var, value)
+    if prepend:
+        statement += ':$' + env_var
+    return statement

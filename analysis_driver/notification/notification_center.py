@@ -20,9 +20,14 @@ class NotificationCenter(AppLogger):
     def __init__(self):
         self.subscribers = []
 
-    def add_subscribers(self, run_id, **ntf_cfgs):
-        for k in ntf_cfgs:
-            notifier, config = ntf_cfgs[k]
+    def add_subscribers(self, run_id, *subscribers):
+        """
+        e.g: ntf.add_subscribers('a_run_id', (LogNotification, cfg.query('notification', 'log_notification'))
+        :param str run_id: A run id to assign to the subscriber
+        :param tuple[callable, dict] subscribers: This should be a tuple containing the ClassName and
+        configuration
+        """
+        for notifier, config in subscribers:
             if config:
                 self.subscribers.append(notifier(run_id, config))
 
@@ -41,6 +46,33 @@ class NotificationCenter(AppLogger):
     def __getattr__(self, name):
         # magic method dispatcher
         return _Method(self._pass_to_subscriber, name)
+
+
+class Notification(AppLogger):
+    def __init__(self, run_id):
+        self.run_id = run_id
+
+    def start_pipeline(self):
+        pass
+
+    def start_stage(self, stage_name):
+        pass
+
+    def end_stage(self, stage_name, exit_status=0, stop_on_error=False):
+        pass
+
+    def end_pipeline(self):
+        pass
+
+    def fail_pipeline(self, message='', **kwargs):
+        pass
+
+    @staticmethod
+    def _format_error_message(message='', stacktrace=None):
+        msg = 'Run failed.' + message
+        if stacktrace:
+            msg += '\nStack trace below:\n\n' + stacktrace
+        return msg
 
 
 default = NotificationCenter()

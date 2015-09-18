@@ -3,10 +3,10 @@ import argparse
 import logging
 import os
 import sys
-from datetime import datetime as dt
 from analysis_driver import dataset_scanner as scanner
 from analysis_driver import app_logging
 from analysis_driver.config import default as cfg, logging_default as log_cfg
+from analysis_driver.notification import default as ntf, LogNotification, EmailNotification
 from analysis_driver.exceptions import AnalysisDriverError
 
 
@@ -24,11 +24,21 @@ def main():
     )
     parser.add_argument(
         '--skip',
+        nargs='+',
+        default=[],
         help='mark a dataset as completed'
     )
     parser.add_argument(
         '--reset',
+        nargs='+',
+        default=[],
         help='unmark a dataset as complete/in progress for rerunning'
+    )
+    parser.add_argument(
+        '--abort',
+        nargs='+',
+        default=[],
+        help='mark a dataset as aborted'
     )
     parser.add_argument(
         '--debug',
@@ -39,14 +49,19 @@ def main():
 
     _setup_logging(args)
 
+    if args.reset or args.skip or args.abort:
+        for d in args.abort:
+            scanner.abort(d)
+        for d in args.skip:
+            scanner.skip(d)
+        for d in args.reset:
+            scanner.reset(d)
+        return 0
+
     if args.report:
         scanner.report()
     elif args.report_all:
         scanner.report(all_datasets=True)
-    elif args.skip:
-        scanner.skip(args.skip)
-    elif args.reset:
-        scanner.reset(args.reset)
     else:
         if cfg.get('intermediate_dir'):
             use_int_dir = True
@@ -64,6 +79,12 @@ def main():
                         mode='w'
                     )
                 )
+                ntf.add_subscribers(
+                    d,
+                    (LogNotification, cfg.query('notification', 'log_notification')),
+                    (EmailNotification, cfg.query('notification', 'email_notification'))
+                )
+
                 app_logger = app_logging.get_logger('client')
                 _log_app_info(app_logger)
                 app_logger.info('Using config file at ' + cfg.config_file)
@@ -78,7 +99,7 @@ def main():
                     return 0
 
                 except Exception:
-                    _log_stacktrace(app_logger)
+                    _stacktrace()
                     return 1
 
         app_logger = app_logging.get_logger('client')
@@ -94,8 +115,9 @@ def _setup_logging(args):
         log_cfg.log_level = logging.INFO
 
     # user-defined handlers
-    if cfg['logging']['handlers']:
-        for name, info in cfg['logging']['handlers'].items():
+    logging_handlers = cfg.query('logging', 'handlers')
+    if logging_handlers:
+        for name, info in logging_handlers.items():
             if 'filename' in info:
                 handler = logging.FileHandler(filename=info['filename'])
             elif 'stream' in info:
@@ -118,14 +140,12 @@ def _setup_run(dataset):
             pass
 
 
-def _log_stacktrace(logger):
+def _stacktrace():
     import traceback
-    lines = traceback.format_exc().splitlines()
-
     # switch all active logging handlers to a blank Formatter
     log_cfg.switch_formatter(log_cfg.blank_formatter)
-    for line in lines:
-        logger.error(line)
+    ntf.fail_pipeline(stacktrace=traceback.format_exc())
+
 
 def _log_app_info(logger):
     log = logger.info
@@ -133,6 +153,5 @@ def _log_app_info(logger):
     log('\nEdinburgh Genomics Analysis Driver')
     version_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'version.txt')
     with open(version_file, 'r') as f:
-        log('Version ' + open(version_file).read() + '\n')
+        log('Version ' + f.read() + '\n')
     log_cfg.switch_formatter(log_cfg.default_formatter)
-
