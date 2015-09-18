@@ -52,12 +52,19 @@ def pipeline(input_run_folder):
     sample_to_fastq_files = _bcio_prepare_sample(fastq_dir, job_dir, sample_sheet)
     ntf.end_stage('merge fastq', run_id)
 
-    GenotypeValidation()
+    #Start a different branch
+    ntf.start_stage('genotype validation')
+    genotype_validation = GenotypeValidation(sample_to_fastq_files, run_id)
+    genotype_validation.start()
+
     # bcbio
     ntf.start_stage('bcbio')
     bcbio_executor = _run_bcbio(run_id, job_dir, sample_to_fastq_files)
 
-    # wait for fastqc and bcbio to finish
+    # wait for genotype_validation fastqc and bcbio to finish
+    genotype_results = genotype_validation.join()
+    ntf.end_stage('genotype validation')
+
     fastqc_exit_status = fastqc_executor.join()
     ntf.end_stage('fastqc', fastqc_exit_status)
 
