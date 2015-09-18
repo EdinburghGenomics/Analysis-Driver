@@ -45,7 +45,7 @@ class ScriptWriter(AppLogger):
         self.write_line('case $JOB_INDEX in')
 
     def finish_array(self):
-        self.write_line('*) echo "Unexpected JOBINDEX: $JOB_INDEX')
+        self.write_line('*) echo "Unexpected JOBINDEX: $JOB_INDEX"')
         self.write_line('esac')
 
     def line_break(self):

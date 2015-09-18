@@ -26,13 +26,6 @@ class TestNotificationCenter(TestAnalysisDriver):
         print(self.notification_center.subscribers)
         self.email_notification = TestEmailNotification('test_run', email_config)
 
-    def test_notification_center(self):
-        self.notification_center.start_stage('test stage')
-
-        with pytest.raises(AnalysisDriverError) as e:
-            self.notification_center.end_stage('test stage', exit_status=1, stop_on_error=True)
-            assert 'test stage failed' in str(e)
-
     def test_retries(self):
         assert self.email_notification._try_send('this is a test') is True
         assert self.email_notification._try_send('dodgy') is False

@@ -16,6 +16,9 @@ def pipeline(input_run_folder):
     """
     run_id = os.path.basename(input_run_folder)
 
+    ntf.end_stage('test', 1)
+    return 0
+
     ntf.start_pipeline()
     ntf.start_stage('setup')
 
@@ -39,8 +42,9 @@ def pipeline(input_run_folder):
     # bcl2fastq
     ntf.start_stage('bcl2fastq')
     bcl2fastq_exit_status = _run_bcl2fastq(input_run_folder, run_id, fastq_dir, mask).join()
-
-    ntf.end_stage('bcl2fastq', bcl2fastq_exit_status, stop_on_error=True)
+    ntf.end_stage('bcl2fastq', bcl2fastq_exit_status)
+    if bcl2fastq_exit_status:
+        raise AnalysisDriverError('bcl2fastq failed')
 
     # fastqc
     ntf.start_stage('fastqc')
@@ -54,7 +58,9 @@ def pipeline(input_run_folder):
     fastqc_exit_status = fastqc_executor.join()
     ntf.end_stage('fastqc', fastqc_exit_status)
     bcbio_exit_status = bcbio_executor.join()
-    ntf.end_stage('bcbio', bcbio_exit_status, stop_on_error=True)
+    ntf.end_stage('bcbio', bcbio_exit_status)
+    if bcbio_exit_status:
+        raise AnalysisDriverError('bcbio failed')
     
     # transfer output data
     ntf.start_stage('data_transfer')
@@ -130,7 +136,8 @@ def _run_bcbio(run_id, fastq_dir, job_dir, sample_sheet):
                         job_dir,
                         'samples_' + sample_id + '-merged',
                         'work'
-                    )
+                    ),
+                    threads=10
                 )
             )
 
@@ -148,7 +155,7 @@ def _run_bcbio(run_id, fastq_dir, job_dir, sample_sheet):
         'bcbio',
         run_id,
         walltime=96,
-        cpus=12,
+        cpus=10,
         mem=64,
         jobs=len(bcbio_array_cmds)
     )

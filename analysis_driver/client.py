@@ -133,9 +133,9 @@ def _setup_logging(args):
 
 
 def _setup_run(dataset):
-    for d in ['fastq_dir', 'jobs_dir']:
+    for d in [os.path.join(cfg['jobs_dir'], dataset), os.path.join(cfg['jobs_dir'], dataset, 'fastq')]:
         try:
-            os.makedirs(os.path.join(cfg[d], dataset))
+            os.makedirs(d)
         except FileExistsError:
             pass
 

@@ -14,7 +14,7 @@ class Configuration:
             config_file = self.__class__._find_config_file()
         self.config_file = config_file
         try:
-            self.content = yaml.load(open(config_file, 'r'))[self.environment]
+            self.content = yaml.safe_load(open(config_file, 'r'))[self.environment]
         except KeyError as e:
             raise AnalysisDriverError(
                 'Could not load environment \'%s\' from %s' % (self.environment, self.config_file)
@@ -62,6 +62,9 @@ class Configuration:
         if not self._environment:
             self._environment = os.getenv('ANALYSISDRIVERENV', 'testing')  # default to 'testing'
         return self._environment
+
+    def report(self, space=' '):
+        return yaml.safe_dump(self.content, default_flow_style=False).replace(' ', space).split('\n')
 
     @classmethod
     def _validate_file_paths(cls, content=None):

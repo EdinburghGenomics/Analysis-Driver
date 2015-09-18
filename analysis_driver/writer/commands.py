@@ -56,15 +56,15 @@ def bcbio_env_vars():
     )
 
 
-def bcbio(run_yaml, workdir, cores=16):
+def bcbio(run_yaml, workdir, threads=10):
     """
     :param run_yaml: The pipeline config file to be run
     :param workdir: The desired working directory
-    :param cores: The number of cores for BCBio to use
+    :param threads: The number of threads for BCBio to use
     :rtype: str
     """
     cmd = '%s %s -n %s --workdir %s' % (
-        os.path.join(cfg['bcbio'], 'bin', 'bcbio_nextgen.py'), run_yaml, cores, workdir
+        os.path.join(cfg['bcbio'], 'bin', 'bcbio_nextgen.py'), run_yaml, threads, workdir
     )
     app_logger.debug('Writing: ' + cmd)
     return cmd

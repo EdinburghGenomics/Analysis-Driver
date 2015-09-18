@@ -36,4 +36,4 @@ def test_bcbio():
     run_yaml = os.path.join(helper.assets_path, 'run.yaml')
     expected = '%s -n 16 --workdir %s' % (run_yaml, helper.assets_path)
 
-    assert commands.bcbio(run_yaml, helper.assets_path, cores=16).endswith(expected)
+    assert commands.bcbio(run_yaml, helper.assets_path, threads=16).endswith(expected)

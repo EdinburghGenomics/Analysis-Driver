@@ -2,7 +2,6 @@ __author__ = 'tcezard'
 import logging
 from .notification_center import Notification
 from analysis_driver.config import logging_default as log_cfg
-from analysis_driver.exceptions import AnalysisDriverError
 
 
 class LogNotification(Notification):
@@ -20,28 +19,19 @@ class LogNotification(Notification):
         self.info('Started pipeline')
 
     def start_stage(self, stage_name):
-        self.info('Started stage: ' + stage_name)
+        self.info('Started stage ' + stage_name)
 
-    def end_stage(self, stage_name, exit_status=0, stop_on_error=False):
+    def end_stage(self, stage_name, exit_status=0):
         if exit_status == 0:
-            self._succeed_stage(stage_name)
+            self.info('Finished stage ' + stage_name)
         else:
-            self._fail_stage(stage_name, exit_status, stop_on_error)
+            self.error('Failed stage ' + stage_name + ' with exit status ' + str(exit_status))
 
     def end_pipeline(self):
         self.info('Finished pipeline')
 
     def fail_pipeline(self, message='', **kwargs):
         self.error(self._format_error_message(message, kwargs.get('stacktrace')))
-
-    def _succeed_stage(self, stage_name):
-        self.info('Finished stage ' + stage_name)
-
-    def _fail_stage(self, stage_name, exit_status, stop_on_error):
-        msg = 'Stage ' + stage_name + ' failed with exit status ' + str(exit_status)
-        self.error(msg)
-        if stop_on_error:
-            raise AnalysisDriverError(msg)
 
     def _check_logger(self):
         if self._logger is None:

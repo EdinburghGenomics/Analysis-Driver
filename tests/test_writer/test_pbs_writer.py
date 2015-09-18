@@ -75,7 +75,7 @@ class TestPBSWriter(TestAnalysisDriver):
             'export JAVA_BINDIR=path/to/jdk1.7.0_76/bin',
             'export JAVA_ROOT=path/to/jdk1.7.0_76/',
             '',
-            '/Users/mwham/workspace/EdGen_Analysis_Driver/Applications/tools/fake_bcbio/bin/bcbio_nextgen.py test.yaml -n 16 --workdir /Users/mwham/workspace/EdGen_Analysis_Driver/Applications/Analysis-Driver/tests/assets'
+            '/Users/mwham/workspace/EdGen_Analysis_Driver/Applications/tools/fake_bcbio/bin/bcbio_nextgen.py test.yaml -n 10 --workdir /Users/mwham/workspace/EdGen_Analysis_Driver/Applications/Analysis-Driver/tests/assets'
         ]
         print('\n', self.writer.lines)
         print('', expected)

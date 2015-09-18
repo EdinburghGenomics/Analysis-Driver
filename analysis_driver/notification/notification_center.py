@@ -58,7 +58,7 @@ class Notification(AppLogger):
     def start_stage(self, stage_name):
         pass
 
-    def end_stage(self, stage_name, exit_status=0, stop_on_error=False):
+    def end_stage(self, stage_name, exit_status=0):
         pass
 
     def end_pipeline(self):
