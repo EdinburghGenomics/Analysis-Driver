@@ -11,18 +11,11 @@
 </head>
 <body>
     <h2>Analysis Driver run {{run}}</h2>
-    <p>{{body}}</p>
-
+    <p>{{ body }}</p>
     {% if run_config %}
         <h3>Configurations</h3>
-            <code>
-                {% for e in run_config %}
-                    {{ e }}
-                    <br/>
-                {% endfor %}
-            </code>
+            <code>{{ run_config }}</code>
     {% endif %}
-
     {% if env_vars %}
         <h3>Environment variables</h3>
         <table>

@@ -23,6 +23,8 @@ def trigger(dataset, use_intermediate_dir):
     switch_status(dataset, 'active')
 
     from analysis_driver import driver
-    driver.pipeline(os.path.join(dataset_dir, dataset))
+    exit_status = driver.pipeline(os.path.join(dataset_dir, dataset))
 
     switch_status(dataset, 'complete')
+
+    return exit_status

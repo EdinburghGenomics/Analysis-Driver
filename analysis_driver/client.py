@@ -13,6 +13,11 @@ from analysis_driver.exceptions import AnalysisDriverError
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument(
+        '--debug',
+        action='store_true',
+        help='override pipeline log level to debug'
+    )
+    parser.add_argument(
         '--report',
         action='store_true',
         help='don\'t execute anything, report on status of datasets'
@@ -40,13 +45,7 @@ def main():
         default=[],
         help='mark a dataset as aborted'
     )
-    parser.add_argument(
-        '--debug',
-        action='store_true',
-        help='override pipeline log level to debug'
-    )
     args = parser.parse_args()
-
     _setup_logging(args)
 
     if args.reset or args.skip or args.abort:
@@ -90,17 +89,24 @@ def main():
                 app_logger.info('Using config file at ' + cfg.config_file)
                 app_logger.info('Triggering for dataset: ' + d)
 
+                exit_status = 9
+                stacktrace = None
                 try:
                     # Only process the first new dataset found. Run through Cron, this will result
                     # in one new pipeline being kicked off per minute.
                     from analysis_driver import process_trigger as proctrigger
-                    proctrigger.trigger(d, use_int_dir)
+                    ntf.start_pipeline()
+                    exit_status = proctrigger.trigger(d, use_int_dir)
                     app_logger.info('Done')
-                    return 0
 
                 except Exception:
-                    _stacktrace()
-                    return 1
+                    import traceback
+                    log_cfg.switch_formatter(log_cfg.blank_formatter)  # blank formatting for stacktrace
+                    stacktrace = traceback.format_exc()
+
+                finally:
+                    ntf.end_pipeline(exit_status, stacktrace)
+                    return exit_status
 
         app_logger = app_logging.get_logger('client')
         app_logger.debug('No new datasets found')
@@ -138,13 +144,6 @@ def _setup_run(dataset):
             os.makedirs(d)
         except FileExistsError:
             pass
-
-
-def _stacktrace():
-    import traceback
-    # switch all active logging handlers to a blank Formatter
-    log_cfg.switch_formatter(log_cfg.blank_formatter)
-    ntf.fail_pipeline(stacktrace=traceback.format_exc())
 
 
 def _log_app_info(logger):

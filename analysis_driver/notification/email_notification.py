@@ -28,19 +28,22 @@ class EmailNotification(Notification):
                 'Stage \'%s\' failed with exit status %s' % (stage_name, exit_status)
             )
 
-    def end_pipeline(self):
-        self._send_mail('Pipeline finished for run ' + self.run_id)
+    def end_pipeline(self, exit_status, stacktrace=None):
+        diagnostics = False
+        msg = 'Pipeline finished with exit status ' + str(exit_status)
+        if stacktrace:
+            diagnostics = True
+            msg = self._format_error_message(message=msg, stacktrace=stacktrace)
+        self._send_mail(msg, diagnostics)
 
-    def fail_pipeline(self, message='', **kwargs):
-        self._send_mail(self._format_error_message(message, kwargs.get('stacktrace')))
-
-    def _send_mail(self, body):
-        mail_success = self._try_send(body)
+    def _send_mail(self, body, diagnostics=False):
+        mail_success = self._try_send(body, diagnostics)
         if not mail_success:
             raise AnalysisDriverError('Failed to send message: ' + body)
 
-    def _try_send(self, body, retries=1):
-        msg = self._prepare_message(body)
+    def _try_send(self, body, diagnostics, retries=1):
+        msg = self._prepare_message(body, diagnostics=diagnostics)
+        
         try:
             self._connect_and_send(msg)
             return True
@@ -49,11 +52,11 @@ class EmailNotification(Notification):
             retries += 1
             if retries <= 3:
                 sleep(2)
-                return self._try_send(body, retries)
+                return self._try_send(body, diagnostics, retries)
             else:
                 return False
 
-    def _prepare_message(self, body):
+    def _prepare_message(self, body, diagnostics=False):
         content = jinja2.Template(
             open(
                 os.path.join(
@@ -62,20 +65,26 @@ class EmailNotification(Notification):
                 )
             ).read()
         )
-        msg = MIMEText(
-            content.render(
-                run=self.run_id,
-                body=body,
-                env_vars=self._get_envs('ANALYSISDRIVERCONFIG', 'ANALYSISDRIVERENV'),
-                run_config=cfg.report(space='&nbsp')
-            ),
-            'html'
-        )
+        render_params = {
+            'run': self.run_id,
+            'body': self._prepare_string(body, {' ': '&nbsp', '\n': '<br/>'})
+        }
+        if diagnostics:
+            render_params['env_vars'] = self._get_envs('ANALYSISDRIVERCONFIG', 'ANALYSISDRIVERENV')
+            render_params['run_config'] = self._prepare_string(cfg.report(), {' ':'&nbsp', '\n': '<br/>'})
+
+        msg = MIMEText(content.render(**render_params), 'html')
         msg['Subject'] = 'Analysis Driver run ' + self.run_id
         msg['From'] = self.reporter
         msg['To'] = ','.join(self.recipients)
 
         return msg
+
+    @staticmethod
+    def _prepare_string(in_string, charmap):
+        for k in charmap:
+            in_string = in_string.replace(k, charmap[k])
+        return in_string
 
     def _connect_and_send(self, msg):
         connection = smtplib.SMTP(self.mailhost, self.port)
@@ -89,3 +98,4 @@ class EmailNotification(Notification):
     @staticmethod
     def _get_envs(*envs):
         return ((e, os.getenv(e)) for e in envs)
+

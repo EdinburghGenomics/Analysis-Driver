@@ -60,29 +60,34 @@ def transfer_output_files(sample_id, output_dir, source_path_mapping):
     """
     exit_status = 0
     for f in cfg['output_files']:
-        source_dir = source_path_mapping[f['type']]
-
-        base_name = f['name'].replace('*', sample_id)
-        source_file = os.path.join(source_dir, base_name)
-        rename_to = f.get('rename_to')
+        app_logger.debug('Transferring ' + str(f))
+        source_dir = source_path_mapping[f['type']]  # f['type'] = 'vcf'; source_dir = bcbio_source_dir
+        base_name = f['name'].replace('*', sample_id)  # '*.vcf.gz' -> sample_id.vcf.gz
+        source_file = os.path.join(source_dir, base_name)  # bcbio_source_dir/sample_id.vcf.gz
+        rename_to = f.get('rename_to')  # '.g.vcf.gz'
         if rename_to:
-            base_name = base_name.replace(f['name'][1:], rename_to)
+            base_name = base_name.replace(f['name'][1:], rename_to)  # sample_id.vcf.gz -> sample_id.g.vcf.gz
 
-        output_file = os.path.join(output_dir, base_name)
+        output_file = os.path.join(output_dir, base_name)  # output_dir/sample_id.g.vcf.gz
+        app_logger.info('Looking for file: ' + source_file)
 
         if os.path.isfile(source_file):
+            app_logger.info('Found file. Copying to ' + output_file + '.')
             shutil.copyfile(
                 source_file,
                 output_file
             )
-
+            app_logger.debug('Generating md5 checksum')
             md5 = hashlib.md5()
             with open(output_file, 'rb') as g:
-                for line in g:
-                    md5.update(line)
+                chunk = g.read(8192)
+                while chunk:
+                    md5.update(chunk)
+                    chunk = g.read(8192)
 
             with open(output_file + '.md5', 'w') as h:
                 h.write(md5.hexdigest())
+            app_logger.info('Done')
 
         else:
             app_logger.info('Expected output file not found: ' + source_file)

@@ -63,8 +63,8 @@ class Configuration:
             self._environment = os.getenv('ANALYSISDRIVERENV', 'testing')  # default to 'testing'
         return self._environment
 
-    def report(self, space=' '):
-        return yaml.safe_dump(self.content, default_flow_style=False).replace(' ', space).split('\n')
+    def report(self):
+        return yaml.safe_dump(self.content, default_flow_style=False)
 
     @classmethod
     def _validate_file_paths(cls, content=None):
@@ -102,6 +102,19 @@ class Configuration:
             if config and os.path.isfile(config):
                 return config
         raise AnalysisDriverError('Could not find config file in env variable, home or etc')
+
+    @classmethod
+    def _merge_dicts(cls, default, override):
+        for k in set(default.keys()).union(override.keys()):
+            if k in default and k in override:
+                if type(default[k]) is dict and type(override[k]) is dict:
+                    yield (k, dict(cls._merge_dicts(default[k], override[k])))
+                else:
+                    yield (k, default[k])
+            elif k in default:
+                yield (k, default[k])
+            else:
+                yield (k, override[k])
 
     def __getitem__(self, item):
         """

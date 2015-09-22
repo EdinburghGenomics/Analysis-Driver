@@ -14,14 +14,11 @@ def pipeline(input_run_folder):
     :return: Exit status
     :rtype: int
     """
+    exit_status = 0
     run_id = os.path.basename(input_run_folder)
 
-    ntf.end_stage('test', 1)
-    return 0
-
-    ntf.start_pipeline()
     ntf.start_stage('setup')
-
+    
     job_dir = os.path.join(cfg['jobs_dir'], run_id)
     fastq_dir = os.path.join(job_dir, 'fastq')
     app_logger.info('Input run folder (bcl data source): ' + input_run_folder)
@@ -32,7 +29,7 @@ def pipeline(input_run_folder):
     sample_sheet = reader.SampleSheet(input_run_folder)
     sample_sheet_errors = sample_sheet.validate()
     if sample_sheet_errors:
-        raise AnalysisDriverError('Sample sheet validation failed. See log messages.')
+        raise AnalysisDriverError('Sample sheet validation failed - see log.')
 
     mask = sample_sheet.generate_mask()
     app_logger.info('bcl2fastq mask: ' + mask)  # example_mask = 'y150n,i6,y150n'
@@ -41,16 +38,14 @@ def pipeline(input_run_folder):
     
     # bcl2fastq
     ntf.start_stage('bcl2fastq')
-    bcl2fastq_exit_status = _run_bcl2fastq(input_run_folder, run_id, fastq_dir, mask).join()
-    ntf.end_stage('bcl2fastq', bcl2fastq_exit_status)
-    if bcl2fastq_exit_status:
-        raise AnalysisDriverError('bcl2fastq failed')
+    exit_status += _run_bcl2fastq(input_run_folder, run_id, fastq_dir, mask).join()
+    ntf.end_stage('bcl2fastq', exit_status)
+    if exit_status:
+        return exit_status
 
-    # fastqc
+    # start fastqc and bcbio
     ntf.start_stage('fastqc')
     fastqc_executor = _run_fastqc(run_id, fastq_dir, sample_sheet)
-
-    # bcbio
     ntf.start_stage('bcbio')
     bcbio_executor = _run_bcbio(run_id, fastq_dir, job_dir, sample_sheet)
 
@@ -59,15 +54,18 @@ def pipeline(input_run_folder):
     ntf.end_stage('fastqc', fastqc_exit_status)
     bcbio_exit_status = bcbio_executor.join()
     ntf.end_stage('bcbio', bcbio_exit_status)
+
+    # sort out exit statuses
     if bcbio_exit_status:
-        raise AnalysisDriverError('bcbio failed')
+        return bcbio_exit_status
+    exit_status += fastqc_exit_status + bcbio_exit_status
     
     # transfer output data
     ntf.start_stage('data_transfer')
-    transfer_exit_status = _output_data(sample_sheet, job_dir)
+    exit_status += _output_data(sample_sheet, job_dir)
     ntf.end_stage('data_transfer', transfer_exit_status)
 
-    ntf.end_pipeline()
+    return exit_status
 
 
 def _run_bcl2fastq(input_run_folder, run_id, fastq_dir, mask):
@@ -86,7 +84,6 @@ def _run_bcl2fastq(input_run_folder, run_id, fastq_dir, mask):
     app_logger.info('Submitting ' + bcl2fastq_script)
     bcl2fastq_executor = executor.ClusterExecutor(bcl2fastq_script, block=True)
     bcl2fastq_executor.start()
-
     return bcl2fastq_executor
 
 

@@ -61,17 +61,15 @@ class Notification(AppLogger):
     def end_stage(self, stage_name, exit_status=0):
         pass
 
-    def end_pipeline(self):
-        pass
-
-    def fail_pipeline(self, message='', **kwargs):
+    def end_pipeline(self, exit_status, stacktrace=None):
         pass
 
     @staticmethod
-    def _format_error_message(message='', stacktrace=None):
-        msg = 'Run failed.' + message
-        if stacktrace:
-            msg += '\nStack trace below:\n\n' + stacktrace
+    def _format_error_message(**kwargs):
+        msg = ' '.join(('Run failed.', kwargs.get('message', '')))
+        if kwargs.get('stacktrace'):
+            msg += '\nStack trace below:\n\n'
+            msg += kwargs['stacktrace']
         return msg
 
 

@@ -27,11 +27,10 @@ class LogNotification(Notification):
         else:
             self.error('Failed stage ' + stage_name + ' with exit status ' + str(exit_status))
 
-    def end_pipeline(self):
-        self.info('Finished pipeline')
-
-    def fail_pipeline(self, message='', **kwargs):
-        self.error(self._format_error_message(message, kwargs.get('stacktrace')))
+    def end_pipeline(self, exit_status, stacktrace=None):
+        self.info('Finished pipeline with exit status ' + str(exit_status))
+        if stacktrace:
+            self.error(self._format_error_message(stacktrace=stacktrace))
 
     def _check_logger(self):
         if self._logger is None:
