@@ -19,7 +19,7 @@ class Executor(AppLogger):
     def _process(self):
         """
         Translate self.cmd to a subprocess. Override to manipulate how the process is run, e.g. with different
-        resource managers
+        resource managers.
         :rtype: subprocess.Popen
         """
         self.info('Executing: ' + str(self.cmd))
@@ -30,14 +30,14 @@ class Executor(AppLogger):
 class StreamExecutor(Executor, threading.Thread):
     def __init__(self, cmd):
         """
-        :param list cmd: A field-separated command to be executed
+        :param list cmd: A shell command to be executed
         """
         Executor.__init__(self, cmd)
         threading.Thread.__init__(self)
 
     def run(self):
         """
-        Run self._process and stream its stdout and stderr
+        Run self._process and log its stdout/stderr.
         """
         proc = self._process()
         read_set = [proc.stdout, proc.stderr]
@@ -54,6 +54,9 @@ class StreamExecutor(Executor, threading.Thread):
                         read_set.remove(stream)
 
     def join(self, timeout=None):
+        """
+        Ensure that both the thread and the subprocess have finished, and return self.proc's exit status.
+        """
         super().join(timeout=timeout)
         try:
             return self.proc.wait()
@@ -64,15 +67,15 @@ class StreamExecutor(Executor, threading.Thread):
 class ClusterExecutor(StreamExecutor):
     def __init__(self, script, block=False):
         """
-        :param str script: Full path to a PBS script
-        :param bool block: Whether to run the job in blocking ('monitor') mode
+        :param str script: Full path to a PBS script (for example)
+        :param bool block: Whether to run the job in blocking mode
         """
         super().__init__([script])
         self.block = block
 
     def _process(self):
         """
-        Override to supply a qsub command
+        As the superclass, but with a qsub call to a PBS script.
         :rtype: subprocess.Popen
         """
         if cfg['job_execution'] == 'pbs':

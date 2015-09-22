@@ -45,7 +45,7 @@ def pipeline(input_run_folder):
 
     # start fastqc and bcbio
     ntf.start_stage('fastqc')
-    fastqc_executor = _run_fastqc(run_id, fastq_dir, sample_sheet)
+    fastqc_executor = _run_fastqc(run_id, fastq_dir)
     ntf.start_stage('bcbio')
     bcbio_executor = _run_bcbio(run_id, fastq_dir, job_dir, sample_sheet)
 
@@ -62,8 +62,9 @@ def pipeline(input_run_folder):
     
     # transfer output data
     ntf.start_stage('data_transfer')
-    exit_status += _output_data(sample_sheet, job_dir)
+    transfer_exit_status = _output_data(sample_sheet, job_dir)
     ntf.end_stage('data_transfer', transfer_exit_status)
+    exit_status += transfer_exit_status
 
     return exit_status
 
@@ -78,7 +79,7 @@ def _run_bcl2fastq(input_run_folder, run_id, fastq_dir, mask):
     )
     bcl2fastq_script = writer.write_jobs(
         bcl2fastq_writer,
-        [writer.commands.bcl2fastq(mask, input_run_folder, fastq_dir)]
+        [writer.bash_commands.bcl2fastq(mask, input_run_folder, fastq_dir)]
     )
 
     app_logger.info('Submitting ' + bcl2fastq_script)
@@ -87,11 +88,9 @@ def _run_bcl2fastq(input_run_folder, run_id, fastq_dir, mask):
     return bcl2fastq_executor
 
 
-def _run_fastqc(run_id, fastq_dir, sample_sheet):
+def _run_fastqc(run_id, fastq_dir):
 
-    sample_projects = list(sample_sheet.sample_projects.keys())
-    fastqs = util.fastq_handler.flatten_fastqs(fastq_dir, sample_projects)
-
+    fastqs = util.fastq_handler.flatten_fastqs(fastq_dir)
     fastqc_writer = writer.get_script_writer(
         'fastqc',
         run_id,
@@ -102,7 +101,7 @@ def _run_fastqc(run_id, fastq_dir, sample_sheet):
     )
     fastqc_script = writer.write_jobs(
         fastqc_writer,
-        [writer.commands.fastqc(fq) for fq in fastqs]
+        [writer.bash_commands.fastqc(fq) for fq in fastqs]
     )
     app_logger.info('Submitting: ' + fastqc_script)
     fastqc_executor = executor.ClusterExecutor(fastqc_script, block=True)
@@ -122,7 +121,7 @@ def _run_bcbio(run_id, fastq_dir, job_dir, sample_sheet):
         for sample_id, id_obj in proj_obj.sample_ids.items():
 
             bcbio_array_cmds.append(
-                writer.commands.bcbio(
+                writer.bash_commands.bcbio(
                     os.path.join(
                         job_dir,
                         'samples_' + sample_id + '-merged',
@@ -156,7 +155,7 @@ def _run_bcbio(run_id, fastq_dir, job_dir, sample_sheet):
         mem=64,
         jobs=len(bcbio_array_cmds)
     )
-    for cmd in writer.commands.bcbio_env_vars():
+    for cmd in writer.bash_commands.bcbio_env_vars():
         bcbio_writer.write_line(cmd)
 
     bcbio_script = writer.write_jobs(

@@ -18,12 +18,13 @@ def report(all_datasets=False):
     if all_datasets:
         print('=== complete datasets ===')
         print('\n'.join(_fetch_by_status(datasets, 'complete')))
+        print('=== failed datasets ===')
+        print('\n'.join(_fetch_by_status(datasets, 'failed')))
         print('=== aborted datasets ===')
         print('\n'.join(_fetch_by_status(datasets, 'aborted')))
     else:
         print('=== other datasets ===')
         print('\n'.join(['completed datasets are present', 'use --report-all to show']))
-
 
 
 def scan_datasets():
@@ -51,7 +52,7 @@ def skip(dataset):
 
 
 def reset(dataset):
-    for s in ('active', 'complete', 'transferring', 'aborted'):
+    for s in ('active', 'complete', 'transferring', 'aborted', 'failed'):
         _rm(lock_file(dataset, s))
 
 
@@ -71,23 +72,22 @@ def _fetch_by_status(all_datasets, *statuses):
         return datasets
     else:
         return ['none']
-
+# TODO: remove duplicate code!
 
 def dataset_status(dataset):
-    complete = _complete(dataset)
-    active = _active(dataset)
-    aborted = _aborted(dataset)
     transferring = _transferring(dataset)
     rta_complete = _rta_complete(dataset)
 
-    if complete:
+    if _complete(dataset):
         assert rta_complete
         return 'complete'
-    elif active:
+    elif _active(dataset):
         assert rta_complete
         return 'active'
-    elif aborted:
+    elif _aborted(dataset):
         return 'aborted'
+    elif _failed(dataset):
+        return 'failed'
 
     elif transferring and rta_complete:
         return 'transferring, rta complete'
@@ -102,7 +102,7 @@ def dataset_status(dataset):
 
 def _active(dataset):
     if os.path.isfile(lock_file(dataset, 'active')):
-        for status in (_aborted, _complete, _transferring):
+        for status in (_aborted, _complete, _transferring, _failed):
             assert not status(dataset)
         return True
     else:
@@ -111,7 +111,7 @@ def _active(dataset):
 
 def _complete(dataset):
     if os.path.isfile(lock_file(dataset, 'complete')):
-        for status in (_active, _aborted, _transferring):
+        for status in (_active, _aborted, _transferring, _failed):
             assert not status(dataset)
         return True
     else:
@@ -120,7 +120,7 @@ def _complete(dataset):
 
 def _transferring(dataset):
     if os.path.isfile(lock_file(dataset, 'transferring')):
-        for status in (_active, _complete, _aborted):
+        for status in (_active, _complete, _aborted, _failed):
             assert not status(dataset)
         return True
     else:
@@ -129,7 +129,16 @@ def _transferring(dataset):
 
 def _aborted(dataset):
     if os.path.isfile(lock_file(dataset, 'aborted')):
-        for status in (_active, _complete, _transferring):
+        for status in (_active, _complete, _transferring, _failed):
+            assert not status(dataset)
+        return True
+    else:
+        return False
+
+
+def _failed(dataset):
+    if os.path.isfile(lock_file(dataset, 'failed')):
+        for status in (_active, _complete, _transferring, _aborted):
             assert not status(dataset)
         return True
     else:

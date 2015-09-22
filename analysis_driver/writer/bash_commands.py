@@ -14,26 +14,25 @@ def bcl2fastq(mask, input_dir, fastq_path):
     :param fastq_path: Path to the dir in which to send generated .fastqs
     :rtype: str
     """
-    cmd = ' '.join(['%s -l INFO --runfolder-dir %s',
-                    '--output-dir %s --sample-sheet %s',
-                    '--use-bases-mask %s',
-                    '-r 8 -d 8 -p 8 -w 8']) % (
+    cmd = (
+        '%s -l INFO '
+        '--runfolder-dir %s '
+        '--output-dir %s '
+        '--sample-sheet %s '
+        '--use-bases-mask %s '
+        '-r 8 -d 8 -p 8 -w 8'
+    ) % (
         cfg['bcl2fastq'],
         input_dir,
         fastq_path,
         os.path.join(input_dir, 'SampleSheet_analysis_driver.csv'),
         mask
     )
-
     app_logger.debug('Writing command: ' + cmd)
     return cmd
 
 
 def fastqc(fastq, threads=4):
-    """
-    :param str fastq: An input fastq file
-    :rtype: str
-    """
     cmd = cfg['fastqc'] + ' --nogroup -t %s -q %s' % (threads, fastq)
     app_logger.debug('Writing: ' + cmd)
     return cmd
@@ -42,7 +41,6 @@ def fastqc(fastq, threads=4):
 def bcbio_env_vars():
     """
     Write export statements for environment variables required by BCBio
-    :rtype: list[str]
     """
     app_logger.debug('Writing Java paths')
     return (
@@ -58,10 +56,7 @@ def bcbio_env_vars():
 
 def bcbio(run_yaml, workdir, threads=10):
     """
-    :param run_yaml: The pipeline config file to be run
-    :param workdir: The desired working directory
-    :param threads: The number of threads for BCBio to use
-    :rtype: str
+    :param run_yaml: The generated yaml config file to be run for the pipeline
     """
     cmd = '%s %s -n %s --workdir %s' % (
         os.path.join(cfg['bcbio'], 'bin', 'bcbio_nextgen.py'), run_yaml, threads, workdir

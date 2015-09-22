@@ -71,10 +71,7 @@ class ScriptWriter(AppLogger):
     def _trim_field(field, max_length):
         """
         Required for, e.g, name fields which break PBS if longer than 15 chars
-        :param str field: The input string to trim
-        :param int max_length: What to trim it to
-        :return: field, trimmed to the specified length
-        :rtype: str
+        :return: field, trimmed to max_length
         """
         if len(field) > max_length:
             return field[0:max_length]

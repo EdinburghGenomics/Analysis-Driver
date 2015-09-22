@@ -79,9 +79,8 @@ def main():
                     )
                 )
                 ntf.add_subscribers(
-                    d,
-                    (LogNotification, cfg.query('notification', 'log_notification')),
-                    (EmailNotification, cfg.query('notification', 'email_notification'))
+                    (LogNotification, d, cfg.query('notification', 'log_notification')),
+                    (EmailNotification, d, cfg.query('notification', 'email_notification'))
                 )
 
                 app_logger = app_logging.get_logger('client')

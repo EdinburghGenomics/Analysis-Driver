@@ -14,6 +14,8 @@ class LogNotification(Notification):
         )
         self.handler.setFormatter(self.formatter)
         self.handler.setLevel(log_cfg.log_level)
+        # this class will log to the usual places in the usual format, as well as a notification log file in
+        # the format '[<date> <time>][run_id] msg'
 
     def start_pipeline(self):
         self.info('Started pipeline')
@@ -33,6 +35,9 @@ class LogNotification(Notification):
             self.error(self._format_error_message(stacktrace=stacktrace))
 
     def _check_logger(self):
+        """
+        Set self._logger as in the superclass, but also bind it to self.handler.
+        """
         if self._logger is None:
             super()._check_logger()  # bind self.logger to the shared handlers...
-            self._logger.addHandler(self.handler)  # ... and its own specially-formatted handler
+            self._logger.addHandler(self.handler)  # ... and to the differently-formatted self.handler

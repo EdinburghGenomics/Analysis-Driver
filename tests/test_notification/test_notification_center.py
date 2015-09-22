@@ -12,9 +12,8 @@ class TestNotificationCenter(TestAnalysisDriver):
     def setUp(self):
         self.notification_center = NotificationCenter()
         self.notification_center.add_subscribers(
-            'test_run_id',
-            (LogNotification, cfg.query('notification', 'log_notification')),
-            (TestEmailNotification, cfg.query('notification', 'email_notification'))
+            (LogNotification, 'test_run_id', cfg.query('notification', 'log_notification')),
+            (TestEmailNotification, 'test_run_id', cfg.query('notification', 'email_notification'))
         )
 
         email_config = {
@@ -27,8 +26,8 @@ class TestNotificationCenter(TestAnalysisDriver):
         self.email_notification = TestEmailNotification('test_run', email_config)
 
     def test_retries(self):
-        assert self.email_notification._try_send('this is a test') is True
-        assert self.email_notification._try_send('dodgy') is False
+        assert self.email_notification._try_send('this is a test', diagnostics=False) is True
+        assert self.email_notification._try_send('dodgy', diagnostics=False) is False
 
         with pytest.raises(AnalysisDriverError) as e:
             self.email_notification._send_mail('dodgy')
@@ -43,7 +42,7 @@ class TestEmailNotification(EmailNotification):
         :param email.mime.text.MIMEText msg:
         """
         print('[TestNotificationCenter] Don\'t worry, I\'m not sending any emails.')
-        if str(msg).endswith('dodgy'):
+        if 'dodgy' in str(msg):
             raise SMTPException('Oh noes!')
         else:
             pass

@@ -56,3 +56,50 @@ class TestConfiguration(TestAnalysisDriver):
         ]:
             assert q == ['Sample_Project', 'SampleProject', 'Project_Name']
 
+    def test_merge_dicts(self):
+        default_dict = {
+            'this': {
+                'another': [2, 3, 4],
+                'more': {
+                    'thing': 'thang'
+                }
+            },
+            'that': 'a_thing',
+            'other': {
+                'another': [2, '3', 4],
+                'more': {
+                    'thing': 'thang'
+                }
+            }
+        }
+        override_dict = {
+            'that': 'another_thing',
+            'another': 4,
+            'more': 5,
+            'other': {
+                'another': [8, 9, 10],
+                'more': {'thung': 'theng'}
+            }
+        }
+        merged_dict = self.cfg._merge_dicts(default_dict, override_dict)
+
+        assert dict(merged_dict) == {
+            'this': {
+                'another': [2, 3, 4],
+                'more': {
+                    'thing': 'thang'
+                }
+            },
+            'that': 'another_thing',
+            'other': {
+                'another': [8, 9, 10],
+                'more': {
+                    'thing': 'thang',
+                    'thung': 'theng'
+                }
+            },
+            'another': 4,
+            'more': 5
+        }
+
+        assert dict(self.cfg._merge_dicts(default_dict, default_dict)) == default_dict

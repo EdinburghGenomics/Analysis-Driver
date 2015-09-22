@@ -3,7 +3,7 @@ from analysis_driver.app_logging import AppLogger
 
 
 class _Method:
-    # some magic to bind an notification center method to its subscribers.
+    # bind a notification center method to its subscribers.
     def __init__(self, send, name):
         self.__send = send
         self.__name = name
@@ -14,37 +14,36 @@ class _Method:
 
 class NotificationCenter(AppLogger):
     """
-    Object dispatching notification to subscribers.
-    The suscribers are defined in a config file
+    Object dispatching notification methods to subscribers
     """
     def __init__(self):
         self.subscribers = []
 
-    def add_subscribers(self, run_id, *subscribers):
+    def add_subscribers(self, *args):
         """
         e.g: ntf.add_subscribers('a_run_id', (LogNotification, cfg.query('notification', 'log_notification'))
-        :param str run_id: A run id to assign to the subscriber
-        :param tuple[callable, dict] subscribers: This should be a tuple containing the ClassName and
-        configuration
+        :param tuple[callable, str, dict] args: A tuple mapping a subscriber class, a run id and a dict
+        configuration from analysis_driver.config
         """
-        for notifier, config in subscribers:
+        for notifier, run_id, config in args:
             if config:
                 self.subscribers.append(notifier(run_id, config))
 
-    def _pass_to_subscriber(self, function_name, *args, **kwargs):
+    def _pass_to_subscriber(self, method_name, *args, **kwargs):
+        """
+        Take method_name and try to invoke it on each subscriber with *args, **kwargs.
+        """
         for subscriber in self.subscribers:
-            f = getattr(subscriber, function_name)
+            f = getattr(subscriber, method_name)
             if f and callable(f):
                 f(*args, **kwargs)
             else:
                 self.debug(
-                    'Tried to call nonexistent method %s in class %s' % (
-                        function_name, subscriber.__class__.__name__
-                    )
+                    'Tried to call nonexistent method %s in %s' % (method_name, subscriber.__class__.__name__)
                 )
 
     def __getattr__(self, name):
-        # magic method dispatcher
+        # dispatch a method via getattr, i.e. NotificationCenter.methodname
         return _Method(self._pass_to_subscriber, name)
 
 

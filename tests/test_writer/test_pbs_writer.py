@@ -2,7 +2,7 @@ __author__ = 'mwham'
 from tests.test_analysisdriver import TestAnalysisDriver
 from analysis_driver.writer.pbs_writer import PBSWriter
 import os.path
-from analysis_driver.writer.commands import bcbio_env_vars, bcbio
+from analysis_driver.writer.bash_commands import bcbio_env_vars, bcbio
 
 
 class TestPBSWriter(TestAnalysisDriver):

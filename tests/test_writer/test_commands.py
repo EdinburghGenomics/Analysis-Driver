@@ -1,6 +1,6 @@
 __author__ = 'mwham'
 from tests.test_analysisdriver import TestAnalysisDriver
-from analysis_driver.writer import commands
+from analysis_driver.writer import bash_commands
 from analysis_driver.reader import SampleSheet
 import os.path
 
@@ -22,18 +22,18 @@ def test_bcl2fastq():
         mask
     )
 
-    assert commands.bcl2fastq(mask, input_dir, fastq_path).endswith(expected)
+    assert bash_commands.bcl2fastq(mask, input_dir, fastq_path).endswith(expected)
 
 
 def test_fastqc():
     test_fastq = os.path.join(helper.fastq_path, '10015AT', '10015ATA0001L05', 'this.fastq.gz')
     expected = '--nogroup -t 4 -q ' + test_fastq
 
-    assert commands.fastqc(test_fastq).endswith(expected)
+    assert bash_commands.fastqc(test_fastq).endswith(expected)
 
 
 def test_bcbio():
     run_yaml = os.path.join(helper.assets_path, 'run.yaml')
     expected = '%s -n 16 --workdir %s' % (run_yaml, helper.assets_path)
 
-    assert commands.bcbio(run_yaml, helper.assets_path, threads=16).endswith(expected)
+    assert bash_commands.bcbio(run_yaml, helper.assets_path, threads=16).endswith(expected)

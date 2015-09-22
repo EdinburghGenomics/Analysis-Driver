@@ -5,11 +5,14 @@ from analysis_driver.app_logging import AppLogger, get_logger
 from .run_info import RunInfo
 from analysis_driver.config import default as cfg
 
-
 app_logger = get_logger('reader')
 
 
 def transform_sample_sheet(data_dir):
+    """
+    Read SampleSheet.csv, translate column names and write to SampleSheet_analysis_driver.csv
+    :param data_dir: Full path to a data directory containing SampleSheet.csv
+    """
     before, header = _read_sample_sheet(data_dir, 'SampleSheet.csv')
     cols = before.readline().strip().split(',')
     after = open(os.path.join(data_dir, 'SampleSheet_analysis_driver.csv'), 'w')
@@ -27,6 +30,10 @@ def transform_sample_sheet(data_dir):
 
 
 def _read_sample_sheet(data_dir, name):
+    """
+    Scan down a sample sheet until a [Data] line, then return the file object for further reading
+    :return tuple[file, list] f, header: The sample sheet file object, and all lines above [Data]
+    """
     f = open(os.path.join(data_dir, name), 'r')
     app_logger.debug('Opened ' + f.name)
     counter = 1
@@ -43,16 +50,8 @@ def _read_sample_sheet(data_dir, name):
 
 
 class SampleSheet(AppLogger):
-    """
-    Represents an instance of SampleSheet.csv. It ignores all lines until '[Data]' is found in the first
-    column, then starts reading the CSV.
-    """
     def __init__(self, data_dir):
-        """
-        :param str data_dir:  A file path to the input_data folder containing SampleSheet.csv
-        """
         self.data_dir = data_dir
-
         self.run_info = RunInfo(self.data_dir)
         self.sample_projects = {}  # {name: samples} {str: Sample}
         self._populate()
@@ -87,6 +86,13 @@ class SampleSheet(AppLogger):
         return len(last_sample.barcode)
 
     def generate_mask(self):
+        """
+        Translate:
+            <Read IsIndexedRead=N Number=1 NumCycles=151/>
+            <Read IsIndexedRead=Y Number=2 NumCycles=8/>
+            <Read IsIndexedRead=N Number=3 NumCycles=151/>
+        to 'y150n,i8,y150n'.
+        """
         self.debug('Generating mask...')
         mask = self.run_info.mask
         barcode_len = self.check_barcodes()
@@ -102,8 +108,11 @@ class SampleSheet(AppLogger):
         return ','.join(out)
 
     def validate(self):
+        """
+        Ensure that the SampleSheet is consistent with itself and RunInfo
+        """
         self.debug('Validating...')
-        error = 0
+        error = False
         if not self.run_info.barcode_len:
             self.run_info.critical('No barcode found in RunInfo.xml')
             error = 1
@@ -112,7 +121,7 @@ class SampleSheet(AppLogger):
                 'Barcode mismatch: %s (SampleSheet.csv) and %s (RunInfo.xml)' %
                 (self.check_barcodes(), self.run_info.barcode_len)
             )
-            error = 1
+            error = True
         self.debug('Done')
         return error
 
@@ -180,9 +189,6 @@ class SampleProject:
     Represents a sample project, and contains a list of SampleID objects.
     """
     def __init__(self, name):
-        """
-        :param name: The sample project name
-        """
         self.name = name
         self.sample_ids = {}
 

@@ -21,20 +21,14 @@ class EmailNotification(Notification):
         self._send_mail('Pipeline started for run ' + self.run_id)
 
     def end_stage(self, stage_name, exit_status=0):
-        if exit_status == 0:
-            pass
-        else:
-            self._send_mail(
-                'Stage \'%s\' failed with exit status %s' % (stage_name, exit_status)
-            )
+        if exit_status != 0:
+            self._send_mail('Stage \'%s\' failed with exit status %s' % (stage_name, exit_status))
 
     def end_pipeline(self, exit_status, stacktrace=None):
-        diagnostics = False
         msg = 'Pipeline finished with exit status ' + str(exit_status)
         if stacktrace:
-            diagnostics = True
             msg = self._format_error_message(message=msg, stacktrace=stacktrace)
-        self._send_mail(msg, diagnostics)
+        self._send_mail(msg, diagnostics=bool(stacktrace))
 
     def _send_mail(self, body, diagnostics=False):
         mail_success = self._try_send(body, diagnostics)
@@ -42,12 +36,16 @@ class EmailNotification(Notification):
             raise AnalysisDriverError('Failed to send message: ' + body)
 
     def _try_send(self, body, diagnostics, retries=1):
+        """
+        Prepare a MIMEText message from body and diagnostics, and try to send a set number of times.
+        :param int retries: Which retry we're currently on
+        :return: True if a message is sucessfully sent, otherwise False
+        """
         msg = self._prepare_message(body, diagnostics=diagnostics)
-        
         try:
             self._connect_and_send(msg)
             return True
-        except smtplib.SMTPException as e:
+        except (smtplib.SMTPException, TimeoutError) as e:
             self.warn('Encountered a ' + str(e) + ' exception. Retry number ' + str(retries))
             retries += 1
             if retries <= 3:
@@ -57,6 +55,11 @@ class EmailNotification(Notification):
                 return False
 
     def _prepare_message(self, body, diagnostics=False):
+        """
+        Use Jinja to build a MIMEText html-formatted email.
+        :param str body: The main body of the email to send
+        :param diagnostics: Whether to send diagnostic information (environment variables, configurations)
+        """
         content = jinja2.Template(
             open(
                 os.path.join(
@@ -71,7 +74,7 @@ class EmailNotification(Notification):
         }
         if diagnostics:
             render_params['env_vars'] = self._get_envs('ANALYSISDRIVERCONFIG', 'ANALYSISDRIVERENV')
-            render_params['run_config'] = self._prepare_string(cfg.report(), {' ':'&nbsp', '\n': '<br/>'})
+            render_params['run_config'] = self._prepare_string(cfg.report(), {' ': '&nbsp', '\n': '<br/>'})
 
         msg = MIMEText(content.render(**render_params), 'html')
         msg['Subject'] = 'Analysis Driver run ' + self.run_id
@@ -98,4 +101,3 @@ class EmailNotification(Notification):
     @staticmethod
     def _get_envs(*envs):
         return ((e, os.getenv(e)) for e in envs)
-
