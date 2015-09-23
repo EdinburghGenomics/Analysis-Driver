@@ -8,6 +8,7 @@ class TestAnalysisDriver(TestCase):
     assets_path = os.path.join(os.path.dirname(__file__), 'assets')
     data_output = os.path.join(assets_path, 'data_output')
     fastq_path = os.path.join(assets_path, 'fastqs')
+    data_transfer = os.path.join(assets_path, 'data_transfer')
 
 
 class TestConfiguration(TestAnalysisDriver):
@@ -26,8 +27,8 @@ class TestConfiguration(TestAnalysisDriver):
 
     def test_query(self):
         assert self.cfg.query('logging', 'handlers', 'stdout', 'level') == 'INFO'
-
         assert self.cfg.query('nonexistent_thing') is None
+        assert self.cfg.query('logging', 'handlers', 'nonexistent_handler') is None
         assert self.cfg.query('logging') == {
             'handlers': {
                 'stdout': {

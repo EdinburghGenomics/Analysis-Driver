@@ -10,15 +10,13 @@ from analysis_driver.config import default as cfg
 app_logger = get_logger('proctrigger')
 
 
-def trigger(dataset, use_intermediate_dir):
+def trigger(dataset):
     """
     Decide whether to rsync a dataset to an intermediate dir and run driver.pipeline on it.
     :param str dataset: A dataset id
-    :param use_intermediate_dir: Whether to rsync to an intermediate dir
     """
-    if use_intermediate_dir:
+    if cfg.get('intermediate_dir'):
         assert dataset_status(dataset) in ('new', 'new, rta complete')
-        switch_status(dataset, 'transferring')
         transfer_to_int_dir(
             dataset,
             cfg['input_dir'],
@@ -47,6 +45,7 @@ def transfer_to_int_dir(dataset, from_dir, to_dir, repeat_delay):
     rsync -aqu --size-only --partial from_dir/dataset to_dir
     """
     app_logger.info('Starting transfer')
+    switch_status(dataset, 'transferring')
     while dataset_status(dataset) != 'transferring, rta complete':
         _run(['rsync', '-aqu', '--size-only', '--partial', os.path.join(from_dir, dataset), to_dir])
         sleep(repeat_delay)

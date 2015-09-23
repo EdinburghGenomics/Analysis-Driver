@@ -1,0 +1,18 @@
+details:
+- algorithm:
+    aligner: bwa
+    jointcaller: gatk-haplotype-joint
+    realign: gatk
+    recalibrate: gatk
+    variantcaller: gatk-haplotype
+  analysis: variant2
+  description: 10015AT0001
+  files:
+  - /home/U008/mwham/jobs/150723_E00306_0025_BHCHK3CCXX/merged/10015AT0001_R1.fastq.gz
+  - /home/U008/mwham/jobs/150723_E00306_0025_BHCHK3CCXX/merged/10015AT0001_R2.fastq.gz
+  genome_build: GRCh37
+  metadata: {}
+fc_date: '2015-09-01'
+fc_name: samples_10015AT0001-merged
+upload:
+  dir: ../final

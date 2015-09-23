@@ -24,6 +24,8 @@ class TestNotificationCenter(TestAnalysisDriver):
         }
         print(self.notification_center.subscribers)
         self.email_notification = TestEmailNotification('test_run', email_config)
+        if cfg.query('notification', 'email_notification'):
+            cfg.content['notification']['email_notification']['strict'] = True
 
     def test_retries(self):
         assert self.email_notification._try_send('this is a test', diagnostics=False) is True

@@ -50,9 +50,9 @@ def main():
 
     if args.reset or args.skip or args.abort:
         for d in args.abort:
-            scanner.abort(d)
+            scanner.switch_status(d, 'aborted')
         for d in args.skip:
-            scanner.skip(d)
+            scanner.switch_status(d, 'complete')
         for d in args.reset:
             scanner.reset(d)
         return 0
@@ -62,50 +62,48 @@ def main():
     elif args.report_all:
         scanner.report(all_datasets=True)
     else:
+        all_datasets = scanner.scan_datasets()
+        new_datasets = all_datasets['new, rta complete']
         if cfg.get('intermediate_dir'):
-            use_int_dir = True
-            required_status = 'new'
-        else:
-            use_int_dir = False
-            required_status = 'new, rta complete'
-        for d, s in scanner.scan_datasets():
-            if required_status in s:
-                _setup_run(d)
-                log_cfg.add_handler(
-                    'dataset',
-                    logging.FileHandler(
-                        filename=os.path.join(cfg['jobs_dir'], d, 'analysis_driver.log'),
-                        mode='w'
-                    )
+            new_datasets.extend(all_datasets['new'])
+
+        for d in new_datasets:
+            _setup_run(d)
+            log_cfg.add_handler(
+                'dataset',
+                logging.FileHandler(
+                    filename=os.path.join(cfg['jobs_dir'], d, 'analysis_driver.log'),
+                    mode='w'
                 )
-                ntf.add_subscribers(
-                    (LogNotification, d, cfg.query('notification', 'log_notification')),
-                    (EmailNotification, d, cfg.query('notification', 'email_notification'))
-                )
+            )
+            ntf.add_subscribers(
+                (LogNotification, d, cfg.query('notification', 'log_notification')),
+                (EmailNotification, d, cfg.query('notification', 'email_notification'))
+            )
 
-                app_logger = app_logging.get_logger('client')
-                _log_app_info(app_logger)
-                app_logger.info('Using config file at ' + cfg.config_file)
-                app_logger.info('Triggering for dataset: ' + d)
+            app_logger = app_logging.get_logger('client')
+            _log_app_info(app_logger)
+            app_logger.info('Using config file at ' + cfg.config_file)
+            app_logger.info('Triggering for dataset: ' + d)
 
-                exit_status = 9
-                stacktrace = None
-                try:
-                    # Only process the first new dataset found. Run through Cron, this will result
-                    # in one new pipeline being kicked off per minute.
-                    from analysis_driver import process_trigger as proctrigger
-                    ntf.start_pipeline()
-                    exit_status = proctrigger.trigger(d, use_int_dir)
-                    app_logger.info('Done')
+            exit_status = 9
+            stacktrace = None
+            try:
+                # Only process the first new dataset found. Run through Cron, this will result
+                # in one new pipeline being kicked off per minute.
+                from analysis_driver import process_trigger as proctrigger
+                ntf.start_pipeline()
+                exit_status = proctrigger.trigger(d)
+                app_logger.info('Done')
 
-                except Exception:
-                    import traceback
-                    log_cfg.switch_formatter(log_cfg.blank_formatter)  # blank formatting for stacktrace
-                    stacktrace = traceback.format_exc()
+            except Exception:
+                import traceback
+                log_cfg.switch_formatter(log_cfg.blank_formatter)  # blank formatting for stacktrace
+                stacktrace = traceback.format_exc()
 
-                finally:
-                    ntf.end_pipeline(exit_status, stacktrace)
-                    return exit_status
+            finally:
+                ntf.end_pipeline(exit_status, stacktrace)
+                return exit_status
 
         app_logger = app_logging.get_logger('client')
         app_logger.debug('No new datasets found')
