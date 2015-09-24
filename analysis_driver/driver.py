@@ -25,13 +25,20 @@ def pipeline(input_run_folder):
     app_logger.info('Fastq dir: ' + fastq_dir)
     app_logger.info('Job dir: ' + job_dir)
 
+    sample_sheet = os.path.join(input_run_folder, 'SampleSheet.csv')
+    phix_mode = not os.path.isfile(sample_sheet)
+    if phix_mode:
+        app_logger.warning('No sample sheet found. Running in PhiX mode')
+        reader.fake_sample_sheet(sample_sheet)
+        assert os.path.isfile(sample_sheet)
+
     reader.transform_sample_sheet(input_run_folder)
     sample_sheet = reader.SampleSheet(input_run_folder)
-    sample_sheet_errors = sample_sheet.validate()
-    if sample_sheet_errors:
-        raise AnalysisDriverError('Sample sheet validation failed - see log.')
 
-    mask = sample_sheet.generate_mask()
+    if not sample_sheet.validate() and not phix_mode:
+        raise AnalysisDriverError('Validation failed. Check barcodes in SampleSheet.csv and RunInfo.xml.')
+
+    mask = sample_sheet.generate_mask(phix_mode)
     app_logger.info('bcl2fastq mask: ' + mask)  # example_mask = 'y150n,i6,y150n'
 
     ntf.end_stage('setup')

@@ -2,6 +2,7 @@ __author__ = 'mwham'
 import threading
 import subprocess
 import select  # asynchronous IO
+import os.path
 from analysis_driver.app_logging import AppLogger
 from analysis_driver.exceptions import AnalysisDriverError
 from analysis_driver.config import default as cfg
@@ -10,6 +11,7 @@ from analysis_driver.config import default as cfg
 class Executor(AppLogger):
     def __init__(self, cmd):
         self.cmd = cmd
+        self._validate_file_paths()
         self.proc = None
 
     def run(self):
@@ -25,6 +27,11 @@ class Executor(AppLogger):
         self.info('Executing: ' + str(self.cmd))
         self.proc = subprocess.Popen(self.cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         return self.proc
+
+    def _validate_file_paths(self):
+        for arg in self.cmd:
+            if arg.startswith('/') and not os.path.exists(arg):
+                raise AnalysisDriverError('Could not find file: ' + arg)
 
 
 class StreamExecutor(Executor, threading.Thread):

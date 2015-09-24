@@ -26,7 +26,6 @@ class RunInfo(AppLogger):
         for read in reads:
             self.debug('Adding read: ' + str(read.attrib))
             self.mask.add(read)
-        self.mask.validate()
 
         barcode_reads = self.mask.index_lengths
         if len(barcode_reads):
@@ -89,10 +88,11 @@ class Mask:
         """
         Ensure that the first and last items of self.reads are not barcodes, and that all others are.
         """
-        assert not self._is_indexed_read(self.reads[0])
-        assert not self._is_indexed_read(self.reads[-1])
+        if self._is_indexed_read(self.reads[0]) or self._is_indexed_read(self.reads[-1]):
+            return False
         for index in self.indexes:
-            assert self._is_indexed_read(index), str([x.attrib for x in self.indexes])
+            if not self._is_indexed_read(index):
+                return False
         return True
 
     @staticmethod
