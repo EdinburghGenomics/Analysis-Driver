@@ -8,7 +8,7 @@ from analysis_driver.notification import default as ntf
 app_logger = get_logger('driver')
 
 
-def pipeline(input_run_folder, phix=False):
+def pipeline(input_run_folder):
     """
     :param str input_run_folder: Full path to an input data directory
     :return: Exit status
@@ -25,11 +25,20 @@ def pipeline(input_run_folder, phix=False):
     app_logger.info('Fastq dir: ' + fastq_dir)
     app_logger.info('Job dir: ' + job_dir)
 
+    run_info = reader.RunInfo(input_run_folder)
+    samplesheet_csv = os.path.join(input_run_folder, 'SampleSheet.csv')
+
+    if not run_info.mask.barcode_len or not os.path.exists(samplesheet_csv):
+        app_logger.info('No sample sheet or barcodes found. Running in phiX mode')
+        phix = True
+    else:
+        phix = False
+
     reader.transform_sample_sheet(input_run_folder, phix)
     sample_sheet = reader.SampleSheet(input_run_folder)
 
-    if not sample_sheet.validate() and not phix:
-        raise AnalysisDriverError('Validation failed. Check barcodes in SampleSheet.csv and RunInfo.xml.')
+    if not sample_sheet.validate(run_info.mask) and not phix:
+        raise AnalysisDriverError('Validation failed. Check SampleSheet.csv and RunInfo.xml.')
 
     mask = sample_sheet.generate_mask(phix)
     app_logger.info('bcl2fastq mask: ' + mask)  # example_mask = 'y150n,i6,y150n'

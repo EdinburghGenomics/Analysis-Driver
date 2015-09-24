@@ -1,17 +1,18 @@
 __author__ = 'mwham'
 from tests.test_analysisdriver import TestAnalysisDriver
 from analysis_driver.writer import bash_commands
-from analysis_driver.reader import SampleSheet
+from analysis_driver.reader import SampleSheet, RunInfo
 import os.path
 
 helper = TestAnalysisDriver()
 sample_sheet = SampleSheet(helper.assets_path)
+run_info = RunInfo(helper.assets_path)
 
 
 def test_bcl2fastq():
     input_dir = helper.assets_path
     fastq_path = helper.fastq_path
-    mask = sample_sheet.generate_mask()
+    mask = sample_sheet.generate_mask(run_info.mask)
     expected = ('-l INFO --runfolder-dir %s '
                 '--output-dir %s --sample-sheet %s '
                 '--use-bases-mask %s '

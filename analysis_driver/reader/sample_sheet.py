@@ -4,13 +4,12 @@ from datetime import date
 import os.path
 from analysis_driver.app_logging import AppLogger, get_logger
 from analysis_driver.exceptions import AnalysisDriverError
-from .run_info import RunInfo
 from analysis_driver.config import default as cfg
 
 app_logger = get_logger('reader')
 
 
-def transform_sample_sheet(data_dir, phix):
+def transform_sample_sheet(data_dir, phix=False):
     """
     Read SampleSheet.csv, translate column names and write to SampleSheet_analysis_driver.csv
     :param data_dir: Full path to a data directory containing SampleSheet.csv
@@ -92,7 +91,6 @@ def fake_sample_sheet(sample_sheet):
 class SampleSheet(AppLogger):
     def __init__(self, data_dir):
         self.data_dir = data_dir
-        self.run_info = RunInfo(self.data_dir)
         self.sample_projects = {}  # {name: samples} {str: Sample}
         self._populate()
         self.debug('Sample project entries: ' + str(self.sample_projects))
@@ -125,7 +123,7 @@ class SampleSheet(AppLogger):
         self.debug('Barcode check done. Barcode len: %s' % len(last_sample.barcode))
         return len(last_sample.barcode)
 
-    def generate_mask(self, phix=False):
+    def generate_mask(self, mask, phix=False):
         """
         Translate:
             <Read IsIndexedRead=N Number=1 NumCycles=151/>
@@ -134,33 +132,32 @@ class SampleSheet(AppLogger):
         to 'y150n,i8,y150n'.
         """
         self.debug('Generating mask...')
-        mask = self.run_info.mask
         barcode_len = self.check_barcodes()
-        out = ['y' + self._end_read_cycles(mask.upstream_read, phix) + 'n']
+        out = ['y' + self._end_read_cycles(mask, mask.upstream_read, phix) + 'n']
 
         for i in mask.index_lengths:
             diff = i - barcode_len
             out.append('i' + str(barcode_len) + 'n' * diff)
 
-        out.append('y' + self._end_read_cycles(mask.downstream_read, phix) + 'n')
+        out.append('y' + self._end_read_cycles(mask, mask.downstream_read, phix) + 'n')
         self.debug(out)
         return ','.join(out)
 
-    def validate(self):
+    def validate(self, mask):
         """
         Ensure that the SampleSheet is consistent with itself and RunInfo
         """
         self.debug('Validating...')
-        if not self.run_info.mask.barcode_len:
+        if not mask.barcode_len:
             return False
-        if self.check_barcodes() != self.run_info.barcode_len:
+        if self.check_barcodes() != mask.barcode_len:
             self.error(
                 'Barcode mismatch: %s (SampleSheet.csv) and %s (RunInfo.xml)' %
-                (self.check_barcodes(), self.run_info.barcode_len)
+                (self.check_barcodes(), mask.barcode_len)
             )
             return False
         self.debug('Done. Now validating RunInfo')
-        return self.run_info.mask.validate()
+        return mask.validate()
 
     def get_samples(self, sample_project, sample_id):
         return self.sample_projects[sample_project].sample_ids[sample_id].samples
@@ -194,9 +191,9 @@ class SampleSheet(AppLogger):
         f.close()
         self.debug('Added %s samples' % counter)
 
-    def _end_read_cycles(self, read, phix):
-            cycles = self.run_info.mask.num_cycles(read) - 1
-            if phix and self.run_info.mask.index_lengths:
+    def _end_read_cycles(self, mask, read, phix):
+            cycles = mask.num_cycles(read) - 1
+            if phix and mask.index_lengths:
                 cycles -= self.check_barcodes() / 2
             return str(int(cycles))
 
