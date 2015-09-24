@@ -65,7 +65,7 @@ def main():
         all_datasets = scanner.scan_datasets()
         new_datasets = all_datasets['new, rta complete']
         if cfg.get('intermediate_dir'):
-            new_datasets.extend(all_datasets['new'])
+            new_datasets.extend(all_datasets.get('new', []))
 
         for d in new_datasets:
             _setup_run(d)

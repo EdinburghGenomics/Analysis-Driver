@@ -8,7 +8,7 @@ from analysis_driver.notification import default as ntf
 app_logger = get_logger('driver')
 
 
-def pipeline(input_run_folder):
+def pipeline(input_run_folder, phix=False):
     """
     :param str input_run_folder: Full path to an input data directory
     :return: Exit status
@@ -25,20 +25,13 @@ def pipeline(input_run_folder):
     app_logger.info('Fastq dir: ' + fastq_dir)
     app_logger.info('Job dir: ' + job_dir)
 
-    sample_sheet = os.path.join(input_run_folder, 'SampleSheet.csv')
-    phix_mode = not os.path.isfile(sample_sheet)
-    if phix_mode:
-        app_logger.warning('No sample sheet found. Running in PhiX mode')
-        reader.fake_sample_sheet(sample_sheet)
-        assert os.path.isfile(sample_sheet)
-
-    reader.transform_sample_sheet(input_run_folder)
+    reader.transform_sample_sheet(input_run_folder, phix)
     sample_sheet = reader.SampleSheet(input_run_folder)
 
-    if not sample_sheet.validate() and not phix_mode:
+    if not sample_sheet.validate() and not phix:
         raise AnalysisDriverError('Validation failed. Check barcodes in SampleSheet.csv and RunInfo.xml.')
 
-    mask = sample_sheet.generate_mask(phix_mode)
+    mask = sample_sheet.generate_mask(phix)
     app_logger.info('bcl2fastq mask: ' + mask)  # example_mask = 'y150n,i6,y150n'
 
     ntf.end_stage('setup')
@@ -124,6 +117,8 @@ def _run_bcbio(run_id, fastq_dir, job_dir, sample_sheet):
     bcbio_array_cmds = []
     for sample_project, proj_obj in sample_sheet.sample_projects.items():
         proj_fastqs = util.fastq_handler.find_fastqs(fastq_dir, sample_project)
+        if not proj_fastqs:
+            app_logger.error('No fastq data for project \'%s\'' % sample_project)
 
         for sample_id, id_obj in proj_obj.sample_ids.items():
 
@@ -151,7 +146,7 @@ def _run_bcbio(run_id, fastq_dir, job_dir, sample_sheet):
                 os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'etc', 'bcbio_alignment.yaml'),
                 os.path.join(job_dir, 'bcbio'),
                 os.path.join(job_dir, 'samples_' + sample_id + '-merged.csv'),
-                *merged_fastqs
+                merged_fastqs
             )
 
     bcbio_writer = writer.get_script_writer(

@@ -50,7 +50,7 @@ def setup_bcbio_run(template, csv_file, job_dir, fastqs):
         template,
         job_dir,
         csv_file,
-        fastqs
+        *fastqs
     )
 
 

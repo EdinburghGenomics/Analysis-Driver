@@ -31,7 +31,7 @@ class Executor(AppLogger):
     def _validate_file_paths(self):
         for arg in self.cmd:
             if arg.startswith('/') and not os.path.exists(arg):
-                raise AnalysisDriverError('Could not find file: ' + arg)
+                self.warn('Could not find file: ' + arg)
 
 
 class StreamExecutor(Executor, threading.Thread):

@@ -3,18 +3,19 @@ import csv
 from datetime import date
 import os.path
 from analysis_driver.app_logging import AppLogger, get_logger
+from analysis_driver.exceptions import AnalysisDriverError
 from .run_info import RunInfo
 from analysis_driver.config import default as cfg
 
 app_logger = get_logger('reader')
 
 
-def transform_sample_sheet(data_dir):
+def transform_sample_sheet(data_dir, phix):
     """
     Read SampleSheet.csv, translate column names and write to SampleSheet_analysis_driver.csv
     :param data_dir: Full path to a data directory containing SampleSheet.csv
     """
-    before, header = _read_sample_sheet(os.path.join(data_dir, 'SampleSheet.csv'))
+    before, header = _read_sample_sheet(os.path.join(data_dir, 'SampleSheet.csv'), phix)
     cols = before.readline().strip().split(',')
     after = open(os.path.join(data_dir, 'SampleSheet_analysis_driver.csv'), 'w')
     transformations = cfg['sample_sheet'].get('transformations', [])
@@ -30,11 +31,17 @@ def transform_sample_sheet(data_dir):
     before.close()
 
 
-def _read_sample_sheet(sample_sheet):
+def _read_sample_sheet(sample_sheet, phix=False):
     """
     Scan down a sample sheet until a [Data] line, then return the file object for further reading
     :return tuple[file, list] f, header: The sample sheet file object, and all lines above [Data]
     """
+    if not os.path.isfile(sample_sheet) and not phix:
+        raise AnalysisDriverError('No sample sheet found. Try rerunning in --phix mode')
+    elif phix:
+        fake_sample_sheet(sample_sheet)
+        assert os.path.isfile(sample_sheet)
+
     f = open(sample_sheet, 'r')
     app_logger.debug('Opened ' + f.name)
     counter = 1
@@ -68,9 +75,9 @@ def fake_sample_sheet(sample_sheet):
             '151\n'
             '151\n\n'
             '[Settings]\n'
-            'Adapter,AGATCGGAAGAGCACACGTCTGAACTCCAGTCA\n',
+            'Adapter,AGATCGGAAGAGCACACGTCTGAACTCCAGTCA\n'
             'AdapterRead2,AGATCGGAAGAGCGTCGTGTAGGGAAAGAGTGT\n\n'
-            '[Data]\n',
+            '[Data]\n'
             'Lane,Sample_ID,Sample_Name,Sample_Plate,Sample_Well,Sample_Project,Index\n'
         )
         f.write(header)
@@ -79,7 +86,7 @@ def fake_sample_sheet(sample_sheet):
             'ATTACTCG', 'TCCGGAGA', 'CGCTCATT', 'GAGATTCC', 'ATTCAGAA', 'GAATTCGT', 'CTGAAGCT', 'TAATGCGC'
         ]
         for idx, barcode in enumerate(barcodes):
-            f.write('1+2+3+4+5+6+7+8,PHIX%s,,,,validation_run_E00365,%s' % (idx + 1, barcode))
+            f.write('1+2+3+4+5+6+7+8,PHIX%s,,,,validation_run_E00365,%s\n' % (idx + 1, barcode))
 
 
 class SampleSheet(AppLogger):
@@ -144,8 +151,7 @@ class SampleSheet(AppLogger):
         Ensure that the SampleSheet is consistent with itself and RunInfo
         """
         self.debug('Validating...')
-        if not self.run_info.barcode_len:
-            self.run_info.critical('No barcode found in RunInfo.xml')
+        if not self.run_info.mask.barcode_len:
             return False
         if self.check_barcodes() != self.run_info.barcode_len:
             self.error(
@@ -190,9 +196,9 @@ class SampleSheet(AppLogger):
 
     def _end_read_cycles(self, read, phix):
             cycles = self.run_info.mask.num_cycles(read) - 1
-            if phix:
-                cycles /= self.check_barcodes() / 2
-            return str(cycles)
+            if phix and self.run_info.mask.index_lengths:
+                cycles -= self.check_barcodes() / 2
+            return str(int(cycles))
 
     def _get_sample_project(self, name):
         sample_project = ValueError('Could not add sample project ' + name)
