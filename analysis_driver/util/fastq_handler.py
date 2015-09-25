@@ -6,7 +6,7 @@ from analysis_driver.app_logging import get_logger
 app_logger = get_logger('fastq_handler')
 
 
-def find_fastqs(location, sample_project):
+def find_fastqs(location, sample_project, sample_id, flat=False):
     """
     Iterate through an input folder and find all .fastq.gz files. The input folder should be
     'location/sample_project'
@@ -15,21 +15,23 @@ def find_fastqs(location, sample_project):
     :return: A dict mapping sample ids to full paths to *.fastq.gz files in the sample_project dir.
     :rtype: dict[str, list[str]]
     """
-    fastq_dir = os.path.join(location, sample_project)
-    fastqs = {}
+    if flat:
+        fastqs = os.path.join(location, sample_project, sample_id + '*.fastq.gz')
+    else:
+        fastqs = os.path.join(location, sample_project, sample_id, '*.fastq.gz')
 
-    for sample_id in os.listdir(fastq_dir):
-        fastqs[sample_id] = glob(os.path.join(fastq_dir, sample_id, '*.fastq.gz'))
-
-    app_logger.info('Found %s fastq files in %s' % (len(fastqs), os.path.join(location, sample_project)))
-    return fastqs
+    app_logger.info('Found %s fastq files for %s' % (len(fastqs), os.path.join(sample_project, sample_id)))
+    return glob(fastqs)
 
 
-def flatten_fastqs(location):
+def find_all_fastqs(location):
     """
     Return the results of find_fastqs as a flat list.
     :return: Full paths to all *.fastq.gz files for all sample projects and sample ids in the input dir
     :rtype: list[str]
     """
-    app_logger.debug('Flattening fastqs')
-    return glob(os.path.join(location, '*', '*', '*.fastq.gz'))
+    fastqs = []
+    for name, dirs, files in os.walk(location):
+        fastqs.extend([os.path.join(name, f) for f in files if f.endswith('.fastq.gz')])
+    app_logger.info('Found %s fastqs in %s' % (len(fastqs), location))
+    return fastqs
