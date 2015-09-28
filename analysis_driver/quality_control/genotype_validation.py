@@ -17,6 +17,7 @@ class GenotypeValidation(Thread):
         self.sample_to_fastqs = sample_to_fastqs
         self.run_id = run_id
         self.validation_cfg = cfg.get('genotype-validation')
+        Thread.__init__(self)
 
     def _align_with_bwa_aln(self, fastqs_files, sample_name, output_bam_file,  reference):
         """
@@ -52,7 +53,7 @@ class GenotypeValidation(Thread):
         :return list of bam file containing the reads aligned."""
         list_commands = []
         list_output_bam = []
-        work_dir = os.path.join(self.validation_cfg['jobs_dir'], self.run_id)
+        work_dir = os.path.join(cfg['jobs_dir'], self.run_id)
         for sample_name in self.sample_to_fastqs:
             output_bam_file = os.path.join(work_dir, sample_name + '.bam')
             list_output_bam.append(output_bam_file)
@@ -147,7 +148,6 @@ class GenotypeValidation(Thread):
 
     def run(self):
         self.validation_results = self._genotype_validation()
-        return self.validation_results
 
     def join(self, timeout=None):
         super().join(timeout=timeout)
