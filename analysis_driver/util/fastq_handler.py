@@ -6,22 +6,18 @@ from analysis_driver.app_logging import get_logger
 app_logger = get_logger('fastq_handler')
 
 
-def find_fastqs(location, sample_project, sample_id, flat=False):
+def find_fastqs(location, sample_project, sample_id):
     """
     Iterate through an input folder and find all .fastq.gz files. The input folder should be
     'location/sample_project'
     :param location: The overall directory to search
     :param sample_project: The sample_project directory to search
     :return: A dict mapping sample ids to full paths to *.fastq.gz files in the sample_project dir.
-    :rtype: dict[str, list[str]]
+    :rtype: list[str]
     """
-    if flat:
-        fastqs = os.path.join(location, sample_project, sample_id + '*.fastq.gz')
-    else:
-        fastqs = os.path.join(location, sample_project, sample_id, '*.fastq.gz')
-
+    fastqs = glob(os.path.join(location, sample_project, sample_id, '*.fastq.gz'))
     app_logger.info('Found %s fastq files for %s' % (len(fastqs), os.path.join(sample_project, sample_id)))
-    return glob(fastqs)
+    return fastqs
 
 
 def find_all_fastqs(location):

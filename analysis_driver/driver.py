@@ -12,13 +12,9 @@ def pipeline(input_run_folder):
     """
     :param str input_run_folder: Full path to an input data directory
     :return: Exit status
-    :rtype: int
     """
     exit_status = 0
     run_id = os.path.basename(input_run_folder)
-
-    ntf.start_stage('setup')
-    
     job_dir = os.path.join(cfg['jobs_dir'], run_id)
     fastq_dir = os.path.join(job_dir, 'fastq')
     app_logger.info('Input run folder (bcl data source): ' + input_run_folder)
@@ -27,27 +23,23 @@ def pipeline(input_run_folder):
 
     run_info = reader.RunInfo(input_run_folder)
     samplesheet_csv = os.path.join(input_run_folder, 'SampleSheet.csv')
-
     if not run_info.mask.barcode_len or not os.path.exists(samplesheet_csv):
         app_logger.info('No sample sheet or barcodes found. Running in phiX mode')
-        phix = True
-    else:
-        phix = False
+        return pipeline_phix(input_run_folder)
 
-    reader.transform_sample_sheet(input_run_folder, phix)
+    ntf.start_stage('setup')
+    reader.transform_sample_sheet(input_run_folder)
     sample_sheet = reader.SampleSheet(input_run_folder)
-
-    if not sample_sheet.validate(run_info.mask) and not phix:
+    if not sample_sheet.validate(run_info.mask):
         raise AnalysisDriverError('Validation failed. Check SampleSheet.csv and RunInfo.xml.')
 
-    mask = sample_sheet.generate_mask(run_info.mask, phix)
+    mask = sample_sheet.generate_mask(run_info.mask)
     app_logger.info('bcl2fastq mask: ' + mask)  # example_mask = 'y150n,i6,y150n'
-
     ntf.end_stage('setup')
     
     # bcl2fastq
     ntf.start_stage('bcl2fastq')
-    exit_status += _run_bcl2fastq(input_run_folder, run_id, fastq_dir, mask).join()
+    exit_status += _run_bcl2fastq(input_run_folder, run_id, fastq_dir, samplesheet_csv, mask).join()
     ntf.end_stage('bcl2fastq', exit_status)
     if exit_status:
         return exit_status
@@ -56,7 +48,7 @@ def pipeline(input_run_folder):
     ntf.start_stage('fastqc')
     fastqc_executor = _run_fastqc(run_id, fastq_dir)
     ntf.start_stage('bcbio')
-    bcbio_executor = _run_bcbio(run_id, fastq_dir, job_dir, sample_sheet, phix)
+    bcbio_executor = _run_bcbio(run_id, fastq_dir, job_dir, sample_sheet)
 
     # wait for fastqc and bcbio to finish
     fastqc_exit_status = fastqc_executor.join()
@@ -78,7 +70,28 @@ def pipeline(input_run_folder):
     return exit_status
 
 
-def _run_bcl2fastq(input_run_folder, run_id, fastq_dir, mask):
+def pipeline_phix(input_run_folder):
+    exit_status = 0
+    run_id = os.path.basename(input_run_folder)
+    job_dir = os.path.join(cfg['jobs_dir'], run_id)
+    fastq_dir = os.path.join(job_dir, 'fastq')
+
+    # bcl2fastq
+    ntf.start_stage('bcl2fastq')
+    exit_status += _run_bcl2fastq(input_run_folder, run_id, fastq_dir).join()
+    ntf.end_stage('bcl2fastq', exit_status)
+    if exit_status:
+        return exit_status
+
+    # fastqc
+    ntf.start_stage('fastqc')
+    exit_status += _run_fastqc(run_id, fastq_dir).join()
+    ntf.end_stage('fastqc', exit_status)
+
+    return exit_status
+
+
+def _run_bcl2fastq(input_run_folder, run_id, fastq_dir, sample_sheet=None, mask=None):
     bcl2fastq_writer = writer.get_script_writer(
         'bcl2fastq',
         run_id,
@@ -88,7 +101,7 @@ def _run_bcl2fastq(input_run_folder, run_id, fastq_dir, mask):
     )
     bcl2fastq_script = writer.write_jobs(
         bcl2fastq_writer,
-        [writer.bash_commands.bcl2fastq(mask, input_run_folder, fastq_dir)]
+        [writer.bash_commands.bcl2fastq(input_run_folder, fastq_dir, sample_sheet, mask)]
     )
 
     app_logger.info('Submitting ' + bcl2fastq_script)
@@ -98,7 +111,6 @@ def _run_bcl2fastq(input_run_folder, run_id, fastq_dir, mask):
 
 
 def _run_fastqc(run_id, fastq_dir):
-
     fastqs = util.fastq_handler.find_all_fastqs(fastq_dir)
     fastqc_writer = writer.get_script_writer(
         'fastqc',
@@ -119,14 +131,14 @@ def _run_fastqc(run_id, fastq_dir):
     return fastqc_executor
 
 
-def _run_bcbio(run_id, fastq_dir, job_dir, sample_sheet, phix):
+def _run_bcbio(run_id, fastq_dir, job_dir, sample_sheet):
     original_dir = os.getcwd()
     os.chdir(job_dir)
 
     bcbio_array_cmds = []
     for sample_project, proj_obj in sample_sheet.sample_projects.items():
         for sample_id, id_obj in proj_obj.sample_ids.items():
-            id_fastqs = util.fastq_handler.find_fastqs(fastq_dir, sample_project, sample_id, flat=phix)
+            id_fastqs = util.fastq_handler.find_fastqs(fastq_dir, sample_project, sample_id)
             merged_fastqs = util.bcbio_prepare_samples(job_dir, sample_id, id_fastqs)
             if merged_fastqs: 
                 util.setup_bcbio_run(
@@ -154,7 +166,7 @@ def _run_bcbio(run_id, fastq_dir, job_dir, sample_sheet, phix):
                     )
                 )
             else:
-                app_logger.warn('fastq merge failed - are some files missing or empty?')
+                app_logger.warning('fastq merge failed - are some files missing or empty?')
 
     bcbio_writer = writer.get_script_writer(
         'bcbio',
@@ -194,7 +206,6 @@ def _output_data(sample_sheet, job_dir):
 
             bcbio_source_dir = os.path.join(job_dir, 'samples_' + sample_id + '-merged', 'final', sample_id)
             merged_fastq_dir = os.path.join(job_dir, 'merged')
-
             source_path_mapping = {
                 'vcf': bcbio_source_dir,
                 'bam': bcbio_source_dir,
