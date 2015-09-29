@@ -27,11 +27,7 @@ class RunInfo(AppLogger):
             self.debug('Adding read: ' + str(read.attrib))
             self.mask.add(read)
 
-        barcode_reads = self.mask.index_lengths
-        if len(barcode_reads):
-            self.debug('Barcode reads: ' + str(barcode_reads))
-            self.barcode_len = barcode_reads[0]
-        else:
+        if not self.mask.index_lengths:
             self.warn('RunInfo.xml has no barcode reads')
 
 
@@ -82,7 +78,7 @@ class Mask:
         self.reads.append(read)
         if self._is_indexed_read(read):
             assert (read.attrib == self.barcode_len or self.barcode_len is None)
-            self.barcode_len = read.attrib['NumCycles']
+            self.barcode_len = int(read.attrib['NumCycles'])
 
     def validate(self):
         """
