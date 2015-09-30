@@ -9,15 +9,11 @@ testing:
 
     bcl2fastq: /path/to/bcl2fastq
     fastqc: /path/to/fastqc
-    bcbio_nextgen: /path/to/bcbio
-    bcbio_prepare_samples: /path/to/bcbio
+    bcbio: /path/to/bcbio
     job_execution: None  # pbs, local or None
     job_queue: uv2000
 
-    gatk:
-        java_home: /path/to/jdk1.7.0_76/
-        java_bindir: /path/to/jdk1.7.0_76/bin
-        java_root: /path/to/jdk1.7.0_76/
+    jdk: /path/to/jdk1.7.0_76/
 
     logging:
         format: '[%(asctime)s][%(name)s][%(levelname)s] %(message)s'

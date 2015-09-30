@@ -21,16 +21,15 @@ class TestLogger(TestAnalysisDriver):
 
 
 class TestFastqHandler(TestAnalysisDriver):
-
     def test_find_fastqs(self):
-        fastqs = util.fastq_handler.find_fastqs(self.fastq_path, '10015AT')
+        fastqs = util.fastq_handler.find_fastqs(self.fastq_path, '10015AT', '10015ATA0001L05')
         for file_name in ['this.fastq.gz', 'that.fastq.gz', 'other.fastq.gz']:
             assert os.path.join(
                 self.fastq_path, '10015AT', '10015ATA0001L05', file_name
-            ) in fastqs['10015ATA0001L05']
+            ) in fastqs
 
     def test_flatten_fastqs(self):
-        fastqs = util.fastq_handler.flatten_fastqs(self.fastq_path, ['10015AT'])
+        fastqs = util.fastq_handler.find_all_fastqs(self.fastq_path)
         for file_name in ['this.fastq.gz', 'that.fastq.gz', 'other.fastq.gz']:
             assert os.path.join(
                 self.fastq_path, '10015AT', '10015ATA0001L05', file_name

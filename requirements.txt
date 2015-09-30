@@ -1,3 +1,4 @@
+jinja2==2.8
 PyYAML==3.11
 pytest==2.7.2
 coverage==3.7.1
