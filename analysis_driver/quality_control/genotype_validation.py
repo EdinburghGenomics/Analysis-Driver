@@ -60,7 +60,7 @@ class GenotypeValidation(AppLogger, Thread):
             list_output_bam.append(output_bam_file)
             list_commands.append(self._align_with_bwa_aln(self.sample_to_fastqs.get(sample_name), sample_name,
                                                           output_bam_file, self.validation_cfg.get('reference')))
-        bwa_writer = writer.get_script_writer('alignment_bwa', self.run_id, walltime=2, cpus=4, mem=8)
+        bwa_writer = writer.get_script_writer('alignment_bwa', self.run_id, walltime=2, cpus=4, mem=8, jobs=len(list_commands))
         bwa_script = writer.write_jobs(
             bwa_writer,
             list_commands
@@ -81,7 +81,7 @@ class GenotypeValidation(AppLogger, Thread):
         :param run_id the id of the run these sample were sequenced on.
         :rtype: str
         :return a vcf file that contains the variant for all samples."""
-        output_vcf_file = os.path.join(self.validation_cfg['jobs_dir'], self.run_id, self.run_id + '_genotype_validation.vcf.gz')
+        output_vcf_file = os.path.join(cfg['jobs_dir'], self.run_id, self.run_id + '_genotype_validation.vcf.gz')
         GATK_options = ['java -Xmx4G -jar %s' % self.validation_cfg.get('gatk'),
                         '-T UnifiedGenotyper',
                         '-t 4',
@@ -92,7 +92,7 @@ class GenotypeValidation(AppLogger, Thread):
         GATK_options.extend(['-I %s' % bam_file for bam_file in bam_files])
         GATK_options.append('-o %s' % output_vcf_file)
 
-        gatk_writer = writer.get_script_writer('snpscall_gatk', self.run_id, walltime=2, cpus=4, mem=4)
+        gatk_writer = writer.get_script_writer('snpscall_gatk', self.run_id, walltime=2, cpus=4, mem=4, jobs=1)
 
         gatk_script = writer.write_jobs(
             gatk_writer,
@@ -128,7 +128,7 @@ class GenotypeValidation(AppLogger, Thread):
             validation_results.append(validation_result)
 
         genotype_concordance_writer = writer.get_script_writer('validation_genotype_concordance', self.run_id,
-                                                               walltime=2, cpus=4, mem=8)
+                                                               walltime=2, cpus=4, mem=8, jobs=len(list_commands))
         genotype_concordance_writer = writer.write_jobs(genotype_concordance_writer,list_commands)
 
         ntf.start_stage('validation_genotype_concordance')
