@@ -50,7 +50,7 @@ def pipeline(input_run_folder):
     #Merge the fastq files
     ntf.start_stage('merge fastq')
     sample_to_fastq_files = _bcio_prepare_sample(fastq_dir, job_dir, sample_sheet)
-    ntf.end_stage('merge fastq', run_id)
+    ntf.end_stage('merge fastq')
 
     #Start a different branch
     ntf.start_stage('genotype validation')

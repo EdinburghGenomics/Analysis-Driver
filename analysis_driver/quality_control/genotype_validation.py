@@ -1,12 +1,13 @@
 import os
 from threading import Thread
 from analysis_driver import writer
+from analysis_driver.app_logging import AppLogger
 from analysis_driver.executor import executor
 from analysis_driver.notification import default as ntf
 from analysis_driver.config import default as cfg
 
 
-class GenotypeValidation(Thread):
+class GenotypeValidation(AppLogger, Thread):
     """ This class will perform the Genotype validation steps. It subclass Thread allowing it to be run in the background.
     """
     def __init__(self, sample_to_fastqs, run_id):
@@ -65,11 +66,11 @@ class GenotypeValidation(Thread):
             list_commands
         )
 
-        ntf.start_stage('genotype_validation_bwa', self.run_id)
+        ntf.start_stage('genotype_validation_bwa')
         bwa_executor = executor.ClusterExecutor(bwa_script, block=True)
         bwa_executor.start()
         exit_status = bwa_executor.join()
-        ntf.end_stage('genotype_validation_bwa', self.run_id, exit_status)
+        ntf.end_stage('genotype_validation_bwa', exit_status)
 
         return list_output_bam
 
@@ -97,11 +98,11 @@ class GenotypeValidation(Thread):
             gatk_writer,
             ' '.join(GATK_options)
         )
-        ntf.start_stage('genotype_validation_gatk', self.run_id)
+        ntf.start_stage('genotype_validation_gatk')
         gatk_executor = executor.ClusterExecutor(gatk_script, block=True)
         gatk_executor.start()
         exit_status = gatk_executor.join()
-        ntf.end_stage('genotype_validation_gatk', self.run_id, exit_status)
+        ntf.end_stage('genotype_validation_gatk', exit_status)
         return output_vcf_file
 
     def _vcf_validation(self, vcf_file):
@@ -130,11 +131,11 @@ class GenotypeValidation(Thread):
                                                                walltime=2, cpus=4, mem=8)
         genotype_concordance_writer = writer.write_jobs(genotype_concordance_writer,list_commands)
 
-        ntf.start_stage('validation_genotype_concordance', self.run_id)
+        ntf.start_stage('validation_genotype_concordance')
         bwa_executor = executor.ClusterExecutor(genotype_concordance_writer, block=True)
         bwa_executor.start()
         exit_status = bwa_executor.join()
-        ntf.end_stage('validation_genotype_concordance', self.run_id, exit_status)
+        ntf.end_stage('validation_genotype_concordance', exit_status)
         return validation_results
 
     def _genotype_validation(self):
@@ -147,8 +148,13 @@ class GenotypeValidation(Thread):
         return validation_results
 
     def run(self):
-        self.validation_results = self._genotype_validation()
+        try :
+            self.validation_results = self._genotype_validation()
+        except Exception as e :
+            self.exception = e
 
     def join(self, timeout=None):
         super().join(timeout=timeout)
+        if self.exception:
+            raise self.exception
         return self.validation_results
