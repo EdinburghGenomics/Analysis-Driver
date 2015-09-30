@@ -34,7 +34,6 @@ class EmailNotification(Notification):
         mail_success = self._try_send(body, diagnostics)
         if not mail_success:
             if cfg.query('notification', 'email_notification', 'strict') is True:
-                print('strict')
                 raise AnalysisDriverError('Failed to send message: ' + body)
             else:
                 self.critical('Failed to send message: ' + body)

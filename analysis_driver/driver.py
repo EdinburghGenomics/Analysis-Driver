@@ -71,6 +71,7 @@ def pipeline(input_run_folder):
 
 
 def pipeline_phix(input_run_folder):
+    # TODO: remove this, find a better way of having alternate pipelines
     exit_status = 0
     run_id = os.path.basename(input_run_folder)
     job_dir = os.path.join(cfg['jobs_dir'], run_id)
