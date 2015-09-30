@@ -2,7 +2,7 @@ __author__ = 'mwham'
 from tests.test_analysisdriver import TestAnalysisDriver
 from analysis_driver.writer.pbs_writer import PBSWriter
 import os.path
-from analysis_driver.writer.commands import bcbio_env_vars, bcbio
+from analysis_driver.writer.bash_commands import bcbio_env_vars, bcbio
 
 
 class TestPBSWriter(TestAnalysisDriver):
@@ -75,7 +75,8 @@ class TestPBSWriter(TestAnalysisDriver):
             'export JAVA_BINDIR=path/to/jdk1.7.0_76/bin',
             'export JAVA_ROOT=path/to/jdk1.7.0_76/',
             '',
-            '/Users/mwham/workspace/EdGen_Analysis_Driver/Applications/tools/fake_bcbio/bin/bcbio_nextgen.py test.yaml -n 16 --workdir /Users/mwham/workspace/EdGen_Analysis_Driver/Applications/Analysis-Driver/tests/assets'
+            ('/Users/mwham/workspace/EdGen_Analysis_Driver/Applications/tools/fake_bcbio/bin/bcbio_nextgen.py'
+             ' test.yaml -n 10 --workdir /Users/mwham/workspace/EdGen_Analysis_Driver/Applications/Analysis-Driver/tests/assets')
         ]
         print('\n', self.writer.lines)
         print('', expected)

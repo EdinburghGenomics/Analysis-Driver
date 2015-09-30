@@ -14,9 +14,6 @@ class TestRunInfo(TestAnalysisDriver):
     def setUp(self):
         self.run_info = RunInfo(self.assets_path)
 
-    def test_init(self):
-        assert self.run_info.barcode_len == 6
-
 
 class TestMask(TestAnalysisDriver):
     def setUp(self):
@@ -33,12 +30,12 @@ class TestMask(TestAnalysisDriver):
         new_element = new_read(1338, 15, 'Y')
         self.mask.add(new_element)
         assert new_element in self.mask.reads
-        assert self.mask.barcode_len == '15'
+        assert self.mask.barcode_len == 15
 
         new_element = new_read(1339, 75, 'N')
         self.mask.add(new_element)
         assert new_element in self.mask.reads
-        assert self.mask.barcode_len == '15'
+        assert self.mask.barcode_len == 15
 
     def test_upstream_read(self):
         assert self.mask_helper.upstream_read.attrib['NumCycles'] == '151'

@@ -1,5 +1,5 @@
 import os.path
-import xml.etree.ElementTree as eT
+from xml.etree import ElementTree as et
 from analysis_driver.app_logging import AppLogger
 
 
@@ -18,7 +18,7 @@ class RunInfo(AppLogger):
         :param str data_dir: A file path to the input_data folder containing RunInfo.xml
         """
         run_info = os.path.join(data_dir, 'RunInfo.xml')
-        root = eT.parse(run_info).getroot()
+        root = et.parse(run_info).getroot()
         reads = root.find('Run/Reads').getchildren()
 
         # Populate a Mask object with Read XML entities
@@ -26,13 +26,8 @@ class RunInfo(AppLogger):
         for read in reads:
             self.debug('Adding read: ' + str(read.attrib))
             self.mask.add(read)
-        self.mask.validate()
 
-        barcode_reads = self.mask.index_lengths
-        if len(barcode_reads):
-            self.debug('Barcode reads: ' + str(barcode_reads))
-            self.barcode_len = barcode_reads[0]
-        else:
+        if not self.mask.index_lengths:
             self.warn('RunInfo.xml has no barcode reads')
 
 
@@ -76,42 +71,37 @@ class Mask:
 
     def add(self, read):
         """
-        Add a Read entity to self.reads. If Read is a barcode, assert that its length is consistent with the
+        Add a Read entity to self.reads and if it is a barcode, assert that its length is consistent with the
         Reads already contained.
-        :param xml.etree.ElementTree.Element read: A read entity from RunInfo.xml
+        :param et.Element read: A read entity from RunInfo.xml
         """
         self.reads.append(read)
         if self._is_indexed_read(read):
             assert (read.attrib == self.barcode_len or self.barcode_len is None)
-            self.barcode_len = read.attrib['NumCycles']
+            self.barcode_len = int(read.attrib['NumCycles'])
 
     def validate(self):
         """
         Ensure that the first and last items of self.reads are not barcodes, and that all others are.
-        :return: True if successful
         """
-        assert not self._is_indexed_read(self.reads[0])
-        assert not self._is_indexed_read(self.reads[-1])
+        if self._is_indexed_read(self.reads[0]) or self._is_indexed_read(self.reads[-1]):
+            return False
         for index in self.indexes:
-            assert self._is_indexed_read(index), str([x.attrib for x in self.indexes])
+            if not self._is_indexed_read(index):
+                return False
         return True
 
     @staticmethod
     def num_cycles(read):
         """
-        Translate a Read's NumCycles attrib into a read length
-        :param xml.etree.ElementTree.Element read: A Read from self.reads
-        :return: The Read's NumCycles attrib as a read length
+        Return a RunInfo.xml Read's NumCycles attrib as a read length
         """
         return int(read.attrib['NumCycles'])
 
     @staticmethod
     def _is_indexed_read(read):
         """
-        Tell whether a Read is a barcode, based on its IsIndexedRead attribute.
-        :param xml.etree.ElementTree.Element read: A Read entity from self.reads
-        :return: True if the read's IsIndexedRead is 'Y', False if 'N'.
-        :raises: ValueError if IsIndexedRead is not 'Y' or 'N'
+        Tell whether a RunInfo.xml Read is a barcode, based on its IsIndexedRead attribute.
         """
         if read.attrib['IsIndexedRead'] == 'Y':
             return True

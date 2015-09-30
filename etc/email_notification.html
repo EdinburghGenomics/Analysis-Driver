@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <style>
+        table, th, td {
+            border: 1px solid black;
+            border-collapse: collapse;
+        }
+    </style>
+</head>
+<body>
+    <h2>Analysis Driver run {{run}}</h2>
+    <p>{{ body }}</p>
+    {% if run_config %}
+        <h3>Configurations</h3>
+            <code>{{ run_config }}</code>
+    {% endif %}
+    {% if env_vars %}
+        <h3>Environment variables</h3>
+        <table>
+            <tr><th>name</th><th>value</th></tr>
+            {% for k, v in env_vars %}
+                <tr><td>{{k}}</td><td>{{v}}</td></tr>
+            {% endfor %}
+        </table>
+    {% endif %}
+</body>
+</html>
