@@ -38,6 +38,7 @@ def get_script_writer(job_name, run_id, walltime, cpus, mem, jobs=1):
 def write_jobs(writer, commands, log_file_base=None):
     """
     :param ScriptWriter writer:
+    :param list[str] commands:
     :return: the name of the script written
     """
     if len(commands) == 1:

@@ -46,16 +46,16 @@ def pipeline(input_run_folder):
     if exit_status:
         return exit_status
     
-    # start fastqc and bcbio
+    # fastqc
     ntf.start_stage('fastqc')
     fastqc_executor = _run_fastqc(run_id, fastq_dir)
     
-    #Merge the fastq files
-    ntf.start_stage('merge fastq')
+    # merge the fastq files
+    ntf.start_stage('merge fastqs')
     sample_to_fastq_files = _bcio_prepare_sample(fastq_dir, job_dir, sample_sheet)
-    ntf.end_stage('merge fastq')
+    ntf.end_stage('merge fastqs')
 
-    #Start a different branch
+    # genotype validation
     ntf.start_stage('genotype validation')
     genotype_validation = GenotypeValidation(sample_to_fastq_files, run_id)
     genotype_validation.start()
@@ -66,6 +66,7 @@ def pipeline(input_run_folder):
 
     # wait for genotype_validation fastqc and bcbio to finish
     genotype_results = genotype_validation.join()
+    app_logger.info('Written files: ' + str(genotype_results))
     ntf.end_stage('genotype validation')
 
     fastqc_exit_status = fastqc_executor.join()
@@ -149,17 +150,20 @@ def _run_fastqc(run_id, fastq_dir):
 
     return fastqc_executor
 
+
 def _bcio_prepare_sample(fastq_dir, job_dir, sample_sheet):
     """
     Merge the fastq files per sample using bcbio prepare sample
     """
     sample_name_to_fastqs = {}
     for sample_project, proj_obj in sample_sheet.sample_projects.items():
-        proj_fastqs = util.fastq_handler.find_fastqs(fastq_dir, sample_project)
-
         for sample_id, id_obj in proj_obj.sample_ids.items():
-            merged_fastqs = util.bcbio_prepare_samples(job_dir, sample_id, proj_fastqs[sample_id])
-            sample_name_to_fastqs[sample_id]=merged_fastqs
+            merged_fastqs = util.bcbio_prepare_samples(
+                job_dir,
+                sample_id,
+                util.fastq_handler.find_fastqs(fastq_dir, sample_project, sample_id)
+            )
+            sample_name_to_fastqs[sample_id] = merged_fastqs
     return sample_name_to_fastqs
 
 
@@ -177,7 +181,7 @@ def _run_bcbio(run_id, job_dir, sample_name_to_fastqs):
             *sample_name_to_fastqs.get(sample_id)
         )
         bcbio_array_cmds.append(
-            writer.commands.bcbio(
+            writer.bash_commands.bcbio(
                 os.path.join(
                     job_dir,
                     'samples_' + sample_id + '-merged',

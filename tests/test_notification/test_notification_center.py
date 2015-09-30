@@ -20,7 +20,8 @@ class TestNotificationCenter(TestAnalysisDriver):
             'mailhost': 'renko.ucs.ed.ac.uk',
             'port': 25,
             'reporter_email': 'murray.wham@ed.ac.uk',
-            'recipient_emails': ['murray.wham@ed.ac.uk']
+            'recipient_emails': ['murray.wham@ed.ac.uk'],
+            'strict': True
         }
         print(self.notification_center.subscribers)
         self.email_notification = TestEmailNotification('test_run', email_config)

@@ -74,15 +74,7 @@ class Configuration:
         that order
         :return: Path to the config
         """
-        for config in [
-            os.getenv('ANALYSISDRIVERCONFIG'),
-            os.path.expanduser('~/.analysisdriver.yaml'),
-            os.path.join(
-                os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                'etc',
-                'analysisdriver.yaml'
-            )
-        ]:
+        for config in [os.getenv('ANALYSISDRIVERCONFIG'), os.path.expanduser('~/.analysisdriver.yaml')]:
             if config and os.path.isfile(config):
                 return config
         raise AnalysisDriverError('Could not find config file in env variable, home or etc')

@@ -15,6 +15,7 @@ class EmailNotification(Notification):
         self.reporter = config['reporter_email']
         self.recipients = config['recipient_emails']
         self.mailhost = config['mailhost']
+        self.strict = config.get('strict')
         self.port = config['port']
 
     def start_pipeline(self):
@@ -31,11 +32,16 @@ class EmailNotification(Notification):
         self._send_mail(msg, diagnostics=bool(stacktrace))
 
     def _send_mail(self, body, diagnostics=False):
+        print('trying')
         mail_success = self._try_send(body, diagnostics)
         if not mail_success:
-            if cfg.query('notification', 'email_notification', 'strict') is True:
+            print('oh noes!')
+            print(self.strict)
+            if self.strict is True:
+                print('raising')
                 raise AnalysisDriverError('Failed to send message: ' + body)
             else:
+                print('not raising')
                 self.critical('Failed to send message: ' + body)
 
     def _try_send(self, body, diagnostics, retries=1):

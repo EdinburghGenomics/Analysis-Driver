@@ -1,6 +1,6 @@
 __author__ = 'mwham'
 from tests.test_analysisdriver import TestAnalysisDriver
-from analysis_driver.reader import SampleSheet, RunInfo, transform_sample_sheet, fake_sample_sheet
+from analysis_driver.reader import SampleSheet, RunInfo, transform_sample_sheet
 from analysis_driver.reader.sample_sheet import SampleProject, Sample
 import pytest
 
