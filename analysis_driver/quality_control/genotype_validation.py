@@ -18,6 +18,7 @@ class GenotypeValidation(AppLogger, Thread):
         self.sample_to_fastqs = sample_to_fastqs
         self.run_id = run_id
         self.validation_cfg = cfg.get('genotype-validation')
+        self.exception = None
         Thread.__init__(self)
 
     def _align_with_bwa_aln(self, fastqs_files, sample_name, output_bam_file,  reference):
@@ -84,7 +85,7 @@ class GenotypeValidation(AppLogger, Thread):
         output_vcf_file = os.path.join(cfg['jobs_dir'], self.run_id, self.run_id + '_genotype_validation.vcf.gz')
         GATK_options = ['java -Xmx4G -jar %s' % self.validation_cfg.get('gatk'),
                         '-T UnifiedGenotyper',
-                        '-t 4',
+                        '-nt 4',
                         '-R %s' % self.validation_cfg.get('reference'),
                         ' --standard_min_confidence_threshold_for_calling 30.0',
                         '--standard_min_confidence_threshold_for_emitting 0',
@@ -93,11 +94,8 @@ class GenotypeValidation(AppLogger, Thread):
         GATK_options.append('-o %s' % output_vcf_file)
 
         gatk_writer = writer.get_script_writer('snpscall_gatk', self.run_id, walltime=2, cpus=4, mem=4, jobs=1)
-
-        gatk_script = writer.write_jobs(
-            gatk_writer,
-            ' '.join(GATK_options)
-        )
+        gatk_script = writer.write_jobs( gatk_writer,[' '.join(GATK_options)])
+        
         ntf.start_stage('genotype_validation_gatk')
         gatk_executor = executor.ClusterExecutor(gatk_script, block=True)
         gatk_executor.start()
@@ -120,21 +118,21 @@ class GenotypeValidation(AppLogger, Thread):
             validation_result = os.path.join(work_dir, sample_name + 'validation.txt')
             GATK_command = ['java -Xmx4G -jar %s' % self.validation_cfg.get('gatk'),
                             '-T GenotypeConcordance',
-                            '-eval:VCF % ' % vcf_file,
-                            '-comp:VCF % ' % genotype_file,
+                            '-eval:VCF %s ' % vcf_file,
+                            '-comp:VCF %s ' % genotype_file,
                             '-R %s' % self.validation_cfg.get('reference'),
                             ' > %s' % validation_result]
-            list_commands.append(GATK_command)
+            list_commands.append(' '.join(GATK_command))
             validation_results.append(validation_result)
 
         genotype_concordance_writer = writer.get_script_writer('validation_genotype_concordance', self.run_id,
                                                                walltime=2, cpus=4, mem=8, jobs=len(list_commands))
-        genotype_concordance_writer = writer.write_jobs(genotype_concordance_writer,list_commands)
+        genotype_concordance_script = writer.write_jobs(genotype_concordance_writer, list_commands)
 
         ntf.start_stage('validation_genotype_concordance')
-        bwa_executor = executor.ClusterExecutor(genotype_concordance_writer, block=True)
-        bwa_executor.start()
-        exit_status = bwa_executor.join()
+        genotype_concordance_executor = executor.ClusterExecutor(genotype_concordance_script, block=True)
+        genotype_concordance_executor.start()
+        exit_status = genotype_concordance_executor.join()
         ntf.end_stage('validation_genotype_concordance', exit_status)
         return validation_results
 
