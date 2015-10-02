@@ -14,9 +14,9 @@ def execute(cmds, cluster=False, **kwargs):
     :return:
     """
     if not cluster:
-        _local_execute(cmds, stream=kwargs.get('stream', False))
+        return _local_execute(cmds, stream=kwargs.get('stream', False))
     else:
-        _cluster_execute(cmds, **kwargs)
+        return _cluster_execute(cmds, **kwargs)
 
 
 def _local_execute(cmds, stream):
@@ -42,8 +42,9 @@ def _local_execute(cmds, stream):
 
 
 def _cluster_execute(cmds, **kwargs):
+    prelim_cmds = kwargs.pop('prelim_cmds', None)
     w = writer.get_script_writer(jobs=len(cmds), **kwargs)
-    w.write_jobs(cmds, prelim_cmds=kwargs.get('prelim_cmds'))
+    w.write_jobs(cmds, prelim_cmds)
 
     e = ClusterExecutor(w.script_name)
     e.start()

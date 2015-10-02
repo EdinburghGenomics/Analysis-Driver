@@ -42,9 +42,8 @@ def pipeline(input_run_folder):
     # bcl2fastq
     ntf.start_stage('bcl2fastq')
     exit_status += executor.execute(
-        [writer.bash_commands.bcl2fastq(input_run_folder, fastq_dir, sample_sheet, mask)],
+        [writer.bash_commands.bcl2fastq(input_run_folder, fastq_dir, sample_sheet.filename, mask)],
         cluster=True,
-        split_off=False,
         job_name='bcl2fastq',
         run_id=run_id,
         walltime=32,
@@ -62,7 +61,6 @@ def pipeline(input_run_folder):
     fastqc_executor = executor.execute(
         [writer.bash_commands.fastqc(fq) for fq in util.fastq_handler.find_all_fastqs(fastq_dir)],
         cluster=True,
-        split_off=True,
         job_name='fastqc',
         run_id=run_id,
         walltime=6,
@@ -122,7 +120,6 @@ def pipeline_phix(input_run_folder):
     exit_status += executor.execute(
         [writer.bash_commands.bcl2fastq(input_run_folder, fastq_dir)],
         cluster=True,
-        split_off=True,
         job_name='bcl2fastq',
         run_id=run_id,
         walltime=32,
@@ -138,7 +135,6 @@ def pipeline_phix(input_run_folder):
     exit_status += executor.execute(
         [writer.bash_commands.fastqc(fq) for fq in util.fastq_handler.find_all_fastqs(fastq_dir)],
         cluster=True,
-        split_off=False,
         job_name='fastqc',
         run_id=run_id,
         walltime=6,
@@ -204,7 +200,6 @@ def _run_bcbio(run_id, job_dir, sample_name_to_fastqs):
     bcbio_executor = executor.execute(
         bcbio_array_cmds,
         cluster=True,
-        split_off=False,
         prelim_cmds=writer.bash_commands.bcbio_env_vars(),
         job_name='bcbio',
         run_id=run_id,

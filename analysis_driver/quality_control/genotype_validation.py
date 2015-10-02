@@ -80,22 +80,17 @@ class GenotypeValidation(AppLogger, Thread):
                     self.validation_cfg.get('reference')
                 )
             )
-        bwa_writer = writer.get_script_writer(
-            'alignment_bwa',
-            self.run_id,
+        
+        ntf.start_stage('genotype_validation_bwa')
+        bwa_executor = executor.execute(
+            commands,
+            cluster=True,
+            job_name='alignment_bwa',
+            run_id=self.run_id,
             walltime=2,
             cpus=4,
-            mem=8,
-            jobs=len(commands)
+            mem=8
         )
-        bwa_script = writer.write_jobs(
-            bwa_writer,
-            commands
-        )
-
-        ntf.start_stage('genotype_validation_bwa')
-        bwa_executor = executor.ClusterExecutor(bwa_script, block=True)
-        bwa_executor.start()
         exit_status = bwa_executor.join()
         ntf.end_stage('genotype_validation_bwa', exit_status)
 
