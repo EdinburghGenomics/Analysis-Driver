@@ -9,14 +9,24 @@ from analysis_driver.config import default as cfg
 
 
 class Executor(AppLogger):
+    """
+    Non-threaded execution
+    """
     def __init__(self, cmd):
         self.cmd = cmd
         self._validate_file_paths()
         self.proc = None
 
     def run(self):
-        out, err = self._process().communicate()
-        return out, err
+        """
+        Set self.proc to a Popen and start.
+        :rtype: tuple[bytes, bytes]
+        :raises: AnalysisDriverError on any exception
+        """
+        try:
+            return self._process().communicate()
+        except Exception as e:
+            raise AnalysisDriverError('Command failed: ' + self.cmd) from e
 
     def _process(self):
         """
@@ -39,12 +49,13 @@ class StreamExecutor(Executor, threading.Thread):
         """
         :param list cmd: A shell command to be executed
         """
+        self.exception = None
         Executor.__init__(self, cmd)
         threading.Thread.__init__(self)
 
-    def run(self):
+    def _stream_output(self):
         """
-        Run self._process and log its stdout/stderr.
+        Run self._process and log its stdout/stderr until an EOF.
         """
         proc = self._process()
         read_set = [proc.stdout, proc.stderr]
@@ -65,14 +76,22 @@ class StreamExecutor(Executor, threading.Thread):
         Ensure that both the thread and the subprocess have finished, and return self.proc's exit status.
         """
         super().join(timeout=timeout)
+        if self.exception:
+            raise self.exception
         try:
             return self.proc.wait()
-        except AttributeError as e:
-            raise AnalysisDriverError('Invalid parameters passed to self.proc: ' + str(self.cmd)) from e
+        except Exception as e:
+            raise AnalysisDriverError('self.proc command failed: ' + str(self.cmd)) from e
+
+    def run(self):
+        try:
+            self._stream_output()
+        except Exception as e:
+            self.exception = e
 
 
 class ClusterExecutor(StreamExecutor):
-    def __init__(self, script, block=False):
+    def __init__(self, script, block=True):
         """
         :param str script: Full path to a PBS script (for example)
         :param bool block: Whether to run the job in blocking mode

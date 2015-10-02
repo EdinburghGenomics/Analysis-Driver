@@ -41,16 +41,36 @@ def pipeline(input_run_folder):
     
     # bcl2fastq
     ntf.start_stage('bcl2fastq')
-    exit_status += _run_bcl2fastq(input_run_folder, run_id, fastq_dir, samplesheet_csv, mask).join()
+    exit_status += executor.execute(
+        [writer.bash_commands.bcl2fastq(input_run_folder, fastq_dir, sample_sheet, mask)],
+        cluster=True,
+        split_off=False,
+        job_name='bcl2fastq',
+        run_id=run_id,
+        walltime=32,
+        cpus=8,
+        mem=32
+    ).join()
+    # exit_status += _run_bcl2fastq(input_run_folder, run_id, fastq_dir, samplesheet_csv, mask).join()
     ntf.end_stage('bcl2fastq', exit_status)
     if exit_status:
         return exit_status
     
     # fastqc
     ntf.start_stage('fastqc')
-    fastqc_executor = _run_fastqc(run_id, fastq_dir)
-    
-    # merge the fastq files
+    # fastqc_executor = _run_fastqc(run_id, fastq_dir)
+    fastqc_executor = executor.execute(
+        [writer.bash_commands.fastqc(fq) for fq in util.fastq_handler.find_all_fastqs(fastq_dir)],
+        cluster=True,
+        split_off=True,
+        job_name='fastqc',
+        run_id=run_id,
+        walltime=6,
+        cpus=4,
+        mem=2
+    )
+
+    # merge fastq files
     ntf.start_stage('merge fastqs')
     sample_to_fastq_files = _bcio_prepare_sample(fastq_dir, job_dir, sample_sheet)
     ntf.end_stage('merge fastqs')
@@ -98,57 +118,36 @@ def pipeline_phix(input_run_folder):
 
     # bcl2fastq
     ntf.start_stage('bcl2fastq')
-    exit_status += _run_bcl2fastq(input_run_folder, run_id, fastq_dir).join()
+    # exit_status += _run_bcl2fastq(input_run_folder, run_id, fastq_dir).join()
+    exit_status += executor.execute(
+        [writer.bash_commands.bcl2fastq(input_run_folder, fastq_dir)],
+        cluster=True,
+        split_off=True,
+        job_name='bcl2fastq',
+        run_id=run_id,
+        walltime=32,
+        cpus=8,
+        mem=32
+    ).join()
     ntf.end_stage('bcl2fastq', exit_status)
     if exit_status:
         return exit_status
 
     # fastqc
     ntf.start_stage('fastqc')
-    exit_status += _run_fastqc(run_id, fastq_dir).join()
+    exit_status += executor.execute(
+        [writer.bash_commands.fastqc(fq) for fq in util.fastq_handler.find_all_fastqs(fastq_dir)],
+        cluster=True,
+        split_off=False,
+        job_name='fastqc',
+        run_id=run_id,
+        walltime=6,
+        cpus=4,
+        mem=2
+    ).join()
     ntf.end_stage('fastqc', exit_status)
 
     return exit_status
-
-
-def _run_bcl2fastq(input_run_folder, run_id, fastq_dir, sample_sheet=None, mask=None):
-    bcl2fastq_writer = writer.get_script_writer(
-        'bcl2fastq',
-        run_id,
-        walltime=32,
-        cpus=8,
-        mem=32
-    )
-    bcl2fastq_script = writer.write_jobs(
-        bcl2fastq_writer,
-        [writer.bash_commands.bcl2fastq(input_run_folder, fastq_dir, sample_sheet, mask)]
-    )
-
-    app_logger.info('Submitting ' + bcl2fastq_script)
-    bcl2fastq_executor = executor.ClusterExecutor(bcl2fastq_script, block=True)
-    bcl2fastq_executor.start()
-    return bcl2fastq_executor
-
-
-def _run_fastqc(run_id, fastq_dir):
-    fastqs = util.fastq_handler.find_all_fastqs(fastq_dir)
-    fastqc_writer = writer.get_script_writer(
-        'fastqc',
-        run_id,
-        walltime=6,
-        cpus=4,
-        mem=2,
-        jobs=len(fastqs)
-    )
-    fastqc_script = writer.write_jobs(
-        fastqc_writer,
-        [writer.bash_commands.fastqc(fq) for fq in fastqs]
-    )
-    app_logger.info('Submitting: ' + fastqc_script)
-    fastqc_executor = executor.ClusterExecutor(fastqc_script, block=True)
-    fastqc_executor.start()
-
-    return fastqc_executor
 
 
 def _bcio_prepare_sample(fastq_dir, job_dir, sample_sheet):
@@ -171,14 +170,18 @@ def _run_bcbio(run_id, job_dir, sample_name_to_fastqs):
     original_dir = os.getcwd()
     os.chdir(job_dir)
 
+    sample_preps = []
     bcbio_array_cmds = []
     for sample_id in sample_name_to_fastqs:
-
-        util.setup_bcbio_run(
-            os.path.join(os.path.dirname(__file__), '..', 'etc', 'bcbio_alignment.yaml'),
-            os.path.join(job_dir, 'bcbio'),
-            os.path.join(job_dir, 'samples_' + sample_id + '-merged.csv'),
-            *sample_name_to_fastqs.get(sample_id)
+        sample_preps.append(
+            [
+                os.path.join(cfg['bcbio'], 'bin', 'bcbio_nextgen.py'),
+                '-w',
+                'template',
+                os.path.join(os.path.dirname(__file__), '..', 'etc', 'bcbio_alignment.yaml'),
+                job_dir,
+                os.path.join(job_dir, 'samples_' + sample_id + '-merged.csv')
+            ] + sample_name_to_fastqs.get(sample_id)
         )
         bcbio_array_cmds.append(
             writer.bash_commands.bcbio(
@@ -196,27 +199,19 @@ def _run_bcbio(run_id, job_dir, sample_name_to_fastqs):
                 threads=10
             )
         )
+    executor.execute(sample_preps)
 
-    bcbio_writer = writer.get_script_writer(
-        'bcbio',
-        run_id,
+    bcbio_executor = executor.execute(
+        bcbio_array_cmds,
+        cluster=True,
+        split_off=False,
+        prelim_cmds=writer.bash_commands.bcbio_env_vars(),
+        job_name='bcbio',
+        run_id=run_id,
         walltime=96,
         cpus=10,
-        mem=64,
-        jobs=len(bcbio_array_cmds)
+        mem=64
     )
-    for cmd in writer.bash_commands.bcbio_env_vars():
-        bcbio_writer.write_line(cmd)
-
-    bcbio_script = writer.write_jobs(
-        bcbio_writer,
-        bcbio_array_cmds,
-        log_file_base=os.path.join(job_dir, 'bcbio')
-    )
-
-    bcbio_executor = executor.ClusterExecutor(bcbio_script, block=True)
-    bcbio_executor.start()
-
     os.chdir(original_dir)
 
     return bcbio_executor

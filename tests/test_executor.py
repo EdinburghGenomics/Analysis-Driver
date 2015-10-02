@@ -9,11 +9,11 @@ logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 
 
 class TestExecutor(TestAnalysisDriver):
-    def setUp(self):
-        self.executor = executor.Executor(['ls', self.assets_path])
-
     def test_cmd(self):
-        assert self.executor.cmd == ['ls', self.assets_path]
+        e = executor.Executor(['ls', os.path.join(self.assets_path, '..')])
+        out, err = e.run()
+        for f in ['test_executor.py', 'test_util.py', 'test_notification', '__init__.py']:
+            assert f in str(out)
 
     def test_stream(self):
         e = executor.StreamExecutor(
