@@ -84,6 +84,9 @@ def main():
             app_logger = app_logging.get_logger('client')
             _log_app_info(app_logger)
             app_logger.info('Using config file at ' + cfg.config_file)
+            invalid_cfg_paths = cfg.validate_file_paths(cfg.content)
+            if invalid_cfg_paths:
+                app_logger.warn('Invalid config paths: ' + str(invalid_cfg_paths))
             app_logger.info('Triggering for dataset: ' + d)
 
             exit_status = 9

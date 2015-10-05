@@ -51,8 +51,8 @@ def _read_sample_sheet(sample_sheet):
 
 class SampleSheet(AppLogger):
     def __init__(self, data_dir):
-        self.data_dir = data_dir
         self.sample_projects = {}  # {name: samples} {str: Sample}
+        self.filename = os.path.join(data_dir, 'SampleSheet_analysis_driver.csv')
         self._populate()
         self.debug('Sample project entries: ' + str(self.sample_projects))
 
@@ -124,7 +124,7 @@ class SampleSheet(AppLogger):
         return self.sample_projects[sample_project].sample_ids[sample_id].samples
 
     def _populate(self):
-        f, header = _read_sample_sheet(os.path.join(self.data_dir, 'SampleSheet_analysis_driver.csv'))
+        f, header = _read_sample_sheet(self.filename)
         reader = csv.DictReader(f)
         cols = reader.fieldnames
         counter = 0
