@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-for x in 3 2 1
+for x in 2 1
 do
     echo ${x}
     sleep 1

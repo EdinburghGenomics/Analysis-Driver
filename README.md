@@ -15,13 +15,14 @@ These can be found in bin/. Currently, these are:
 
 The Analysis Driver consists of several modules, each in turn consisting of several files/functions/classes:
 
-### legacy
-Contains code from the original version of the pipeline as developed by EPCC. At the moment, this includes
-only the qsub_dependents module, which interacts with the PBS resource manager and submits scripts written by
-the writer.PBSWriter subclasses.
+### executor
+Classes and functions involved in running Bash commands externally.
+
+- execute() - Takes a list
+
 
 ### reader
-Classes that read various files that come off the sequencer.
+Classes that read RunInfo.xml and SampleSheet.csv from the sequencer.
 
 #### run_info
 This contains two classes:
@@ -43,7 +44,7 @@ This contains three classes:
 ### util
 Contains various utility classes and functions used by the app, both in __init__ and logger:
 
-- AnalysisDriverError - An Exception class that can be raised in error handling
+
 - AppLogger - A class that can be mixed in to any class in the Analysis Driver to allow it to write to the
   logging streams set in configuration.
 - localexecute - Uses subprocess.Popen to execute arbitrary shell commands
@@ -84,6 +85,10 @@ config file. Contains configurations for:
 ### driver
 The main 'client' script for the Analysis Driver.
 
+### exceptions
+Custom exceptions raised by the pipeline:
+- AnalysisDriverError
+- ProcessTriggerError
 
 
 # HOWTO #

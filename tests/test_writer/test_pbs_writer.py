@@ -47,7 +47,7 @@ class TestPBSWriter(TestAnalysisDriver):
         print(self.writer.script_name)
         print('tmp script')
         print(self.tmp_script)
-        self.writer.save()
+        self.writer._save()
         with open(self.tmp_script) as f:
             file_lines = f.read().split('\n')
             for line in self.writer.lines:

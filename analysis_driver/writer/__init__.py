@@ -26,7 +26,7 @@ def write_bcbio_csv(run_dir, sample_id, fastqs):
     return csv_file
 
 
-def get_script_writer(job_name, run_id, walltime, cpus, mem, jobs=1):
+def get_script_writer(job_name, run_id, walltime=8, cpus=1, mem=2, jobs=1):
     if cfg['job_execution'] == 'pbs':
         return PBSWriter(job_name, run_id, walltime, cpus, mem, jobs)
     # elif cfg['job_execution'] == 'sge':

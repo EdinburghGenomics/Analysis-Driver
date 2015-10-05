@@ -51,7 +51,7 @@ class ScriptWriter(AppLogger):
         """
         line = str(job_number) + ') ' + cmd
         if log_file:
-            line += ' > ' + log_file
+            line += ' > ' + log_file + ' 2> &1'
         line += '\n' + ';;'
         self.write_line(line)
         self.jobs_written += 1
