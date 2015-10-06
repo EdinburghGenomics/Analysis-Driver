@@ -48,6 +48,7 @@ class TestProcessTrigger(TestAnalysisDriver):
 
 class TestTransfer(TestProcessTrigger):
     def test_transfer(self):
+        scanner.reset(self.dataset)
         process_trigger.transfer_to_int_dir(self.dataset, self.from_dir, self.to_dir, 1)
 
         new_dataset = os.path.join(self.to_dir, self.dataset)

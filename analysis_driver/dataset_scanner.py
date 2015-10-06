@@ -22,10 +22,10 @@ def report(all_datasets=False):
                 print('=== ' + status + ' ===')
                 print('\n'.join(datasets[status]))
         else:
-            print(' === other datasets ===')
+            print('=== other datasets ===')
             print('\n'.join(('other datasets present', 'use --report-all to show')))
 
-    print('_'*42)
+    print('_' * 42)
 
 
 def scan_datasets():
