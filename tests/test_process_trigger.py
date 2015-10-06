@@ -24,10 +24,12 @@ class TestProcessTrigger(TestAnalysisDriver):
     def setUp(self):
         self.old_input_dir = cfg['input_dir']
         self.old_int_dir = cfg.get('intermediate_dir')
-        self.old_lock_dir = cfg['lock_file_dir']
+        self.old_lock_dir = cfg.get('lock_file_dir')
         cfg.content['input_dir'] = self.from_dir
         cfg.content['intermediate_dir'] = self.to_dir
         cfg.content['lock_file_dir'] = self.from_dir
+        if not os.path.isdir(self.to_dir):
+            os.mkdir(self.to_dir)
         if os.path.isdir(os.path.join(self.to_dir, self.dataset)):
             shutil.rmtree(os.path.join(self.to_dir, self.dataset))
         assert not os.listdir(self.to_dir)
@@ -64,8 +66,11 @@ class TestDatasetScanner(TestProcessTrigger):
         return os.path.join(cfg['lock_file_dir'], 'this', 'RTAComplete.txt')
 
     def setUp(self):
-        scanner._rm(self.rta)
         super().setUp()
+        scanner._rm(self.rta)
+        for d in ['this', 'other']:
+            if not os.path.isdir(os.path.join(self.from_dir, d)):
+                os.mkdir(os.path.join(self.from_dir, d))
 
     def tearDown(self):
         scanner.reset('this')

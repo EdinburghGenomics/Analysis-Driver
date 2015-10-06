@@ -99,8 +99,9 @@ class ClusterExecutor(StreamExecutor):
         """
         :param list cmds: Full path to a PBS script (for example)
         """
+        prelim_cmds = kwargs.pop('prelim_cmds', None)
         w = writer.get_script_writer(jobs=len(cmds), **kwargs)
-        w.write_jobs(cmds, prelim_cmds=kwargs.get('prelim_cmds'))
+        w.write_jobs(cmds, prelim_cmds=prelim_cmds)
         super().__init__(w.script_name)
 
     def _process(self):

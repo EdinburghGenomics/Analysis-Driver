@@ -103,6 +103,7 @@ def main():
                 import traceback
                 log_cfg.switch_formatter(log_cfg.blank_formatter)  # blank formatting for stacktrace
                 stacktrace = traceback.format_exc()
+                log_cfg.switch_formatter(log_cfg.default_formatter)
 
             finally:
                 ntf.end_pipeline(exit_status, stacktrace)

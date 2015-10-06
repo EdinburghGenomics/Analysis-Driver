@@ -43,7 +43,6 @@ def pipeline(input_run_folder):
     ntf.start_stage('bcl2fastq')
     exit_status += executor.execute(
         [writer.bash_commands.bcl2fastq(input_run_folder, fastq_dir, sample_sheet.filename, mask)],
-        cluster=True,
         job_name='bcl2fastq',
         run_id=run_id,
         walltime=32,
@@ -60,7 +59,6 @@ def pipeline(input_run_folder):
     # fastqc_executor = _run_fastqc(run_id, fastq_dir)
     fastqc_executor = executor.execute(
         [writer.bash_commands.fastqc(fq) for fq in util.fastq_handler.find_all_fastqs(fastq_dir)],
-        cluster=True,
         job_name='fastqc',
         run_id=run_id,
         walltime=6,
@@ -116,7 +114,6 @@ def pipeline_phix(input_run_folder):
 
     # bcl2fastq
     ntf.start_stage('bcl2fastq')
-    # exit_status += _run_bcl2fastq(input_run_folder, run_id, fastq_dir).join()
     exit_status += executor.execute(
         [writer.bash_commands.bcl2fastq(input_run_folder, fastq_dir)],
         job_name='bcl2fastq',
@@ -167,16 +164,15 @@ def _run_bcbio(run_id, job_dir, sample_name_to_fastqs):
     sample_preps = []
     bcbio_array_cmds = []
     for sample_id in sample_name_to_fastqs:
-        sample_preps.append(
-            [
-                os.path.join(cfg['bcbio'], 'bin', 'bcbio_nextgen.py'),
-                '-w',
-                'template',
-                os.path.join(os.path.dirname(__file__), '..', 'etc', 'bcbio_alignment.yaml'),
-                job_dir,
-                os.path.join(job_dir, 'samples_' + sample_id + '-merged.csv')
-            ] + sample_name_to_fastqs.get(sample_id)
-        )
+        sample_prep = [
+            os.path.join(cfg['bcbio'], 'bin', 'bcbio_nextgen.py'),
+            '-w template',
+            os.path.join(os.path.dirname(__file__), '..', 'etc', 'bcbio_alignment.yaml'),
+            os.path.join(job_dir, 'samples_' + sample_id + '-merged'),
+            os.path.join(job_dir, 'samples_' + sample_id + '-merged.csv')
+        ] + sample_name_to_fastqs.get(sample_id)
+        sample_preps.append(' '.join(sample_prep))
+
         bcbio_array_cmds.append(
             writer.bash_commands.bcbio(
                 os.path.join(
@@ -193,7 +189,8 @@ def _run_bcbio(run_id, job_dir, sample_name_to_fastqs):
                 threads=10
             )
         )
-    executor.execute(sample_preps)
+    prep_status = executor.execute(sample_preps, env='local').join()
+    app_logger.info('BCBio sample prep exit status: ' + str(prep_status))
 
     bcbio_executor = executor.execute(
         bcbio_array_cmds,
