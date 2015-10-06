@@ -2,9 +2,10 @@ language: python
 python:
   - "3.3"
   - "3.4"
+  - "3.5"
 # command to install dependencies
 install: "pip install -r requirements.txt"
-script: ANALYSISDRIVERCONFIG=etc/bcbio_alignment.yaml py.test
+script: ANALYSISDRIVERCONFIG=etc/example_analysisdriver.yaml py.test
 branches:
   only:
     - master
