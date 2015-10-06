@@ -5,10 +5,11 @@
 ==========
 These can be found in bin/. Currently, these are:
 
-- analysis_driver.py - The main entry point for the pipeline, currently called by ProcTrigger with an input
+- edingen_analysis_driver.py - The main entry point for the pipeline, currently called by ProcTrigger with an input
   data dir.
 - run-tests.py - An entry point for pytest unit tests, should the user wish to run the tests outside of
   PyCharm
+
 
 ## Modules
 ==========
@@ -16,9 +17,55 @@ These can be found in bin/. Currently, these are:
 The Analysis Driver consists of several modules, each in turn consisting of several files/functions/classes:
 
 ### executor
-Classes and functions involved in running Bash commands externally.
+Classes and functions involved in running Bash commands externally. Executor classes that run locally include
+a non-threaded SimpleExecutor, a threaded StreamExecutor that streams its stdout/stderr as it runs, and an
+ArrayExecutor that combines multiple Executors into a job array. ClusterExecutor calls
+`analysis_driver.writer` to write out a PBS, SGE, etc. Bash script and submit it to a queue. All Executor
+classes have a `join` method which returns an exit status.
 
-- execute() - Takes a list
+- `execute()` - Takes a list of string Bash commands to execute, and passes it to an appropriate executor. For
+  a single command, pass in a list of one string. By default, it will use ClusterExecutor unless
+  `env` is 'local', in which case a local executor will be used.
+- ClusterExecutor - Converts a Bash command into a `subprocess.Popen` object, which is executed when
+  `self.join` is called.
+- StreamExecutor - Subclasses SimpleExecutor and `threading.Thread`, making its Popen run in a sub-thread. To
+  use, generate the object then either call `self.run` or call `self.start` and then ideally `self.join`
+  later.
+- ArrayExecutor - Takes a list of Bash commands and generates an Executor object for each. In `self.run`, it
+  iterates over these and calls `start` and `join` for each one.
+- ClusterExecutor - Takes a list of Bash commands. Upon creation, it calls `writer.get_script_writer` and
+  writes a Bash script. `prelim_cmds` may be specified here to, e.g, export Java paths prior to commencing the
+  job array. `self.start` and `self.join` executes a `qsub` Bash command for its script.
+
+### notification
+Classes able to send messages and notifications over various media. To use, import
+`notification_center.default` and use its subscriber methods: `start_pipeline`, `end_pipeline`, `start_stage`
+and `end_stage`.
+
+#### NotificationCenter
+Singleton for import by other modules. The `client` module calls `self.add_subscribers` according to its
+configuration, which appends a list of subscribers. Also implements `self._pass_to_subscriber`, which passes
+on any called methods to its subscribers. Therefore, calling `notification_center.some_method` will try to
+call `some_method` on each of its subscribers. If the subscriber does not implement the method, a `debug`
+message will be logged.
+
+#### Notification
+Implements common methods for notifier classes. At the moment, this mainly enforces method names and
+implements formatting off stack traces.
+
+#### EmailNotification
+Has methods for sending messages via a configurable SMTP email server. The message is formatted by a Jinja2
+template and sent by `smtplib`. If there is an error connecting to the server, it will attempt to reconnect
+up to 3 times.
+
+#### LogNotification
+Sends messages via `logging` as with other AppLoggers, but also has its own Formatter and Handler to log to a
+central notifications file.
+
+### quality_control
+
+#### GenoTypeValidation
+This implements a workflow using bwa, samtools and gatk to validate called snps against a test dataset.
 
 
 ### reader
@@ -34,23 +81,26 @@ This contains two classes:
 #### sample_sheet
 This contains three classes:
 
-- SampleSheet - Reads SampleSheet.csv, validates the barcode lengths contained, and constructs a series of
-  SampleProject objects.
+- SampleSheet - Reads SampleSheet_analysis_driver.csv, validates the barcode lengths contained, and constructs
+a series of SampleProject objects.
 - SampleProject - Represents a sample project in SampleSheet.csv, e.g., '10015AT', and contains appropriate
   matching lines from the file. Effectively grouping the sample sheet by sample project. Each SampleProject
   can have its own read length, as long as all its reads are consistent.
 - Sample - Represents a line in SampleSheet.csv
 
+Also present is transform_sample_sheet, which takes SampleSheet.csv, transforms it to a format valid for
+bcl2fastq, and writes it out as SampleSheet_analysis_driver.csv. It is this transformed sample sheet that is
+passed to SampleSheet.
+
+
 ### util
-Contains various utility classes and functions used by the app, both in __init__ and logger:
+Contains utility functions:
+- bcbio_prepare_samples - Executes bcbio_prepare_samples.py for a seet of input fastqs, merging them.
+- setup_bcbio_run - Runs `bcbio -w template` on a given yaml config, run directory, csv sample file and a list
+  of fastqs.
+- transfer_output_files - Uses `shutil.copyfile` to transfer pipeline output files to a configured directory.
+  Also renames output files according to configuration (see etc/example_analysisdriver.yaml).
 
-
-- AppLogger - A class that can be mixed in to any class in the Analysis Driver to allow it to write to the
-  logging streams set in configuration.
-- localexecute - Uses subprocess.Popen to execute arbitrary shell commands
-- find_fastqs - Iterates through a directory (intended to be a sample_project folder) and returns a dict of all contained fastq.gz files within, organised per sample.
-- setup_bcbio_run - Uses localexecute to run `bcbio -w template` on a given yaml config, a run directory, a
-  csv sample file and a list of fastqs
 
 ### writer
 Contains classes that write various files to be used/executed in the pipeline
@@ -73,17 +123,62 @@ Used to write out a sample file for use with `bcbio -w template`. It takes a rea
 directory to be used in the BCBio run and a directory to search for fastqs. Based on the SampleProject objects
 in self.sample_sheet, it writes out a .csv file with the fastq files appropriately grouped.
 
-### config
-Defines a class, Configuration, that represents the appropriate environment in the user's .analysisdriver.yaml
-config file. Contains configurations for:
 
-- Job submission (currently only PBS)
-- Data directories (rdf raw data, input_data, fastqs, BCBio jobs)
-- Python interpreter
-- Logging (via dictConfig)
+### app_logging
+Contains AppLogger, which can be subclassed to implement debug, info, warn, error and critical logging
+methods, and get_logger, which generates a logging.logger object and registers it with all active logging
+Handlers.
+
+
+### client
+The main 'client' script for the Analysis Driver. Implements argparsing, sets up logging, adds handlers to the
+logging configuration and subscribers to the notification centre, calls `dataset_scanner` to find new
+datasets, and calls `process_trigger` on the first ready dataset. If the exit status is non-zero or if there
+is a stack trace, a 'failed' lock file will be set for the dataset.
+
+
+### config
+
+#### Configuration 
+Singleton, which represents the appropriate environment in the user's yaml config file. Contains
+configurations for resource manager job submission (currently only PBS), data directories (rdf raw data,
+input_data, BCBio jobs), executables (BCBio, fastqc, bcl2fastq, etc.), renaming of output files and sample
+sheet fields, and logging.
+
+Configuration finds the config file through the environment variable `ANALYSISDRIVERCONFIG`. If this is not
+valid, it will then look for `~/.analysisdriver.yaml`. A yaml config must have a `default` environment. Upon
+creation of the singleton, it will take this default and, if necessary, override its parameters with those
+from another environment specified in `ANALYSISDRIVERENV`. `default`, for example, can  specify some input
+data paths, while `testing` instead point to test data. If run with `ANALYSISDRIVERENV=testing`, the pipeline
+will override the default and use testing environment.
+
+Configuration has dict-style [square_bracket] and `self.get()` item retrieval. Can use `self.query` to drill
+down to a parameter. Can also return a string representation of its content for reporting via `self.report`.
+
+#### LoggingConfiguration
+Contains the pipeline's active logging Handlers. This singleton is set up in `client` using `add_handler`.
+`switch_formatter` is used when there is an uncaught Exception to log stacktraces with a blank formatter.
+app_logging.get_logger returns a logging.Logger object already registered to the  active Handlers.
+
+
+### dataset_scanner
+Provides functions for identifying datasets in the input directory. The scanner uses lock files alongside
+(usually) the datasets. This may become a database in the future.
+
+- dataset_status - Locates a dataset's lock file and returns a 'status', based on its extension. If there is
+  no lock file, the dataset is treated as 'new'. Only one lock file may exist for a dataset at once.
+- scan_datasets - Uses dataset_status to report an all datasets in the input directory.
+- reset - Removed any lock file for a dataset, effectively making it 'new' again.
+- switch_status - `reset`s a dataset, then touches a lock file for the desired status. Used for skipping or
+  ignoring datasets.
+
 
 ### driver
-The main 'client' script for the Analysis Driver.
+This contains the main pipeline. `pipeline` takes a path to an input dataset, and runs bcl2fastq, fastqc,
+genotype validation and variant calling with BCBio. If no sample sheet is found, or if RunInfo.xml has no
+barcode reads, an alternate phiX pipeline will be used, only running bcl2fastq and fastqc. Returns an exit
+status.
+
 
 ### exceptions
 Custom exceptions raised by the pipeline:
@@ -91,18 +186,35 @@ Custom exceptions raised by the pipeline:
 - ProcessTriggerError
 
 
+### process_trigger
+- trigger - If an intermediate processing directory is set, rsync the data across until it is known that the
+  sequencing is complete. Then run `driver.pipeline` and return an exit status.
+
+
+
 # HOWTO #
 ---------------------
+The Analysis Driver is run from bin/edingen_analysis_driver.py:
 
-The `driver.py` script expects an path to an input direct:
+    python bin/edingen_analysis_driver.py <args>
 
-> python driver.py -i /path/to/sequencing/data
+Valid arguments include:
+- --debug - Run with log levels set to `DEBUG`
+- --report - Run `scan_datasets` only. Will not list (potentially numerous) completed/failed datasets.
+- --report-all - As above, but report all datasets.
+- --skip <datasets...> - Set a `complete` lock file for the specified datasets.
+- --reset <datasets...> - Reset lock files for specified datasets.
+- --abort <datasets...> - Mark specified datasets as aborted. These will not be picked up by the dataset
+  scanner
 
-Within that input directory, the scripts will need to find `RunInfo.xml` and `SampleSheet.csv` which contain information related the runs. A working directory, named after the sequencing data, will be created on the local path from 
-where the script is executed, therefore it requires writing permissions. Within that new directory, two more directories will be created:
+If no args are given, one new dataset will be processed. Run recurrently through Cron to periodically scan
+datasets and kick off one
 
-1. Unaligned
-2. pbs
+To ignore datasets (or indeed any non-dataset directories) in the configured location, a `.triggerignore` file
+can be written in the same place, where each line is the folder name. Any directories listed in this file will
+not be picked up by the scanner.
 
-The `Unaligned` directory will contain the output of running `bcl2fastq` and `fastqc`, whereas `pbs` will contain the pbs scripts created to run `bcl2fastq` and `bcbio`. In addition, a `bcbio` project
-per sample will also be created. 
+Within any input dataset, there will need to be a `RunInfo.xml` and a `SampleSheet.csv`. These contain
+information about the sequencing runs. If no sample sheet is found or RunInfo.xml has no barcode reads, a
+smaller phiX pipeline will be used. A working directory will be created in the (configured) jobs folder where
+intermediate and output data is kept.

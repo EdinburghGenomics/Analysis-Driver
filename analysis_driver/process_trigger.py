@@ -17,7 +17,7 @@ def trigger(dataset):
     """
     if cfg.get('intermediate_dir'):
         assert dataset_status(dataset) in ('new', 'new, rta complete')
-        transfer_to_int_dir(
+        _transfer_to_int_dir(
             dataset,
             cfg['input_dir'],
             cfg['intermediate_dir'],
@@ -40,7 +40,7 @@ def trigger(dataset):
     return exit_status
 
 
-def transfer_to_int_dir(dataset, from_dir, to_dir, repeat_delay):
+def _transfer_to_int_dir(dataset, from_dir, to_dir, repeat_delay):
     """
     rsync -aqu --size-only --partial from_dir/dataset to_dir
     """
