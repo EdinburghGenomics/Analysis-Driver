@@ -4,7 +4,7 @@ python:
   - "3.4"
 # command to install dependencies
 install: "pip install -r requirements.txt"
-script: py.test
+script: ANALYSISDRIVERCONFIG=etc/bcbio_alignment.yaml py.test
 branches:
   only:
     - master

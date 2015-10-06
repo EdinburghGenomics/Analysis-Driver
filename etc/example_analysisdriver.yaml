@@ -1,21 +1,21 @@
 
 ---
 default:
-    python: /path/to/python
-    input_dir: /path/to/input_data
-    fastq_dir: /path/to/fastq
-    jobs_dir : /path/to/jobs
-    output_dir: /path/to/output_data
+    python: path/to/python
+    input_dir: path/to/input_data
+    fastq_dir: path/to/fastq
+    jobs_dir : path/to/jobs
+    output_dir: path/to/output_data
 
     tt_agent_delay: 120
     job_execution: pbs  # pbs or None
     job_queue: queue_id
 
-    qsub:      /path/to/qsub
-    bcl2fastq: /path/to/bcl2fastq
-    fastqc:    /path/to/fastqc
-    bcbio:     /path/to/bcbio
-    jdk:       /path/to/jdk1.7.0_75
+    qsub:      path/to/qsub
+    bcl2fastq: path/to/bcl2fastq
+    fastqc:    path/to/fastqc
+    bcbio:     path/to/bcbio
+    jdk:       path/to/jdk1.7.0_75
     logging:
         format: '[%(asctime)s][%(name)s][%(levelname)s] %(message)s'
         datefmt: '%Y-%b-%d %H:%M:%S'
@@ -45,13 +45,13 @@ default:
 #            recipient_emails: [recipient@domain.com]
 
     genotype-validation:
-        reference: /path/to/genotype_validation/genotype_32_SNPS_genome_600bp.fa
-        genotypes_repository: /path/to/genotype_validation/genotypes
-        bwa: /path/to/bwa
-        gatk: /path/to/GenomeAnalysisTK.jar
-        samblaster: /path/to/samblaster
-        samtools: /path/to/samtools
-        sambamba: /path/to/sambamba
+        reference: path/to/genotype_validation/genotype_32_SNPS_genome_600bp.fa
+        genotypes_repository: path/to/genotype_validation/genotypes
+        bwa: path/to/bwa
+        gatk: path/to/GenomeAnalysisTK.jar
+        samblaster: path/to/samblaster
+        samtools: path/to/samtools
+        sambamba: path/to/sambamba
 
     output_files:
         - name: '*-gatk-haplotype-vcf.gz'
