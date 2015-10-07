@@ -44,7 +44,7 @@ class TestProcessTrigger(TestAnalysisDriver):
         cfg.content['lock_file_dir'] = self.old_lock_dir
 
         with open(os.path.join(self.from_dir, '.triggerignore'), 'w') as f:
-            for d in ['dir_to_be_ignored\n', 'test_dataset\n']:
+            for d in ['dir_t?_be_ign*d\n', 'test_dataset\n']:
                 f.write(d)
 
 
