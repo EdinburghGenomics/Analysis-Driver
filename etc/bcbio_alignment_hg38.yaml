@@ -1,0 +1,11 @@
+# Template for whole genome Illumina variant calling with GATK pipeline
+---
+details:
+- algorithm:
+    aligner: bwa
+    realign: gatk
+    recalibrate: gatk
+    variantcaller: gatk-haplotype
+    jointcaller: gatk-haplotype-joint
+  analysis: variant2
+  genome_build: hg38

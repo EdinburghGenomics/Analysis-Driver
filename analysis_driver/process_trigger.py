@@ -16,12 +16,13 @@ def trigger(dataset):
     :param str dataset: A dataset id
     """
     if cfg.get('intermediate_dir'):
-        assert dataset_status(dataset) in ('new', 'new, rta complete')
+        status = dataset_status(dataset)
+        assert status in ('new', 'new, rta complete'), 'Invalid dataset status: ' + status
         _transfer_to_int_dir(
             dataset,
             cfg['input_dir'],
             cfg['intermediate_dir'],
-            repeat_delay=int(cfg['tt_agent_delay'])
+            repeat_delay=int(cfg.get('tt_agent_delay', 120))
         )
         dataset_dir = cfg['intermediate_dir']
     else:

@@ -158,6 +158,15 @@ def _bcio_prepare_sample(fastq_dir, job_dir, sample_sheet):
 
 
 def _run_bcbio(run_id, job_dir, sample_name_to_fastqs):
+    run_template = os.path.join(
+        os.path.dirname(__file__),
+        '..', 'etc', 'bcbio_alignment_' + cfg['genome']  + '.yaml'
+    )
+    if not os.path.isfile(run_template):
+        raise AnalysisDriverError(
+            'Could not find BCBio run template ' + run_template + '. Is the correct genome set?'
+        )
+
     original_dir = os.getcwd()
     os.chdir(job_dir)
 
@@ -167,7 +176,7 @@ def _run_bcbio(run_id, job_dir, sample_name_to_fastqs):
         sample_prep = [
             os.path.join(cfg['bcbio'], 'bin', 'bcbio_nextgen.py'),
             '-w template',
-            os.path.join(os.path.dirname(__file__), '..', 'etc', 'bcbio_alignment.yaml'),
+            run_template,
             os.path.join(job_dir, 'samples_' + sample_id + '-merged'),
             os.path.join(job_dir, 'samples_' + sample_id + '-merged.csv')
         ] + sample_name_to_fastqs.get(sample_id)
