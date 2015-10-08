@@ -1,6 +1,7 @@
 __author__ = 'mwham'
 from tests.test_analysisdriver import TestAnalysisDriver
-from analysis_driver.reader.sample_sheet import SampleSheet, SampleProject, Sample, transform_sample_sheet
+from analysis_driver.reader import SampleSheet, RunInfo, transform_sample_sheet
+from analysis_driver.reader.sample_sheet import SampleProject, Sample
 import pytest
 
 
@@ -8,6 +9,7 @@ class TestSampleSheet(TestAnalysisDriver):
     def setUp(self):
         transform_sample_sheet(self.assets_path)
         self.sample_sheet = SampleSheet(self.assets_path)
+        self.run_info = RunInfo(self.assets_path)
         self.samples = []
         for name, p in self.sample_sheet.sample_projects.items():
             for name2, i in p.sample_ids.items():
@@ -33,7 +35,7 @@ class TestSampleSheet(TestAnalysisDriver):
         assert self.sample_sheet.check_barcodes() == 6
 
     def test_generate_mask(self):
-        assert self.sample_sheet.generate_mask() == 'y150n,i6,y150n'
+        assert self.sample_sheet.generate_mask(self.run_info.mask) == 'y150n,i6,y150n'
 
 
 class TestSampleProject(TestAnalysisDriver):

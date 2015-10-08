@@ -2,20 +2,23 @@ __author__ = 'mwham'
 import csv
 import os.path
 from analysis_driver.app_logging import AppLogger, get_logger
-from .run_info import RunInfo
 from analysis_driver.config import default as cfg
-
 
 app_logger = get_logger('reader')
 
 
 def transform_sample_sheet(data_dir):
-    before, header = _read_sample_sheet(data_dir, 'SampleSheet.csv')
+    """
+    Read SampleSheet.csv, translate column names and write to SampleSheet_analysis_driver.csv
+    :param data_dir: Full path to a data directory containing SampleSheet.csv
+    """
+    before, header = _read_sample_sheet(os.path.join(data_dir, 'SampleSheet.csv'))
     cols = before.readline().strip().split(',')
     after = open(os.path.join(data_dir, 'SampleSheet_analysis_driver.csv'), 'w')
+    transformations = cfg['sample_sheet'].get('transformations', [])
     for idx, col in enumerate(cols):
-        if col in cfg['sample_sheet']['transformations']:
-            cols[idx] = cfg['sample_sheet']['transformations'][col]
+        if col in transformations:
+            cols[idx] = transformations[col]
     for line in header:
         after.write(line)
     after.write('[Data],\n')
@@ -25,8 +28,12 @@ def transform_sample_sheet(data_dir):
     before.close()
 
 
-def _read_sample_sheet(data_dir, name):
-    f = open(os.path.join(data_dir, name), 'r')
+def _read_sample_sheet(sample_sheet):
+    """
+    Scan down a sample sheet until a [Data] line, then return the file object for further reading
+    :return tuple[file, list] f, header: The sample sheet file object, and all lines above [Data]
+    """
+    f = open(sample_sheet, 'r')
     app_logger.debug('Opened ' + f.name)
     counter = 1
     header = []
@@ -38,22 +45,14 @@ def _read_sample_sheet(data_dir, name):
             counter += 1
             header.append(line)
 
+    f.close()
     return None, None
 
 
 class SampleSheet(AppLogger):
-    """
-    Represents an instance of SampleSheet.csv. It ignores all lines until '[Data]' is found in the first
-    column, then starts reading the CSV.
-    """
     def __init__(self, data_dir):
-        """
-        :param str data_dir:  A file path to the input_data folder containing SampleSheet.csv
-        """
-        self.data_dir = data_dir
-
-        self.run_info = RunInfo(self.data_dir)
         self.sample_projects = {}  # {name: samples} {str: Sample}
+        self.filename = os.path.join(data_dir, 'SampleSheet_analysis_driver.csv')
         self._populate()
         self.debug('Sample project entries: ' + str(self.sample_projects))
 
@@ -85,11 +84,16 @@ class SampleSheet(AppLogger):
         self.debug('Barcode check done. Barcode len: %s' % len(last_sample.barcode))
         return len(last_sample.barcode)
 
-    def generate_mask(self):
+    def generate_mask(self, mask):
+        """
+        Translate:
+            <Read IsIndexedRead=N Number=1 NumCycles=151/>
+            <Read IsIndexedRead=Y Number=2 NumCycles=8/>
+            <Read IsIndexedRead=N Number=3 NumCycles=151/>
+        to 'y150n,i8,y150n'.
+        """
         self.debug('Generating mask...')
-        mask = self.run_info.mask
         barcode_len = self.check_barcodes()
-
         out = ['y' + str(mask.num_cycles(mask.upstream_read) - 1) + 'n']
 
         for i in mask.index_lengths:
@@ -100,26 +104,27 @@ class SampleSheet(AppLogger):
         self.debug(out)
         return ','.join(out)
 
-    def validate(self):
+    def validate(self, mask):
+        """
+        Ensure that the SampleSheet is consistent with itself and RunInfo
+        """
         self.debug('Validating...')
-        error = 0
-        if not self.run_info.barcode_len:
-            self.run_info.critical('No barcode found in RunInfo.xml')
-            error = 1
-        if self.check_barcodes() != self.run_info.barcode_len:
+        if not mask.barcode_len:
+            return False
+        if self.check_barcodes() != mask.barcode_len:
             self.error(
                 'Barcode mismatch: %s (SampleSheet.csv) and %s (RunInfo.xml)' %
-                (self.check_barcodes(), self.run_info.barcode_len)
+                (self.check_barcodes(), mask.barcode_len)
             )
-            error = 1
-        self.debug('Done')
-        return error
+            return False
+        self.debug('Done. Now validating RunInfo')
+        return mask.validate()
 
     def get_samples(self, sample_project, sample_id):
         return self.sample_projects[sample_project].sample_ids[sample_id].samples
 
     def _populate(self):
-        f, header = _read_sample_sheet(self.data_dir, 'SampleSheet_analysis_driver.csv')
+        f, header = _read_sample_sheet(self.filename)
         reader = csv.DictReader(f)
         cols = reader.fieldnames
         counter = 0
@@ -135,7 +140,10 @@ class SampleSheet(AppLogger):
                     sample_id=sample_id,
                     sample_name=line[self._get_column(cols, 'sample_name')],
                     barcode=line[self._get_column(cols, 'barcode')],
-                    **self._get_all_cols(line, ignore=['sample_project', 'sample_id', 'sample_name' 'lane', 'barcode'])
+                    **self._get_all_cols(
+                        line,
+                        ignore=['sample_project', 'sample_id', 'sample_name' 'lane', 'barcode']
+                    )
                 )
 
                 sample_project_obj = self._get_sample_project(sample_project)
@@ -143,6 +151,16 @@ class SampleSheet(AppLogger):
                 sample_id_obj.add_sample(new_sample)
         f.close()
         self.debug('Added %s samples' % counter)
+
+    def _get_sample_project(self, name):
+        sample_project = ValueError('Could not add sample project ' + name)
+        try:
+            sample_project = self.sample_projects[name]
+        except KeyError:
+            sample_project = SampleProject(name)
+            self.sample_projects[name] = sample_project
+        finally:
+            return sample_project
 
     @staticmethod
     def _get_column(header, name):
@@ -160,25 +178,12 @@ class SampleSheet(AppLogger):
                 d[k] = v
         return d
 
-    def _get_sample_project(self, name):
-        sample_project = ValueError('Could not add sample project ' + name)
-        try:
-            sample_project = self.sample_projects[name]
-        except KeyError:
-            sample_project = SampleProject(name)
-            self.sample_projects[name] = sample_project
-        finally:
-            return sample_project
-
 
 class SampleProject:
     """
     Represents a sample project, and contains a list of SampleID objects.
     """
     def __init__(self, name):
-        """
-        :param name: The sample project name
-        """
         self.name = name
         self.sample_ids = {}
 

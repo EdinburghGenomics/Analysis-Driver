@@ -1,0 +1,71 @@
+
+---
+default:
+    input_dir: path/to/input_data
+    jobs_dir : path/to/jobs
+    output_dir: path/to/output_data
+
+    tt_agent_delay: 20
+    job_execution: pbs  # pbs or None
+    job_queue: uv2000
+
+    qsub:      path/to/qsub
+    bcl2fastq: path/to/bcl2fastq
+    fastqc:    path/to/fastqc
+    bcbio:     path/to/bcbio
+    jdk:       path/to/jdk
+    logging:
+        format: '[%(asctime)s][%(name)s][%(levelname)s] %(message)s'
+        datefmt: '%Y-%b-%d %H:%M:%S'
+        handlers:
+            stdout:
+                level: INFO
+                stream: ext://sys.stdout
+#            another_handler:
+#                level: INFO
+#                filename: /path/to/analysis_driver.log
+    sample_sheet:
+        column_names:
+            sample_project: [Sample_Project, SampleProject, Project_Name]
+            sample_id: [Sample_ID, SampleID]
+            sample_name: [Sample_Name]
+            lane: [Lane]
+            barcode: [Index, index]
+        transformations:
+            Project_Name: Sample_Project
+
+    notification:
+#        log_notification: /path/to/analysis_driver_notifications.log
+#        email_notification:
+#            mailhost: server.domain.com
+#            port: 25
+#            reporter_email: sender@domain.com
+#            recipient_emails: [recipient@domain.com]
+
+    genotype-validation:
+        reference: path/to/genotype_validation/genotype_32_SNPS_genome_600bp.fa
+        genotypes_repository: path/to/genotype_validation/genotypes
+        bwa: path/to/bwa
+        gatk: path/to/GenomeAnalysisTK.jar
+        samblaster: path/to/samblaster
+        samtools: path/to/samtools
+        sambamba: path/to/sambamba
+
+    output_files:
+        - name: '*-gatk-haplotype-vcf.gz'
+          type: vcf
+          rename_to: '.g.vcf.gz'
+        - name: '*-gatk-haplotype-vcf.gz.tbi'
+          type: vcf
+          rename_to: '.g.vcf.gz.tbi'
+        - name: '*-ready.bam'
+          type: bam
+          rename_to: '.bam'
+        - name: '*-ready-bam.bai'
+          type: bam
+          rename_to: '.bam.bai'
+        - name: '*_R1.fastq.gz'
+          type: fastq
+        - name: '*_R2.fastq.gz'
+          type: fastq
+

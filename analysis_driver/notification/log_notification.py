@@ -1,13 +1,12 @@
 __author__ = 'tcezard'
 import logging
+from .notification_center import Notification
 from analysis_driver.config import logging_default as log_cfg
-from analysis_driver.app_logging import AppLogger
-from analysis_driver.exceptions import AnalysisDriverError
 
 
-class LogNotification(AppLogger):
+class LogNotification(Notification):
     def __init__(self, run_id, log_file):
-        self.run_id = run_id
+        super().__init__(run_id)
         self.handler = logging.FileHandler(filename=log_file)
         self.formatter = logging.Formatter(
             fmt='[%(asctime)s][' + self.run_id + '] %(message)s',
@@ -15,32 +14,30 @@ class LogNotification(AppLogger):
         )
         self.handler.setFormatter(self.formatter)
         self.handler.setLevel(log_cfg.log_level)
+        # this class will log to the usual places in the usual format, as well as a notification log file in
+        # the format '[<date> <time>][run_id] msg'
 
     def start_pipeline(self):
         self.info('Started pipeline')
 
     def start_stage(self, stage_name):
-        self.info('Started stage: ' + stage_name)
+        self.info('Started stage ' + stage_name)
 
-    def end_stage(self, stage_name, exit_status=0, stop_on_error=False):
+    def end_stage(self, stage_name, exit_status=0):
         if exit_status == 0:
-            self._succeed_stage(stage_name)
+            self.info('Finished stage ' + stage_name)
         else:
-            self._fail_stage(stage_name, exit_status, stop_on_error)
+            self.error('Failed stage ' + stage_name + ' with exit status ' + str(exit_status))
 
-    def end_pipeline(self):
-        self.info('Finished pipeline')
-
-    def _succeed_stage(self, stage_name):
-        self.info('Finished stage ' + stage_name)
-
-    def _fail_stage(self, stage_name, exit_status, stop_on_error):
-        msg = 'Stage ' + stage_name + ' failed with exit status ' + str(exit_status)
-        self.error(msg)
-        if stop_on_error:
-            raise AnalysisDriverError(msg)
+    def end_pipeline(self, exit_status, stacktrace=None):
+        self.info('Finished pipeline with exit status ' + str(exit_status))
+        if stacktrace:
+            self.error(self._format_error_message(stacktrace=stacktrace))
 
     def _check_logger(self):
+        """
+        Set self._logger as in the superclass, but also bind it to self.handler.
+        """
         if self._logger is None:
             super()._check_logger()  # bind self.logger to the shared handlers...
-            self._logger.addHandler(self.handler)  # ... and its own specially-formatted handler
+            self._logger.addHandler(self.handler)  # ... and to the differently-formatted self.handler

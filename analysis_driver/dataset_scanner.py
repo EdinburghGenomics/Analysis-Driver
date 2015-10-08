@@ -1,114 +1,84 @@
 __author__ = 'mwham'
 import os
+from glob import glob
 from analysis_driver.config import default as cfg
 
 
 def report(all_datasets=False):
     datasets = scan_datasets()
-    print(datasets)
 
     print('========= Process Trigger report =========')
-    print('=== new datasets ===')
-    print('\n'.join(_fetch_by_status(datasets, 'new', 'new, rta complete')))
-    print('=== transferring datasets ===')
-    print('\n'.join(_fetch_by_status(datasets, 'transferring')))
+    for status in ('new', 'new, rta complete', 'transferring', 'transferring, rta complete', 'active'):
+        ds = datasets.pop(status, [])
+        if ds:
+            print('=== ' + status + ' ===')
+            print('\n'.join(ds))
 
-    print('=== active datasets ===')
-    print('\n'.join(_fetch_by_status(datasets, 'active')))
+    if any((datasets[s] for s in datasets)):
+        if all_datasets:
+            for status in sorted(datasets):
+                print('=== ' + status + ' ===')
+                print('\n'.join(datasets[status]))
+        else:
+            print('=== other datasets ===')
+            print('\n'.join(('other datasets present', 'use --report-all to show')))
 
-    print('=== complete datasets ===')
-    complete_datasets = _fetch_by_status(datasets, 'complete')
-    if all_datasets:
-        pass
-    elif complete_datasets == ['none']:
-        pass
-    else:
-        complete_datasets = ['completed datasets are present', 'use --report-all to show']
-    print('\n'.join(complete_datasets))
+    print('_' * 42)
 
 
 def scan_datasets():
-    all_datasets = []
+    input_dir = cfg.get('lock_file_dir', cfg['input_dir'])
+    triggerignore = os.path.join(input_dir, '.triggerignore')
+
+    ignorables = []
+    if os.path.isfile(triggerignore):
+        with open(triggerignore) as f:
+            for d in f.readlines():
+                search = glob(os.path.join(input_dir, d.strip()))
+                if search:
+                    ignorables.extend(search)
+
+    all_datasets = dict()
     for d in os.listdir(cfg['input_dir']):
-        if os.path.isdir(os.path.join(cfg['input_dir'], d)):
-            all_datasets.append((d, dataset_status(d)))
-            
-    all_datasets.sort()
+        if os.path.isdir(os.path.join(cfg['input_dir'], d)) and os.path.join(input_dir, d) not in ignorables:
+            try:
+                all_datasets[dataset_status(d)].append(d)
+            except KeyError:
+                all_datasets[dataset_status(d)] = [d]
+
     return all_datasets
 
 
-def skip(dataset):
-    reset(dataset)
-    touch(lock_file(dataset, 'complete'))
-
-
 def reset(dataset):
-    for s in ('active', 'complete', 'transferring'):
-        _rm(lock_file(dataset, s))
+    _rm(*glob(lock_file(dataset, '*')))
 
 
 def switch_status(dataset, status):
     reset(dataset)
-    touch(lock_file(dataset, status))
-
-
-def _fetch_by_status(all_datasets, *statuses):
-    datasets = [d for (d, s) in all_datasets if s in statuses]
-    if datasets:
-        return datasets
-    else:
-        return ['none']
+    _touch(lock_file(dataset, status))
 
 
 def dataset_status(dataset):
-    complete = _complete(dataset)
-    active = _active(dataset)
-    transferring = _transferring(dataset)
+    dataset_lock_files = glob(lock_file(dataset, '*'))
+    assert len(dataset_lock_files) < 2
+    if dataset_lock_files:
+        lf_status = dataset_lock_files[0].split('.')[-1]
+    else:
+        lf_status = 'new'
+
     rta_complete = _rta_complete(dataset)
 
-    if complete:
+    if lf_status in ('complete', 'active'):
         assert rta_complete
-        return 'complete'
-    elif active:
-        assert rta_complete
-        return 'active'
+        return lf_status
 
-    elif transferring and rta_complete:
-        return 'transferring, rta complete'
-    elif transferring:
-        return 'transferring'
-    elif rta_complete:
-        return 'new, rta complete'
-    
+    elif lf_status in ('aborted', 'failed'):
+        return lf_status
+
     else:
-        return 'new'
-
-
-def _active(dataset):
-    if os.path.isfile(lock_file(dataset, 'active')):
-        assert not _complete(dataset)
-        assert not _transferring(dataset)
-        return True
-    else:
-        return False
-
-
-def _complete(dataset):
-    if os.path.isfile(lock_file(dataset, 'complete')):
-        assert not _active(dataset)
-        assert not _transferring(dataset)
-        return True
-    else:
-        return False
-
-
-def _transferring(dataset):
-    if os.path.isfile(lock_file(dataset, 'transferring')):
-        assert not _complete(dataset)
-        assert not _active(dataset)
-        return True
-    else:
-        return False
+        if rta_complete:
+            lf_status += ', rta complete'
+        return lf_status
 
 
 def _rta_complete(dataset):
@@ -119,9 +89,11 @@ def lock_file(dataset, status):
     return os.path.join(cfg.get('lock_file_dir', cfg['input_dir']), '.' + dataset + '.' + status)
 
 
-def touch(file):
+def _touch(file):
     open(file, 'w').close()
 
-def _rm(file):
-    if os.path.isfile(file):
-        os.remove(file)
+
+def _rm(*files):
+    for f in files:
+        if os.path.isfile(f):
+            os.remove(f)

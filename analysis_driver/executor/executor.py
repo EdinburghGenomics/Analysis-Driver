@@ -2,42 +2,82 @@ __author__ = 'mwham'
 import threading
 import subprocess
 import select  # asynchronous IO
+import os.path
 from analysis_driver.app_logging import AppLogger
+from analysis_driver import writer
 from analysis_driver.exceptions import AnalysisDriverError
 from analysis_driver.config import default as cfg
 
 
-class Executor(AppLogger):
+class SimpleExecutor(AppLogger):
     def __init__(self, cmd):
         self.cmd = cmd
+        self._validate_file_paths()
         self.proc = None
 
-    def run(self):
-        out, err = self._process().communicate()
-        return out, err
+    def join(self):
+        """
+        Set self.proc to a Popen and start.
+        :rtype: tuple[bytes, bytes]
+        :raises: AnalysisDriverError on any exception
+        """
+        try:
+            out, err = self._process().communicate()
+            for line in out.decode('utf-8').split('\n'):
+                self.info(line)
+            for line in err.decode('utf-8').split('\n'):
+                self.error(line)
+            return self.proc.poll()
+        except Exception as e:
+            raise AnalysisDriverError('Command failed: ' + self.cmd) from e
+
+    def start(self):
+        raise NotImplementedError
 
     def _process(self):
         """
         Translate self.cmd to a subprocess. Override to manipulate how the process is run, e.g. with different
-        resource managers
+        resource managers.
         :rtype: subprocess.Popen
         """
-        self.info('Executing: ' + str(self.cmd))
-        self.proc = subprocess.Popen(self.cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        self.info('Executing: ' + self.cmd)
+        self.proc = subprocess.Popen(self.cmd.split(' '), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         return self.proc
 
+    def _validate_file_paths(self):
+        for arg in self.cmd.split(' '):
+            if arg.startswith('/') and not os.path.exists(arg):
+                self.warn('Could not find file: ' + arg)
 
-class StreamExecutor(Executor, threading.Thread):
+
+class StreamExecutor(threading.Thread, SimpleExecutor):
     def __init__(self, cmd):
         """
-        :param list cmd: A field-separated command to be executed
+        :param str cmd: A shell command to be executed
         """
-        Executor.__init__(self, cmd)
+        self.exception = None
+        SimpleExecutor.__init__(self, cmd)
         threading.Thread.__init__(self)
 
-    def run(self):
+    def join(self, timeout=None):
         """
-        Run self._process and stream its stdout and stderr
+        Ensure that both the thread and the subprocess have finished, and return self.proc's exit status.
+        """
+        super().join(timeout=timeout)
+        if self.exception:
+            self._stop()
+            raise AnalysisDriverError('self.proc command failed: ' + self.cmd)
+        return self.proc.wait()
+
+    def run(self):
+        try:
+            self._stream_output()
+        except Exception as e:
+            self.exception = e
+
+    def _stream_output(self):
+        """
+        Run self._process and log its stdout/stderr until an EOF.
         """
         proc = self._process()
         read_set = [proc.stdout, proc.stderr]
@@ -53,42 +93,67 @@ class StreamExecutor(Executor, threading.Thread):
                         stream.close()
                         read_set.remove(stream)
 
-    def join(self, timeout=None):
-        super().join(timeout=timeout)
-        try:
-            return self.proc.wait()
-        except AttributeError as e:
-            raise AnalysisDriverError('Invalid parameters passed to self.proc: ' + str(self.cmd)) from e
-
 
 class ClusterExecutor(StreamExecutor):
-    def __init__(self, script, block=False):
+    def __init__(self, cmds, **kwargs):
         """
-        :param str script: Full path to a PBS script
-        :param bool block: Whether to run the job in blocking ('monitor') mode
+        :param list cmds: Full path to a PBS script (for example)
         """
-        super().__init__([script])
-        self.block = block
+        prelim_cmds = kwargs.pop('prelim_cmds', None)
+        w = writer.get_script_writer(jobs=len(cmds), **kwargs)
+        w.write_jobs(cmds, prelim_cmds=prelim_cmds)
+        super().__init__(w.script_name)
 
     def _process(self):
         """
-        Override to supply a qsub command
+        As the superclass, but with a qsub call to a PBS script.
         :rtype: subprocess.Popen
         """
-        if cfg['job_execution'] == 'pbs':
-            cmd = self._pbs_cmd(self.block)
-        else:
-            cmd = ['sh']
+        cmd = cfg.get('qsub', 'qsub') + ' ' + self.cmd
 
-        cmd.extend(self.cmd)
-        self.info('Executing: ' + str(cmd))
-        self.proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        self.info('Executing: ' + cmd)
+        self.proc = subprocess.Popen(cmd.split(' '), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         return self.proc
 
-    @staticmethod
-    def _pbs_cmd(block):
-        cmd = [cfg['qsub']]
-        if block:
-            cmd.append('-W')
-            cmd.append('block=true')
-        return cmd
+
+class ArrayExecutor(StreamExecutor):
+    def __init__(self, cmds, stream):
+        """
+        :param list cmds:
+        :param bool simple:
+        """
+        super().__init__(cmds)
+        self.executors = []
+        self.exit_statuses = []
+        self.stream = stream
+        for c in cmds:
+            self.executors.append(StreamExecutor(c))
+
+    def run(self):
+        try:
+            if self.stream:
+                for e in self.executors:
+                    e.start()
+                for e in self.executors:
+                    self.exit_statuses.append(e.join())
+            else:
+                for e in self.executors:
+                    e.start()
+                    self.exit_statuses.append(e.join())
+        except Exception as err:
+            self.exception = err
+
+    def join(self, timeout=None):
+        threading.Thread.join(self, timeout)
+        if self.exception:
+            self._stop()
+            raise AnalysisDriverError('Commands failed: ' + str(self.exit_statuses))
+        self.info('Exit statuses: ' + str(self.exit_statuses))
+        return sum(self.exit_statuses)
+
+    def _validate_file_paths(self):
+        for cmd in self.cmd:
+            for arg in cmd.split(' '):
+                if arg.startswith('/') and not os.path.exists(arg):
+                    self.warn('Could not find file: ' + arg)
+

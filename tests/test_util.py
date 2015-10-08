@@ -21,25 +21,26 @@ class TestLogger(TestAnalysisDriver):
 
 
 class TestFastqHandler(TestAnalysisDriver):
-
     def test_find_fastqs(self):
-        fastqs = util.fastq_handler.find_fastqs(self.fastq_path, '10015AT')
-        for file_name in ['this.fastq.gz', 'that.fastq.gz', 'other.fastq.gz']:
+        fastqs = util.fastq_handler.find_fastqs(self.fastq_path, '10015AT', '10015AT0001')
+        for file_name in ['10015AT0001_merged_R1.fastq.gz', '10015AT0001_merged_R2.fastq.gz']:
             assert os.path.join(
-                self.fastq_path, '10015AT', '10015ATA0001L05', file_name
-            ) in fastqs['10015ATA0001L05']
+                self.fastq_path, '10015AT', '10015AT0001', file_name
+            ) in fastqs
 
-    def test_flatten_fastqs(self):
-        fastqs = util.fastq_handler.flatten_fastqs(self.fastq_path, ['10015AT'])
-        for file_name in ['this.fastq.gz', 'that.fastq.gz', 'other.fastq.gz']:
+    def test_find_all_fastqs(self):
+        fastqs = util.fastq_handler.find_all_fastqs(self.fastq_path)
+        for file_name in ['10015AT0001_merged_R1.fastq.gz', '10015AT0001_merged_R2.fastq.gz']:
             assert os.path.join(
-                self.fastq_path, '10015AT', '10015ATA0001L05', file_name
+                self.fastq_path, '10015AT', '10015AT0001', file_name
             ) in fastqs
 
 
 def test_transfer_output_files():
     sample_id = '10015AT0001'
     destination = os.path.join(helper.data_output, 'output_data')
+    if not os.path.isdir(destination):
+        os.mkdir(destination)
     for f in os.listdir(destination):
         os.remove(os.path.join(destination, f))
     assert not os.listdir(destination)
@@ -69,4 +70,6 @@ def test_transfer_output_files():
         '10015AT0001_R2.fastq.gz',
         '10015AT0001_R2.fastq.gz.md5'
         ]
+    print(output_files)
+    print(expected_outputs)
     assert output_files == expected_outputs

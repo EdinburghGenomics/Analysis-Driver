@@ -1,0 +1,19 @@
+language: python
+python:
+  - "3.3"
+  - "3.4"
+# command to install dependencies
+install: "pip install -r requirements.txt"
+script: py.test
+branches:
+  only:
+    - master
+notifications:
+  email:
+    recipients:
+      - timothee.cezard@ed.ac.uk
+    on_success: change # default: change
+    on_failure: always # default: always
+env:
+  global:
+    ANALYSISDRIVERCONFIG=etc/example_analysisdriver.yaml
