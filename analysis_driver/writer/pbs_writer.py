@@ -43,6 +43,7 @@ class PBSWriter(ScriptWriter):
         wt('#PBS -q ' + queue)
         wt('#PBS -j ' + 'oe')
         wt('#PBS -o ' + self.log_file)
+        wt('#PBS -W block=true')
 
         if jobs > 1:
             wt('#PBS -J 1-' + str(jobs))

@@ -109,7 +109,7 @@ class ClusterExecutor(StreamExecutor):
         As the superclass, but with a qsub call to a PBS script.
         :rtype: subprocess.Popen
         """
-        cmd = cfg.get('qsub', 'qsub') + ' -W block=true ' + self.cmd
+        cmd = cfg.get('qsub', 'qsub') + ' ' + self.cmd
 
         self.info('Executing: ' + cmd)
         self.proc = subprocess.Popen(cmd.split(' '), stdout=subprocess.PIPE, stderr=subprocess.PIPE)

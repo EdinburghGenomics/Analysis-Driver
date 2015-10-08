@@ -68,6 +68,7 @@ class TestPBSWriter(TestAnalysisDriver):
             '#PBS -q uv2000',
             '#PBS -j oe',
             '#PBS -o ' + cfg['jobs_dir'] + '/test_run/test.log',
+            '#PBS -W block=true',
             '',
             'export PATH=' + cfg['bcbio'] + '/bin:$PATH',
             'export LD_LIBRARY_PATH=' + cfg['bcbio'] + '/lib:$LD_LIBRARY_PATH',
