@@ -24,10 +24,12 @@ class TestProcessTrigger(TestAnalysisDriver):
     def setUp(self):
         self.old_input_dir = cfg['input_dir']
         self.old_int_dir = cfg.get('intermediate_dir')
-        self.old_lock_dir = cfg['lock_file_dir']
+        self.old_lock_dir = cfg.get('lock_file_dir')
         cfg.content['input_dir'] = self.from_dir
         cfg.content['intermediate_dir'] = self.to_dir
         cfg.content['lock_file_dir'] = self.from_dir
+        if not os.path.isdir(self.to_dir):
+            os.mkdir(self.to_dir)
         if os.path.isdir(os.path.join(self.to_dir, self.dataset)):
             shutil.rmtree(os.path.join(self.to_dir, self.dataset))
         assert not os.listdir(self.to_dir)
@@ -42,13 +44,14 @@ class TestProcessTrigger(TestAnalysisDriver):
         cfg.content['lock_file_dir'] = self.old_lock_dir
 
         with open(os.path.join(self.from_dir, '.triggerignore'), 'w') as f:
-            for d in ['dir_to_be_ignored\n', 'test_dataset\n']:
+            for d in ['dir_t?_be_ign*d\n', 'test_dataset\n']:
                 f.write(d)
 
 
 class TestTransfer(TestProcessTrigger):
     def test_transfer(self):
-        process_trigger.transfer_to_int_dir(self.dataset, self.from_dir, self.to_dir, 1)
+        scanner.reset(self.dataset)
+        process_trigger._transfer_to_int_dir(self.dataset, self.from_dir, self.to_dir, 1)
 
         new_dataset = os.path.join(self.to_dir, self.dataset)
         observed = os.listdir(new_dataset)
@@ -63,8 +66,11 @@ class TestDatasetScanner(TestProcessTrigger):
         return os.path.join(cfg['lock_file_dir'], 'this', 'RTAComplete.txt')
 
     def setUp(self):
-        scanner._rm(self.rta)
         super().setUp()
+        scanner._rm(self.rta)
+        for d in ['this', 'other']:
+            if not os.path.isdir(os.path.join(self.from_dir, d)):
+                os.mkdir(os.path.join(self.from_dir, d))
 
     def tearDown(self):
         scanner.reset('this')
@@ -86,7 +92,7 @@ class TestDatasetScanner(TestProcessTrigger):
 
     def test_triggerignore(self):
         with open(self.triggerignore, 'r') as f:
-            assert f.readlines() == ['dir_to_be_ignored\n', 'test_dataset\n']
+            assert f.readlines() == ['dir_t?_be_ign*d\n', 'test_dataset\n']
 
         expected = ['other\n', 'that\n', 'this\n']
         with open(self.triggerignore, 'w') as f:

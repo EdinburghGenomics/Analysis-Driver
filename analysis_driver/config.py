@@ -16,7 +16,6 @@ class Configuration:
             raise AnalysisDriverError('Could not find \'default\' environment in ' + self.config_file)
 
         self.content = dict(self._merge_dicts(full_config['default'], full_config[self.environment]))
-        self._validate_file_paths(self.content)
 
     def get(self, item, return_default=None):
         """
@@ -51,21 +50,23 @@ class Configuration:
         return yaml.safe_dump(self.content, default_flow_style=False)
 
     @classmethod
-    def _validate_file_paths(cls, content=None):
+    def validate_file_paths(cls, content=None):
         """
         Recursively search through the values of self.content and if the value is an absolute file path,
         assert that it exists.
         :param content: a dict, list or str (i.e. potential file path) to validate
         """
+        invalid_file_paths = []
         if type(content) is dict:
             for v in content.values():
-                cls._validate_file_paths(v)
+                invalid_file_paths.extend(cls.validate_file_paths(v))
         elif type(content) is list:
             for v in content:
-                cls._validate_file_paths(v)
+                invalid_file_paths.extend(cls.validate_file_paths(v))
         elif type(content) is str:
-            if content.startswith('/'):
-                assert os.path.exists(content), 'Invalid file path: ' + content
+            if content.startswith('/') and not os.path.exists(content):
+                invalid_file_paths.append(content)
+        return invalid_file_paths
 
     @staticmethod
     def _find_config_file():

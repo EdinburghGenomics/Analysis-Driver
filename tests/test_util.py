@@ -39,6 +39,8 @@ class TestFastqHandler(TestAnalysisDriver):
 def test_transfer_output_files():
     sample_id = '10015AT0001'
     destination = os.path.join(helper.data_output, 'output_data')
+    if not os.path.isdir(destination):
+        os.mkdir(destination)
     for f in os.listdir(destination):
         os.remove(os.path.join(destination, f))
     assert not os.listdir(destination)
@@ -68,4 +70,6 @@ def test_transfer_output_files():
         '10015AT0001_R2.fastq.gz',
         '10015AT0001_R2.fastq.gz.md5'
         ]
+    print(output_files)
+    print(expected_outputs)
     assert output_files == expected_outputs

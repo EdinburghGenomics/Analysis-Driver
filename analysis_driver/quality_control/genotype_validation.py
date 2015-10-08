@@ -1,8 +1,7 @@
 import os
 from threading import Thread
-from analysis_driver import writer
 from analysis_driver.app_logging import AppLogger
-from analysis_driver.executor import executor
+from analysis_driver import executor
 from analysis_driver.exceptions import AnalysisDriverError
 from analysis_driver.notification import default as ntf
 from analysis_driver.config import default as cfg
@@ -80,22 +79,16 @@ class GenotypeValidation(AppLogger, Thread):
                     self.validation_cfg.get('reference')
                 )
             )
-        bwa_writer = writer.get_script_writer(
-            'alignment_bwa',
-            self.run_id,
+        
+        ntf.start_stage('genotype_validation_bwa')
+        bwa_executor = executor.execute(
+            commands,
+            job_name='alignment_bwa',
+            run_id=self.run_id,
             walltime=2,
             cpus=4,
-            mem=8,
-            jobs=len(commands)
+            mem=8
         )
-        bwa_script = writer.write_jobs(
-            bwa_writer,
-            commands
-        )
-
-        ntf.start_stage('genotype_validation_bwa')
-        bwa_executor = executor.ClusterExecutor(bwa_script, block=True)
-        bwa_executor.start()
         exit_status = bwa_executor.join()
         ntf.end_stage('genotype_validation_bwa', exit_status)
 
@@ -119,12 +112,15 @@ class GenotypeValidation(AppLogger, Thread):
         gatk_command.extend(['-I %s' % bam_file for bam_file in bam_files])
         gatk_command.append('-o %s' % output_vcf)
 
-        gatk_writer = writer.get_script_writer('snpcall_gatk', self.run_id, walltime=2, cpus=4, mem=4, jobs=1)
-        gatk_script = writer.write_jobs(gatk_writer, [' '.join(gatk_command)])
-        
         ntf.start_stage('genotype_validation_gatk')
-        gatk_executor = executor.ClusterExecutor(gatk_script, block=True)
-        gatk_executor.start()
+        gatk_executor = executor.execute(
+            [' '.join(gatk_command)],
+            job_name='snpcall_gatk',
+            run_id=self.run_id,
+            walltime=2,
+            cpus=4,
+            mem=4
+        )
         exit_status = gatk_executor.join()
         ntf.end_stage('genotype_validation_gatk', exit_status)
         return output_vcf
@@ -152,19 +148,15 @@ class GenotypeValidation(AppLogger, Thread):
             list_commands.append(' '.join(gatk_command))
             validation_results.append(validation_result)
 
-        genotype_concordance_writer = writer.get_script_writer(
-            'validation_genotype_concordance',
-            self.run_id,
+        ntf.start_stage('validation_genotype_concordance')
+        genotype_concordance_executor = executor.execute(
+            list_commands,
+            job_name='genotype_concordance',
+            run_id=self.run_id,
             walltime=2,
             cpus=4,
-            mem=8,
-            jobs=len(list_commands)
+            mem=8
         )
-        genotype_concordance_script = writer.write_jobs(genotype_concordance_writer, list_commands)
-
-        ntf.start_stage('validation_genotype_concordance')
-        genotype_concordance_executor = executor.ClusterExecutor(genotype_concordance_script, block=True)
-        genotype_concordance_executor.start()
         exit_status = genotype_concordance_executor.join()
         ntf.end_stage('validation_genotype_concordance', exit_status)
         return validation_results

@@ -84,6 +84,9 @@ def main():
             app_logger = app_logging.get_logger('client')
             _log_app_info(app_logger)
             app_logger.info('Using config file at ' + cfg.config_file)
+            invalid_cfg_paths = cfg.validate_file_paths(cfg.content)
+            if invalid_cfg_paths:
+                app_logger.warning('Invalid config paths: ' + str(invalid_cfg_paths))
             app_logger.info('Triggering for dataset: ' + d)
 
             exit_status = 9
@@ -100,6 +103,7 @@ def main():
                 import traceback
                 log_cfg.switch_formatter(log_cfg.blank_formatter)  # blank formatting for stacktrace
                 stacktrace = traceback.format_exc()
+                log_cfg.switch_formatter(log_cfg.default_formatter)
 
             finally:
                 ntf.end_pipeline(exit_status, stacktrace)

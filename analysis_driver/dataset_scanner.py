@@ -9,12 +9,10 @@ def report(all_datasets=False):
 
     print('========= Process Trigger report =========')
     for status in ('new', 'new, rta complete', 'transferring', 'transferring, rta complete', 'active'):
-        try:
-            ds = datasets.pop(status)
+        ds = datasets.pop(status, [])
+        if ds:
             print('=== ' + status + ' ===')
             print('\n'.join(ds))
-        except KeyError:
-            pass
 
     if any((datasets[s] for s in datasets)):
         if all_datasets:
@@ -22,25 +20,27 @@ def report(all_datasets=False):
                 print('=== ' + status + ' ===')
                 print('\n'.join(datasets[status]))
         else:
-            print(' === other datasets ===')
+            print('=== other datasets ===')
             print('\n'.join(('other datasets present', 'use --report-all to show')))
 
-    print('_'*42)
+    print('_' * 42)
 
 
 def scan_datasets():
-    triggerignore_file = os.path.join(
-        cfg.get('lock_file_dir', cfg['input_dir']),
-        '.triggerignore'
-    )
-    if os.path.isfile(triggerignore_file):
-        triggerignore = [x.strip() for x in open(triggerignore_file).readlines()]
-    else:
-        triggerignore = []
+    input_dir = cfg.get('lock_file_dir', cfg['input_dir'])
+    triggerignore = os.path.join(input_dir, '.triggerignore')
+
+    ignorables = []
+    if os.path.isfile(triggerignore):
+        with open(triggerignore) as f:
+            for d in f.readlines():
+                search = glob(os.path.join(input_dir, d.strip()))
+                if search:
+                    ignorables.extend(search)
 
     all_datasets = dict()
     for d in os.listdir(cfg['input_dir']):
-        if os.path.isdir(os.path.join(cfg['input_dir'], d)) and d not in triggerignore:
+        if os.path.isdir(os.path.join(cfg['input_dir'], d)) and os.path.join(input_dir, d) not in ignorables:
             try:
                 all_datasets[dataset_status(d)].append(d)
             except KeyError:

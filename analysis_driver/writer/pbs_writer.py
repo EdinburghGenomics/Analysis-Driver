@@ -21,10 +21,10 @@ class PBSWriter(ScriptWriter):
             )
         )
 
-    def start_array(self):
+    def _start_array(self):
         self.write_line('case $PBS_ARRAY_INDEX in\n')
 
-    def finish_array(self):
+    def _finish_array(self):
         self.write_line('*) echo "Unexpected PBS_ARRAY_INDEX: $PBS_ARRAY_INDEX"')
         self.write_line('esac')
 
@@ -43,7 +43,8 @@ class PBSWriter(ScriptWriter):
         wt('#PBS -q ' + queue)
         wt('#PBS -j ' + 'oe')
         wt('#PBS -o ' + self.log_file)
+        wt('#PBS -W block=true')
 
         if jobs > 1:
             wt('#PBS -J 1-' + str(jobs))
-        self.line_break()
+        self._line_break()
