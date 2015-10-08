@@ -92,7 +92,7 @@ class TestDatasetScanner(TestProcessTrigger):
 
     def test_triggerignore(self):
         with open(self.triggerignore, 'r') as f:
-            assert f.readlines() == ['dir_to_be_ignored\n', 'test_dataset\n']
+            assert f.readlines() == ['dir_t?_be_ign*d\n', 'test_dataset\n']
 
         expected = ['other\n', 'that\n', 'this\n']
         with open(self.triggerignore, 'w') as f:
