@@ -1,3 +1,5 @@
+from collections import defaultdict
+
 __author__ = 'mwham'
 import os
 from glob import glob
@@ -38,13 +40,10 @@ def scan_datasets():
     else:
         triggerignore = []
 
-    all_datasets = dict()
+    all_datasets = defaultdict(list)
     for d in os.listdir(cfg['input_dir']):
         if os.path.isdir(os.path.join(cfg['input_dir'], d)) and d not in triggerignore:
-            try:
-                all_datasets[dataset_status(d)].append(d)
-            except KeyError:
-                all_datasets[dataset_status(d)] = [d]
+            all_datasets[dataset_status(d)].append(d)
 
     return all_datasets
 
