@@ -195,7 +195,7 @@ def _run_bcbio(run_id, job_dir, sample_name_to_fastqs):
                     'samples_' + sample_id + '-merged',
                     'work'
                 ),
-                threads=10
+                threads=16
             )
         )
     prep_status = executor.execute(sample_preps, env='local').join()
@@ -207,7 +207,7 @@ def _run_bcbio(run_id, job_dir, sample_name_to_fastqs):
         job_name='bcbio',
         run_id=run_id,
         walltime=96,
-        cpus=10,
+        cpus=8,
         mem=64
     )
     os.chdir(original_dir)
