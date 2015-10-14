@@ -2,7 +2,7 @@ __author__ = 'mwham'
 import os
 from time import sleep
 from analysis_driver.dataset_scanner import dataset_status, switch_status
-from analysis_driver.executor import StreamExecutor
+from analysis_driver import executor
 from analysis_driver.app_logging import get_logger
 from analysis_driver.config import default as cfg
 
@@ -16,12 +16,13 @@ def trigger(dataset):
     :param str dataset: A dataset id
     """
     if cfg.get('intermediate_dir'):
-        assert dataset_status(dataset) in ('new', 'new, rta complete')
-        transfer_to_int_dir(
+        status = dataset_status(dataset)
+        assert status in ('new', 'new, rta complete'), 'Invalid dataset status: ' + status
+        _transfer_to_int_dir(
             dataset,
             cfg['input_dir'],
             cfg['intermediate_dir'],
-            repeat_delay=int(cfg['tt_agent_delay'])
+            repeat_delay=int(cfg.get('tt_agent_delay', 120))
         )
         dataset_dir = cfg['intermediate_dir']
     else:
@@ -40,23 +41,21 @@ def trigger(dataset):
     return exit_status
 
 
-def transfer_to_int_dir(dataset, from_dir, to_dir, repeat_delay):
+def _transfer_to_int_dir(dataset, from_dir, to_dir, repeat_delay):
     """
     rsync -aqu --size-only --partial from_dir/dataset to_dir
     """
+    exit_status = 0
     app_logger.info('Starting transfer')
     switch_status(dataset, 'transferring')
+    rsync_cmd = 'rsync -aqu --size-only --partial %s %s' % (os.path.join(from_dir, dataset), to_dir)
+
     while dataset_status(dataset) != 'transferring, rta complete':
-        _run(['rsync', '-aqu', '--size-only', '--partial', os.path.join(from_dir, dataset), to_dir])
+        exit_status += executor.execute([rsync_cmd], env='local').join()
         sleep(repeat_delay)
 
     # one more rsync after the RTAComplete is created. After this, everything should be synced
     sleep(repeat_delay)
-    _run(['rsync', '-aqu', '--size-only', '--partial', os.path.join(from_dir, dataset), to_dir])
+    exit_status += executor.execute([rsync_cmd], env='local').join()
     assert os.path.isfile(os.path.join(to_dir, dataset, 'RTAComplete.txt'))
-    app_logger.info('Transfer complete')
-
-
-def _run(cmd):
-    executor = StreamExecutor(cmd)
-    executor.run()
+    app_logger.info('Transfer complete with exit status ' + str(exit_status))

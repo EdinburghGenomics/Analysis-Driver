@@ -29,29 +29,44 @@ class ScriptWriter(AppLogger):
     def write_line(self, line):
         self.lines.append(line)
 
-    def write_array_cmd(self, job_number, cmd, log_file=None):
+    def write_jobs(self, cmds, prelim_cmds=None):
+        if prelim_cmds:
+            for cmd in prelim_cmds:
+                self.write_line(cmd)
+            self._line_break()
+
+        if len(cmds) == 1:
+            self.write_line(cmds[0])
+        else:
+            self._start_array()
+            for idx, cmd in enumerate(cmds):
+                self._write_array_cmd(idx + 1, cmd, log_file=self.log_file + str(idx + 1))
+            self._finish_array()
+        self._save()
+
+    def _write_array_cmd(self, job_number, cmd, log_file=None):
         """
         :param int job_number: The index of the job (i.e. which number the job has in the array)
         :param str cmd: The command to write
         """
         line = str(job_number) + ') ' + cmd
         if log_file:
-            line += ' > ' + log_file
+            line += ' > ' + log_file + ' 2>&1'
         line += '\n' + ';;'
         self.write_line(line)
         self.jobs_written += 1
 
-    def start_array(self):
+    def _start_array(self):
         self.write_line('case $JOB_INDEX in')
 
-    def finish_array(self):
+    def _finish_array(self):
         self.write_line('*) echo "Unexpected JOBINDEX: $JOB_INDEX"')
         self.write_line('esac')
 
-    def line_break(self):
+    def _line_break(self):
         self.lines.append('')
 
-    def save(self):
+    def _save(self):
         """
         Save self.lines to self.script_file. Also closes it. Always close it.
         """
