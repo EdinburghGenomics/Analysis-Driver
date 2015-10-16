@@ -3,7 +3,7 @@ from genologics.lims import Lims
 from analysis_driver.config import default as cfg
 from analysis_driver.app_logging import get_logger
 
-app_logger = get_logger('clarity')
+app_logger = get_logger('Clarity')
 
 def _get_lims_connection():
     return Lims(**cfg.get('clarity'))
@@ -16,7 +16,9 @@ def get_valid_lanes_from_HiseqX(flowcell_name):
     """
     lims = _get_lims_connection()
     containers = lims.get_containers(type='Patterned Flowcell', name=flowcell_name)
-    assert len(containers) ==1, "%s Flowcell found for name %s"%(len(containers), flowcell_name)
+    if len(containers) !=1:
+        app_logger.warning("%s Flowcell found for name %s"%(len(containers), flowcell_name))
+        return None
 
     flowcell = containers[0]
     valid_lanes = []
@@ -29,6 +31,7 @@ def get_valid_lanes_from_HiseqX(flowcell_name):
 
 def run_tests():
     assert get_valid_lanes_from_HiseqX("HCH25CCXX") == [1,2,3,4,5,6,7]
+    assert get_valid_lanes_from_HiseqX("HCH25CCX") is None
 
 if __name__== "__main__":
     #Will only work with a valid connection to the production server
