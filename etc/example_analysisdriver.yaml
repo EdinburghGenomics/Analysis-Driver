@@ -52,20 +52,27 @@ default:
         sambamba: path/to/sambamba
 
     output_files:
-        - name: '*-gatk-haplotype-vcf.gz'
-          type: vcf
-          rename_to: '.g.vcf.gz'
-        - name: '*-gatk-haplotype-vcf.gz.tbi'
-          type: vcf
-          rename_to: '.g.vcf.gz.tbi'
-        - name: '*-ready.bam'
-          type: bam
-          rename_to: '.bam'
-        - name: '*-ready-bam.bai'
-          type: bam
-          rename_to: '.bam.bai'
-        - name: '*_R1.fastq.gz'
-          type: fastq
-        - name: '*_R2.fastq.gz'
-          type: fastq
-
+         - location: ['samples_%s-merged', 'final', '%s']
+           basename: '%s-gatk-haplotype.vcf.gz'
+           new_name: '%s.g.vcf.gz'
+        - location: ['samples_%s-merged', 'final', '%s']
+          basename: '%s-gatk-haplotype.vcf.gz.tbi'
+          new_name: '%s.g.vcf.gz.tbi'
+        - location: ['samples_%s-merged', 'final', '%s']
+          basename: '%s-ready.bam'
+          new_name: '%s.bam'
+        - location: ['samples_%s-merged', 'final', '%s']
+          basename: '%s-ready.bam.bai'
+          new_name: '%s.bam.bai'
+        - location: ['samples_%s-merged', 'final', '%s', 'qc', 'bamtools']
+          basename: 'bamtools_stats.txt'
+        - location: ['samples_%s-merged', 'work', 'align', '%s']
+          basename: '*samples_%s-merged-sort-highdepth-stats.yaml'
+        - location: ['samples_%s-merged', 'work', 'align', '%s']
+          basename: '*samples_%s-merged-sort-callable.bed'
+        - location: ['merged']
+          basename: '%s_R1.fastq.gz'
+        - location: ['merged']
+          basename: '%s_R2.fastq.gz'
+        - location: ['fastq', 'Stats']
+          basename: 'ConversionStats.xml'

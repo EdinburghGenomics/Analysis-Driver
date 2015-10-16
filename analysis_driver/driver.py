@@ -1,4 +1,5 @@
 import os
+from glob import glob
 from analysis_driver import reader, writer, util, executor
 from analysis_driver.exceptions import AnalysisDriverError
 from analysis_driver.app_logging import get_logger
@@ -98,7 +99,7 @@ def pipeline(input_run_folder):
     
     # transfer output data
     ntf.start_stage('data_transfer')
-    transfer_exit_status = _output_data(sample_sheet, job_dir)
+    transfer_exit_status = _output_data(sample_sheet, job_dir, cfg['output_dir'], cfg['output_files'])
     ntf.end_stage('data_transfer', transfer_exit_status)
     exit_status += transfer_exit_status
 
@@ -160,7 +161,7 @@ def _bcio_prepare_sample(fastq_dir, job_dir, sample_sheet):
 def _run_bcbio(run_id, job_dir, sample_name_to_fastqs):
     run_template = os.path.join(
         os.path.dirname(__file__),
-        '..', 'etc', 'bcbio_alignment_' + cfg['genome']  + '.yaml'
+        '..', 'etc', 'bcbio_alignment_' + cfg['genome'] + '.yaml'
     )
     if not os.path.isfile(run_template):
         raise AnalysisDriverError(
@@ -215,26 +216,37 @@ def _run_bcbio(run_id, job_dir, sample_name_to_fastqs):
     return bcbio_executor
 
 
-def _output_data(sample_sheet, job_dir):
+def _output_data(sample_sheet, job_dir, output_dir, output_config):
     exit_status = 0
     for name, sample_project in sample_sheet.sample_projects.items():
         for sample_id in sample_project.sample_ids:
 
-            output_dir = os.path.join(cfg['output_dir'], name, sample_id)
-            try:
-                os.makedirs(output_dir)
-            except FileExistsError:
-                pass
+            output_loc = os.path.join(output_dir, name, sample_id)
+            if not os.path.isdir(output_loc):
+                os.makedirs(output_loc)
 
-            bcbio_source_dir = os.path.join(job_dir, 'samples_' + sample_id + '-merged', 'final', sample_id)
-            merged_fastq_dir = os.path.join(job_dir, 'merged')
-            source_path_mapping = {
-                'vcf': bcbio_source_dir,
-                'bam': bcbio_source_dir,
-                'fastq': merged_fastq_dir
-            }
+            for output_record in output_config:
+                src_pattern = os.path.join(
+                    job_dir,
+                    os.path.join(*output_record['location']),
+                    output_record['basename']
+                ).replace('%s', sample_id)
 
-            ex = util.transfer_output_files(sample_id, output_dir, source_path_mapping)
-            exit_status += ex
+                sources = glob(src_pattern)
+                if sources:
+                    source = sources[-1]
+
+                    dest = os.path.join(
+                        output_loc,
+                        output_record.get('new_name', os.path.basename(source))
+                    ).replace('%s', sample_id)
+                    exit_status += util.transfer_output_file(
+                        source,
+                        dest
+                    )
+
+                else:
+                    app_logger.warning('No files found for pattern ' + src_pattern)
+                    exit_status += 1
 
     return exit_status
