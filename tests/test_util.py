@@ -8,7 +8,7 @@ helper = TestAnalysisDriver()
 
 
 def test_setup_bcbio_run():
-    print('Currently untestable')
+    print('Setup_bcbio_run currently untestable')
     assert True
 
 
@@ -23,14 +23,22 @@ class TestLogger(TestAnalysisDriver):
 class TestFastqHandler(TestAnalysisDriver):
     def test_find_fastqs(self):
         fastqs = util.fastq_handler.find_fastqs(self.fastq_path, '10015AT', '10015AT0001')
-        for file_name in ['10015AT0001_merged_R1.fastq.gz', '10015AT0001_merged_R2.fastq.gz']:
+        for file_name in ['10015AT0001_S6_L004_R1_001.fastq.gz', '10015AT0001_S6_L004_R2_001.fastq.gz',
+                          '10015AT0001_S6_L005_R1_001.fastq.gz', '10015AT0001_S6_L005_R2_001.fastq.gz']:
+            assert os.path.join(
+                self.fastq_path, '10015AT', '10015AT0001', file_name
+            ) in fastqs
+
+    def test_find_fastqs_with_lane(self):
+        fastqs = util.fastq_handler.find_fastqs(self.fastq_path, '10015AT', '10015AT0001', lane=4)
+        for file_name in ['10015AT0001_S6_L004_R1_001.fastq.gz', '10015AT0001_S6_L004_R2_001.fastq.gz']:
             assert os.path.join(
                 self.fastq_path, '10015AT', '10015AT0001', file_name
             ) in fastqs
 
     def test_find_all_fastqs(self):
         fastqs = util.fastq_handler.find_all_fastqs(self.fastq_path)
-        for file_name in ['10015AT0001_merged_R1.fastq.gz', '10015AT0001_merged_R2.fastq.gz']:
+        for file_name in ['10015AT0001_S6_L004_R1_001.fastq.gz', '10015AT0001_S6_L004_R2_001.fastq.gz']:
             assert os.path.join(
                 self.fastq_path, '10015AT', '10015AT0001', file_name
             ) in fastqs
