@@ -14,6 +14,8 @@ class TestRunInfo(TestAnalysisDriver):
     def setUp(self):
         self.run_info = RunInfo(self.assets_path)
 
+    def test_flowcellname(self):
+        assert self.run_info.flowcell_name == 'H5VJMCCXX'
 
 class TestMask(TestAnalysisDriver):
     def setUp(self):
@@ -51,3 +53,5 @@ class TestMask(TestAnalysisDriver):
 
     def test_validate(self):
         assert self.mask_helper.validate()
+
+

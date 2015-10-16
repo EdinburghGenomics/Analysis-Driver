@@ -1,6 +1,6 @@
 import os
 from glob import glob
-from analysis_driver import reader, writer, util, executor
+from analysis_driver import reader, writer, util, executor, clarity
 from analysis_driver.exceptions import AnalysisDriverError
 from analysis_driver.app_logging import get_logger
 from analysis_driver.config import default as cfg  # imports the default config singleton
@@ -67,9 +67,11 @@ def pipeline(input_run_folder):
         mem=2
     )
 
+    valid_lanes = clarity.get_valid_lanes_from_HiseqX(run_info.flowcell_name)
+
     # merge fastq files
     ntf.start_stage('merge fastqs')
-    sample_to_fastq_files = _bcio_prepare_sample(fastq_dir, job_dir, sample_sheet)
+    sample_to_fastq_files = _bcio_prepare_sample(fastq_dir, job_dir, sample_sheet, valid_lanes)
     ntf.end_stage('merge fastqs')
 
     # genotype validation
@@ -142,13 +144,22 @@ def pipeline_phix(input_run_folder):
     return exit_status
 
 
-def _bcio_prepare_sample(fastq_dir, job_dir, sample_sheet):
+def _bcio_prepare_sample(fastq_dir, job_dir, sample_sheet, valid_lanes=None):
     """
     Merge the fastq files per sample using bcbio prepare sample
     """
     sample_name_to_fastqs = {}
     for sample_project, proj_obj in sample_sheet.sample_projects.items():
+
         for sample_id, id_obj in proj_obj.sample_ids.items():
+            if valid_lanes:
+                #Only retrive the lanes that are considered valid
+                fastq_files = []
+                for lane in valid_lanes:
+                    fastq_files.extend(util.fastq_handler.find_fastqs(fastq_dir, sample_project, sample_id, lane))
+            else:
+                #No information about valid lanes: don't filter anything
+                fastq_files.extend(util.fastq_handler.find_fastqs(fastq_dir, sample_project, sample_id))
             merged_fastqs = util.bcbio_prepare_samples(
                 job_dir,
                 sample_id,

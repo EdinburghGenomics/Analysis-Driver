@@ -1,3 +1,5 @@
 jinja2==2.8
 PyYAML==3.11
 pytest==2.7.2
+#Take the latest version of the genologics package from github
+git+https://github.com/EdinburghGenomics/genologics.git
