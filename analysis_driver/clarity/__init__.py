@@ -6,7 +6,7 @@ from analysis_driver.app_logging import get_logger
 app_logger = get_logger('clarity')
 
 def _get_lims_connection():
-    return Lims(cfg.get('clarity'))
+    return Lims(**cfg.get('clarity'))
 
 def get_valid_lanes_from_HiseqX(flowcell_name):
     """
@@ -25,5 +25,11 @@ def get_valid_lanes_from_HiseqX(flowcell_name):
         artifact = flowcell.placements.get(placement_key)
         if not artifact.udf.get('Lane Failed?', False):
             valid_lanes.append(lane)
-    return valid_lanes
+    return sorted(valid_lanes)
 
+def run_tests():
+    assert get_valid_lanes_from_HiseqX("HCH25CCXX") == [1,2,3,4,5,6,7]
+
+if __name__== "__main__":
+    #Will only work with a valid connection to the production server
+    run_tests()
