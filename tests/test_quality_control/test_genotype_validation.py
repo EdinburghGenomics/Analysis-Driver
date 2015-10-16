@@ -11,7 +11,7 @@ class TestGenotypeValidation(TestAnalysisDriver):
         return {
             '10015AT0001': [
                 os.path.join(self.fastq_path, '10015AT', '10015AT0001', x) for x in [
-                    '10015AT0001_merged_R1.fastq.gz', '10015ATA0001_merged_R2.fastq.gz'
+                    '10015AT0001_S6_L004_R1_001.fastq.gz', '10015ATA0001_merged_R2.fastq.gz'
                 ]
             ],
             '10015AT0002': [
