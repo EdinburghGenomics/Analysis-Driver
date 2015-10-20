@@ -37,7 +37,7 @@ def pipeline(input_run_folder):
         raise AnalysisDriverError('Validation failed. Check SampleSheet.csv and RunInfo.xml.')
 
     mask = sample_sheet.generate_mask(run_info.mask)
-    app_logger.info('bcl2fastq mask: ' + mask)  # example_mask = 'y150n,i6,y150n'
+    app_logger.info('bcl2fastq mask: ' + mask)  # e.g: mask = 'y150n,i6,y150n'
     ntf.end_stage('setup')
     
     # bcl2fastq
@@ -50,14 +50,12 @@ def pipeline(input_run_folder):
         cpus=8,
         mem=32
     ).join()
-    # exit_status += _run_bcl2fastq(input_run_folder, run_id, fastq_dir, samplesheet_csv, mask).join()
     ntf.end_stage('bcl2fastq', exit_status)
     if exit_status:
         return exit_status
     
     # fastqc
     ntf.start_stage('fastqc')
-    # fastqc_executor = _run_fastqc(run_id, fastq_dir)
     fastqc_executor = executor.execute(
         [writer.bash_commands.fastqc(fq) for fq in util.fastq_handler.find_all_fastqs(fastq_dir)],
         job_name='fastqc',
@@ -68,10 +66,11 @@ def pipeline(input_run_folder):
     )
 
     valid_lanes = clarity.get_valid_lanes_from_HiseqX(run_info.flowcell_name)
+    app_logger.info('Valid lanes: ' + str(valid_lanes))
 
     # merge fastq files
     ntf.start_stage('merge fastqs')
-    sample_to_fastq_files = _bcio_prepare_sample(fastq_dir, job_dir, sample_sheet, valid_lanes)
+    sample_to_fastq_files = _bcbio_prepare_samples(fastq_dir, job_dir, sample_sheet, valid_lanes)
     ntf.end_stage('merge fastqs')
 
     # genotype validation
@@ -144,7 +143,7 @@ def pipeline_phix(input_run_folder):
     return exit_status
 
 
-def _bcio_prepare_sample(fastq_dir, job_dir, sample_sheet, valid_lanes=None):
+def _bcbio_prepare_samples(fastq_dir, job_dir, sample_sheet, valid_lanes=None):
     """
     Merge the fastq files per sample using bcbio prepare sample
     """
@@ -153,12 +152,12 @@ def _bcio_prepare_sample(fastq_dir, job_dir, sample_sheet, valid_lanes=None):
 
         for sample_id, id_obj in proj_obj.sample_ids.items():
             if valid_lanes:
-                #Only retrive the lanes that are considered valid
+                # only retrive the lanes that are considered valid
                 fastq_files = []
                 for lane in valid_lanes:
                     fastq_files.extend(util.fastq_handler.find_fastqs(fastq_dir, sample_project, sample_id, lane))
             else:
-                #No information about valid lanes: don't filter anything
+                # no information about valid lanes: don't filter anything
                 fastq_files.extend(util.fastq_handler.find_fastqs(fastq_dir, sample_project, sample_id))
             merged_fastqs = util.bcbio_prepare_samples(
                 job_dir,
@@ -259,5 +258,8 @@ def _output_data(sample_sheet, job_dir, output_dir, output_config):
                 else:
                     app_logger.warning('No files found for pattern ' + src_pattern)
                     exit_status += 1
+
+            with open(os.path.join(output_loc, 'run_config.yaml'), 'w') as f:
+                f.write(cfg.report())
 
     return exit_status

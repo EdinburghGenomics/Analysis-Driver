@@ -2,23 +2,28 @@ __author__ = 'mwham'
 import os
 from glob import glob
 from collections import defaultdict
+from analysis_driver.app_logging import get_logger
 from analysis_driver.config import default as cfg
+
+app_logger = get_logger('scanner')
+
 
 def report(all_datasets=False):
     datasets = scan_datasets()
 
     print('========= Process Trigger report =========')
+    print('dataset location: ' + cfg['input_dir'])
     for status in ('new', 'new, rta complete', 'transferring', 'transferring, rta complete', 'active'):
         ds = datasets.pop(status, [])
         if ds:
             print('=== ' + status + ' ===')
-            print('\n'.join(ds))
+            print('\n'.join((os.path.basename(d) for d in ds)))
 
     if any((datasets[s] for s in datasets)):
         if all_datasets:
             for status in sorted(datasets):
                 print('=== ' + status + ' ===')
-                print('\n'.join(datasets[status]))
+                print('\n'.join((os.path.basename(x) for x in datasets[status])))
         else:
             print('=== other datasets ===')
             print('\n'.join(('other datasets present', 'use --report-all to show')))
@@ -27,23 +32,27 @@ def report(all_datasets=False):
 
 
 def scan_datasets():
-    input_dir = cfg.get('lock_file_dir', cfg['input_dir'])
-    triggerignore = os.path.join(input_dir, '.triggerignore')
+    lock_dir = cfg.get('lock_file_dir', cfg['input_dir'])
+    input_dir = cfg['input_dir']
+    triggerignore = os.path.join(lock_dir, '.triggerignore')
 
     ignorables = []
     if os.path.isfile(triggerignore):
-        with open(triggerignore) as f:
-            for d in f.readlines():
-                search = glob(os.path.join(input_dir, d.strip()))
-                if search:
-                    ignorables.extend(search)
+        with open(triggerignore, 'r') as f:
+            for p in f.readlines():
+                if not p.startswith('#'):
+                    ignorables.extend(glob(os.path.join(input_dir, p)))
+    app_logger.debug('Ignoring %s datasets' % len(ignorables))
 
-    all_datasets = defaultdict(list)
-    for d in os.listdir(cfg['input_dir']):
-        if os.path.isdir(os.path.join(cfg['input_dir'], d)) and os.path.join(input_dir, d) not in ignorables:
-            all_datasets[dataset_status(d)].append(d)
+    n_datasets = 0
+    datasets = defaultdict(list)
+    for d in glob(os.path.join(input_dir, '*')):
+        if os.path.isdir(d) and d not in ignorables:
+            datasets[dataset_status(d)].append(d)
+            n_datasets += 1
 
-    return all_datasets
+    app_logger.debug('Found %s datasets' % n_datasets)
+    return datasets
 
 
 def reset(dataset):
@@ -83,7 +92,10 @@ def _rta_complete(dataset):
 
 
 def lock_file(dataset, status):
-    return os.path.join(cfg.get('lock_file_dir', cfg['input_dir']), '.' + dataset + '.' + status)
+    return os.path.join(
+        cfg.get('lock_file_dir', cfg['input_dir']),
+        '.' + os.path.basename(dataset) + '.' + status
+    )
 
 
 def _touch(file):

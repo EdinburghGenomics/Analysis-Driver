@@ -7,7 +7,7 @@ from analysis_driver.config import logging_default as log_cfg
 class LogNotification(Notification):
     def __init__(self, run_id, log_file):
         super().__init__(run_id)
-        self.handler = logging.FileHandler(filename=log_file)
+        self.handler = logging.FileHandler(filename=log_file, mode='a')
         self.formatter = logging.Formatter(
             fmt='[%(asctime)s][' + self.run_id + '] %(message)s',
             datefmt='%Y-%b-%d %H:%M:%S'

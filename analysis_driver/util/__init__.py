@@ -42,9 +42,9 @@ def transfer_output_file(source, dest):
     :param str dest:
     :return: exit status
     """
-    app_logger.info('Looking for file: ' + source)
+    app_logger.info('Transferring file: ' + source)
     if os.path.isfile(source):
-        app_logger.info('Found file. Transferring.')
+        app_logger.debug('Found file. Transferring.')
         shutil.copyfile(source, dest)
 
         app_logger.debug('Generating md5 checksum')
@@ -59,9 +59,7 @@ def transfer_output_file(source, dest):
             md5_f.write(md5.hexdigest())
 
         app_logger.debug('Done')
-        print('Done ' + source)
         return 0
     else:
         app_logger.warning('Could not find output file.')
-        print('Failed ' + source)
         return 1
