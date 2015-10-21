@@ -10,10 +10,12 @@ from analysis_driver.config import default as cfg
 app_logger = get_logger(__name__)
 
 
-def write_bcbio_csv(run_dir, sample_id, fastqs):
+def write_bcbio_csv(run_dir, sample_id, fastqs, user_sample_id=None):
     """
     Write out a simple csv mapping fastq files to a sample id
     """
+    if not user_sample_id:
+        user_sample_id = sample_id
     csv_file = os.path.join(run_dir, 'samples_' + sample_id + '.csv')
     app_logger.info('Writing BCBio sample csv ' + csv_file)
 
@@ -21,7 +23,7 @@ def write_bcbio_csv(run_dir, sample_id, fastqs):
         writer = csv.writer(f)
         writer.writerow(['samplename', 'description'])
         for fq in fastqs:
-            writer.writerow([fq, sample_id])
+            writer.writerow([fq, user_sample_id])
 
     return csv_file
 

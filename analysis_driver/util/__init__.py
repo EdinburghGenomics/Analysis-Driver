@@ -11,7 +11,7 @@ from analysis_driver.config import default as cfg
 app_logger = get_logger('util')
 
 
-def bcbio_prepare_samples(job_dir, sample_id, fastqs):
+def bcbio_prepare_samples(job_dir, sample_id, fastqs, user_sample_id=None):
     """
     Call bcbio_prepare_samples with a csv sample file and a list of fastqs.
     :param str job_dir: Full path to the run folder
@@ -19,7 +19,7 @@ def bcbio_prepare_samples(job_dir, sample_id, fastqs):
     :param list fastqs: Full paths to each input fastq file
     """
     # setup the BCBio merged csv file
-    bcbio_csv_file = writer.write_bcbio_csv(job_dir, sample_id, fastqs)
+    bcbio_csv_file = writer.write_bcbio_csv(job_dir, sample_id, fastqs, user_sample_id=user_sample_id)
     app_logger.info('Setting up BCBio samples from ' + bcbio_csv_file)
 
     merged_dir = os.path.join(job_dir, 'merged')

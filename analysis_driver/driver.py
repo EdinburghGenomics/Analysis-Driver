@@ -151,18 +151,21 @@ def _bcio_prepare_sample(fastq_dir, job_dir, sample_sheet, valid_lanes=None):
     for sample_project, proj_obj in sample_sheet.sample_projects.items():
 
         for sample_id, id_obj in proj_obj.sample_ids.items():
+            fastq_files = []
             if valid_lanes:
                 #Only retrive the lanes that are considered valid
-                fastq_files = []
                 for lane in valid_lanes:
                     fastq_files.extend(util.fastq_handler.find_fastqs(fastq_dir, sample_project, sample_id, lane))
             else:
                 #No information about valid lanes: don't filter anything
                 fastq_files.extend(util.fastq_handler.find_fastqs(fastq_dir, sample_project, sample_id))
+            #Query the LIMS to get the user sample id
+            user_sample_id = clarity.get_user_sample_name(sample_id)
             merged_fastqs = util.bcbio_prepare_samples(
                 job_dir,
                 sample_id,
-                util.fastq_handler.find_fastqs(fastq_dir, sample_project, sample_id)
+                fastq_files,
+                user_sample_id=user_sample_id
             )
             sample_name_to_fastqs[sample_id] = merged_fastqs
     return sample_name_to_fastqs
@@ -183,27 +186,27 @@ def _run_bcbio(run_id, job_dir, sample_name_to_fastqs):
 
     sample_preps = []
     bcbio_array_cmds = []
-    for sample_id in sample_name_to_fastqs:
+    for sample_name in sample_name_to_fastqs:
         sample_prep = [
             os.path.join(cfg['bcbio'], 'bin', 'bcbio_nextgen.py'),
             '-w template',
             run_template,
-            os.path.join(job_dir, 'samples_' + sample_id + '-merged'),
-            os.path.join(job_dir, 'samples_' + sample_id + '-merged.csv')
-        ] + sample_name_to_fastqs.get(sample_id)
+            os.path.join(job_dir, 'samples_' + sample_name + '-merged'),
+            os.path.join(job_dir, 'samples_' + sample_name + '-merged.csv')
+        ] + sample_name_to_fastqs.get(sample_name)
         sample_preps.append(' '.join(sample_prep))
 
         bcbio_array_cmds.append(
             writer.bash_commands.bcbio(
                 os.path.join(
                     job_dir,
-                    'samples_' + sample_id + '-merged',
+                    'samples_' + sample_name + '-merged',
                     'config',
-                    'samples_' + sample_id + '-merged.yaml'
+                    'samples_' + sample_name + '-merged.yaml'
                 ),
                 os.path.join(
                     job_dir,
-                    'samples_' + sample_id + '-merged',
+                    'samples_' + sample_name + '-merged',
                     'work'
                 ),
                 threads=16
@@ -217,7 +220,7 @@ def _run_bcbio(run_id, job_dir, sample_name_to_fastqs):
         prelim_cmds=writer.bash_commands.bcbio_env_vars(),
         job_name='bcbio',
         run_id=run_id,
-        walltime=96,
+        walltime=120,
         cpus=8,
         mem=64
     )
