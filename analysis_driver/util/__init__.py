@@ -31,7 +31,10 @@ def bcbio_prepare_samples(job_dir, sample_id, fastqs, user_sample_id=None):
         bcbio_csv_file
     )
     return_code = executor.execute([' '.join(cmd)], env='local').join()
-    merged_fastqs = glob(os.path.join(merged_dir, sample_id + '_R?.fastq.gz'))
+    if user_sample_id:
+        merged_fastqs = glob(os.path.join(merged_dir, user_sample_id + '_R?.fastq.gz'))
+    else:
+        merged_fastqs = glob(os.path.join(merged_dir, sample_id + '_R?.fastq.gz'))
     if merged_fastqs and return_code == 0:
         return merged_fastqs
 
