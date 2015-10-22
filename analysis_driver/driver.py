@@ -1,4 +1,5 @@
 import os
+import yaml
 from glob import glob
 from analysis_driver import reader, writer, util, executor, clarity
 from analysis_driver.exceptions import AnalysisDriverError
@@ -183,37 +184,43 @@ def _run_bcbio(run_id, job_dir, sample_name_to_fastqs):
 
     original_dir = os.getcwd()
     os.chdir(job_dir)
+    app_logger.debug(str(sample_name_to_fastqs))
 
     sample_preps = []
     bcbio_array_cmds = []
     for sample_name in sample_name_to_fastqs:
+        app_logger.debug('Setting up sample: ' + sample_name)
+
+        bcbio_dir = os.path.join(job_dir, 'samples_' + sample_name + '-merged')
+
         sample_prep = [
             os.path.join(cfg['bcbio'], 'bin', 'bcbio_nextgen.py'),
             '-w template',
             run_template,
-            os.path.join(job_dir, 'samples_' + sample_name + '-merged'),
-            os.path.join(job_dir, 'samples_' + sample_name + '-merged.csv')
+            bcbio_dir,
+            bcbio_dir + '.csv'
         ] + sample_name_to_fastqs.get(sample_name)
-        sample_preps.append(' '.join(sample_prep))
 
+        run_yaml = os.path.join(bcbio_dir, 'config', 'samples_' + sample_name + '-merged.yaml')
         bcbio_array_cmds.append(
             writer.bash_commands.bcbio(
-                os.path.join(
-                    job_dir,
-                    'samples_' + sample_name + '-merged',
-                    'config',
-                    'samples_' + sample_name + '-merged.yaml'
-                ),
-                os.path.join(
-                    job_dir,
-                    'samples_' + sample_name + '-merged',
-                    'work'
-                ),
+                run_yaml,
+                os.path.join(bcbio_dir, 'work'),
                 threads=16
             )
         )
-    prep_status = executor.execute(sample_preps, env='local').join()
-    app_logger.info('BCBio sample prep exit status: ' + str(prep_status))
+        prep_status = executor.execute([' '.join(sample_prep)], env='local').join()
+        app_logger.info('BCBio sample prep exit status: ' + str(prep_status))
+
+        user_sample_id = clarity.get_user_sample_name(sample_name)
+        if user_sample_id:
+            app_logger.debug('Found user sample: ' + user_sample_id)
+
+            with open(run_yaml, 'r') as i:
+                run_config = yaml.load(i)
+            run_config['fc_name'] = user_sample_id
+            with open(run_yaml, 'w') as o:
+                o.write(yaml.safe_dump(run_config, default_flow_style=False))
 
     bcbio_executor = executor.execute(
         bcbio_array_cmds,
