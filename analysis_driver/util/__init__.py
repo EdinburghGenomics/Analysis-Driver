@@ -31,51 +31,38 @@ def bcbio_prepare_samples(job_dir, sample_id, fastqs, user_sample_id=None):
         bcbio_csv_file
     )
     return_code = executor.execute([' '.join(cmd)], env='local').join()
-    merged_fastqs = glob(os.path.join(merged_dir, sample_id + '_R?.fastq.gz'))
+    if user_sample_id:
+        merged_fastqs = glob(os.path.join(merged_dir, user_sample_id + '_R?.fastq.gz'))
+    else:
+        merged_fastqs = glob(os.path.join(merged_dir, sample_id + '_R?.fastq.gz'))
     if merged_fastqs and return_code == 0:
         return merged_fastqs
 
 
-def transfer_output_files(sample_id, output_dir, source_path_mapping):
+def transfer_output_file(source, dest):
     """
-    :param str sample_id: a sample id, acting as the basename for the file
-    :param str output_dir: where to send the output file
-    :param dict source_path_mapping: a mapping describing where to find each type of output file
-    :return: an exit status, non-zero if files weren not found
+    :param str source:
+    :param str dest:
+    :return: exit status
     """
-    exit_status = 0
-    for f in cfg['output_files']:
-        app_logger.debug('Transferring ' + str(f))
-        source_dir = source_path_mapping[f['type']]  # f['type'] = 'vcf'; source_dir = bcbio_source_dir
-        base_name = f['name'].replace('*', sample_id)  # '*.vcf.gz' -> sample_id.vcf.gz
-        source_file = os.path.join(source_dir, base_name)  # bcbio_source_dir/sample_id.vcf.gz
-        rename_to = f.get('rename_to')  # '.g.vcf.gz'
-        if rename_to:
-            base_name = base_name.replace(f['name'][1:], rename_to)  # sample_id.vcf.gz -> sample_id.g.vcf.gz
+    app_logger.info('Transferring file: ' + source)
+    if os.path.isfile(source):
+        app_logger.debug('Found file. Transferring.')
+        shutil.copyfile(source, dest)
 
-        output_file = os.path.join(output_dir, base_name)  # output_dir/sample_id.g.vcf.gz
-        app_logger.info('Looking for file: ' + source_file)
+        app_logger.debug('Generating md5 checksum')
+        md5 = hashlib.md5()
+        with open(dest, 'rb') as f:
+            chunk = f.read(8192)
+            while chunk:
+                md5.update(chunk)
+                chunk = f.read(8192)
 
-        if os.path.isfile(source_file):
-            app_logger.info('Found file. Copying to ' + output_file + '.')
-            shutil.copyfile(
-                source_file,
-                output_file
-            )
-            app_logger.debug('Generating md5 checksum')
-            md5 = hashlib.md5()
-            with open(output_file, 'rb') as g:
-                chunk = g.read(8192)
-                while chunk:
-                    md5.update(chunk)
-                    chunk = g.read(8192)
+        with open(dest + '.md5', 'w') as md5_f:
+            md5_f.write(md5.hexdigest())
 
-            with open(output_file + '.md5', 'w') as h:
-                h.write(md5.hexdigest())
-            app_logger.info('Done')
-
-        else:
-            app_logger.info('Expected output file not found.')
-            exit_status += 1
-
-    return exit_status
+        app_logger.debug('Done')
+        return 0
+    else:
+        app_logger.warning('Could not find output file.')
+        return 1

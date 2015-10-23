@@ -47,7 +47,7 @@ class SimpleExecutor(AppLogger):
     def _validate_file_paths(self):
         for arg in self.cmd.split(' '):
             if arg.startswith('/') and not os.path.exists(arg):
-                self.warn('Could not find file: ' + arg)
+                self.debug('Could not find file: ' + arg + '. Will the executed command create it?')
 
 
 class StreamExecutor(threading.Thread, SimpleExecutor):
@@ -155,5 +155,5 @@ class ArrayExecutor(StreamExecutor):
         for cmd in self.cmd:
             for arg in cmd.split(' '):
                 if arg.startswith('/') and not os.path.exists(arg):
-                    self.warn('Could not find file: ' + arg)
+                    self.debug('Could not find file: ' + arg + '. Will the executed command create it?')
 

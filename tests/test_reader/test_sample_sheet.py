@@ -24,7 +24,7 @@ class TestSampleSheet(TestAnalysisDriver):
                 'IL-TP-002', 'IL-TP-005', 'IL-TP-006', 'IL-TP-007', 'IL-TP-012', 'IL-TP-013', 'IL-TP-014'
             ]
             assert sample.sample_project == '10015AT'
-            assert sample.sample_id == '10015TA0001L05'
+            assert sample.sample_id == '10015AT0001'
             assert sample.lane == str(expected_lane)
             assert sample.extra_data['Sample_Name'] == '10015ATpool01'
             assert sample.barcode == sample.barcode.upper()

@@ -1,6 +1,9 @@
 __author__ = 'mwham'
 from tests.test_analysisdriver import TestAnalysisDriver
 from analysis_driver import util
+import shutil
+from analysis_driver.driver import _output_data
+from analysis_driver.reader import SampleSheet
 from analysis_driver.app_logging import AppLogger
 import os.path
 
@@ -44,24 +47,39 @@ class TestFastqHandler(TestAnalysisDriver):
             ) in fastqs
 
 
-def test_transfer_output_files():
+def test_output_data():
+    sample_project = '10015AT'
     sample_id = '10015AT0001'
-    destination = os.path.join(helper.data_output, 'output_data')
+    destination = os.path.join(helper.data_output, 'output_data', sample_project)
     if not os.path.isdir(destination):
-        os.mkdir(destination)
+        os.makedirs(destination)
     for f in os.listdir(destination):
-        os.remove(os.path.join(destination, f))
+        shutil.rmtree(os.path.join(destination, f))
     assert not os.listdir(destination)
 
-    source_path_mapping = {
-        'vcf': os.path.join(helper.data_output, 'samples_10015AT0001-merged', 'final'),
-        'bam': os.path.join(helper.data_output, 'samples_10015AT0001-merged', 'final'),
-        'fastq': os.path.join(helper.data_output, 'merged_fastqs')
-    }
+    records = [
+        {'location': ['samples_{runfolder}-merged', 'final', '{sample_id}'], 'basename': '{sample_id}-gatk-haplotype.vcf.gz', 'new_name': '{sample_id}.g.vcf.gz'},
+        {'location': ['samples_{runfolder}-merged', 'final', '{sample_id}'], 'basename': '{sample_id}-gatk-haplotype.vcf.gz.tbi', 'new_name': '{sample_id}.g.vcf.gz.tbi'},
+        {'location': ['samples_{runfolder}-merged', 'final', '{sample_id}'], 'basename': '{sample_id}-ready.bam', 'new_name': '{sample_id}.bam'},
+        {'location': ['samples_{runfolder}-merged', 'final', '{sample_id}'], 'basename': '{sample_id}-ready.bam.bai', 'new_name': '{sample_id}.bam.bai'},
+        {'location': ['samples_{runfolder}-merged', 'final', '{sample_id}', 'qc', 'bamtools'], 'basename': 'bamtools_stats.txt'},
+        {'location': ['samples_{runfolder}-merged', 'work', 'align', '{sample_id}'], 'basename': '*{sample_id}*-sort-highdepth-stats.yaml'},
+        {'location': ['samples_{runfolder}-merged', 'work', 'align', '{sample_id}'], 'basename': '*{sample_id}*-sort-callable.bed'},
+        {'location': ['merged'], 'basename': '{sample_id}_R1.fastq.gz'},
+        {'location': ['merged'], 'basename': '{sample_id}_R2.fastq.gz'},
+        {'location': ['fastq', 'Stats'], 'basename': 'ConversionStats.xml'}
+    ]
 
-    util.transfer_output_files(sample_id, destination, source_path_mapping)
+    sample_sheet = SampleSheet(helper.assets_path)
+    exit_status = _output_data(
+        sample_sheet,
+        helper.data_output,
+        os.path.join(helper.data_output, 'output_data'),
+        records,
+        query_lims=False
+    )
 
-    output_files = os.listdir(destination)
+    output_files = os.listdir(os.path.join(destination, sample_id))
     output_files.sort()
 
     expected_outputs = [
@@ -76,8 +94,19 @@ def test_transfer_output_files():
         '10015AT0001_R1.fastq.gz',
         '10015AT0001_R1.fastq.gz.md5',
         '10015AT0001_R2.fastq.gz',
-        '10015AT0001_R2.fastq.gz.md5'
-        ]
+        '10015AT0001_R2.fastq.gz.md5',
+        '1_2015-10-16_samples_10015AT0001-merged-sort-callable.bed',
+        '1_2015-10-16_samples_10015AT0001-merged-sort-callable.bed.md5',
+        '1_2015-10-16_samples_10015AT0001-merged-sort-highdepth-stats.yaml',
+        '1_2015-10-16_samples_10015AT0001-merged-sort-highdepth-stats.yaml.md5',
+        'ConversionStats.xml',
+        'ConversionStats.xml.md5',
+        'bamtools_stats.txt',
+        'bamtools_stats.txt.md5',
+        'run_config.yaml'
+    ]
+
     print(output_files)
     print(expected_outputs)
+    assert exit_status == 0
     assert output_files == expected_outputs

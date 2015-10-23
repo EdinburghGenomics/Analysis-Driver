@@ -10,8 +10,6 @@ script: py.test
 #    - master
 notifications:
   email:
-    recipients:
-      - timothee.cezard@ed.ac.uk
     on_success: change # default: change
     on_failure: always # default: always
 env:
