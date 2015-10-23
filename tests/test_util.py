@@ -4,7 +4,6 @@ from analysis_driver import util
 import shutil
 from analysis_driver.driver import _output_data
 from analysis_driver.reader import SampleSheet
-from analysis_driver.app_logging import AppLogger
 import os.path
 
 helper = TestAnalysisDriver()
@@ -13,14 +12,6 @@ helper = TestAnalysisDriver()
 def test_setup_bcbio_run():
     print('Setup_bcbio_run currently untestable')
     assert True
-
-
-class TestLogger(TestAnalysisDriver):
-    def setUp(self):
-        self.logger = AppLogger()
-
-    def test(self):
-        assert True  # Not much to test here
 
 
 class TestFastqHandler(TestAnalysisDriver):
@@ -58,13 +49,40 @@ def test_output_data():
     assert not os.listdir(destination)
 
     records = [
-        {'location': ['samples_{runfolder}-merged', 'final', '{sample_id}'], 'basename': '{sample_id}-gatk-haplotype.vcf.gz', 'new_name': '{sample_id}.g.vcf.gz'},
-        {'location': ['samples_{runfolder}-merged', 'final', '{sample_id}'], 'basename': '{sample_id}-gatk-haplotype.vcf.gz.tbi', 'new_name': '{sample_id}.g.vcf.gz.tbi'},
-        {'location': ['samples_{runfolder}-merged', 'final', '{sample_id}'], 'basename': '{sample_id}-ready.bam', 'new_name': '{sample_id}.bam'},
-        {'location': ['samples_{runfolder}-merged', 'final', '{sample_id}'], 'basename': '{sample_id}-ready.bam.bai', 'new_name': '{sample_id}.bam.bai'},
-        {'location': ['samples_{runfolder}-merged', 'final', '{sample_id}', 'qc', 'bamtools'], 'basename': 'bamtools_stats.txt'},
-        {'location': ['samples_{runfolder}-merged', 'work', 'align', '{sample_id}'], 'basename': '*{sample_id}*-sort-highdepth-stats.yaml'},
-        {'location': ['samples_{runfolder}-merged', 'work', 'align', '{sample_id}'], 'basename': '*{sample_id}*-sort-callable.bed'},
+        {
+            'location': ['samples_{runfolder}-merged', 'final', '{sample_id}'],
+            'basename': '{sample_id}-gatk-haplotype.vcf.gz',
+            'new_name': '{sample_id}.g.vcf.gz'
+        },
+        {
+            'location': ['samples_{runfolder}-merged', 'final', '{sample_id}'],
+            'basename': '{sample_id}-gatk-haplotype.vcf.gz.tbi',
+            'new_name': '{sample_id}.g.vcf.gz.tbi'
+        },
+        {
+            'location': ['samples_{runfolder}-merged', 'final', '{sample_id}'],
+            'basename': '{sample_id}-ready.bam',
+            'new_name': '{sample_id}.bam'
+        },
+        {
+            'location': ['samples_{runfolder}-merged', 'final', '{sample_id}'],
+            'basename': '{sample_id}-ready.bam.bai',
+
+            'new_name': '{sample_id}.bam.bai'
+        },
+        {
+            'location': ['samples_{runfolder}-merged', 'final', '{sample_id}', 'qc', 'bamtools'],
+            'basename': 'bamtools_stats.txt'
+        },
+        {
+            'location': ['samples_{runfolder}-merged', 'work', 'align', '{sample_id}'],
+            'basename': '*{sample_id}*-sort-highdepth-stats.yaml'
+        },
+        {
+            'location': ['samples_{runfolder}-merged', 'work', 'align', '{sample_id}'],
+            'basename': '*{sample_id}*-sort-callable.bed'
+        },
+
         {'location': ['merged'], 'basename': '{sample_id}_R1.fastq.gz'},
         {'location': ['merged'], 'basename': '{sample_id}_R2.fastq.gz'},
         {'location': ['fastq', 'Stats'], 'basename': 'ConversionStats.xml'}

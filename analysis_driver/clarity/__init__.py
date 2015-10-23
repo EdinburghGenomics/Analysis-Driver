@@ -4,10 +4,12 @@ from analysis_driver.app_logging import get_logger
 
 app_logger = get_logger('Clarity')
 
+
 def _get_lims_connection():
     return Lims(**cfg.get('clarity'))
 
-def get_valid_lanes_from_HiseqX(flowcell_name):
+
+def get_valid_lanes(flowcell_name):
     """
     Query the LIMS and return a list of valid lane for a given flowcell
     :param flowcell_name: the flowcell id such as HCH25CCXX
@@ -15,8 +17,8 @@ def get_valid_lanes_from_HiseqX(flowcell_name):
     """
     lims = _get_lims_connection()
     containers = lims.get_containers(type='Patterned Flowcell', name=flowcell_name)
-    if len(containers) !=1:
-        app_logger.warning("%s Flowcell(s) found for name %s"%(len(containers), flowcell_name))
+    if len(containers) != 1:
+        app_logger.warning('%s Flowcell(s) found for name %s' % (len(containers), flowcell_name))
         return None
 
     flowcell = containers[0]
@@ -30,6 +32,7 @@ def get_valid_lanes_from_HiseqX(flowcell_name):
     app_logger.info('Valid lanes for %s: %s' % (flowcell_name, str(valid_lanes)))
     return valid_lanes
 
+
 def get_user_sample_name(sample_name):
     """
     Query the LIMS and return the name the user gave to the sample
@@ -38,22 +41,20 @@ def get_user_sample_name(sample_name):
     """
     lims = _get_lims_connection()
     samples = lims.get_samples(name=sample_name)
-    if len(samples) !=1:
-        app_logger.warning("%s Sample(s) found for name %s"%(len(samples), sample_name))
+    if len(samples) != 1:
+        app_logger.warning('%s Sample(s) found for name %s' % (len(samples), sample_name))
         return None
 
-    sample = samples[0]
-    return sample.udf.get('User Sample Name')
-
+    return samples[0].udf.get('User Sample Name')
 
 
 def run_tests():
-    assert get_valid_lanes_from_HiseqX("HCH25CCXX") == [1,2,3,4,5,6,7]
-    assert get_valid_lanes_from_HiseqX("HCH25CCX") is None
+    assert get_valid_lanes('HCH25CCXX') == [1, 2, 3, 4, 5, 6, 7]
+    assert get_valid_lanes('HCH25CCX') is None
 
-    assert get_user_sample_name("10094AT0001") == '1118-RP'
-    assert get_user_sample_name("NA12877_25SEPT15 2/5") is None
+    assert get_user_sample_name('10094AT0001') == '1118-RP'
+    assert get_user_sample_name('NA12877_25SEPT15 2/5') is None
 
-if __name__== "__main__":
-    #Will only work with a valid connection to the production server
+if __name__ == '__main__':
+    # will only work with a valid connection to the production server
     run_tests()

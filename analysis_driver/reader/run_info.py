@@ -33,7 +33,6 @@ class RunInfo(AppLogger):
         self.flowcell_name = root.find('Run/Flowcell').text
 
 
-
 class Mask:
     """
     Represents a series of Read XML entities from RunInfo.xml, contained in self.reads. Also stores the

@@ -72,7 +72,6 @@ def _process_dataset(d):
     if log_repo:
         handler = logging.FileHandler(filename=os.path.join(log_repo, d + '.log'), mode='w')
         log_cfg.add_handler(os.path.basename(d), handler)
-    
 
     log_cfg.add_handler(
         'dataset',
@@ -129,4 +128,3 @@ def _parse_args():
     p.add_argument('--abort', nargs='+', default=[], help='mark a dataset as aborted')
 
     return p.parse_args()
-

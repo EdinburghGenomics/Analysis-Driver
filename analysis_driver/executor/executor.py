@@ -156,4 +156,3 @@ class ArrayExecutor(StreamExecutor):
             for arg in cmd.split(' '):
                 if arg.startswith('/') and not os.path.exists(arg):
                     self.debug('Could not find file: ' + arg + '. Will the executed command create it?')
-

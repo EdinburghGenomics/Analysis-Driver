@@ -66,8 +66,7 @@ def pipeline(input_run_folder):
         mem=2
     )
 
-    valid_lanes = clarity.get_valid_lanes_from_HiseqX(run_info.flowcell_name)
-    app_logger.info('Valid lanes: ' + str(valid_lanes))
+    valid_lanes = clarity.get_valid_lanes(run_info.flowcell_name)
 
     # merge fastq files
     ntf.start_stage('merge fastqs')
