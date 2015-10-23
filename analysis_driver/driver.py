@@ -245,12 +245,16 @@ def _output_data(sample_sheet, job_dir, output_dir, output_config):
             if not os.path.isdir(output_loc):
                 os.makedirs(output_loc)
 
+            user_sample_id = clarity.get_user_sample_name(sample_id)
+            if not user_sample_id:
+                user_sample_id = sample_id
+
             for output_record in output_config:
                 src_pattern = os.path.join(
                     job_dir,
                     os.path.join(*output_record['location']),
                     output_record['basename']
-                ).replace('%s', sample_id)
+                ).format(runfolder=sample_id, sample_id=user_sample_id)
 
                 sources = glob(src_pattern)
                 if sources:
@@ -259,7 +263,7 @@ def _output_data(sample_sheet, job_dir, output_dir, output_config):
                     dest = os.path.join(
                         output_loc,
                         output_record.get('new_name', os.path.basename(source))
-                    ).replace('%s', sample_id)
+                    ).format(sample_id=user_sample_id)
                     exit_status += util.transfer_output_file(
                         source,
                         dest
