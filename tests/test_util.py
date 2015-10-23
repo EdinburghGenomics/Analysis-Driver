@@ -52,21 +52,21 @@ def test_output_data():
     sample_id = '10015AT0001'
     destination = os.path.join(helper.data_output, 'output_data', sample_project)
     if not os.path.isdir(destination):
-        os.mkdir(destination)
+        os.makedirs(destination)
     for f in os.listdir(destination):
         shutil.rmtree(os.path.join(destination, f))
     assert not os.listdir(destination)
 
     records = [
-        {'location': ['samples_%s-merged', 'final', '%s'], 'basename': '%s-gatk-haplotype.vcf.gz', 'new_name': '%s.g.vcf.gz'},
-        {'location': ['samples_%s-merged', 'final', '%s'], 'basename': '%s-gatk-haplotype.vcf.gz.tbi', 'new_name': '%s.g.vcf.gz.tbi'},
-        {'location': ['samples_%s-merged', 'final', '%s'], 'basename': '%s-ready.bam', 'new_name': '%s.bam'},
-        {'location': ['samples_%s-merged', 'final', '%s'], 'basename': '%s-ready.bam.bai', 'new_name': '%s.bam.bai'},
-        {'location': ['samples_%s-merged', 'final', '%s', 'qc', 'bamtools'], 'basename': 'bamtools_stats.txt'},
-        {'location': ['samples_%s-merged', 'work', 'align', '%s'], 'basename': '*samples_%s-merged-sort-highdepth-stats.yaml', },
-        {'location': ['samples_%s-merged', 'work', 'align', '%s'], 'basename': '*samples_%s-merged-sort-callable.bed'},
-        {'location': ['merged'], 'basename': '%s_R1.fastq.gz'},
-        {'location': ['merged'], 'basename': '%s_R2.fastq.gz'},
+        {'location': ['samples_{runfolder}-merged', 'final', '{sample_id}'], 'basename': '{sample_id}-gatk-haplotype.vcf.gz', 'new_name': '{sample_id}.g.vcf.gz'},
+        {'location': ['samples_{runfolder}-merged', 'final', '{sample_id}'], 'basename': '{sample_id}-gatk-haplotype.vcf.gz.tbi', 'new_name': '{sample_id}.g.vcf.gz.tbi'},
+        {'location': ['samples_{runfolder}-merged', 'final', '{sample_id}'], 'basename': '{sample_id}-ready.bam', 'new_name': '{sample_id}.bam'},
+        {'location': ['samples_{runfolder}-merged', 'final', '{sample_id}'], 'basename': '{sample_id}-ready.bam.bai', 'new_name': '{sample_id}.bam.bai'},
+        {'location': ['samples_{runfolder}-merged', 'final', '{sample_id}', 'qc', 'bamtools'], 'basename': 'bamtools_stats.txt'},
+        {'location': ['samples_{runfolder}-merged', 'work', 'align', '{sample_id}'], 'basename': '*{sample_id}*-sort-highdepth-stats.yaml'},
+        {'location': ['samples_{runfolder}-merged', 'work', 'align', '{sample_id}'], 'basename': '*{sample_id}*-sort-callable.bed'},
+        {'location': ['merged'], 'basename': '{sample_id}_R1.fastq.gz'},
+        {'location': ['merged'], 'basename': '{sample_id}_R2.fastq.gz'},
         {'location': ['fastq', 'Stats'], 'basename': 'ConversionStats.xml'}
     ]
 
@@ -75,7 +75,8 @@ def test_output_data():
         sample_sheet,
         helper.data_output,
         os.path.join(helper.data_output, 'output_data'),
-        records
+        records,
+        query_lims=False
     )
 
     output_files = os.listdir(os.path.join(destination, sample_id))

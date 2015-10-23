@@ -237,7 +237,7 @@ def _run_bcbio(run_id, job_dir, sample_name_to_fastqs):
     return bcbio_executor
 
 
-def _output_data(sample_sheet, job_dir, output_dir, output_config):
+def _output_data(sample_sheet, job_dir, output_dir, output_config, query_lims=True):
     exit_status = 0
     for name, sample_project in sample_sheet.sample_projects.items():
         for sample_id in sample_project.sample_ids:
@@ -246,8 +246,11 @@ def _output_data(sample_sheet, job_dir, output_dir, output_config):
             if not os.path.isdir(output_loc):
                 os.makedirs(output_loc)
 
-            user_sample_id = clarity.get_user_sample_name(sample_id)
-            if not user_sample_id:
+            if query_lims:
+                user_sample_id = clarity.get_user_sample_name(sample_id)
+                if not user_sample_id:
+                    user_sample_id = sample_id
+            else:
                 user_sample_id = sample_id
 
             for output_record in output_config:
