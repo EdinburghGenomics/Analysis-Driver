@@ -40,7 +40,7 @@ def pipeline(input_run_folder):
     mask = sample_sheet.generate_mask(run_info.mask)
     app_logger.info('bcl2fastq mask: ' + mask)  # e.g: mask = 'y150n,i6,y150n'
     ntf.end_stage('setup')
-    
+
     # bcl2fastq
     ntf.start_stage('bcl2fastq')
     exit_status += executor.execute(
@@ -54,7 +54,7 @@ def pipeline(input_run_folder):
     ntf.end_stage('bcl2fastq', exit_status)
     if exit_status:
         return exit_status
-    
+
     # fastqc
     ntf.start_stage('fastqc')
     fastqc_executor = executor.execute(
@@ -72,6 +72,7 @@ def pipeline(input_run_folder):
     # merge fastq files
     ntf.start_stage('merge fastqs')
     sample_to_fastq_files = _bcbio_prepare_samples(fastq_dir, job_dir, sample_sheet, valid_lanes)
+    app_logger.debug('sample_to_fastq mapping: ' + str(sample_to_fastq_files))
     ntf.end_stage('merge fastqs')
 
     # genotype validation
@@ -98,7 +99,7 @@ def pipeline(input_run_folder):
     if bcbio_exit_status:
         return bcbio_exit_status
     exit_status += fastqc_exit_status + bcbio_exit_status
-    
+
     # transfer output data
     ntf.start_stage('data_transfer')
     transfer_exit_status = _output_data(sample_sheet, job_dir, cfg['output_dir'], cfg['output_files'])
@@ -154,19 +155,20 @@ def _bcbio_prepare_samples(fastq_dir, job_dir, sample_sheet, valid_lanes=None):
         for sample_id, id_obj in proj_obj.sample_ids.items():
             fastq_files = []
             if valid_lanes:
-                # only retrive the lanes that are considered valid
+                # only retrieve the lanes that are considered valid
                 for lane in valid_lanes:
-                    fastq_files.extend(util.fastq_handler.find_fastqs(fastq_dir, sample_project, sample_id, lane))
+                    fastq_files.extend(
+                        util.fastq_handler.find_fastqs(fastq_dir, sample_project, sample_id, lane)
+                    )
             else:
                 # no information about valid lanes: don't filter anything
                 fastq_files.extend(util.fastq_handler.find_fastqs(fastq_dir, sample_project, sample_id))
-            #Query the LIMS to get the user sample id
-            user_sample_id = clarity.get_user_sample_name(sample_id)
+
             merged_fastqs = util.bcbio_prepare_samples(
                 job_dir,
                 sample_id,
                 fastq_files,
-                user_sample_id=user_sample_id
+                user_sample_id=clarity.get_user_sample_name(sample_id)
             )
             sample_name_to_fastqs[sample_id] = merged_fastqs
     return sample_name_to_fastqs
@@ -186,7 +188,6 @@ def _run_bcbio(run_id, job_dir, sample_name_to_fastqs):
     os.chdir(job_dir)
     app_logger.debug(str(sample_name_to_fastqs))
 
-    sample_preps = []
     bcbio_array_cmds = []
     for sample_name in sample_name_to_fastqs:
         app_logger.debug('Setting up sample: ' + sample_name)

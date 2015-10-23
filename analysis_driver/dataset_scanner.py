@@ -41,7 +41,7 @@ def scan_datasets():
         with open(triggerignore, 'r') as f:
             for p in f.readlines():
                 if not p.startswith('#'):
-                    ignorables.extend(glob(os.path.join(input_dir, p)))
+                    ignorables.extend(glob(os.path.join(input_dir, p.rstrip('\n'))))
     app_logger.debug('Ignoring %s datasets' % len(ignorables))
 
     n_datasets = 0

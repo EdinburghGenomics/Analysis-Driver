@@ -84,11 +84,14 @@ class TestDatasetScanner(TestProcessTrigger):
         datasets = scanner.scan_datasets()
         print(datasets)
 
-        assert datasets['new'] == ['this']
-        assert datasets['new, rta complete'] == ['that']
-        assert datasets['transferring'] == ['other']
-        assert datasets['transferring, rta complete'] == ['another']
-        assert datasets['active'] == ['more']
+        for observed, expected in (
+            (datasets['new'], ['this']),
+            (datasets['new, rta complete'], ['that']),
+            (datasets['transferring'], ['other']),
+            (datasets['transferring, rta complete'], ['another']),
+            (datasets['active'], ['more']),
+        ):
+            assert observed == [os.path.join(self.from_dir, x) for x in expected]
 
     def test_triggerignore(self):
         with open(self.triggerignore, 'r') as f:
@@ -101,7 +104,7 @@ class TestDatasetScanner(TestProcessTrigger):
         with open(self.triggerignore, 'r') as f:
             assert f.readlines() == expected
             for d in expected:
-                assert d not in self._flatten_dict_values(scanner.scan_datasets())
+                assert d not in self._flatten(scanner.scan_datasets())
 
     def test_switch_status(self):
         sw = self._switch_and_assert
@@ -124,7 +127,7 @@ class TestDatasetScanner(TestProcessTrigger):
         assert scanner.dataset_status(d) == 'new'
 
     @staticmethod
-    def _flatten_dict_values(d):
+    def _flatten(d):
         l = list()
         for k, v in d.items():
             if type(v) is list:

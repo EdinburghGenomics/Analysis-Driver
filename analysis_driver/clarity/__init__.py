@@ -1,4 +1,3 @@
-
 from genologics.lims import Lims
 from analysis_driver.config import default as cfg
 from analysis_driver.app_logging import get_logger
@@ -27,7 +26,9 @@ def get_valid_lanes_from_HiseqX(flowcell_name):
         artifact = flowcell.placements.get(placement_key)
         if not artifact.udf.get('Lane Failed?', False):
             valid_lanes.append(lane)
-    return sorted(valid_lanes)
+    valid_lanes = sorted(valid_lanes)
+    app_logger.info('Valid lanes for %s: %s' % (flowcell_name, str(valid_lanes)))
+    return valid_lanes
 
 def get_user_sample_name(sample_name):
     """

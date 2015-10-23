@@ -101,7 +101,8 @@ def test_output_data():
         'ConversionStats.xml',
         'ConversionStats.xml.md5',
         'bamtools_stats.txt',
-        'bamtools_stats.txt.md5'
+        'bamtools_stats.txt.md5',
+        'run_config.yaml'
     ]
 
     print(output_files)
