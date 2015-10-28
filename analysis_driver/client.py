@@ -58,10 +58,14 @@ def main():
     else:
         # Only process the first new dataset found. Run through Cron, this will result in one new pipeline
         # being kicked off per minute.
-        return _process_dataset(new_datasets[0])
+        return _process_dataset(os.path.basename(new_datasets[0]))
 
 
 def _process_dataset(d):
+    """
+    :param d: Name of a dataset (not a full path!) to process
+    :return: exit status (9 if stacktrace)
+    """
     app_logger = get_logger('client')
 
     job_and_fastq_dirs = os.path.join(cfg['jobs_dir'], d, 'fastq')
@@ -71,7 +75,7 @@ def _process_dataset(d):
     log_repo = cfg.query('logging', 'repo')
     if log_repo:
         handler = logging.FileHandler(filename=os.path.join(log_repo, d + '.log'), mode='w')
-        log_cfg.add_handler(os.path.basename(d), handler)
+        log_cfg.add_handler(d, handler)
 
     log_cfg.add_handler(
         'dataset',
