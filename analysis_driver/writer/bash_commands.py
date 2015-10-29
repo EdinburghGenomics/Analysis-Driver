@@ -25,7 +25,7 @@ def bcl2fastq(input_dir, fastq_path, sample_sheet=None, mask=None):
     return cmd
 
 
-def fastqc(fastq, threads=4):
+def fastqc(fastq, threads=1):
     cmd = cfg['fastqc'] + ' --nogroup -t %s -q %s' % (threads, fastq)
     app_logger.debug('Writing: ' + cmd)
     return cmd

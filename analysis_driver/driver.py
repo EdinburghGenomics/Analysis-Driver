@@ -63,7 +63,7 @@ def pipeline(input_run_folder):
         job_name='fastqc',
         run_id=run_id,
         walltime=6,
-        cpus=4,
+        cpus=1,
         mem=2
     )
 
@@ -74,6 +74,17 @@ def pipeline(input_run_folder):
     sample_to_fastq_files = _bcbio_prepare_samples(fastq_dir, job_dir, sample_sheet, valid_lanes)
     app_logger.debug('sample_to_fastq mapping: ' + str(sample_to_fastq_files))
     ntf.end_stage('merge fastqs')
+
+    # fastqc2
+    ntf.start_stage('fastqc2')
+    fastqc2_executor = executor.execute(
+        [writer.bash_commands.fastqc(fq) for fastq_pair in sample_to_fastq_files.values() for fq in fastq_pair],
+        job_name='fastqc2',
+        run_id=run_id,
+        walltime=10,
+        cpus=1,
+        mem=2
+    )
 
     # genotype validation
     # ntf.start_stage('genotype validation')
@@ -92,13 +103,16 @@ def pipeline(input_run_folder):
     fastqc_exit_status = fastqc_executor.join()
     ntf.end_stage('fastqc', fastqc_exit_status)
 
+    fastqc2_exit_status = fastqc2_executor.join()
+    ntf.end_stage('fastqc2', fastqc2_exit_status)
+
     bcbio_exit_status = bcbio_executor.join()
     ntf.end_stage('bcbio', bcbio_exit_status)
 
     # sort out exit statuses
     if bcbio_exit_status:
         return bcbio_exit_status
-    exit_status += fastqc_exit_status + bcbio_exit_status
+    exit_status += fastqc_exit_status + fastqc2_exit_status + bcbio_exit_status
 
     # transfer output data
     ntf.start_stage('data_transfer')
