@@ -107,9 +107,9 @@ def pipeline(input_run_folder):
     exit_status += transfer_exit_status
 
     if exit_status == 0:
-        ntf.start_stage('data_transfer')
+        ntf.start_stage('cleanup')
         exit_status += _cleanup(run_id)
-        ntf.end_stage('data_transfer', exit_status)
+        ntf.end_stage('cleanup', exit_status)
 
     return exit_status
 
@@ -301,7 +301,8 @@ def _cleanup(run_id):
         app_logger.info('Cleaning up ' + t)
         try:
             shutil.rmtree(t)
-        except (FileNotFoundError, NotADirectoryError):
+        except (OSError, FileNotFoundError, NotADirectoryError) as e:
+            app_logger.error(str(e))
             app_logger.warning('Could not remove: ' + t)
             exit_status += 1
 
