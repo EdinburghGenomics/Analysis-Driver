@@ -5,7 +5,7 @@ from analysis_driver import reader, writer, util, executor, clarity
 from analysis_driver.exceptions import AnalysisDriverError
 from analysis_driver.app_logging import get_logger
 from analysis_driver.config import default as cfg  # imports the default config singleton
-from analysis_driver.quality_control.genotype_validation import GenotypeValidation
+# from analysis_driver.quality_control.genotype_validation import GenotypeValidation
 from analysis_driver.notification import default as ntf
 
 app_logger = get_logger('driver')
@@ -75,17 +75,17 @@ def pipeline(input_run_folder):
     ntf.end_stage('merge fastqs')
 
     # genotype validation
-    ntf.start_stage('genotype validation')
-    genotype_validation = GenotypeValidation(sample_to_fastq_files, run_id)
-    genotype_validation.start()
+    # ntf.start_stage('genotype validation')
+    # genotype_validation = GenotypeValidation(sample_to_fastq_files, run_id)
+    # genotype_validation.start()
 
     # bcbio
     ntf.start_stage('bcbio')
     bcbio_executor = _run_bcbio(run_id, job_dir, sample_to_fastq_files)
 
     # wait for genotype_validation fastqc and bcbio to finish
-    genotype_results = genotype_validation.join()
-    app_logger.info('Written files: ' + str(genotype_results))
+    # genotype_results = genotype_validation.join()
+    # app_logger.info('Written files: ' + str(genotype_results))
     ntf.end_stage('genotype validation')
 
     fastqc_exit_status = fastqc_executor.join()
@@ -104,6 +104,9 @@ def pipeline(input_run_folder):
     transfer_exit_status = _output_data(sample_sheet, job_dir, cfg['output_dir'], cfg['output_files'])
     ntf.end_stage('data_transfer', transfer_exit_status)
     exit_status += transfer_exit_status
+
+    if exit_status == 0:
+        exit_status += _cleanup(run_id)
 
     return exit_status
 
@@ -280,3 +283,7 @@ def _output_data(sample_sheet, job_dir, output_dir, output_config, query_lims=Tr
                 f.write(cfg.report())
 
     return exit_status
+
+
+def _cleanup(run_id):
+    pass
