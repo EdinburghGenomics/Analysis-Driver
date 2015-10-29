@@ -1,6 +1,7 @@
 import os
 import yaml
 from glob import glob
+import shutil
 from analysis_driver import reader, writer, util, executor, clarity
 from analysis_driver.exceptions import AnalysisDriverError
 from analysis_driver.app_logging import get_logger
@@ -286,4 +287,20 @@ def _output_data(sample_sheet, job_dir, output_dir, output_config, query_lims=Tr
 
 
 def _cleanup(run_id):
-    pass
+    exit_status = 0
+
+    job_dir = os.path.join(cfg['jobs_dir'], run_id)
+    cleanup_targets = [job_dir]
+    intermediates_dir = cfg.get('intermediate_dir')
+    if intermediates_dir:
+        cleanup_targets.append(os.path.join(intermediates_dir, run_id))
+
+    for t in cleanup_targets:
+        app_logger.debug('Cleaning up ' + t)
+        try:
+            shutil.rmtree(t)
+        except (FileNotFoundError, NotADirectoryError):
+            app_logger.warning('Could not remove: ' + t)
+            exit_status += 1
+
+    return exit_status
