@@ -107,7 +107,9 @@ def pipeline(input_run_folder):
     exit_status += transfer_exit_status
 
     if exit_status == 0:
+        ntf.start_stage('data_transfer')
         exit_status += _cleanup(run_id)
+        ntf.end_stage('data_transfer', exit_status)
 
     return exit_status
 
@@ -296,7 +298,7 @@ def _cleanup(run_id):
         cleanup_targets.append(os.path.join(intermediates_dir, run_id))
 
     for t in cleanup_targets:
-        app_logger.debug('Cleaning up ' + t)
+        app_logger.info('Cleaning up ' + t)
         try:
             shutil.rmtree(t)
         except (FileNotFoundError, NotADirectoryError):
