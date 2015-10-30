@@ -1,3 +1,4 @@
+import re
 from genologics.lims import Lims
 from analysis_driver.config import default as cfg
 from analysis_driver.app_logging import get_logger
@@ -33,6 +34,13 @@ def get_valid_lanes(flowcell_name):
     return valid_lanes
 
 
+def sanitize_user_id(user_id):
+    if isinstance(str,user_id):
+        return re.sub("[^\w_\-.]","_",user_id)
+    else:
+        return None
+
+
 def get_user_sample_name(sample_name):
     """
     Query the LIMS and return the name the user gave to the sample
@@ -41,11 +49,15 @@ def get_user_sample_name(sample_name):
     """
     lims = _get_lims_connection()
     samples = lims.get_samples(name=sample_name)
+    #FIXME: Remove the hack when we're sure our sample id don't have colon
+    if len(samples) == 0:
+        sample_name_sub = re.sub("_(\d{2})",":\g<1>",sample_name)
+        samples = lims.get_samples(name=sample_name_sub)
     if len(samples) != 1:
         app_logger.warning('%s Sample(s) found for name %s' % (len(samples), sample_name))
         return None
 
-    return samples[0].udf.get('User Sample Name')
+    return sanitize_user_id(samples[0].udf.get('User Sample Name'))
 
 
 def run_tests():
