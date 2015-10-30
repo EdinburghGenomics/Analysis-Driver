@@ -35,7 +35,7 @@ def get_valid_lanes(flowcell_name):
 
 
 def sanitize_user_id(user_id):
-    if isinstance(str,user_id):
+    if isinstance(user_id,str):
         return re.sub("[^\w_\-.]","_",user_id)
     else:
         return None
