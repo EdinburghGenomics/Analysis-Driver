@@ -1,11 +1,16 @@
 __author__ = 'tcezard'
 import pytest
+import sys
 from smtplib import SMTPException
 from analysis_driver.notification.notification_center import NotificationCenter
 from analysis_driver.notification import EmailNotification, LogNotification
 from analysis_driver.config import default as cfg
 from analysis_driver.exceptions import AnalysisDriverError
 from tests.test_analysisdriver import TestAnalysisDriver
+
+if not sys.argv:
+    print('Usage: python test_notification_center.py <mailhost> <port> <reporter_email> <recipient_emails>')
+    sys.exit(0)
 
 
 class TestNotificationCenter(TestAnalysisDriver):
@@ -16,13 +21,12 @@ class TestNotificationCenter(TestAnalysisDriver):
             (TestEmailNotification, 'test_run_id', cfg.query('notification', 'email_notification'))
         )
 
-        email_config = {
-            'mailhost': 'renko.ucs.ed.ac.uk',
-            'port': 25,
-            'reporter_email': 'murray.wham@ed.ac.uk',
-            'recipient_emails': ['murray.wham@ed.ac.uk'],
-            'strict': True
-        }
+        email_config = {'strict': True}
+        email_config['mailhost'] = sys.argv[1]
+        email_config['port'] = int(sys.argv[2])
+        email_config['reporter_email'] = sys.argv[3]
+        email_config['recipient_emails'] = sys.argv[4:]
+        
         print(self.notification_center.subscribers)
         self.email_notification = TestEmailNotification('test_run', email_config)
         if cfg.query('notification', 'email_notification'):
