@@ -21,11 +21,15 @@ class TestNotificationCenter(TestAnalysisDriver):
             (TestEmailNotification, 'test_run_id', cfg.query('notification', 'email_notification'))
         )
 
-        email_config = {'strict': True}
-        email_config['mailhost'] = sys.argv[1]
-        email_config['port'] = int(sys.argv[2])
-        email_config['reporter_email'] = sys.argv[3]
-        email_config['recipient_emails'] = sys.argv[4:]
+        email_config = {
+            'strict': True,
+            'mailhost': 'a_mailhost',
+            'port': 0,
+            'reporter_email': 'a_reporter',
+            'recipient_emails': ['a_recipient', 'another_recipient']
+        }
+        if cfg.query('notification', 'email_notification'):
+            email_config = cfg.query('notification', 'email_notification')
         
         print(self.notification_center.subscribers)
         self.email_notification = TestEmailNotification('test_run', email_config)
