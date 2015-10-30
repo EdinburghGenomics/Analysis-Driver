@@ -71,7 +71,7 @@ def pipeline(input_run_folder):
 
     # merge fastq files
     ntf.start_stage('merge fastqs')
-    sample_to_fastq_files = _bcbio_prepare_samples(fastq_dir, job_dir, sample_sheet, valid_lanes)
+    sample_to_fastq_files = _bcbio_prepare_samples(run_id, fastq_dir, job_dir, sample_sheet, valid_lanes)
     app_logger.debug('sample_to_fastq mapping: ' + str(sample_to_fastq_files))
     ntf.end_stage('merge fastqs')
 
@@ -164,13 +164,14 @@ def pipeline_phix(input_run_folder):
     return exit_status
 
 
-def _bcbio_prepare_samples(fastq_dir, job_dir, sample_sheet, valid_lanes=None):
+def _bcbio_prepare_samples(run_id, fastq_dir, job_dir, sample_sheet, valid_lanes=None):
     """
     Merge the fastq files per sample using bcbio prepare sample
     """
-    sample_name_to_fastqs = {}
-    for sample_project, proj_obj in sample_sheet.sample_projects.items():
+    cmds = []
+    sample_fastqs = {}
 
+    for sample_project, proj_obj in sample_sheet.sample_projects.items():
         for sample_id, id_obj in proj_obj.sample_ids.items():
             fastq_files = []
             if valid_lanes:
@@ -183,14 +184,28 @@ def _bcbio_prepare_samples(fastq_dir, job_dir, sample_sheet, valid_lanes=None):
                 # no information about valid lanes: don't filter anything
                 fastq_files.extend(util.fastq_handler.find_fastqs(fastq_dir, sample_project, sample_id))
 
-            merged_fastqs = util.bcbio_prepare_samples(
-                job_dir,
-                sample_id,
-                fastq_files,
-                user_sample_id=clarity.get_user_sample_name(sample_id)
+            user_sample_id = clarity.get_user_sample_name(sample_id)
+            if not user_sample_id:
+                user_sample_id = sample_id
+
+            cmds.append(
+                util.bcbio_prepare_samples_cmd(
+                    job_dir,
+                    sample_id,
+                    fastq_files,
+                    user_sample_id=clarity.get_user_sample_name(sample_id)
+                )
             )
-            sample_name_to_fastqs[sample_id] = merged_fastqs
-    return sample_name_to_fastqs
+            sample_fastqs[sample_id] = os.path.join(job_dir, 'merged', user_sample_id + '_R?.fastq.gz')
+
+    exit_status = executor.execute(cmds, job_name='bcbio_prepare_samples', run_id=run_id).join()
+
+    for sample_id, pattern in sample_fastqs.items():
+        sample_fastqs[sample_id] = glob(pattern)
+
+    app_logger.info('bcbio_prepare_samples finished with exit status ' + str(exit_status))
+
+    return sample_fastqs
 
 
 def _run_bcbio(run_id, job_dir, sample_name_to_fastqs):
