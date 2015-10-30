@@ -128,3 +128,35 @@ def test_output_data():
     print(expected_outputs)
     assert exit_status == 0
     assert output_files == expected_outputs
+
+
+def _join(*parts):
+        return ''.join(parts)
+
+
+def test_prep_samples_cmd():
+    cmd = util.bcbio_prepare_samples_cmd(
+        helper.assets_path,
+        'a_sample_id',
+        ['test_R1.fastq', 'test_R2.fastq'],
+        user_sample_id='a_user_sample_id'
+    )
+
+    bcbio_csv = os.path.join(helper.assets_path, 'samples_a_sample_id.csv')
+    with open(bcbio_csv) as f:
+        content = f.read()
+        print(content)
+        assert content == (
+            'samplename,description\n'
+            'test_R1.fastq,a_user_sample_id\n'
+            'test_R2.fastq,a_user_sample_id\n'
+        )
+    os.remove(bcbio_csv)
+    assert not os.path.isfile(bcbio_csv)
+    expected = _join(
+        'bcbio_prepare_samples.py --out ',
+        os.path.join(helper.assets_path, 'merged'),
+        ' --csv ',
+        bcbio_csv
+    )
+    assert expected in ' '.join(cmd)

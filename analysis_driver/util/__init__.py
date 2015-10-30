@@ -1,17 +1,16 @@
 __author__ = 'mwham'
-from glob import glob
 import shutil
 import os.path
 import hashlib
 from . import fastq_handler
-from analysis_driver import writer, executor
+from analysis_driver import writer
 from analysis_driver.app_logging import get_logger
 from analysis_driver.config import default as cfg
 
 app_logger = get_logger('util')
 
 
-def bcbio_prepare_samples(job_dir, sample_id, fastqs, user_sample_id=None):
+def bcbio_prepare_samples_cmd(job_dir, sample_id, fastqs, user_sample_id=None):
     """
     Call bcbio_prepare_samples with a csv sample file and a list of fastqs.
     :param str job_dir: Full path to the run folder
@@ -23,20 +22,13 @@ def bcbio_prepare_samples(job_dir, sample_id, fastqs, user_sample_id=None):
     app_logger.info('Setting up BCBio samples from ' + bcbio_csv_file)
 
     merged_dir = os.path.join(job_dir, 'merged')
-    cmd = (
+    return (
         os.path.join(cfg['bcbio'], 'bin', 'bcbio_prepare_samples.py'),
         '--out',
         merged_dir,
         '--csv',
         bcbio_csv_file
     )
-    return_code = executor.execute([' '.join(cmd)], env='local').join()
-    if user_sample_id:
-        merged_fastqs = glob(os.path.join(merged_dir, user_sample_id + '_R?.fastq.gz'))
-    else:
-        merged_fastqs = glob(os.path.join(merged_dir, sample_id + '_R?.fastq.gz'))
-    if merged_fastqs and return_code == 0:
-        return merged_fastqs
 
 
 def transfer_output_file(source, dest):
