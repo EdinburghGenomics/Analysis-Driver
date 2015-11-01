@@ -6,7 +6,7 @@ default:
     output_dir: path/to/output_data
 
     tt_agent_delay: 20
-    job_execution: pbs  # pbs or None
+    job_execution: local  # pbs or None
     job_queue: uv2000
 
     qsub:      path/to/qsub
