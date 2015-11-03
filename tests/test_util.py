@@ -159,4 +159,4 @@ def test_prep_samples_cmd():
         ' --csv ',
         bcbio_csv
     )
-    assert expected in ' '.join(cmd)
+    assert expected in cmd
