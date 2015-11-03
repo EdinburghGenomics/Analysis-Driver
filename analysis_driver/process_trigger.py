@@ -51,11 +51,11 @@ def _transfer_to_int_dir(dataset, from_dir, to_dir, repeat_delay):
     rsync_cmd = 'rsync -aqu --size-only --partial %s %s' % (os.path.join(from_dir, dataset), to_dir)
 
     while dataset_status(dataset) != 'transferring, rta complete':
-        exit_status += executor.execute([rsync_cmd], job_name='rsync', run_id=dataset).join()
+        exit_status += executor.execute([rsync_cmd], job_name='rsync', run_id=dataset, walltime=36).join()
         sleep(repeat_delay)
 
     # one more rsync after the RTAComplete is created. After this, everything should be synced
     sleep(repeat_delay)
-    exit_status += executor.execute([rsync_cmd], job_name='rsync', run_id=dataset).join()
+    exit_status += executor.execute([rsync_cmd], job_name='rsync', run_id=dataset, walltime=36).join()
     assert os.path.isfile(os.path.join(to_dir, dataset, 'RTAComplete.txt'))
     app_logger.info('Transfer complete with exit status ' + str(exit_status))

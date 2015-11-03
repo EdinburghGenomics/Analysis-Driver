@@ -22,12 +22,14 @@ def bcbio_prepare_samples_cmd(job_dir, sample_id, fastqs, user_sample_id=None):
     app_logger.info('Setting up BCBio samples from ' + bcbio_csv_file)
 
     merged_dir = os.path.join(job_dir, 'merged')
-    return (
-        os.path.join(cfg['bcbio'], 'bin', 'bcbio_prepare_samples.py'),
-        '--out',
-        merged_dir,
-        '--csv',
-        bcbio_csv_file
+    return ' '.join(
+        (
+            os.path.join(cfg['bcbio'], 'bin', 'bcbio_prepare_samples.py'),
+            '--out',
+            merged_dir,
+            '--csv',
+            bcbio_csv_file
+        )
     )
 
 
