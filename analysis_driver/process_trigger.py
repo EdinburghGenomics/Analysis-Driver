@@ -1,7 +1,7 @@
 __author__ = 'mwham'
 import os
 from time import sleep
-from analysis_driver.dataset_scanner import dataset_status, switch_status
+from analysis_driver.dataset_scanner import RunScanner
 from analysis_driver import executor
 from analysis_driver.app_logging import get_logger
 from analysis_driver.config import default as cfg
@@ -9,6 +9,7 @@ from analysis_driver.config import default as cfg
 
 app_logger = get_logger('proctrigger')
 
+scanner = RunScanner(cfg)
 
 def trigger(dataset):
     """
@@ -16,7 +17,7 @@ def trigger(dataset):
     :param str dataset: A dataset id
     """
     if cfg.get('intermediate_dir'):
-        status = dataset_status(dataset)
+        status = scanner.dataset_status(dataset)
         assert status in ('new', 'new, rta complete'), 'Invalid dataset status: ' + status
         _transfer_to_int_dir(
             dataset,
@@ -26,17 +27,17 @@ def trigger(dataset):
         )
         dataset_dir = cfg['intermediate_dir']
     else:
-        assert dataset_status(dataset) == 'new, rta complete'
+        assert scanner.dataset_status(dataset) == 'new, rta complete'
         dataset_dir = cfg['input_dir']
 
-    switch_status(dataset, 'active')
+    scanner.switch_status(dataset, 'active')
     from analysis_driver import driver
     exit_status = driver.pipeline(os.path.join(dataset_dir, dataset))
 
     if exit_status != 0:
-        switch_status(dataset, 'failed')
+        scanner.switch_status(dataset, 'failed')
     else:
-        switch_status(dataset, 'complete')
+        scanner.switch_status(dataset, 'complete')
 
     return exit_status
 
@@ -47,10 +48,10 @@ def _transfer_to_int_dir(dataset, from_dir, to_dir, repeat_delay):
     """
     exit_status = 0
     app_logger.info('Starting transfer')
-    switch_status(dataset, 'transferring')
+    scanner.switch_status(dataset, 'transferring')
     rsync_cmd = 'rsync -aqu --size-only --partial %s %s' % (os.path.join(from_dir, dataset), to_dir)
 
-    while dataset_status(dataset) != 'transferring, rta complete':
+    while scanner.dataset_status(dataset) != 'transferring, rta complete':
         exit_status += executor.execute([rsync_cmd], job_name='rsync', run_id=dataset, walltime=36).join()
         sleep(repeat_delay)
 

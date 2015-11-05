@@ -2,13 +2,14 @@ __author__ = 'mwham'
 import os
 import shutil
 from tests.test_analysisdriver import TestAnalysisDriver
-from analysis_driver import process_trigger, dataset_scanner as scanner
+from analysis_driver import process_trigger
+from analysis_driver.dataset_scanner import RunScanner
 from analysis_driver.config import default as cfg
 
 
 class TestProcessTrigger(TestAnalysisDriver):
     dataset = 'test_dataset'
-
+    scanner = RunScanner(cfg)
     @property
     def from_dir(self):
         return os.path.join(self.data_transfer, 'from')
@@ -22,26 +23,26 @@ class TestProcessTrigger(TestAnalysisDriver):
         return os.path.join(self.from_dir, '.triggerignore')
 
     def setUp(self):
-        self.old_input_dir = cfg['input_dir']
-        self.old_int_dir = cfg.get('intermediate_dir')
-        self.old_lock_dir = cfg.get('lock_file_dir')
-        cfg.content['input_dir'] = self.from_dir
-        cfg.content['intermediate_dir'] = self.to_dir
-        cfg.content['lock_file_dir'] = self.from_dir
-        if not os.path.isdir(self.to_dir):
-            os.mkdir(self.to_dir)
-        if os.path.isdir(os.path.join(self.to_dir, self.dataset)):
-            shutil.rmtree(os.path.join(self.to_dir, self.dataset))
-        assert not os.listdir(self.to_dir)
-        scanner.reset(self.dataset)
+        #self.old_input_dir = cfg['input_dir']
+        #self.old_int_dir = cfg.get('intermediate_dir')
+        #self.old_lock_dir = cfg.get('lock_file_dir')
+        #cfg.content['input_dir'] = self.from_dir
+        #cfg.content['intermediate_dir'] = self.to_dir
+        #cfg.content['lock_file_dir'] = self.from_dir
+        #if not os.path.isdir(self.to_dir):
+        #    os.mkdir(self.to_dir)
+        #if os.path.isdir(os.path.join(self.to_dir, self.dataset)):
+        #    shutil.rmtree(os.path.join(self.to_dir, self.dataset))
+        #assert not os.listdir(self.to_dir)
+        self.scanner.reset(self.dataset)
 
     def tearDown(self):
-        cfg.content['input_dir'] = self.old_input_dir
-        if self.old_int_dir:
-            cfg.content['intermediate_dir'] = self.old_int_dir
-        else:
-            cfg.content.pop('intermediate_dir')
-        cfg.content['lock_file_dir'] = self.old_lock_dir
+        #cfg.content['input_dir'] = self.old_input_dir
+        #if self.old_int_dir:
+        #    cfg.content['intermediate_dir'] = self.old_int_dir
+        #else:
+        #    cfg.content.pop('intermediate_dir')
+        #cfg.content['lock_file_dir'] = self.old_lock_dir
 
         with open(os.path.join(self.from_dir, '.triggerignore'), 'w') as f:
             for d in ['dir_t?_be_ign*d\n', 'test_dataset\n']:
@@ -50,7 +51,9 @@ class TestProcessTrigger(TestAnalysisDriver):
 
 class TestTransfer(TestProcessTrigger):
     def test_transfer(self):
-        scanner.reset(self.dataset)
+        self.scanner.reset(self.dataset)
+        print(os.getcwd())
+        print(os.path.exists("tests/assets/data_transfer/from/"))
         process_trigger._transfer_to_int_dir(self.dataset, self.from_dir, self.to_dir, 1)
 
         new_dataset = os.path.join(self.to_dir, self.dataset)
@@ -67,31 +70,31 @@ class TestDatasetScanner(TestProcessTrigger):
 
     def setUp(self):
         super().setUp()
-        scanner._rm(self.rta)
+        self.scanner._rm(self.rta)
         for d in ['this', 'other']:
             if not os.path.isdir(os.path.join(self.from_dir, d)):
                 os.mkdir(os.path.join(self.from_dir, d))
 
     def tearDown(self):
-        scanner.reset('this')
-        scanner.reset('that')
-        scanner.switch_status('other', 'transferring')
-        scanner.switch_status('another', 'transferring')
-        scanner.switch_status('more', 'active')
+        self.scanner.reset('this')
+        self.scanner.reset('that')
+        self.scanner.switch_status('other', 'transferring')
+        self.scanner.switch_status('another', 'transferring')
+        self.scanner.switch_status('more', 'active')
         super().tearDown()
 
     def test_scan_datasets(self):
-        datasets = scanner.scan_datasets()
+        datasets = self.scanner.scan_datasets()
         print(datasets)
 
         for observed, expected in (
             (datasets['new'], ['this']),
-            (datasets['new, rta complete'], ['that']),
+            (datasets['new, rta complete'], ['test_dataset', 'that']),
             (datasets['transferring'], ['other']),
             (datasets['transferring, rta complete'], ['another']),
             (datasets['active'], ['more']),
         ):
-            assert observed == [os.path.join(self.from_dir, x) for x in expected]
+            assert observed == expected
 
     def test_triggerignore(self):
         with open(self.triggerignore, 'r') as f:
@@ -104,27 +107,27 @@ class TestDatasetScanner(TestProcessTrigger):
         with open(self.triggerignore, 'r') as f:
             assert f.readlines() == expected
             for d in expected:
-                assert d not in self._flatten(scanner.scan_datasets())
+                assert d not in self._flatten(self.scanner.scan_datasets())
 
     def test_switch_status(self):
         sw = self._switch_and_assert
         d = 'this'
 
-        scanner._rm(self.rta)
+        self.scanner._rm(self.rta)
 
         sw(d, 'transferring')
         sw(d, 'another_status')
 
-        scanner._touch(self.rta)
+        self.scanner._touch(self.rta)
         sw(d, 'active')
-        scanner.reset(d)
-        assert scanner.dataset_status(d) == 'new, rta complete'
+        self.scanner.reset(d)
+        assert self.scanner.dataset_status(d) == 'new, rta complete'
         sw(d, 'transferring')
         sw(d, 'another_status')
 
-        scanner._rm(self.rta)
-        scanner.reset(d)
-        assert scanner.dataset_status(d) == 'new'
+        self.scanner._rm(self.rta)
+        self.scanner.reset(d)
+        assert self.scanner.dataset_status(d) == 'new'
 
     @staticmethod
     def _flatten(d):
@@ -136,7 +139,6 @@ class TestDatasetScanner(TestProcessTrigger):
                 l.append(v)
         return l
 
-    @staticmethod
-    def _switch_and_assert(d, s):
-        scanner.switch_status(d, s)
-        assert scanner.dataset_status(d) == s or scanner.dataset_status(d) == s + ', rta complete'
+    def _switch_and_assert(self, d, s):
+        self.scanner.switch_status(d, s)
+        assert self.scanner.dataset_status(d) == s or self.scanner.dataset_status(d) == s + ', rta complete'

@@ -33,7 +33,8 @@ def main():
                 raise AnalysisDriverError('Invalid logging configuration: %s %s' % name, str(config))
             log_cfg.add_handler(name, handler)
 
-    from analysis_driver import dataset_scanner as scanner
+    from analysis_driver.dataset_scanner import RunScanner
+    scanner = RunScanner(cfg)
     if args.abort or args.skip or args.reset or args.report or args.report_all:
         for d in args.abort:
             scanner.switch_status(d, 'aborted')

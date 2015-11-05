@@ -1,7 +1,9 @@
 
 ---
 default:
-    input_dir: path/to/input_data
+    input_dir: tests/assets/data_transfer/from/
+    intermediate_dir: tests/assets/data_transfer/to/
+    lock_file_dir: tests/assets/data_transfer/from/
     jobs_dir : path/to/jobs
     output_dir: path/to/output_data
 
