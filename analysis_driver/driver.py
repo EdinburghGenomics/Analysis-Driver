@@ -262,7 +262,7 @@ def _run_bcbio(run_id, job_dir, sample_name_to_fastqs):
         prelim_cmds=writer.bash_commands.bcbio_env_vars(),
         job_name='bcbio',
         run_id=run_id,
-        walltime=120,
+        walltime=240,
         cpus=8,
         mem=64
     )
