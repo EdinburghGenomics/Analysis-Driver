@@ -48,7 +48,7 @@ def _transfer_to_int_dir(dataset, from_dir, to_dir, repeat_delay):
     exit_status = 0
     app_logger.info('Starting transfer')
     switch_status(dataset, 'transferring')
-    rsync_cmd = 'rsync -aqu --size-only --partial %s %s' % (os.path.join(from_dir, dataset), to_dir)
+    rsync_cmd = 'rsync -aqu --size-only --append-verify %s %s' % (os.path.join(from_dir, dataset), to_dir)
 
     while dataset_status(dataset) != 'transferring, rta complete':
         exit_status += executor.execute([rsync_cmd], job_name='rsync', run_id=dataset, walltime=36).join()
