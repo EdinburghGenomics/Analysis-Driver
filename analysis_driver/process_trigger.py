@@ -43,7 +43,7 @@ def trigger(dataset):
 
 def _transfer_to_int_dir(dataset, from_dir, to_dir, repeat_delay):
     """
-    rsync -aqu --size-only --partial from_dir/dataset to_dir
+    rsync -aqu --size-only --append-verify from_dir/dataset to_dir
     """
     exit_status = 0
     app_logger.info('Starting transfer')
