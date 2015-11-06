@@ -45,7 +45,7 @@ def transfer_output_file(source, dest):
         shutil.copyfile(source, dest)
 
         app_logger.debug('Generating md5 checksum')
-        command = "md5sum %s > %s"(source, source+'.md5')
+        command = "md5sum %s > %s"%(source, source+'.md5')
         exit_status = executor.execute([command], env = 'local').join()
         md5_key = None
         with open(source + '.md5') as md5_f:
