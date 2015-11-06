@@ -30,7 +30,8 @@ def trigger(dataset):
         dataset_dir = cfg['input_dir']
 
     switch_status(dataset, 'active')
-    from analysis_driver import driver
+    # from analysis_driver import driver
+    from analysis_driver import luigi_pipeline as driver
     exit_status = driver.pipeline(os.path.join(dataset_dir, dataset))
 
     if exit_status != 0:
