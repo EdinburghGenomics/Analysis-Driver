@@ -53,6 +53,9 @@ def get_user_sample_name(sample_name):
     if len(samples) == 0:
         sample_name_sub = re.sub("_(\d{2})",":\g<1>",sample_name)
         samples = lims.get_samples(name=sample_name_sub)
+    if len(samples) == 0:
+        sample_name_sub = re.sub("__(\w)_(\d{2})"," _\g<1>:\g<2>",sample_name)
+        samples = lims.get_samples(name=sample_name_sub)
     if len(samples) != 1:
         app_logger.warning('%s Sample(s) found for name %s' % (len(samples), sample_name))
         return None
