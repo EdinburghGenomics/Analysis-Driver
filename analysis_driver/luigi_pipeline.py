@@ -1,9 +1,10 @@
 __author__ = 'mwham'
 import luigi
+import yaml
 import os.path
 from glob import glob
 from analysis_driver import executor, writer, reader, util, clarity
-from analysis_driver.quality_control import genotype_validation
+# from analysis_driver.quality_control import genotype_validation
 from analysis_driver.exceptions import AnalysisDriverError
 from analysis_driver.app_logging import get_logger
 from analysis_driver.config import default as cfg
@@ -12,6 +13,7 @@ from analysis_driver.config import default as cfg
 app_logger = get_logger('luigi')
 
 
+# noinspection PyTypeChecker
 class Stage(luigi.Task):
 
     input_run_folder = luigi.Parameter()
@@ -48,11 +50,20 @@ class Stage(luigi.Task):
     def output(self):
         return luigi.LocalTarget(self.lf)
 
+    def execute(self):
+        raise NotImplementedError
 
+    def run(self):
+        exit_status = self.execute()
+        self.touch(self.lf)
+        return exit_status
+
+
+# noinspection PyTypeChecker
 class Bcl2Fastq(Stage):
     lf_name = '.bcl2fastq.done'
 
-    def run(self):
+    def execute(self):
         sample_sheet = reader.SampleSheet(self.input_run_folder)
         run_info = reader.RunInfo(self.input_run_folder)
         mask = sample_sheet.generate_mask(run_info.mask)
@@ -73,18 +84,16 @@ class Bcl2Fastq(Stage):
             mem=32
         ).join()
         print(exit_status)
-        self.touch(self.lf)
         return exit_status
 
 
 class Fastqc(Stage):
     lf_name = '.fastqc.done'
 
-    @staticmethod
-    def requires():
+    def requires(self):
         return Bcl2Fastq()
 
-    def run(self):
+    def execute(self):
         exit_status = executor.execute(
             [writer.bash_commands.fastqc(fq) for fq in util.fastq_handler.find_all_fastqs(self.fastq_dir)],
             job_name='fastqc',
@@ -106,7 +115,7 @@ class Fastqc(Stage):
     def requires():
         return Bcl2Fastq()
 
-    def run(self):
+    def execute(self):
         fqs = {}
         for sample_project in data['sample_id_fastqs']:
             for sample_id in data['sample_id_fastqs'][sample_project]:
@@ -117,12 +126,14 @@ class Fastqc(Stage):
         return gen_val.join()'''
 
 
+# noinspection PyTypeChecker
 class BCBio(Stage):
     sample_project = luigi.Parameter()
     sample_id = luigi.Parameter()
-    fastqs = luigi.Parameter()
 
-    lf_name = '.bcbio.done'
+    @property
+    def lf_name(self):
+        return '.bcbio_' + self.sample_id + '.done'
 
     @property
     def user_sample_id(self):
@@ -131,8 +142,19 @@ class BCBio(Stage):
             u = self.sample_id
         return u
 
-    @staticmethod
-    def requires():
+    @property
+    def merged_dir(self):
+        return os.path.join(self.job_dir, 'samples_' + self.sample_id + '-merged')
+
+    @property
+    def run_yaml(self):
+        return os.path.join(self.merged_dir, 'config', 'samples_' + self.sample_id + '-merged.yaml')
+
+    @property
+    def fastqs(self):
+        return glob(os.path.join(self.merged_dir, self.user_sample_id + '_R?.fastq.gz'))
+
+    def requires(self):
         return Bcl2Fastq()
 
     def prepare_samples(self):
@@ -170,25 +192,24 @@ class BCBio(Stage):
 
         exit_status = executor.execute([cmd], env='local').join()
         os.chdir(original_dir)
+
+        if exit_status:
+            return exit_status
+
+        with open(self.run_yaml, 'r') as i:
+            run_config = yaml.load(i)
+        run_config['fc_name'] = self.user_sample_id
+        with open(self.run_yaml, 'w') as o:
+            o.write(yaml.safe_dump(run_config, default_flow_style=False))
+
         return exit_status
 
     def run_bcbio(self):
+        original_dir = os.getcwd()
+        os.chdir(self.job_dir)
 
-        cmd = writer.bash_commands.bcbio(
-            os.path.join(
-                self.job_dir,
-                'samples_' + self.sample_id + '-merged',
-                'config',
-                'samples_' + self.sample_id + '-merged.yaml'
-            ),
-            os.path.join(
-                self.job_dir,
-                'samples_' + self.sample_id + '-merged',
-                'work'
-            ),
-            threads=10
-        )
-        return executor.execute(
+        cmd = writer.bash_commands.bcbio(self.run_yaml, workdir=os.path.join(self.merged_dir, 'work'), threads=10)
+        exit_status = executor.execute(
             [cmd],
             prelim_cmds=writer.bash_commands.bcbio_env_vars(),
             job_name='bcbio',
@@ -198,7 +219,10 @@ class BCBio(Stage):
             mem=64
         ).join()
 
-    def run(self):
+        os.chdir(original_dir)
+        return exit_status
+
+    def execute(self):
         exit_status = 0
         for stage in (self.prepare_samples, self.prepare_template, self.run_bcbio):
             ex = stage()
@@ -209,81 +233,80 @@ class BCBio(Stage):
         return exit_status
 
 
-class DivergeSamples(Stage):
+# noinspection PyTypeChecker
+class DataOutput(Stage):
 
-    lf_name = '.diverge_samples.done'
+    @property
+    def lf_name(self):
+        return '.data_output_' + self.sample_id + '.done'
 
-    @staticmethod
-    def requires():
-        for sample_project in data['sample_projects']:
-            for sample_id in data['sample_projects'][sample_project]:
-                yield BCBio(sample_project=sample_project, sample_id=sample_id)
+    sample_project = luigi.Parameter()
+    sample_id = luigi.Parameter()
+
+    @property
+    def user_sample_id(self):
+        u = clarity.get_user_sample_name(self.sample_id)
+        if not u:
+            u = self.sample_id
+        return u
+
+    def requires(self):
+        return BCBio(sample_project=self.sample_project, sample_id=self.sample_id)
+
+    def execute(self):
+        exit_status = 0
+
+        output_loc = os.path.join(self.output_dir, self.sample_project, self.sample_id)
+        if not os.path.isdir(output_loc):
+            os.makedirs(output_loc)
+
+        for output_record in cfg['output_files']:
+            src_pattern = os.path.join(
+                self.job_dir,
+                os.path.join(*output_record['location']),
+                output_record['basename']
+            ).format(runfolder=self.sample_id, sample_id=self.user_sample_id)
+            source_files = glob(src_pattern)
+
+            # TODO: turn off renaming for multiple files, md5 checksum
+            for f in source_files:
+                dest = os.path.join(
+                    output_loc,
+                    output_record.get('new_name', os.path.basename(f))
+                ).format(sample_id=self.user_sample_id)
+                exit_status += util.transfer_output_file(f, dest)
+
+        return exit_status
+
+
+class ProcessSamples(Stage):
+    lf_name = '.process_samples.done'
+    sample_sheet = luigi.Parameter()
+
+    def requires(self):
+        for sample_project in self.sample_sheet.sample_projects:
+            for sample_id in self.sample_sheet.sample_projects[sample_project].sample_ids:
+                yield DataOutput(sample_project=sample_project, sample_id=sample_id)
+
+    def execute(self):
+        for req in self.requires():
+            exit_status = yield req
+            app_logger.info('Finished transfer of %s with exit status %s' % (req.sample_id, exit_status))
 
     def output(self):
         return self.input()
-
-    def run(self):
-        self.touch(self.lf)
-
-
-class DataOutput(Stage):
-
-    @staticmethod
-    def requires():
-        return DivergeSamples()
-
-    def run(self):
-        for req in self.requires().requires():
-            yield req
-
-            exit_status = self.execute(req)
-            app_logger.info('Finished transfer of %s with exit status %s' % (req.sample_id, exit_status))
-
-    def execute(self, req):
-
-        output_dir = os.path.join(cfg['output_dir'], req.sample_project, req.sample_id)
-        if not os.path.isdir(output_dir):
-            os.makedirs(output_dir)
-
-        bcbio_source_dir = os.path.join(
-            self.job_dir,
-            'samples_' + req.sample_id + '-merged',
-            'final',
-            req.sample_id
-        )
-        merged_fastq_dir = os.path.join(
-            self.job_dir,
-            'merged'
-        )
-        source_path_mapping = {
-            'vcf': bcbio_source_dir,
-            'bam': bcbio_source_dir,
-            'fastq': merged_fastq_dir
-        }
-        app_logger.info('Beginning output transfer')
-        return util.transfer_output_files(req.sample_id, output_dir, source_path_mapping)
 
 
 def pipeline(input_run_folder):
     reader.transform_sample_sheet(input_run_folder)
     sample_sheet = reader.SampleSheet(input_run_folder)
-    run_info = reader.RunInfo(input_run_folder)
-
-    data['mask'] = sample_sheet.generate_mask(run_info.mask)
-
-    data['sample_id_fastqs'] = {}
-    for sample_project in sample_sheet.sample_projects:
-        data['sample_id_fastqs'][sample_project] = {}
-        for sample_id in sample_sheet.sample_projects[sample_project].sample_ids:
-
-            data['sample_projects'][sample_project].append(sample_id)
-
-    print(data)
 
     luigi.run(
         cmdline_args=[
             '--input-run-folder', input_run_folder,
-            '--Stage-input-run-folder', input_run_folder
+            '--Stage-input-run-folder', input_run_folder,
+            '--Stage-job-dir', os.path.join(cfg['jobs_dir'], os.path.basename(input_run_folder)),
+            '--DataOutput-sample-sheet', sample_sheet
         ],
         main_task_cls=DataOutput,
         local_scheduler=True
