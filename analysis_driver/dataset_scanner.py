@@ -16,13 +16,105 @@ DATASET_ABORTED = 'aborted'
 STATUS_VISIBLE=[DATASET_NEW, DATASET_READY, DATASET_PROCESSING]
 STATUS_HIDEN=[DATASET_PROCESSED_SUCCESS, DATASET_PROCESSED_FAIL, DATASET_ABORTED]
 
+class Dataset:
+    def __init__(self, name, path, lock_file_dir):
+        self.name = name
+        self.path = path
+        self.lock_file_dir = lock_file_dir
+
+    @property
+    def dataset_status(self):
+        raise NotImplementedError("Function not implemented in DatasetScanner")
+
+    def start(self):
+        assert self.dataset_status==DATASET_READY
+        self._change_status(DATASET_PROCESSING)
+
+    def succeed(self):
+        assert self.dataset_status==DATASET_PROCESSING
+        self._change_status(DATASET_PROCESSED_SUCCESS)
+
+    def fail(self):
+        assert self.dataset_status==DATASET_PROCESSING
+        self._change_status(DATASET_PROCESSED_FAIL)
+
+    def abort(self):
+        self._change_status( DATASET_ABORTED)
+
+    def reset(self):
+        self._rm(*glob(self._lock_file('*')))
+
+    def _change_status(self, status):
+        self.reset()
+        self._touch(self._lock_file(status))
+
+    def _lock_file(self, status):
+        return os.path.join(
+            self.lock_file_dir,
+            '.' + self.name + '.' + status
+        )
+
+    def _touch(self, file):
+        open(file, 'w').close()
+
+    def _rm(self, *files):
+        for f in files:
+            if os.path.isfile(f):
+                os.remove(f)
+
+    def __str__(self):
+        return self.name
+
+    __repr__ = __str__
+
+class RunDataset(Dataset):
+    @property
+    def dataset_status(self):
+        dataset_lock_files = glob(self._lock_file('*'))
+        assert len(dataset_lock_files) < 2
+
+        if dataset_lock_files:
+            lf_status = dataset_lock_files[0].split('.')[-1]
+        else:
+            lf_status = DATASET_NEW
+
+        rta_complete = self._rta_complete()
+        if rta_complete and lf_status == DATASET_NEW:
+            return DATASET_READY
+        else:
+            return lf_status
+
+    def _rta_complete(self):
+        return os.path.isfile(os.path.join(self.path, 'RTAComplete.txt'))
+
+class SampleDataset(Dataset):
+    @property
+    def dataset_status(self):
+        dataset_lock_files = glob(self._lock_file('*'))
+        assert len(dataset_lock_files) < 2
+
+        if dataset_lock_files:
+            lf_status = dataset_lock_files[0].split('.')[-1]
+        else:
+            lf_status = DATASET_NEW
+
+        rta_complete = self._rta_complete()
+        if rta_complete and lf_status == DATASET_NEW:
+            return DATASET_READY
+        else:
+            return lf_status
+
+    def _rta_complete(self):
+        return os.path.isfile(os.path.join(self.path, 'RTAComplete.txt'))
+
+
 
 class DatasetScanner():
     def __init__(self, cfg):
         self.lock_file_dir = cfg.get('lock_file_dir', cfg['input_dir'])
         self.input_dir = cfg.get('input_dir')
 
-    def scan_datasets(self):
+    def scan_datasets(self, dataset_class=Dataset):
         triggerignore = os.path.join(self.lock_file_dir, '.triggerignore')
 
         ignorables = []
@@ -36,55 +128,24 @@ class DatasetScanner():
         n_datasets = 0
         datasets = defaultdict(list)
         for directory in glob(os.path.join(self.input_dir, '*')):
-            d = os.path.basename(directory)
+            d = dataset_class(name=os.path.basename(directory),
+                        path=directory,
+                        lock_file_dir=self.lock_file_dir)
             if os.path.isdir(directory) and directory not in ignorables:
-                datasets[self.dataset_status(d)].append(d)
+                datasets[d.dataset_status].append(d)
                 n_datasets += 1
         app_logger.debug('Found %s datasets' % n_datasets)
         return datasets
 
-    def start(self, dataset):
-        assert self.dataset_status(dataset)==DATASET_READY
-        self._change_status(dataset, DATASET_PROCESSING)
-
-    def succeed(self, dataset):
-        assert self.dataset_status(dataset)==DATASET_PROCESSING
-        self._change_status(dataset, DATASET_PROCESSED_SUCCESS)
-
-    def fail(self, dataset):
-        assert self.dataset_status(dataset)==DATASET_PROCESSING
-        self._change_status(dataset, DATASET_PROCESSED_FAIL)
-
-    def abort(self, dataset):
-        self._change_status(dataset, DATASET_ABORTED)
-
-    def reset(self, dataset):
-        self._rm(*glob(self._lock_file(dataset, '*')))
-
-
-    def _change_status(self, dataset, status):
-        self.reset(dataset)
-        self._touch(self._lock_file(dataset, status))
-
-
-    def dataset_status(self, dataset):
-        raise NotImplementedError("Function not implemented in DatasetScanner")
-
-
-    def _lock_file(self, dataset, status):
-        return os.path.join(
-            self.lock_file_dir,
-            '.' + os.path.basename(dataset) + '.' + status
-        )
-
-    def _touch(self, file):
-        open(file, 'w').close()
-
-
-    def _rm(self, *files):
-        for f in files:
-            if os.path.isfile(f):
-                os.remove(f)
+    def get(self, dataset_name, dataset_class):
+        directory = glob(os.path.join(self.input_dir, dataset_name))
+        if directory:
+            directory = directory[0]
+            d = dataset_class(name=os.path.basename(directory),
+                        path=directory,
+                        lock_file_dir=self.lock_file_dir)
+            return d
+        return None
 
 class RunScanner(DatasetScanner):
 
@@ -113,27 +174,13 @@ class RunScanner(DatasetScanner):
                 out.append('\n'.join(('other datasets present', 'use --report-all to show')))
 
         out.append('_' * 42)
+        print('\n'.join(out))
 
-    def dataset_status(self, dataset):
-        dataset_lock_files = glob(self._lock_file(dataset, '*'))
-        assert len(dataset_lock_files) < 2
+    def scan_datasets(self):
+        return super().scan_datasets(RunDataset)
 
-        if dataset_lock_files:
-            lf_status = dataset_lock_files[0].split('.')[-1]
-        else:
-            lf_status = DATASET_NEW
-
-        rta_complete = self._rta_complete(dataset)
-        if rta_complete and lf_status == DATASET_NEW:
-            return DATASET_READY
-        else:
-            return lf_status
-
-
-    def _rta_complete(self, dataset):
-        return os.path.isfile(os.path.join(self.input_dir, dataset, 'RTAComplete.txt'))
-
-
+    def get(self, dataset_name):
+        return super().get(dataset_name, RunDataset)
 
 class SampleScanner(DatasetScanner):
 
@@ -163,28 +210,5 @@ class SampleScanner(DatasetScanner):
 
         out.append('_' * 42)
 
-    def dataset_status(self, dataset):
-        dataset_lock_files = glob(self._lock_file(dataset, '*'))
-        assert len(dataset_lock_files) < 2
-        if dataset_lock_files:
-            lf_status = dataset_lock_files[0].split('.')[-1]
-        else:
-            lf_status = 'new'
-
-        rta_complete = self._rta_complete(dataset)
-
-        if lf_status in ('complete', 'active'):
-            assert rta_complete
-            return lf_status
-
-        elif lf_status in ('aborted', 'failed'):
-            return lf_status
-
-        else:
-            if rta_complete:
-                lf_status += ', rta complete'
-            return lf_status
-
-
-    def _rta_complete(self, dataset):
-        return os.path.isfile(os.path.join(self.input_dir, dataset, 'RTAComplete.txt'))
+    def scan_datasets(self):
+        return super().scan_datasets(SampleDataset)

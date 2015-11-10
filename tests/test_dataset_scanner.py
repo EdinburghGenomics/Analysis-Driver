@@ -5,7 +5,53 @@ __author__ = 'tcezard'
 import os
 from tests.test_analysisdriver import TestAnalysisDriver
 from analysis_driver.dataset_scanner import RunScanner, DATASET_NEW, DATASET_READY, DATASET_PROCESSING, \
-    DATASET_PROCESSED_FAIL, DATASET_PROCESSED_SUCCESS, DATASET_ABORTED
+    DATASET_PROCESSED_FAIL, DATASET_PROCESSED_SUCCESS, DATASET_ABORTED, RunDataset
+
+
+class TestRunDataset(TestAnalysisDriver):
+    def setUp(self):
+        lock_file_dir = os.path.join(self.data_transfer, 'from')
+        self.dataset_ready = RunDataset(
+            name='that',
+            path=os.path.join(self.data_transfer, 'from', 'that'),
+            lock_file_dir=lock_file_dir
+        )
+        self.dataset_not_ready = RunDataset(
+            name='this',
+            path=os.path.join(self.data_transfer, 'from', 'this'),
+            lock_file_dir=lock_file_dir
+        )
+        self.dataset_ready.reset()
+        self.dataset_not_ready.reset()
+
+    def tearDown(self):
+        self.dataset_ready.reset()
+        self.dataset_not_ready.reset()
+
+    def test_change_status_not_ready(self):
+        #dataset not ready
+        self.dataset_not_ready.abort()
+        assert self.dataset_not_ready.dataset_status == DATASET_ABORTED
+        self.dataset_not_ready.reset()
+        assert self.dataset_not_ready.dataset_status == DATASET_NEW
+        with pytest.raises(AssertionError):
+            self.dataset_not_ready.start()
+            self.dataset_not_ready.fail()
+            self.dataset_not_ready.succeed()
+
+    def test_change_status_ready(self):
+        self.dataset_ready.reset()
+        assert self.dataset_ready.dataset_status == DATASET_READY
+        self.dataset_ready.start()
+        assert self.dataset_ready.dataset_status == DATASET_PROCESSING
+        self.dataset_ready.fail()
+        assert self.dataset_ready.dataset_status == DATASET_PROCESSED_FAIL
+        self.dataset_ready.reset()
+        self.dataset_ready.start()
+        self.dataset_ready.succeed()
+        assert self.dataset_ready.dataset_status == DATASET_PROCESSED_SUCCESS
+
+
 
 class TestRunScanner(TestAnalysisDriver):
 
@@ -19,19 +65,22 @@ class TestRunScanner(TestAnalysisDriver):
             'input_dir' : os.path.join(self.data_transfer, 'from')
         }
         self.scanner = RunScanner(cfg)
-        self.scanner.reset('this')
-        self.scanner.reset('that')
-        self.scanner.start('that')
-        self.scanner.fail('that')
-        self.scanner.reset('more')
-        self.scanner.start('more')
+        more = self.scanner.get('more')
+        more.reset()
+        more.start()
+        that = self.scanner.get('that')
+        that.reset()
+        that.start()
+        that.fail()
         with open(self.triggerignore, 'w') as f:
             for d in ['test_dataset\n']:
                 f.write(d)
 
     def tearDown(self):
-        self.scanner.reset('more')
-        self.scanner.reset('that')
+        more = self.scanner.get('more')
+        more.reset()
+        that = self.scanner.get('that')
+        that.reset()
         os.remove(self.triggerignore)
 
     def test_scan_datasets(self):
@@ -39,10 +88,10 @@ class TestRunScanner(TestAnalysisDriver):
         print(datasets)
 
         for observed, expected in (
-            (set(datasets[DATASET_NEW]), set(['this', 'other'])),
-            (set(datasets[DATASET_READY]), set(['another'])),
-            (set(datasets[DATASET_PROCESSING]), set(['more'])),
-            (set(datasets[DATASET_PROCESSED_FAIL]), set(['that'])),
+            (set([str(s) for s in datasets[DATASET_NEW]]), set(['this', 'other'])),
+            (set([str(s) for s in datasets[DATASET_READY]]), set(['another'])),
+            (set([str(s) for s in datasets[DATASET_PROCESSING]]), set(['more'])),
+            (set([str(s) for s in datasets[DATASET_PROCESSED_FAIL]]), set(['that'])),
         ):
             assert observed == expected
 
@@ -60,29 +109,6 @@ class TestRunScanner(TestAnalysisDriver):
             for d in expected:
                 assert d.strip() not in self._flatten(self.scanner.scan_datasets())
 
-    def test_switch_status(self):
-        #dataset not ready
-        d = 'this'
-        self.scanner.abort(d)
-        assert self.scanner.dataset_status(d) == DATASET_ABORTED
-        self.scanner.reset(d)
-        assert self.scanner.dataset_status(d) == DATASET_NEW
-        with pytest.raises(AssertionError):
-            self.scanner.start(d)
-            self.scanner.fail(d)
-            self.scanner.succeed(d)
-
-        d = 'that'
-        self.scanner.reset(d)
-        assert self.scanner.dataset_status(d) == DATASET_READY
-        self.scanner.start(d)
-        assert self.scanner.dataset_status(d) == DATASET_PROCESSING
-        self.scanner.fail(d)
-        assert self.scanner.dataset_status(d) == DATASET_PROCESSED_FAIL
-        self.scanner.reset(d)
-        self.scanner.start(d)
-        self.scanner.succeed(d)
-        assert self.scanner.dataset_status(d) == DATASET_PROCESSED_SUCCESS
 
 
     @staticmethod

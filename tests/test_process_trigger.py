@@ -1,14 +1,14 @@
+import analysis_driver
+
 __author__ = 'mwham'
 import os
 import shutil
 from tests.test_analysisdriver import TestAnalysisDriver
 from analysis_driver import process_trigger
-from analysis_driver.dataset_scanner import RunScanner
-from analysis_driver.config import default as cfg
+from analysis_driver.dataset_scanner import RunDataset
 
 
 class TestProcessTrigger(TestAnalysisDriver):
-    dataset = 'test_dataset'
 
     @property
     def from_dir(self):
@@ -19,26 +19,24 @@ class TestProcessTrigger(TestAnalysisDriver):
         return os.path.join(self.data_transfer, 'to')
 
     def setUp(self):
-        cfg = {
-            'lock_file_dir' : os.path.join(self.data_transfer, 'from'),
-            'input_dir' : os.path.join(self.data_transfer, 'from')
-        }
-        self.scanner = RunScanner(cfg)
-
-        self.scanner.reset(self.dataset)
+        self.dataset = RunDataset(
+            name='test_dataset',
+            path=os.path.join(self.from_dir,'test_dataset'),
+            lock_file_dir=self.from_dir
+        )
+        self.dataset.reset()
 
     def tearDown(self):
-        for f in os.listdir(os.path.join(self.to_dir, self.dataset)):
-            os.remove(os.path.join(self.to_dir, self.dataset, f))
+        for f in os.listdir(os.path.join(self.to_dir, self.dataset.name)):
+            os.remove(os.path.join(self.to_dir, self.dataset.name, f))
+        self.dataset.reset()
 
-
-class TestTransfer(TestProcessTrigger):
     def test_transfer(self):
         print(os.getcwd())
         print(os.path.exists("tests/assets/data_transfer/from/"))
         process_trigger._transfer_to_int_dir(self.dataset, self.from_dir, self.to_dir, 1)
 
-        new_dataset = os.path.join(self.to_dir, self.dataset)
+        new_dataset = os.path.join(self.to_dir, self.dataset.name)
         observed = os.listdir(new_dataset)
         expected = ['RTAComplete.txt', 'thang', 'thing']
         print(observed, '\n', expected)
