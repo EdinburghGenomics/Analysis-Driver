@@ -37,9 +37,11 @@ def main():
     scanner = RunScanner(cfg)
     if args.abort or args.skip or args.reset or args.report or args.report_all:
         for d in args.abort:
-            scanner.switch_status(d, 'aborted')
+            scanner.abort(d)
         for d in args.skip:
-            scanner.switch_status(d, 'complete')
+            scanner.reset(d)
+            scanner.start(d)
+            scanner.succeed(d)
         for d in args.reset:
             scanner.reset(d)
 
