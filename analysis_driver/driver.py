@@ -3,6 +3,7 @@ import yaml
 from glob import glob
 import shutil
 from analysis_driver import reader, writer, util, executor, clarity
+from analysis_driver.dataset_scanner import RunDataset, SampleDataset
 from analysis_driver.exceptions import AnalysisDriverError
 from analysis_driver.app_logging import get_logger
 from analysis_driver.config import default as cfg  # imports the default config singleton
@@ -11,6 +12,11 @@ from analysis_driver.notification import default as ntf
 
 app_logger = get_logger('driver')
 
+def pipeline(dataset_dir, dataset):
+    if isinstance(dataset, RunDataset):
+        return demultiplexing_pipeline(os.path.join(dataset_dir, dataset.name))
+    elif isinstance(dataset, SampleDataset):
+        return variant_calling_pipeline(os.path.join(dataset_dir, dataset.name))
 
 def demultiplexing_pipeline(input_run_folder):
     """
