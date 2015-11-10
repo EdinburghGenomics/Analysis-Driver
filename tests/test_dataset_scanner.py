@@ -6,16 +6,19 @@ import os
 from tests.test_analysisdriver import TestAnalysisDriver
 from analysis_driver.dataset_scanner import RunScanner, DATASET_NEW, DATASET_READY, DATASET_PROCESSING, \
     DATASET_PROCESSED_FAIL, DATASET_PROCESSED_SUCCESS, DATASET_ABORTED
-from analysis_driver.config import default as cfg
 
 class TestRunScanner(TestAnalysisDriver):
-    scanner = RunScanner(cfg)
 
     @property
     def triggerignore(self):
         return os.path.join(self.scanner.lock_file_dir, '.triggerignore')
 
     def setUp(self):
+        cfg = {
+            'lock_file_dir' : os.path.join(self.data_transfer, 'from'),
+            'input_dir' : os.path.join(self.data_transfer, 'from')
+        }
+        self.scanner = RunScanner(cfg)
         self.scanner.reset('this')
         self.scanner.reset('that')
         self.scanner.start('that')
