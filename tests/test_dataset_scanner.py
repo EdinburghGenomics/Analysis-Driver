@@ -36,7 +36,9 @@ class TestRunDataset(TestAnalysisDriver):
         assert self.dataset_not_ready.dataset_status == DATASET_NEW
         with pytest.raises(AssertionError):
             self.dataset_not_ready.start()
+        with pytest.raises(AssertionError):
             self.dataset_not_ready.fail()
+        with pytest.raises(AssertionError):
             self.dataset_not_ready.succeed()
 
     def test_change_status_ready(self):
@@ -65,6 +67,8 @@ class TestRunScanner(TestAnalysisDriver):
             'input_dir' : os.path.join(self.data_transfer, 'from')
         }
         self.scanner = RunScanner(cfg)
+        self.scanner.get('this').reset()
+        self.scanner.get('other').reset()
         more = self.scanner.get('more')
         more.reset()
         more.start()
@@ -86,7 +90,9 @@ class TestRunScanner(TestAnalysisDriver):
     def test_scan_datasets(self):
         datasets = self.scanner.scan_datasets()
         print(datasets)
-
+        print(os.listdir(os.path.join(self.data_transfer, 'from')))
+        for d in os.listdir(os.path.join(self.data_transfer, 'from')):
+            print(os.listdir(os.path.join(self.data_transfer, 'from', d)))
         for observed, expected in (
             (set([str(s) for s in datasets[DATASET_NEW]]), set(['this', 'other'])),
             (set([str(s) for s in datasets[DATASET_READY]]), set(['another'])),
