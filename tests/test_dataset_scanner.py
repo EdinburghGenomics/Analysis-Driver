@@ -1,3 +1,4 @@
+import shutil
 import pytest
 
 __author__ = 'mwham'
@@ -8,23 +9,36 @@ from analysis_driver.dataset_scanner import RunScanner, DATASET_NEW, DATASET_REA
     DATASET_PROCESSED_FAIL, DATASET_PROCESSED_SUCCESS, DATASET_ABORTED, RunDataset
 
 
+def seed_directories(base_dir):
+    directories_to_create = ['another', 'more', 'other', 'that', 'this']
+    file_to_touch = ['another/RTAComplete.txt', 'more/RTAComplete.txt', 'that/RTAComplete.txt']
+    for d in directories_to_create:
+        os.makedirs(os.path.join(base_dir, d), exist_ok=True)
+    for f in file_to_touch:
+        open(os.path.join(base_dir, f), 'w').close()
+
+def clean(base_dir):
+    shutil.rmtree(os.path.join(base_dir))
+
 class TestRunDataset(TestAnalysisDriver):
     def setUp(self):
-        lock_file_dir = os.path.join(self.data_transfer, 'from')
+        self.base_dir = os.path.join(self.assets_path, 'dataset_scanner')
+        seed_directories(self.base_dir)
         self.dataset_ready = RunDataset(
             name='that',
-            path=os.path.join(self.data_transfer, 'from', 'that'),
-            lock_file_dir=lock_file_dir
+            path=os.path.join(self.base_dir,'that'),
+            lock_file_dir=self.base_dir
         )
         self.dataset_not_ready = RunDataset(
             name='this',
-            path=os.path.join(self.data_transfer, 'from', 'this'),
-            lock_file_dir=lock_file_dir
+            path=os.path.join(self.data_transfer, 'this'),
+            lock_file_dir=self.base_dir
         )
         self.dataset_ready.reset()
         self.dataset_not_ready.reset()
 
     def tearDown(self):
+        clean(self.base_dir)
         self.dataset_ready.reset()
         self.dataset_not_ready.reset()
 
@@ -62,13 +76,14 @@ class TestRunScanner(TestAnalysisDriver):
         return os.path.join(self.scanner.lock_file_dir, '.triggerignore')
 
     def setUp(self):
+        self.base_dir = os.path.join(self.assets_path, 'dataset_scanner')
+        seed_directories(self.base_dir)
+
         cfg = {
-            'lock_file_dir' : os.path.join(self.data_transfer, 'from'),
-            'input_dir' : os.path.join(self.data_transfer, 'from')
+            'lock_file_dir' : self.base_dir,
+            'input_dir' : self.base_dir
         }
         self.scanner = RunScanner(cfg)
-        self.scanner.get('this').reset()
-        self.scanner.get('other').reset()
         more = self.scanner.get('more')
         more.reset()
         more.start()
@@ -81,18 +96,16 @@ class TestRunScanner(TestAnalysisDriver):
                 f.write(d)
 
     def tearDown(self):
-        more = self.scanner.get('more')
-        more.reset()
-        that = self.scanner.get('that')
-        that.reset()
-        os.remove(self.triggerignore)
+        clean(self.base_dir)
+
 
     def test_scan_datasets(self):
         datasets = self.scanner.scan_datasets()
         print(datasets)
-        print(os.listdir(os.path.join(self.data_transfer, 'from')))
-        for d in os.listdir(os.path.join(self.data_transfer, 'from')):
-            print(os.listdir(os.path.join(self.data_transfer, 'from', d)))
+        print(os.listdir(self.base_dir))
+        for d in os.listdir(self.base_dir):
+            if os.path.isdir(os.path.join(self.base_dir, d)):
+                print(os.listdir(os.path.join(self.base_dir, d)))
         for observed, expected in (
             (set([str(s) for s in datasets[DATASET_NEW]]), set(['this', 'other'])),
             (set([str(s) for s in datasets[DATASET_READY]]), set(['another'])),
@@ -100,6 +113,7 @@ class TestRunScanner(TestAnalysisDriver):
             (set([str(s) for s in datasets[DATASET_PROCESSED_FAIL]]), set(['that'])),
         ):
             assert observed == expected
+        assert False
 
     def test_triggerignore(self):
         with open(self.triggerignore, 'r') as f:
