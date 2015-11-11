@@ -113,7 +113,6 @@ class TestRunScanner(TestAnalysisDriver):
             (set([str(s) for s in datasets[DATASET_PROCESSED_FAIL]]), set(['that'])),
         ):
             assert observed == expected
-        assert False
 
     def test_triggerignore(self):
         with open(self.triggerignore, 'r') as f:
