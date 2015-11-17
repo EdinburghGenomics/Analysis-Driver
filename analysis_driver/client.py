@@ -50,7 +50,7 @@ def main():
             dataset.start()
             dataset.succeed()
         for d in args.reset:
-            scanner.get(d).reset(d)
+            scanner.get(d).reset()
 
         if args.report:
             scanner.report()
@@ -112,7 +112,7 @@ def _process_dataset(d):
     invalid_cfg_paths = cfg.validate_file_paths(cfg.content)
     if invalid_cfg_paths:
         app_logger.warning('Invalid config paths: ' + str(invalid_cfg_paths))
-    app_logger.info('Triggering for dataset: ' + d)
+    app_logger.info('Triggering for dataset: ' + d.name)
 
     exit_status = 9
     stacktrace = None
@@ -126,13 +126,13 @@ def _process_dataset(d):
         app_logger.info('Done')
 
     except Exception:
+        d.fail()
         import traceback
         log_cfg.switch_formatter(log_cfg.blank_formatter)  # blank formatting for stacktrace
         stacktrace = traceback.format_exc()
         log_cfg.switch_formatter(log_cfg.default_formatter)
 
     finally:
-        d.fail()
         ntf.end_pipeline(exit_status, stacktrace)
         return exit_status
 

@@ -76,7 +76,8 @@ def demultiplexing_pipeline(input_run_folder):
         run_id=run_id,
         walltime=6,
         cpus=1,
-        mem=2
+        mem=2,
+        log = False
     )
 
     valid_lanes = clarity.get_valid_lanes(run_info.flowcell_name)
@@ -297,7 +298,7 @@ def _output_data(project_id, sample_id, intput_dir, output_dir, output_config, q
 
     for output_record in output_config:
         src_pattern = os.path.join(
-            intput_dir  ,
+            intput_dir,
             os.path.join(*output_record['location']),
             output_record['basename']
         ).format(runfolder=sample_id, sample_id=user_sample_id)
