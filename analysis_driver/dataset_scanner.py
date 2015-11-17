@@ -128,9 +128,11 @@ class DatasetScanner():
         n_datasets = 0
         datasets = defaultdict(list)
         for directory in glob(os.path.join(self.input_dir, '*')):
-            d = dataset_class(name=os.path.basename(directory),
-                        path=directory,
-                        lock_file_dir=self.lock_file_dir)
+            d = dataset_class(
+                name=os.path.basename(directory),
+                path=directory,
+                lock_file_dir=self.lock_file_dir
+            )
             if os.path.isdir(directory) and directory not in ignorables:
                 datasets[d.dataset_status].append(d)
                 n_datasets += 1
@@ -168,7 +170,6 @@ class RunScanner(DatasetScanner):
             if all_datasets:
                 for status in sorted(datasets):
                     out.append('=== ' + status + ' ===')
-                    out.append('\n'.join((d.name for d in datasets[status])))
                     out.append('\n'.join((d.name for d in datasets[status])))
             else:
                 out.append('=== other datasets ===')

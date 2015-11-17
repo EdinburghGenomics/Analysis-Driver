@@ -68,17 +68,17 @@ def main():
     else:
         # Only process the first new dataset found. Run through Cron, this will result in one new pipeline
         # being kicked off per minute.
-        return _process_dataset(os.path.basename(dataset_ready[0]))
+        return _process_dataset(dataset_ready[0])
 
 def setup_logging(d):
     log_repo = cfg.query('logging', 'repo')
     if log_repo:
-        handler = logging.FileHandler(filename=os.path.join(log_repo, d + '.log'), mode='w')
+        handler = logging.FileHandler(filename=os.path.join(log_repo, d.name + '.log'), mode='w')
         log_cfg.add_handler(d, handler)
 
     log_cfg.add_handler(
         'dataset',
-        logging.FileHandler(filename=os.path.join(cfg['jobs_dir'], d, 'analysis_driver.log'), mode='w')
+        logging.FileHandler(filename=os.path.join(cfg['jobs_dir'], d.name, 'analysis_driver.log'), mode='w')
     )
     ntf.add_subscribers(
         (LogNotification, d, cfg.query('notification', 'log_notification')),
@@ -132,6 +132,7 @@ def _process_dataset(d):
         log_cfg.switch_formatter(log_cfg.default_formatter)
 
     finally:
+        d.fail()
         ntf.end_pipeline(exit_status, stacktrace)
         return exit_status
 
