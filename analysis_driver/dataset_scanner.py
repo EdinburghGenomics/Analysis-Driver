@@ -162,13 +162,14 @@ class RunScanner(DatasetScanner):
             ds = datasets.pop(status, [])
             if ds:
                 out.append('=== ' + status + ' ===')
-                out.append('\n'.join((os.path.basename(d) for d in ds)))
+                out.append('\n'.join((d.name for d in ds)))
 
         if any((datasets[s] for s in datasets)):
             if all_datasets:
                 for status in sorted(datasets):
                     out.append('=== ' + status + ' ===')
-                    out.append('\n'.join((os.path.basename(x) for x in datasets[status])))
+                    out.append('\n'.join((d.name for d in datasets[status])))
+                    out.append('\n'.join((d.name for d in datasets[status])))
             else:
                 out.append('=== other datasets ===')
                 out.append('\n'.join(('other datasets present', 'use --report-all to show')))
@@ -197,13 +198,13 @@ class SampleScanner(DatasetScanner):
             ds = datasets.pop(status, [])
             if ds:
                 out.append('=== ' + status + ' ===')
-                out.append('\n'.join((os.path.basename(d) for d in ds)))
+                out.append('\n'.join((d.name for d in ds)))
 
         if any((datasets[s] for s in datasets)):
             if all_datasets:
                 for status in sorted(datasets):
                     out.append('=== ' + status + ' ===')
-                    out.append('\n'.join((os.path.basename(x) for x in datasets[status])))
+                    out.append('\n'.join((d.name for d in datasets[status])))
             else:
                 out.append('=== other datasets ===')
                 out.append('\n'.join(('other datasets present', 'use --report-all to show')))

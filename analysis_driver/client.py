@@ -139,7 +139,7 @@ def _process_dataset(d):
 def _parse_args():
     p = argparse.ArgumentParser()
     p.add_argument('--debug', action='store_true', help='override pipeline log level to debug')
-    group = p.add_mutually_exclusive_group()
+    group = p.add_mutually_exclusive_group(required=True)
     group.add_argument('--run', action='store_true')
     group.add_argument('--sample', action='store_true')
     p.add_argument('--report', action='store_true', help='report on status of datasets')
