@@ -30,6 +30,11 @@ def fastqc(fastq, threads=1):
     app_logger.debug('Writing: ' + cmd)
     return cmd
 
+def md5sum(input_file, threads=1):
+    cmd = cfg.get('md5sum', 'md5sum') + ' %s > %s.md5'%(input_file,input_file)
+    app_logger.debug('Writing: ' + cmd)
+    return cmd
+
 
 def bcbio_env_vars():
     """

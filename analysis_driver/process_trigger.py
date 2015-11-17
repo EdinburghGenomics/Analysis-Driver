@@ -53,7 +53,6 @@ def _transfer_to_int_dir(dataset, from_dir, to_dir, repeat_delay):
 
     while dataset.dataset_status != DATASET_READY:
         exit_status += executor.execute([rsync_cmd], job_name='rsync', run_id=dataset.name, walltime=36).join()
-        assert False
         sleep(repeat_delay)
 
 

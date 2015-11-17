@@ -7,7 +7,6 @@ from analysis_driver.dataset_scanner import RunDataset, SampleDataset
 from analysis_driver.exceptions import AnalysisDriverError
 from analysis_driver.app_logging import get_logger
 from analysis_driver.config import default as cfg  # imports the default config singleton
-# from analysis_driver.quality_control.genotype_validation import GenotypeValidation
 from analysis_driver.notification import default as ntf
 
 app_logger = get_logger('driver')
@@ -69,15 +68,32 @@ def demultiplexing_pipeline(input_run_folder):
         mem=2
     )
 
+    # md5sum
+    ntf.start_stage('md5sum')
+    md5sum_executor = executor.execute(
+        [writer.bash_commands.md5sum(fq) for fq in util.fastq_handler.find_all_fastqs(fastq_dir)],
+        job_name='md5sum',
+        run_id=run_id,
+        walltime=6,
+        cpus=1,
+        mem=2
+    )
+
     valid_lanes = clarity.get_valid_lanes(run_info.flowcell_name)
 
-    #TODO: calculate md5 sum on the cluster
     fastqc_exit_status = fastqc_executor.join()
     ntf.end_stage('fastqc', fastqc_exit_status)
-    exit_status += fastqc_exit_status
+    md5_exit_status = md5sum_executor.join()
+    ntf.end_stage('md5sum', fastqc_exit_status)
+
+
+
 
     #TODO: copy the stats file
-    exit_status += copy_fastq_to_output_dir(fastq_dir, run_id, sample_sheet, valid_lanes)
+    ntf.start_stage('data_transfer')
+    transfer_exit_status = copy_run_fastq_to_output_dir(fastq_dir, run_id, sample_sheet, valid_lanes)
+    ntf.end_stage('data_transfer', transfer_exit_status)
+    exit_status += transfer_exit_status + fastqc_exit_status + md5_exit_status
 
     if exit_status == 0:
         ntf.start_stage('cleanup')
@@ -85,13 +101,12 @@ def demultiplexing_pipeline(input_run_folder):
         ntf.end_stage('cleanup', exit_status)
 
 
-def copy_fastq_to_output_dir(fastq_dir, run_id, sample_sheet, valid_lanes):
+def copy_run_fastq_to_output_dir(fastq_dir, run_id, sample_sheet, valid_lanes):
     """Retrieve and copy the fastq files to the output directory"""
     output_dir = cfg['output_dir']
-    run_dir = os.path.join(output_dir, 'runs', run_id)
+    output_run_dir = os.path.join(output_dir, 'runs', run_id)
     files_to_transfer=[]
     for sample_project, proj_obj in sample_sheet.sample_projects.items():
-        project_dir = os.path.join(run_dir, sample_project)
         for sample_id, id_obj in proj_obj.sample_ids.items():
             fastq_files = []
             if valid_lanes:
@@ -107,15 +122,16 @@ def copy_fastq_to_output_dir(fastq_dir, run_id, sample_sheet, valid_lanes):
                 files_to_transfer.append(os.path.join(sample_project,sample_id,fastq_file))
     exit_status = 0
     for path in files_to_transfer:
-        out_dirname = os.path.join(run_dir, os.path.dirname(path))
+        out_dirname = os.path.join(output_run_dir, os.path.dirname(path))
         os.makedirs(out_dirname, exist_ok=True)
         in_path = os.path.join(fastq_dir, path)
-        out_path = os.path.join(run_dir, path)
+        out_path = os.path.join(output_run_dir, path)
         exit_status += util.transfer_output_file(
                         in_path,
                         out_path
                     )
     return exit_status
+
 def variant_calling_pipeline(input_sample_folder):
     """
     :param str input_run_folder: Full path to an input data directory
@@ -127,7 +143,8 @@ def variant_calling_pipeline(input_sample_folder):
     sample_dir = os.path.join(cfg['jobs_dir'], sample_id)
     app_logger.info('Job dir: ' + sample_dir)
 
-    #TODO: find fastq files that are valid base on the LIMS?
+    #TODO: make sure the fastq file will be there
+    fastq_files = os.path.glob(input_sample_folder,'*.fastq.gz')
 
     # merge fastq files
     ntf.start_stage('merge fastqs')
@@ -136,7 +153,7 @@ def variant_calling_pipeline(input_sample_folder):
     ntf.end_stage('merge fastqs')
 
     # fastqc2
-    ntf.start_stage('sample_fastqc2')
+    ntf.start_stage('sample_fastqc')
     fastqc2_executor = executor.execute(
         [writer.bash_commands.fastqc(fastq_pair) for fastq_pair in sample_fastq_files.values()],
         job_name='fastqc2',
@@ -173,10 +190,14 @@ def variant_calling_pipeline(input_sample_folder):
 
     # transfer output data
     ntf.start_stage('data_transfer')
-    transfer_exit_status = _output_data(sample_sheet, job_dir, cfg['output_dir'], cfg['output_files'])
+    transfer_exit_status = _output_data(project_id, sample_id, job_dir, cfg['output_dir'], cfg['output_files'])
     ntf.end_stage('data_transfer', transfer_exit_status)
     exit_status += transfer_exit_status
 
+    if exit_status == 0:
+        ntf.start_stage('cleanup')
+        exit_status += _cleanup(sample_id)
+        ntf.end_stage('cleanup', exit_status)
     return exit_status
 
 
@@ -260,60 +281,58 @@ def _run_bcbio(sample_id, sample_dir, sample_fastqs):
     return bcbio_executor
 
 
-def _output_data(sample_sheet, job_dir, output_dir, output_config, query_lims=True):
+def _output_data(project_id, sample_id, output_dir, output_config, query_lims=True):
     exit_status = 0
-    for name, sample_project in sample_sheet.sample_projects.items():
-        for sample_id in sample_project.sample_ids:
 
-            output_loc = os.path.join(output_dir, name, sample_id)
-            if not os.path.isdir(output_loc):
-                os.makedirs(output_loc)
+    output_loc = os.path.join(output_dir, project_id, sample_id)
+    if not os.path.isdir(output_loc):
+        os.makedirs(output_loc)
 
-            if query_lims:
-                user_sample_id = clarity.get_user_sample_name(sample_id)
-                if not user_sample_id:
-                    user_sample_id = sample_id
-            else:
-                user_sample_id = sample_id
+    if query_lims:
+        user_sample_id = clarity.get_user_sample_name(sample_id)
+        if not user_sample_id:
+            user_sample_id = sample_id
+    else:
+        user_sample_id = sample_id
 
-            for output_record in output_config:
-                src_pattern = os.path.join(
-                    job_dir,
-                    os.path.join(*output_record['location']),
-                    output_record['basename']
-                ).format(runfolder=sample_id, sample_id=user_sample_id)
+    for output_record in output_config:
+        src_pattern = os.path.join(
+            job_dir,
+            os.path.join(*output_record['location']),
+            output_record['basename']
+        ).format(runfolder=sample_id, sample_id=user_sample_id)
 
-                sources = glob(src_pattern)
-                if sources:
-                    source = sources[-1]
+        sources = glob(src_pattern)
+        if sources:
+            source = sources[-1]
 
-                    dest = os.path.join(
-                        output_loc,
-                        output_record.get('new_name', os.path.basename(source))
-                    ).format(sample_id=user_sample_id)
-                    exit_status += util.transfer_output_file(
-                        source,
-                        dest
-                    )
+            dest = os.path.join(
+                output_loc,
+                output_record.get('new_name', os.path.basename(source))
+            ).format(sample_id=user_sample_id)
+            exit_status += util.transfer_output_file(
+                source,
+                dest
+            )
 
-                else:
-                    app_logger.warning('No files found for pattern ' + src_pattern)
-                    exit_status += 1
+        else:
+            app_logger.warning('No files found for pattern ' + src_pattern)
+            exit_status += 1
 
-            with open(os.path.join(output_loc, 'run_config.yaml'), 'w') as f:
-                f.write(cfg.report())
+    with open(os.path.join(output_loc, 'run_config.yaml'), 'w') as f:
+        f.write(cfg.report())
 
     return exit_status
 
 
-def _cleanup(run_id):
+def _cleanup(dataset_name):
     exit_status = 0
 
-    job_dir = os.path.join(cfg['jobs_dir'], run_id)
+    job_dir = os.path.join(cfg['jobs_dir'], dataset_name)
     cleanup_targets = [job_dir]
     intermediates_dir = cfg.get('intermediate_dir')
     if intermediates_dir:
-        cleanup_targets.append(os.path.join(intermediates_dir, run_id))
+        cleanup_targets.append(os.path.join(intermediates_dir, dataset_name))
 
     for t in cleanup_targets:
         app_logger.info('Cleaning up ' + t)
