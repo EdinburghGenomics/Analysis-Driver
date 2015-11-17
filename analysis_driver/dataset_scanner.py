@@ -68,6 +68,7 @@ class Dataset:
     __repr__ = __str__
 
 class RunDataset(Dataset):
+    type = 'run'
     @property
     def dataset_status(self):
         dataset_lock_files = glob(self._lock_file('*'))
@@ -88,6 +89,7 @@ class RunDataset(Dataset):
         return os.path.isfile(os.path.join(self.path, 'RTAComplete.txt'))
 
 class SampleDataset(Dataset):
+    type = 'sample'
     @property
     def dataset_status(self):
         dataset_lock_files = glob(self._lock_file('*'))

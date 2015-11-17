@@ -5,17 +5,17 @@ from analysis_driver.config import logging_default as log_cfg
 
 
 class LogNotification(Notification):
-    def __init__(self, run_id, log_file):
-        super().__init__(run_id)
+    def __init__(self, dataset, log_file):
+        super().__init__(dataset)
         self.handler = logging.FileHandler(filename=log_file, mode='a')
         self.formatter = logging.Formatter(
-            fmt='[%(asctime)s][' + self.run_id + '] %(message)s',
+            fmt='[%(asctime)s][' + self.dataset.name + '] %(message)s',
             datefmt='%Y-%b-%d %H:%M:%S'
         )
         self.handler.setFormatter(self.formatter)
         self.handler.setLevel(log_cfg.log_level)
         # this class will log to the usual places in the usual format, as well as a notification log file in
-        # the format '[<date> <time>][run_id] msg'
+        # the format '[<date> <time>][dataset name] msg'
 
     def start_pipeline(self):
         self.info('Started pipeline')

@@ -190,7 +190,7 @@ def variant_calling_pipeline(input_sample_folder):
 
     # transfer output data
     ntf.start_stage('data_transfer')
-    transfer_exit_status = _output_data(project_id, sample_id, job_dir, cfg['output_dir'], cfg['output_files'])
+    transfer_exit_status = _output_data(project_id, sample_id, sample_dir, cfg['output_dir'], cfg['output_files'])
     ntf.end_stage('data_transfer', transfer_exit_status)
     exit_status += transfer_exit_status
 
@@ -281,7 +281,7 @@ def _run_bcbio(sample_id, sample_dir, sample_fastqs):
     return bcbio_executor
 
 
-def _output_data(project_id, sample_id, output_dir, output_config, query_lims=True):
+def _output_data(project_id, sample_id, intput_dir, output_dir, output_config, query_lims=True):
     exit_status = 0
 
     output_loc = os.path.join(output_dir, project_id, sample_id)
@@ -297,7 +297,7 @@ def _output_data(project_id, sample_id, output_dir, output_config, query_lims=Tr
 
     for output_record in output_config:
         src_pattern = os.path.join(
-            job_dir,
+            intput_dir  ,
             os.path.join(*output_record['location']),
             output_record['basename']
         ).format(runfolder=sample_id, sample_id=user_sample_id)

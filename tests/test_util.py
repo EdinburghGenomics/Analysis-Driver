@@ -88,9 +88,9 @@ def test_output_data():
         {'location': ['fastq', 'Stats'], 'basename': 'ConversionStats.xml'}
     ]
 
-    sample_sheet = SampleSheet(helper.assets_path)
     exit_status = _output_data(
-        sample_sheet,
+        sample_project,
+        sample_id,
         helper.data_output,
         os.path.join(helper.data_output, 'output_data'),
         records,

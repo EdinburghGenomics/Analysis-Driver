@@ -1,3 +1,6 @@
+import os
+from analysis_driver.dataset_scanner import RunDataset
+
 __author__ = 'tcezard'
 import pytest
 import sys
@@ -15,10 +18,16 @@ if not sys.argv:
 
 class TestNotificationCenter(TestAnalysisDriver):
     def setUp(self):
+        base_dir = os.path.join(self.assets_path, 'dataset_scanner')
+        dataset = RunDataset(
+            name='test_run_id',
+            path=os.path.join(base_dir,'that'),
+            lock_file_dir=base_dir
+        )
         self.notification_center = NotificationCenter()
         self.notification_center.add_subscribers(
-            (LogNotification, 'test_run_id', cfg.query('notification', 'log_notification')),
-            (TestEmailNotification, 'test_run_id', cfg.query('notification', 'email_notification'))
+            (LogNotification, dataset, cfg.query('notification', 'log_notification')),
+            (TestEmailNotification, dataset, cfg.query('notification', 'email_notification'))
         )
 
         email_config = {
@@ -32,7 +41,7 @@ class TestNotificationCenter(TestAnalysisDriver):
             email_config = cfg.query('notification', 'email_notification')
         
         print(self.notification_center.subscribers)
-        self.email_notification = TestEmailNotification('test_run', email_config)
+        self.email_notification = TestEmailNotification(dataset, email_config)
         if cfg.query('notification', 'email_notification'):
             cfg.content['notification']['email_notification']['strict'] = True
 
