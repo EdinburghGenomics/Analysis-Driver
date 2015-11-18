@@ -44,17 +44,6 @@ def transfer_output_file(source, dest):
         app_logger.debug('Found file. Transferring.')
         shutil.copyfile(source, dest)
 
-        app_logger.debug('Generating md5 checksum')
-        md5 = hashlib.md5()
-        with open(dest, 'rb') as f:
-            chunk = f.read(8192)
-            while chunk:
-                md5.update(chunk)
-                chunk = f.read(8192)
-
-        with open(dest + '.md5', 'w') as md5_f:
-            md5_f.write(md5.hexdigest())
-
         app_logger.debug('Done')
         return 0
     else:

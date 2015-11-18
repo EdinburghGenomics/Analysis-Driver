@@ -92,7 +92,7 @@ def demultiplexing_pipeline(input_run_folder):
 
     #TODO: copy the stats file
     ntf.start_stage('data_transfer')
-    transfer_exit_status = copy_run_fastq_to_output_dir(fastq_dir, run_id, sample_sheet, valid_lanes)
+    transfer_exit_status = copy_run_to_output_dir(fastq_dir, run_id, sample_sheet, valid_lanes)
     ntf.end_stage('data_transfer', transfer_exit_status)
     exit_status += transfer_exit_status + fastqc_exit_status + md5_exit_status
 
@@ -102,36 +102,13 @@ def demultiplexing_pipeline(input_run_folder):
         ntf.end_stage('cleanup', exit_status)
 
 
-def copy_run_fastq_to_output_dir(fastq_dir, run_id, sample_sheet, valid_lanes):
+def copy_run_to_output_dir(fastq_dir, run_id):
     """Retrieve and copy the fastq files to the output directory"""
     output_dir = cfg['output_dir']
     output_run_dir = os.path.join(output_dir, 'runs', run_id)
-    files_to_transfer=[]
-    for sample_project, proj_obj in sample_sheet.sample_projects.items():
-        for sample_id, id_obj in proj_obj.sample_ids.items():
-            fastq_files = []
-            if valid_lanes:
-                # only retrieve the lanes that are considered valid
-                for lane in valid_lanes:
-                    fastq_files.extend(
-                        util.fastq_handler.find_fastqs(fastq_dir, sample_project, sample_id, lane)
-                    )
-            else:
-                # no information about valid lanes: don't filter anything
-                fastq_files.extend(util.fastq_handler.find_fastqs(fastq_dir, sample_project, sample_id))
-            for fastq_file in fastq_files:
-                files_to_transfer.append(os.path.join(sample_project,sample_id,fastq_file))
-    exit_status = 0
-    for path in files_to_transfer:
-        out_dirname = os.path.join(output_run_dir, os.path.dirname(path))
-        os.makedirs(out_dirname, exist_ok=True)
-        in_path = os.path.join(fastq_dir, path)
-        out_path = os.path.join(output_run_dir, path)
-        exit_status += util.transfer_output_file(
-                        in_path,
-                        out_path
-                    )
-    return exit_status
+    command = 'rsync  -aq --size-only --append-verify %s/* %s'%(fastq_dir, output_run_dir)
+    return executor.execute([command], job_name='final_copy', run_id=run_id, walltime=36).join()
+
 
 def variant_calling_pipeline(input_sample_folder):
     """
@@ -191,6 +168,8 @@ def variant_calling_pipeline(input_sample_folder):
 
     # transfer output data
     ntf.start_stage('data_transfer')
+    #TODO: implement qury to LIMS to get project of a sample
+    project_id = clarity.get_project_id(sample_id)
     transfer_exit_status = _output_data(project_id, sample_id, sample_dir, cfg['output_dir'], cfg['output_files'])
     ntf.end_stage('data_transfer', transfer_exit_status)
     exit_status += transfer_exit_status
