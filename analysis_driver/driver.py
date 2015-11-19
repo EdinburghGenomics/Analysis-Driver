@@ -77,7 +77,7 @@ def demultiplexing_pipeline(input_run_folder):
         walltime=6,
         cpus=1,
         mem=2,
-        log = False
+        log_command = False
     )
 
     valid_lanes = clarity.get_valid_lanes(run_info.flowcell_name)
