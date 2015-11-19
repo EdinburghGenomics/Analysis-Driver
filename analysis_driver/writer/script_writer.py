@@ -24,7 +24,8 @@ class ScriptWriter(AppLogger):
             self.log_file=None
         self.queue = cfg['job_queue']
         self.info('Writing: ' + self.script_name)
-        self.info('Log file: ' + self.log_file)
+        if self.log_file:
+            self.info('Log file: ' + self.log_file)
         self.lines = []
         self.job_total = jobs
         self.jobs_written = 0
