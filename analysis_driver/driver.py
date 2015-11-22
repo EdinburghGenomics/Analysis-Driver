@@ -8,6 +8,7 @@ from analysis_driver.exceptions import AnalysisDriverError
 from analysis_driver.app_logging import get_logger
 from analysis_driver.config import default as cfg  # imports the default config singleton
 from analysis_driver.notification import default as ntf
+from analysis_driver.report_generation.demultiplexing_report import DemultiplexingCrawler
 
 app_logger = get_logger('driver')
 
@@ -82,17 +83,24 @@ def demultiplexing_pipeline(input_run_folder):
 
     valid_lanes = clarity.get_valid_lanes(run_info.flowcell_name)
 
+
     fastqc_exit_status = fastqc_executor.join()
     ntf.end_stage('fastqc', fastqc_exit_status)
     md5_exit_status = md5sum_executor.join()
     ntf.end_stage('md5sum', fastqc_exit_status)
 
+    #TODO: copy the Samplesheet Runinfo.xml run_parameters.xml
+    #TODO: reads stats and output json
+    #Find conversion xml file
+    conversion_xml = os.path.join(fastq_dir, '/Stats','ConversionStats.xml')
+    if os.path.exists(conversion_xml):
+        crawler = DemultiplexingCrawler(run_id, sample_sheet, conversion_xml)
+        json_file = os.path.join(job_dir, 'demultiplexing_results.json')
+        crawler.write_json(json_file)
+        crawler.send_data()
 
-
-
-    #TODO: copy the stats file
     ntf.start_stage('data_transfer')
-    transfer_exit_status = copy_run_to_output_dir(fastq_dir, run_id, sample_sheet, valid_lanes)
+    transfer_exit_status = copy_run_to_output_dir(fastq_dir, run_id)
     ntf.end_stage('data_transfer', transfer_exit_status)
     exit_status += transfer_exit_status + fastqc_exit_status + md5_exit_status
 
@@ -100,7 +108,7 @@ def demultiplexing_pipeline(input_run_folder):
         ntf.start_stage('cleanup')
         exit_status += _cleanup(run_id)
         ntf.end_stage('cleanup', exit_status)
-
+    return exit_status
 
 def copy_run_to_output_dir(fastq_dir, run_id):
     """Retrieve and copy the fastq files to the output directory"""
@@ -168,7 +176,7 @@ def variant_calling_pipeline(input_sample_folder):
 
     # transfer output data
     ntf.start_stage('data_transfer')
-    #TODO: implement qury to LIMS to get project of a sample
+    #TODO: implement query to LIMS to get project of a sample
     project_id = clarity.get_project_id(sample_id)
     transfer_exit_status = _output_data(project_id, sample_id, sample_dir, cfg['output_dir'], cfg['output_files'])
     ntf.end_stage('data_transfer', transfer_exit_status)
