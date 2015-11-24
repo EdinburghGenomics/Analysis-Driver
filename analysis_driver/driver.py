@@ -8,23 +8,34 @@ from analysis_driver.exceptions import AnalysisDriverError
 from analysis_driver.app_logging import get_logger
 from analysis_driver.config import default as cfg  # imports the default config singleton
 from analysis_driver.notification import default as ntf
-from analysis_driver.report_generation.demultiplexing_report import DemultiplexingCrawler
+from analysis_driver.report_generation.demultiplexing_report import RunCrawler
+from analysis_driver.prepare_data import prepare_run_data, prepare_sample_data
 
 app_logger = get_logger('driver')
 
 def pipeline(dataset_dir, dataset):
+    dataset.start()
     if isinstance(dataset, RunDataset):
-        return demultiplexing_pipeline(os.path.join(dataset_dir, dataset.name))
+        exit_status = demultiplexing_pipeline(dataset)
     elif isinstance(dataset, SampleDataset):
-        return variant_calling_pipeline(os.path.join(dataset_dir, dataset.name))
+        exit_status = variant_calling_pipeline(dataset)
 
-def demultiplexing_pipeline(input_run_folder):
+    if exit_status != 0:
+        dataset.fail()
+    else:
+        dataset.succeed()
+
+def demultiplexing_pipeline(dataset):
     """
     :param str input_run_folder: Full path to an input data directory
     :return: Exit status
     :rtype: int
     """
     exit_status = 0
+    ntf.start_stage('transfer')
+    input_run_folder = prepare_run_data(dataset)
+    ntf.end_stage('transfer')
+
     run_id = os.path.basename(input_run_folder)
     job_dir = os.path.join(cfg['jobs_dir'], run_id)
     fastq_dir = os.path.join(job_dir, 'fastq')
@@ -42,6 +53,9 @@ def demultiplexing_pipeline(input_run_folder):
 
     mask = sample_sheet.generate_mask(run_info.mask)
     app_logger.info('bcl2fastq mask: ' + mask)  # e.g: mask = 'y150n,i6,y150n'
+    #Send the information about the run to the rest API
+    crawler = RunCrawler(run_id, sample_sheet)
+    crawler.send_data()
     ntf.end_stage('setup')
 
     # bcl2fastq
@@ -89,15 +103,19 @@ def demultiplexing_pipeline(input_run_folder):
     md5_exit_status = md5sum_executor.join()
     ntf.end_stage('md5sum', fastqc_exit_status)
 
-    #TODO: copy the Samplesheet Runinfo.xml run_parameters.xml
-    #TODO: reads stats and output json
-    #Find conversion xml file
+    #copy the Samplesheet Runinfo.xml run_parameters.xml to the fastq dir
+    for f in ['Samplesheet.csv', 'SampleSheet_analysis_driver.csv', 'runParameters.xml', 'RunInfo.xml']:
+        shutil.copy(os.path.join(input_run_folder,f), os.path.join(fastq_dir, f))
+
+    #Find conversion xml file and send the results to the rest API
     conversion_xml = os.path.join(fastq_dir, '/Stats','ConversionStats.xml')
     if os.path.exists(conversion_xml):
-        crawler = DemultiplexingCrawler(run_id, sample_sheet, conversion_xml)
+        crawler = RunCrawler(run_id, sample_sheet, conversion_xml)
         json_file = os.path.join(job_dir, 'demultiplexing_results.json')
         crawler.write_json(json_file)
+        crawler.write_json_per_sample(os.path.join(cfg['output_dir'],'samples'))
         crawler.send_data()
+
 
     ntf.start_stage('data_transfer')
     transfer_exit_status = copy_run_to_output_dir(fastq_dir, run_id)
@@ -118,19 +136,20 @@ def copy_run_to_output_dir(fastq_dir, run_id):
     return executor.execute([command], job_name='final_copy', run_id=run_id, walltime=36).join()
 
 
-def variant_calling_pipeline(input_sample_folder):
+def variant_calling_pipeline(dataset):
     """
     :param str input_run_folder: Full path to an input data directory
     :return: Exit status
     :rtype: int
     """
     exit_status = 0
-    sample_id = os.path.basename(input_sample_folder)
+
+    fastq_files = prepare_sample_data(dataset)
+
+
+    sample_id = dataset.name
     sample_dir = os.path.join(cfg['jobs_dir'], sample_id)
     app_logger.info('Job dir: ' + sample_dir)
-
-    #TODO: make sure the fastq file will be there
-    fastq_files = os.path.glob(input_sample_folder,'*.fastq.gz')
 
     # merge fastq files
     ntf.start_stage('merge fastqs')

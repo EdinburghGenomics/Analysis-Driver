@@ -1,5 +1,3 @@
-from analysis_driver.dataset_scanner import SampleScanner, DATASET_READY, DATASET_NEW
-
 __author__ = 'mwham'
 import argparse
 import logging
@@ -9,6 +7,7 @@ from analysis_driver.app_logging import get_logger
 from analysis_driver.config import default as cfg, logging_default as log_cfg
 from analysis_driver.notification import default as ntf, LogNotification, EmailNotification
 from analysis_driver.exceptions import AnalysisDriverError
+from analysis_driver.dataset_scanner import SampleScanner, DATASET_READY, DATASET_NEW, RunScanner
 
 
 def main():
@@ -35,7 +34,6 @@ def main():
                 raise AnalysisDriverError('Invalid logging configuration: %s %s' % name, str(config))
             log_cfg.add_handler(name, handler)
 
-    from analysis_driver.dataset_scanner import RunScanner
     if args.run:
         scanner = RunScanner(cfg)
     elif args.sample:
@@ -120,9 +118,9 @@ def _process_dataset(d):
         #TODO: launch a pipeline directly which includes the process trigger step instead of launching the process trigger which launch the pipeline
         # Only process the first new dataset found. Run through Cron, this will result
         # in one new pipeline being kicked off per minute.
-        from analysis_driver import process_trigger as proctrigger
+        from analysis_driver import driver
         ntf.start_pipeline()
-        exit_status = proctrigger.trigger(d)
+        exit_status = driver.pipeline(d)
         app_logger.info('Done')
 
     except Exception:

@@ -117,6 +117,90 @@ class DatasetScanner():
         self.input_dir = cfg.get('input_dir')
 
     def scan_datasets(self, dataset_class=Dataset):
+        raise NotImplementedError()
+
+    def report(self, all_datasets=False):
+        datasets = self.scan_datasets()
+        out = []
+        out.append('dataset location: ' + self.input_dir)
+        for status in STATUS_VISIBLE:
+            ds = datasets.pop(status, [])
+            if ds:
+                out.append('=== ' + status + ' ===')
+                out.append('\n'.join((d.name for d in ds)))
+
+        if any((datasets[s] for s in datasets)):
+            if all_datasets:
+                for status in sorted(datasets):
+                    out.append('=== ' + status + ' ===')
+                    out.append('\n'.join((d.name for d in datasets[status])))
+            else:
+                out.append('=== other datasets ===')
+                out.append('\n'.join(('other datasets present', 'use --report-all to show')))
+
+        out.append('_' * 42)
+        return out
+
+    def get(self, dataset_name, dataset_class):
+        directory = glob(os.path.join(self.input_dir, dataset_name))
+        if directory:
+            directory = directory[0]
+            d = dataset_class(name=os.path.basename(directory),
+                        path=directory,
+                        lock_file_dir=self.lock_file_dir)
+            return d
+        return None
+
+class RunScanner(DatasetScanner):
+
+    def __init__(self, cfg):
+        super().__init__(cfg)
+
+
+    def report(self, all_datasets=False):
+        out = ['========= Run Scanner report =========']
+        out.extend(super().report(all_datasets=all_datasets))
+        print('\n'.join(out))
+
+    def scan_datasets(self):
+        triggerignore = os.path.join(self.lock_file_dir, '.triggerignore')
+
+        ignorables = []
+        if os.path.isfile(triggerignore):
+            with open(triggerignore, 'r') as f:
+                for p in f.readlines():
+                    if not p.startswith('#'):
+                        ignorables.extend(glob(os.path.join(self.input_dir, p.rstrip('\n'))))
+        app_logger.debug('Ignoring %s datasets' % len(ignorables))
+
+        n_datasets = 0
+        datasets = defaultdict(list)
+        for directory in glob(os.path.join(self.input_dir, '*')):
+            d = RunDataset(
+                name=os.path.basename(directory),
+                path=directory,
+                lock_file_dir=self.lock_file_dir
+            )
+            if os.path.isdir(directory) and directory not in ignorables:
+                datasets[d.dataset_status].append(d)
+                n_datasets += 1
+        app_logger.debug('Found %s datasets' % n_datasets)
+        return datasets
+
+    def get(self, dataset_name):
+        return super().get(dataset_name, RunDataset)
+
+class SampleScanner(DatasetScanner):
+
+    def __init__(self, cfg):
+        super().__init__(cfg)
+
+    def report(self, all_datasets=False):
+        out = ['========= Sample Scanner report =========']
+        out.extend(super().report(all_datasets=all_datasets))
+        print('\n'.join(out))
+
+    def scan_datasets(self, dataset_class=Dataset):
         triggerignore = os.path.join(self.lock_file_dir, '.triggerignore')
 
         ignorables = []
@@ -140,79 +224,3 @@ class DatasetScanner():
                 n_datasets += 1
         app_logger.debug('Found %s datasets' % n_datasets)
         return datasets
-
-    def get(self, dataset_name, dataset_class):
-        directory = glob(os.path.join(self.input_dir, dataset_name))
-        if directory:
-            directory = directory[0]
-            d = dataset_class(name=os.path.basename(directory),
-                        path=directory,
-                        lock_file_dir=self.lock_file_dir)
-            return d
-        return None
-
-class RunScanner(DatasetScanner):
-
-    def __init__(self, cfg):
-        super().__init__(cfg)
-
-
-    def report(self, all_datasets=False):
-        datasets = self.scan_datasets()
-        out = []
-        out.append('========= Run Scanner report =========')
-        out.append('dataset location: ' + self.input_dir)
-        for status in STATUS_VISIBLE:
-            ds = datasets.pop(status, [])
-            if ds:
-                out.append('=== ' + status + ' ===')
-                out.append('\n'.join((d.name for d in ds)))
-
-        if any((datasets[s] for s in datasets)):
-            if all_datasets:
-                for status in sorted(datasets):
-                    out.append('=== ' + status + ' ===')
-                    out.append('\n'.join((d.name for d in datasets[status])))
-            else:
-                out.append('=== other datasets ===')
-                out.append('\n'.join(('other datasets present', 'use --report-all to show')))
-
-        out.append('_' * 42)
-        print('\n'.join(out))
-
-    def scan_datasets(self):
-        return super().scan_datasets(RunDataset)
-
-    def get(self, dataset_name):
-        return super().get(dataset_name, RunDataset)
-
-class SampleScanner(DatasetScanner):
-
-    def __init__(self, cfg):
-        super().__init__(cfg)
-
-
-    def report(self, all_datasets=False):
-        datasets = self.scan_datasets()
-        out = []
-        out.append('========= Sample Scanner report =========')
-        out.append('dataset location: ' + self.input_dir)
-        for status in ('new', 'new, rta complete', 'transferring', 'transferring, rta complete', 'active'):
-            ds = datasets.pop(status, [])
-            if ds:
-                out.append('=== ' + status + ' ===')
-                out.append('\n'.join((d.name for d in ds)))
-
-        if any((datasets[s] for s in datasets)):
-            if all_datasets:
-                for status in sorted(datasets):
-                    out.append('=== ' + status + ' ===')
-                    out.append('\n'.join((d.name for d in datasets[status])))
-            else:
-                out.append('=== other datasets ===')
-                out.append('\n'.join(('other datasets present', 'use --report-all to show')))
-
-        out.append('_' * 42)
-
-    def scan_datasets(self):
-        return super().scan_datasets(SampleDataset)

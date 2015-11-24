@@ -1,7 +1,6 @@
 from urllib.parse import urljoin
 import requests
 from pprint import pprint
-from report_generation.model import ALL_PIECES, Info
 
 
 def get_documents(url, **kwargs):
@@ -46,14 +45,3 @@ def patch_entry(url, payload, **kwargs):
         print('PATCH', r.status_code, r.reason, url)
         return False
     return True
-
-def json_to_info(json):
-    key_to_piece = {}
-    for piece in ALL_PIECES:
-        key_to_piece[piece.key] = piece
-    info = Info()
-
-    for key in json:
-        if key in key_to_piece:
-            info[key_to_piece.get(key)]=json.get(key)
-    return info

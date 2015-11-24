@@ -1,3 +1,5 @@
+from analysis_driver.util.fastq_handler import find_fastqs
+
 __author__ = 'mwham'
 import os
 from time import sleep
@@ -5,21 +7,21 @@ from analysis_driver.dataset_scanner import DATASET_READY, DATASET_NEW
 from analysis_driver import executor
 from analysis_driver.app_logging import get_logger
 from analysis_driver.config import default as cfg
-
-
+from analysis_driver.clarity import find_project_from_sample
+from analysis_driver.clarity import find_run_elements_from_sample
 app_logger = get_logger('proctrigger')
 
 
-def trigger(dataset):
+def prepare_run_data(dataset):
     """
     Decide whether to rsync a dataset to an intermediate dir and run driver.pipeline on it.
-    :param str dataset: A dataset id
+    :param Dataset dataset: A dataset object
     """
     status = dataset.dataset_status
-
+    exit_status = 0
     if cfg.get('intermediate_dir'):
         assert status in [DATASET_NEW, DATASET_READY], 'Invalid dataset status: ' + status
-        _transfer_to_int_dir(
+        exit_status = _transfer_to_int_dir(
             dataset,
             cfg['input_dir'],
             cfg['intermediate_dir'],
@@ -30,17 +32,7 @@ def trigger(dataset):
         assert status in [DATASET_READY], 'Invalid dataset status: ' + status
         dataset_dir = cfg['input_dir']
 
-    dataset.start()
-
-    from analysis_driver import driver
-    exit_status = driver.pipeline(dataset_dir, dataset)
-
-    if exit_status != 0:
-        dataset.fail()
-    else:
-        dataset.succeed()
-
-    return exit_status
+    return dataset_dir
 
 
 def _transfer_to_int_dir(dataset, from_dir, to_dir, repeat_delay):
@@ -55,10 +47,32 @@ def _transfer_to_int_dir(dataset, from_dir, to_dir, repeat_delay):
         exit_status += executor.execute([rsync_cmd], job_name='rsync', run_id=dataset.name, walltime=36).join()
         sleep(repeat_delay)
 
-
-
     # one more rsync after the RTAComplete is created. After this, everything should be synced
     sleep(repeat_delay)
     exit_status += executor.execute([rsync_cmd], job_name='rsync', run_id=dataset.name, walltime=36).join()
     assert os.path.isfile(os.path.join(dataset.path, 'RTAComplete.txt'))
     app_logger.info('Transfer complete with exit status ' + str(exit_status))
+    return exit_status
+
+def find_run_location(run_id):
+    fastq_dir = os.path.join(cfg['job_dir'], run_id, 'fastq')
+    if not os.path.isdir(fastq_dir):
+        fastq_dir = os.path.join(cfg['output_dir'], 'runs', run_id, 'fastq')
+    if not os.path.isdir(fastq_dir):
+        return None
+    return fastq_dir
+
+def prepare_sample_data(dataset):
+    """
+    Decide whether to rsync the fastq files to an intermediate dir just find them.
+    :param Dataset dataset: A dataset object
+    """
+    status = dataset.dataset_status
+    exit_status = 0
+    all_fastqs = []
+    project_name = find_project_from_sample(dataset.name)
+    for run, lane, barcode in find_run_elements_from_sample(dataset.name):
+        run_location = find_run_location(run)
+        all_fastqs.extend(find_fastqs(run_location, project_name, dataset.name, lane))
+
+    return all_fastqs

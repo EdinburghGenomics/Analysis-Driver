@@ -4,7 +4,7 @@ __author__ = 'mwham'
 import os
 import shutil
 from tests.test_analysisdriver import TestAnalysisDriver
-from analysis_driver import process_trigger
+from analysis_driver import prepare_data
 from analysis_driver.dataset_scanner import RunDataset
 
 
@@ -34,7 +34,7 @@ class TestProcessTrigger(TestAnalysisDriver):
     def test_transfer(self):
         print(os.getcwd())
         print(os.path.exists("tests/assets/data_transfer/from/"))
-        process_trigger._transfer_to_int_dir(self.dataset, self.from_dir, self.to_dir, 1)
+        prepare_data._transfer_to_int_dir(self.dataset, self.from_dir, self.to_dir, 1)
 
         new_dataset = os.path.join(self.to_dir, self.dataset.name)
         observed = os.listdir(new_dataset)

@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 from collections import Counter, defaultdict
 import json
+import os
 from analysis_driver.reader.demultiplexing_parsers import parse_conversion_stats
 from analysis_driver.report_generation.rest_communication import post_entry, patch_entry
 from analysis_driver.config import default as cfg
@@ -37,9 +38,9 @@ ELEMENT_PC_BASES_CALLABLE = 'pc_callable'
 ELEMENT_MEAN_COVERAGE = 'Mean coverage'
 ELEMENT_RUN_ELEMENTS = 'run_elements'
 
-class DemultiplexingCrawler:
+class RunCrawler:
 
-    def __init__(self, run_id, samplesheet, conversion_xml_file):
+    def __init__(self, run_id, samplesheet, conversion_xml_file=None):
         self.run_id = run_id
         self._populate_barcode_info_from_SampleSheet(samplesheet)
         if conversion_xml_file:
@@ -117,31 +118,45 @@ class DemultiplexingCrawler:
         with open(json_file, 'w') as open_file:
             json.dump(payload, open_file)
 
+    def write_json_per_sample(self, sample_dir):
+        self.libraries.values()
+        for library in self.libraries:
+            file_name = os.path.join(sample_dir,self.libraries[library][ELEMENT_SAMPLE_INTERNAL_ID])
+            if os.path.exists(file_name):
+                with open(file_name) as open_file:
+                    payload = json.load(open_file)
+            else:
+                payload = {}
+            for run_element_id in self.libraries[library][ELEMENT_RUN_ELEMENTS]:
+                payload[run_element_id] = self.barcodes_info[run_element_id][ELEMENT_NB_READS_SEQUENCED]
+            with open(file_name, '') as open_file:
+                json.dump(payload, open_file)
 
     def send_data(self):
         #Send run elements
-        array_json = self.barcodes_info.values()
-        url=cfg.query('rest_api','url') + 'run_elements/'
-        for payload in array_json:
-            if not post_entry(url, payload):
-                id = payload.pop(ELEMENT_RUN_ELEMENT_ID)
-                patch_entry(url, payload, **{ELEMENT_RUN_ELEMENT_ID:id})
+        if cfg['rest_api']:
+            array_json = self.barcodes_info.values()
+            url=cfg.query('rest_api','url') + 'run_elements/'
+            for payload in array_json:
+                if not post_entry(url, payload):
+                    id = payload.pop(ELEMENT_RUN_ELEMENT_ID)
+                    patch_entry(url, payload, **{ELEMENT_RUN_ELEMENT_ID:id})
 
-        #Send unexpected barcodes
-        array_json = self.unexpected_barcode_info.values()
-        url=cfg.query('rest_api','url') + 'unexpected_barcodes/'
-        for payload in array_json:
-            if not post_entry(url, payload):
-                id = payload.pop(ELEMENT_RUN_ELEMENT_ID.key)
-                patch_entry(url, payload, **{ELEMENT_RUN_ELEMENT_ID.key:id})
+            #Send unexpected barcodes
+            array_json = self.unexpected_barcode_info.values()
+            url=cfg.query('rest_api','url') + 'unexpected_barcodes/'
+            for payload in array_json:
+                if not post_entry(url, payload):
+                    id = payload.pop(ELEMENT_RUN_ELEMENT_ID.key)
+                    patch_entry(url, payload, **{ELEMENT_RUN_ELEMENT_ID.key:id})
 
-        #Send samples information
-        array_json = self.libraries.values()
-        url=cfg.query('rest_api','url') + 'samples/'
-        for payload in array_json:
-            lib_id = {ELEMENT_LIBRARY_INTERNAL_ID:payload.get(ELEMENT_LIBRARY_INTERNAL_ID)}
-            if not post_entry(url, payload):
-                patch_entry(url, payload, **lib_id)
+            #Send samples information
+            array_json = self.libraries.values()
+            url=cfg.query('rest_api','url') + 'samples/'
+            for payload in array_json:
+                lib_id = {ELEMENT_LIBRARY_INTERNAL_ID:payload.get(ELEMENT_LIBRARY_INTERNAL_ID)}
+                if not post_entry(url, payload):
+                    patch_entry(url, payload, **lib_id)
 
 
 
