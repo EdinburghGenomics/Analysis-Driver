@@ -4,7 +4,7 @@ import logging
 import os
 import sys
 from analysis_driver.app_logging import get_logger
-from analysis_driver.config import default as cfg, logging_default as log_cfg
+from analysis_driver.config import default as cfg, logging_default as log_cfg, Configuration
 from analysis_driver.notification import default as ntf, LogNotification, EmailNotification
 from analysis_driver.exceptions import AnalysisDriverError
 from analysis_driver.dataset_scanner import SampleScanner, DATASET_READY, DATASET_NEW, RunScanner
@@ -35,8 +35,12 @@ def main():
             log_cfg.add_handler(name, handler)
 
     if args.run:
+        if 'run' in cfg:
+            cfg.merge(cfg['run'])
         scanner = RunScanner(cfg)
     elif args.sample:
+        if 'sample' in cfg:
+            cfg.merge(cfg['sample'])
         scanner = SampleScanner(cfg)
 
     if args.abort or args.skip or args.reset or args.report or args.report_all:

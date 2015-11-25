@@ -96,12 +96,24 @@ class Configuration:
             else:
                 yield k, override_dict[k]
 
+    def merge(self,override_dict):
+        """
+        Merge the provided dict with the config content potententially overiding existing parameters
+        """
+        self.content = dict(self._merge_dicts(self.content, override_dict))
+
+
     def __getitem__(self, item):
         """
         Allow dict-style access, e.g. config['this'] or config['this']['that']
         """
         return self.content[item]
 
+    def __contains__(self, item):
+        """
+        Allow search in the first layer of the config with "in" operator
+        """
+        return self.content.__contains__(item)
 
 class LoggingConfiguration:
     """

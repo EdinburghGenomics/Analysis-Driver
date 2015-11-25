@@ -32,7 +32,7 @@ def prepare_run_data(dataset):
         assert status in [DATASET_READY], 'Invalid dataset status: ' + status
         dataset_dir = cfg['input_dir']
 
-    return dataset_dir
+    return os.path.join(dataset_dir, dataset.name)
 
 
 def _transfer_to_int_dir(dataset, from_dir, to_dir, repeat_delay):
@@ -71,8 +71,8 @@ def prepare_sample_data(dataset):
     exit_status = 0
     all_fastqs = []
     project_name = find_project_from_sample(dataset.name)
-    for run, lane, barcode in find_run_elements_from_sample(dataset.name):
-        run_location = find_run_location(run)
-        all_fastqs.extend(find_fastqs(run_location, project_name, dataset.name, lane))
+    for run_element in dataset.run_elements:
+        run_location = find_run_location(run_element.get('run'))
+        all_fastqs.extend(find_fastqs(run_location, project_name, dataset.name, run_element.get('lane')))
 
     return all_fastqs

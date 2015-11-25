@@ -97,8 +97,10 @@ class RunCrawler:
             barcode_info[ELEMENT_NB_Q30_R2]=int(nb_bases_r2q30)
         for run_element_id in self.barcodes_info:
             run_element = self.barcodes_info[run_element_id]
-            run_element[ELEMENT_PC_READ_IN_LANE] = run_element[ELEMENT_NB_READS_PASS_FILTER]  / \
-                                                          nb_read_per_lane.get(run_element[ELEMENT_LANE])
+            if nb_read_per_lane.get(run_element[ELEMENT_LANE]) > 0 :
+                run_element[ELEMENT_PC_READ_IN_LANE] = run_element[ELEMENT_NB_READS_PASS_FILTER] / nb_read_per_lane.get(run_element[ELEMENT_LANE])
+            else:
+                run_element[ELEMENT_PC_READ_IN_LANE] = ''
 
         for lane, barcode, clust_count in top_unknown_barcodes_per_lanes:
             barcode_info = {}
@@ -111,12 +113,12 @@ class RunCrawler:
 
     def write_json(self, json_file):
         payload ={
-            'demultiplexing' : self.barcodes_info.values(),
-            'unexpected_barcodes' : self.unexpected_barcode_info.values(),
-            'libraries' : self.libraries.values()
+            'demultiplexing' : list(self.barcodes_info.values()),
+            'unexpected_barcodes' : list(self.unexpected_barcode_info.values()),
+            'libraries' : list(self.libraries.values())
         }
         with open(json_file, 'w') as open_file:
-            json.dump(payload, open_file)
+            json.dump(payload, open_file, indent=4)
 
     def write_json_per_sample(self, sample_dir):
         self.libraries.values()
@@ -128,13 +130,13 @@ class RunCrawler:
             else:
                 payload = {}
             for run_element_id in self.libraries[library][ELEMENT_RUN_ELEMENTS]:
-                payload[run_element_id] = self.barcodes_info[run_element_id][ELEMENT_NB_READS_SEQUENCED]
-            with open(file_name, '') as open_file:
-                json.dump(payload, open_file)
+                payload[run_element_id] = self.barcodes_info[run_element_id]
+            with open(file_name, 'w') as open_file:
+                json.dump(payload, open_file, indent=4)
 
     def send_data(self):
         #Send run elements
-        if cfg['rest_api']:
+        if cfg.get('rest_api'):
             array_json = self.barcodes_info.values()
             url=cfg.query('rest_api','url') + 'run_elements/'
             for payload in array_json:

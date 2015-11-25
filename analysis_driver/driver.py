@@ -1,4 +1,5 @@
 import os
+import time
 import yaml
 from glob import glob
 import shutil
@@ -13,8 +14,8 @@ from analysis_driver.prepare_data import prepare_run_data, prepare_sample_data
 
 app_logger = get_logger('driver')
 
-def pipeline(dataset_dir, dataset):
-    dataset.start()
+def pipeline(dataset):
+
     if isinstance(dataset, RunDataset):
         exit_status = demultiplexing_pipeline(dataset)
     elif isinstance(dataset, SampleDataset):
@@ -24,6 +25,7 @@ def pipeline(dataset_dir, dataset):
         dataset.fail()
     else:
         dataset.succeed()
+    return exit_status
 
 def demultiplexing_pipeline(dataset):
     """
@@ -35,6 +37,8 @@ def demultiplexing_pipeline(dataset):
     ntf.start_stage('transfer')
     input_run_folder = prepare_run_data(dataset)
     ntf.end_stage('transfer')
+
+    dataset.start()
 
     run_id = os.path.basename(input_run_folder)
     job_dir = os.path.join(cfg['jobs_dir'], run_id)
@@ -97,25 +101,28 @@ def demultiplexing_pipeline(dataset):
 
     valid_lanes = clarity.get_valid_lanes(run_info.flowcell_name)
 
-
     fastqc_exit_status = fastqc_executor.join()
     ntf.end_stage('fastqc', fastqc_exit_status)
     md5_exit_status = md5sum_executor.join()
-    ntf.end_stage('md5sum', fastqc_exit_status)
+    ntf.end_stage('md5sum', md5_exit_status)
 
     #copy the Samplesheet Runinfo.xml run_parameters.xml to the fastq dir
-    for f in ['Samplesheet.csv', 'SampleSheet_analysis_driver.csv', 'runParameters.xml', 'RunInfo.xml']:
+    for f in ['SampleSheet.csv', 'SampleSheet_analysis_driver.csv', 'runParameters.xml', 'RunInfo.xml']:
         shutil.copy(os.path.join(input_run_folder,f), os.path.join(fastq_dir, f))
 
     #Find conversion xml file and send the results to the rest API
-    conversion_xml = os.path.join(fastq_dir, '/Stats','ConversionStats.xml')
+    conversion_xml = os.path.join(fastq_dir, 'Stats','ConversionStats.xml')
     if os.path.exists(conversion_xml):
         crawler = RunCrawler(run_id, sample_sheet, conversion_xml)
-        json_file = os.path.join(job_dir, 'demultiplexing_results.json')
+        json_file = os.path.join(fastq_dir, 'demultiplexing_results.json')
         crawler.write_json(json_file)
-        crawler.write_json_per_sample(os.path.join(cfg['output_dir'],'samples'))
+        sample_dir = os.path.join(cfg['output_dir'],'samples')
+        os.makedirs(sample_dir, exist_ok=True)
+        crawler.write_json_per_sample(sample_dir)
         crawler.send_data()
-
+    else:
+        app_logger.error('File not found: %s'%conversion_xml)
+        exit_status+=1
 
     ntf.start_stage('data_transfer')
     transfer_exit_status = copy_run_to_output_dir(fastq_dir, run_id)
@@ -143,7 +150,7 @@ def variant_calling_pipeline(dataset):
     :rtype: int
     """
     exit_status = 0
-
+    dataset.start()
     fastq_files = prepare_sample_data(dataset)
 
 
@@ -334,7 +341,8 @@ def _output_data(project_id, sample_id, intput_dir, output_dir, output_config, q
 
 def _cleanup(dataset_name):
     exit_status = 0
-
+    #Wait for all the previous PBS step to be done writing to the folder before cleaning it up
+    time.sleep(20)
     job_dir = os.path.join(cfg['jobs_dir'], dataset_name)
     cleanup_targets = [job_dir]
     intermediates_dir = cfg.get('intermediate_dir')
