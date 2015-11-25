@@ -107,8 +107,10 @@ def demultiplexing_pipeline(dataset):
     ntf.end_stage('md5sum', md5_exit_status)
 
     #copy the Samplesheet Runinfo.xml run_parameters.xml to the fastq dir
-    for f in ['SampleSheet.csv', 'SampleSheet_analysis_driver.csv', 'runParameters.xml', 'RunInfo.xml']:
-        shutil.copy(os.path.join(input_run_folder,f), os.path.join(fastq_dir, f))
+    for f in ['SampleSheet.csv', 'SampleSheet_analysis_driver.csv', 'runParameters.xml',
+              'RunInfo.xml', 'RTAConfiguration.xml']:
+        shutil.copy2(os.path.join(input_run_folder,f), os.path.join(fastq_dir, f))
+    shutil.copytree(os.path.join(input_run_folder,'InterOp'), fastq_dir)
 
     #Find conversion xml file and send the results to the rest API
     conversion_xml = os.path.join(fastq_dir, 'Stats','ConversionStats.xml')
@@ -160,14 +162,14 @@ def variant_calling_pipeline(dataset):
 
     # merge fastq files
     ntf.start_stage('merge fastqs')
-    sample_fastq_files = _bcbio_prepare_sample(sample_dir, sample_id, fastq_files)
-    app_logger.debug('sample fastq files: ' + str(sample_fastq_files))
+    fastq_pair = _bcbio_prepare_sample(sample_dir, sample_id, fastq_files)
+    app_logger.debug('sample fastq files: ' + str(fastq_pair))
     ntf.end_stage('merge fastqs')
 
     # fastqc2
     ntf.start_stage('sample_fastqc')
     fastqc2_executor = executor.execute(
-        [writer.bash_commands.fastqc(fastq_pair) for fastq_pair in sample_fastq_files.values()],
+        [writer.bash_commands.fastqc(fastq_file) for fastq_file in fastq_pair],
         job_name='fastqc2',
         run_id=sample_id,
         walltime=10,
@@ -182,7 +184,7 @@ def variant_calling_pipeline(dataset):
 
     # bcbio
     ntf.start_stage('bcbio')
-    bcbio_executor = _run_bcbio(sample_id, sample_dir, sample_fastq_files)
+    bcbio_executor = _run_bcbio(sample_id, sample_dir, fastq_pair)
 
     # wait for genotype_validation fastqc and bcbio to finish
     # genotype_results = genotype_validation.join()
@@ -203,7 +205,7 @@ def variant_calling_pipeline(dataset):
     # transfer output data
     ntf.start_stage('data_transfer')
     #TODO: implement query to LIMS to get project of a sample
-    project_id = clarity.get_project_id(sample_id)
+    project_id = clarity.find_project_from_sample(sample_id)
     transfer_exit_status = _output_data(project_id, sample_id, sample_dir, cfg['output_dir'], cfg['output_files'])
     ntf.end_stage('data_transfer', transfer_exit_status)
     exit_status += transfer_exit_status

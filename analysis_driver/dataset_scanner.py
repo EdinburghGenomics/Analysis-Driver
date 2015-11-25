@@ -26,6 +26,7 @@ class Dataset:
         self.lock_file_dir = lock_file_dir
         self.data_threshold = data_threshold
 
+
     @property
     def dataset_status(self):
         raise NotImplementedError("Function not implemented in DatasetScanner")
@@ -40,12 +41,15 @@ class Dataset:
 
     def fail(self):
         assert self.dataset_status==DATASET_PROCESSING
+        self._clear_stage()
         self._change_status(DATASET_PROCESSED_FAIL)
 
     def abort(self):
+        self._clear_stage()
         self._change_status( DATASET_ABORTED)
 
     def reset(self):
+        self._clear_stage()
         self._rm(*glob(self._lock_file('*')))
 
     def _change_status(self, status):
@@ -58,6 +62,26 @@ class Dataset:
             '.' + self.name + '.' + status
         )
 
+    def _stage_file(self, stage):
+        return os.path.join(
+            self.lock_file_dir,
+            '.stage_' + self.name + '.' + stage
+        )
+
+    def _clear_stage(self):
+        self._rm(*glob(self._stage_file('*')))
+
+    def add_stage(self, stage):
+        self._touch(self._stage_file(stage))
+
+    def remove_stage(self, stage):
+        self._rm(self._stage_file(stage))
+
+    @property
+    def stages(self):
+        stage_files = glob(self._stage_file('*'))
+        return [sf.split('.')[-1] for sf in stage_files]
+
     def _touch(self, file):
         open(file, 'w').close()
 
@@ -67,7 +91,7 @@ class Dataset:
                 os.remove(f)
 
     def __str__(self):
-        return self.name
+        return '%s -- %s'%(self.name, ', '.join(self.stages))
 
     __repr__ = __str__
 
@@ -92,8 +116,6 @@ class RunDataset(Dataset):
     def _rta_complete(self):
         return os.path.isfile(os.path.join(self.path, 'RTAComplete.txt'))
 
-    def __str__(self):
-        return self.name
 
 class SampleDataset(Dataset):
     type = 'sample'
@@ -128,7 +150,7 @@ class SampleDataset(Dataset):
             return False
 
     def __str__(self):
-        return '%s  (%s / %s)'%(self.name,self._amount_data(),self.data_threshold)
+        return '%s  (%s / %s)'%(super().__str__(), self._amount_data(), self.data_threshold)
 
 class DatasetScanner():
     def __init__(self, cfg):

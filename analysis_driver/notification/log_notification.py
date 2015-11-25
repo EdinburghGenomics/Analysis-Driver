@@ -21,9 +21,11 @@ class LogNotification(Notification):
         self.info('Started pipeline')
 
     def start_stage(self, stage_name):
+        self.dataset.add_stage(stage_name)
         self.info('Started stage ' + stage_name)
 
     def end_stage(self, stage_name, exit_status=0):
+        self.dataset.remove_stage(stage_name)
         if exit_status == 0:
             self.info('Finished stage ' + stage_name)
         else:

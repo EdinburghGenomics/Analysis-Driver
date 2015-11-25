@@ -1,4 +1,3 @@
-from analysis_driver.util.fastq_handler import find_fastqs
 
 __author__ = 'mwham'
 import os
@@ -7,8 +6,8 @@ from analysis_driver.dataset_scanner import DATASET_READY, DATASET_NEW
 from analysis_driver import executor
 from analysis_driver.app_logging import get_logger
 from analysis_driver.config import default as cfg
-from analysis_driver.clarity import find_project_from_sample
-from analysis_driver.clarity import find_run_elements_from_sample
+from analysis_driver.report_generation.demultiplexing_report import ELEMENT_RUN_NAME, ELEMENT_LANE, ELEMENT_PROJECT
+from analysis_driver.util.fastq_handler import find_fastqs
 app_logger = get_logger('proctrigger')
 
 
@@ -55,10 +54,12 @@ def _transfer_to_int_dir(dataset, from_dir, to_dir, repeat_delay):
     return exit_status
 
 def find_run_location(run_id):
-    fastq_dir = os.path.join(cfg['job_dir'], run_id, 'fastq')
+    fastq_dir = os.path.join(cfg['jobs_dir'], run_id, 'fastq')
     if not os.path.isdir(fastq_dir):
-        fastq_dir = os.path.join(cfg['output_dir'], 'runs', run_id, 'fastq')
+        app_logger.debug(fastq_dir + 'does not exist')
+        fastq_dir = os.path.join(cfg['output_dir'], 'runs', run_id)
     if not os.path.isdir(fastq_dir):
+        app_logger.debug(fastq_dir + 'does not exist')
         return None
     return fastq_dir
 
@@ -70,9 +71,8 @@ def prepare_sample_data(dataset):
     status = dataset.dataset_status
     exit_status = 0
     all_fastqs = []
-    project_name = find_project_from_sample(dataset.name)
-    for run_element in dataset.run_elements:
-        run_location = find_run_location(run_element.get('run'))
-        all_fastqs.extend(find_fastqs(run_location, project_name, dataset.name, run_element.get('lane')))
+    for run_element in dataset.run_elements.values():
+        run_location = find_run_location(run_element.get(ELEMENT_RUN_NAME))
+        all_fastqs.extend(find_fastqs(run_location, run_element.get(ELEMENT_PROJECT), dataset.name, run_element.get(ELEMENT_LANE)))
 
     return all_fastqs
