@@ -68,3 +68,17 @@ def _export(env_var, value, prepend=False):
     if prepend:
         statement += ':$' + env_var
     return statement
+
+
+def rsync_from_to(source, dest, server_source=None, server_dest=None):
+    """rsync command that will transfer the file to the desired destination"""
+    if server_source:
+        source = "%s:%s"%(server_source, source)
+    if server_dest:
+        source = "%s:%s"%(server_dest, dest)
+    if server_source or server_dest:
+        command = 'rsync -rLD --size-only --append-verify -e ' \
+              '"ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -c arcfour"' \
+              '%s: %s'%(source, dest)
+    else:
+        command = 'rsync -rLD --size-only --append-verify %s %s'%(source, dest)

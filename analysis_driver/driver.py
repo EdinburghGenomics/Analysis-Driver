@@ -10,7 +10,7 @@ from analysis_driver.app_logging import get_logger
 from analysis_driver.config import default as cfg  # imports the default config singleton
 from analysis_driver.notification import default as ntf
 from analysis_driver.report_generation.demultiplexing_report import RunCrawler
-from analysis_driver.prepare_data import prepare_run_data, prepare_sample_data
+from analysis_driver.transfer_data import prepare_run_data, prepare_sample_data, output_sample_data
 
 app_logger = get_logger('driver')
 
@@ -110,7 +110,7 @@ def demultiplexing_pipeline(dataset):
     for f in ['SampleSheet.csv', 'SampleSheet_analysis_driver.csv', 'runParameters.xml',
               'RunInfo.xml', 'RTAConfiguration.xml']:
         shutil.copy2(os.path.join(input_run_folder,f), os.path.join(fastq_dir, f))
-    shutil.copytree(os.path.join(input_run_folder,'InterOp'), fastq_dir)
+    shutil.copytree(os.path.join(input_run_folder,'InterOp'), os.path.join(fastq_dir,'InterOp'))
 
     #Find conversion xml file and send the results to the rest API
     conversion_xml = os.path.join(fastq_dir, 'Stats','ConversionStats.xml')
@@ -137,12 +137,6 @@ def demultiplexing_pipeline(dataset):
         ntf.end_stage('cleanup', exit_status)
     return exit_status
 
-def copy_run_to_output_dir(fastq_dir, run_id):
-    """Retrieve and copy the fastq files to the output directory"""
-    output_dir = cfg['output_dir']
-    output_run_dir = os.path.join(output_dir, 'runs', run_id)
-    command = 'rsync  -aq --size-only --append-verify %s/* %s'%(fastq_dir, output_run_dir)
-    return executor.execute([command], job_name='final_copy', run_id=run_id, walltime=36).join()
 
 
 def variant_calling_pipeline(dataset):
@@ -204,9 +198,7 @@ def variant_calling_pipeline(dataset):
 
     # transfer output data
     ntf.start_stage('data_transfer')
-    #TODO: implement query to LIMS to get project of a sample
-    project_id = clarity.find_project_from_sample(sample_id)
-    transfer_exit_status = _output_data(project_id, sample_id, sample_dir, cfg['output_dir'], cfg['output_files'])
+    transfer_exit_status = output_sample_data(sample_id, sample_dir, cfg['output_dir'], cfg['output_files'])
     ntf.end_stage('data_transfer', transfer_exit_status)
     exit_status += transfer_exit_status
 
@@ -295,50 +287,6 @@ def _run_bcbio(sample_id, sample_dir, sample_fastqs):
     os.chdir(original_dir)
 
     return bcbio_executor
-
-
-def _output_data(project_id, sample_id, intput_dir, output_dir, output_config, query_lims=True):
-    exit_status = 0
-
-    output_loc = os.path.join(output_dir, project_id, sample_id)
-    if not os.path.isdir(output_loc):
-        os.makedirs(output_loc)
-
-    if query_lims:
-        user_sample_id = clarity.get_user_sample_name(sample_id)
-        if not user_sample_id:
-            user_sample_id = sample_id
-    else:
-        user_sample_id = sample_id
-
-    for output_record in output_config:
-        src_pattern = os.path.join(
-            intput_dir,
-            os.path.join(*output_record['location']),
-            output_record['basename']
-        ).format(runfolder=sample_id, sample_id=user_sample_id)
-
-        sources = glob(src_pattern)
-        if sources:
-            source = sources[-1]
-
-            dest = os.path.join(
-                output_loc,
-                output_record.get('new_name', os.path.basename(source))
-            ).format(sample_id=user_sample_id)
-            exit_status += util.transfer_output_file(
-                source,
-                dest
-            )
-
-        else:
-            app_logger.warning('No files found for pattern ' + src_pattern)
-            exit_status += 1
-
-    with open(os.path.join(output_loc, 'run_config.yaml'), 'w') as f:
-        f.write(cfg.report())
-
-    return exit_status
 
 
 def _cleanup(dataset_name):

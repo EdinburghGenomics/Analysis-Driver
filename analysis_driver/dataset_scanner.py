@@ -34,22 +34,27 @@ class Dataset:
     def start(self):
         assert self.dataset_status==DATASET_READY
         self._change_status(DATASET_PROCESSING)
+        self.set_pid()
 
     def succeed(self):
         assert self.dataset_status==DATASET_PROCESSING
+        self.clear_pid()
         self._change_status(DATASET_PROCESSED_SUCCESS)
 
     def fail(self):
         assert self.dataset_status==DATASET_PROCESSING
         self._clear_stage()
+        self.clear_pid()
         self._change_status(DATASET_PROCESSED_FAIL)
 
     def abort(self):
         self._clear_stage()
+        self.clear_pid()
         self._change_status( DATASET_ABORTED)
 
     def reset(self):
         self._clear_stage()
+        self.clear_pid()
         self._rm(*glob(self._lock_file('*')))
 
     def _change_status(self, status):
@@ -77,10 +82,34 @@ class Dataset:
     def remove_stage(self, stage):
         self._rm(self._stage_file(stage))
 
+    def _pid_file(self, pid):
+        return os.path.join(
+            self.lock_file_dir,
+        '.pid_'+ self.name + '.' + pid)
+
+    def set_pid(self):
+        self._touch(self._pid_file(str(os.getpid())))
+
+    def clear_pid(self):
+        self._rm(*glob(self._pid_file('*')))
+
+
     @property
     def stages(self):
-        stage_files = glob(self._stage_file('*'))
-        return [sf.split('.')[-1] for sf in stage_files]
+        if not hasattr(self,'_stages'):
+            stage_files = glob(self._stage_file('*'))
+            self._stages = [sf.split('.')[-1] for sf in stage_files]
+        return self._stages
+
+    @property
+    def pid(self):
+        if not hasattr(self,'_pid'):
+            pid_files = glob(self._pid_file('*'))
+            if len(pid_files) == 1 :
+                self._pid = [sf.split('.')[-1] for sf in pid_files][0]
+            else:
+                self._pid=None
+        return self._pid
 
     def _touch(self, file):
         open(file, 'w').close()
@@ -91,7 +120,10 @@ class Dataset:
                 os.remove(f)
 
     def __str__(self):
-        return '%s -- %s'%(self.name, ', '.join(self.stages))
+        if self.stages:
+            return '%s -- %s'%(self.name,', '.join(self.stages))
+        else:
+            return self.name
 
     __repr__ = __str__
 
