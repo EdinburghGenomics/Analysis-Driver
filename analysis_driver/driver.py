@@ -9,8 +9,8 @@ from analysis_driver.exceptions import AnalysisDriverError
 from analysis_driver.app_logging import get_logger
 from analysis_driver.config import default as cfg  # imports the default config singleton
 from analysis_driver.notification import default as ntf
-from analysis_driver.report_generation.demultiplexing_report import RunCrawler
-from analysis_driver.transfer_data import prepare_run_data, prepare_sample_data, output_sample_data
+from analysis_driver.report_generation.run_report import RunCrawler
+from analysis_driver.transfer_data import prepare_run_data, prepare_sample_data, output_sample_data, output_run_data
 
 app_logger = get_logger('driver')
 
@@ -120,14 +120,14 @@ def demultiplexing_pipeline(dataset):
         crawler.write_json(json_file)
         sample_dir = os.path.join(cfg['output_dir'],'samples')
         os.makedirs(sample_dir, exist_ok=True)
-        crawler.write_json_per_sample(sample_dir)
+        crawler.update_json_per_sample(sample_dir)
         crawler.send_data()
     else:
         app_logger.error('File not found: %s'%conversion_xml)
         exit_status+=1
 
     ntf.start_stage('data_transfer')
-    transfer_exit_status = copy_run_to_output_dir(fastq_dir, run_id)
+    transfer_exit_status = output_run_data(fastq_dir, run_id)
     ntf.end_stage('data_transfer', transfer_exit_status)
     exit_status += transfer_exit_status + fastqc_exit_status + md5_exit_status
 

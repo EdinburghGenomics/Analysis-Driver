@@ -8,7 +8,7 @@ from analysis_driver.dataset_scanner import DATASET_READY, DATASET_NEW
 from analysis_driver import executor, clarity
 from analysis_driver.app_logging import get_logger
 from analysis_driver.config import default as cfg
-from analysis_driver.report_generation.demultiplexing_report import ELEMENT_RUN_NAME, ELEMENT_LANE, ELEMENT_PROJECT
+from analysis_driver.report_generation.run_report import ELEMENT_RUN_NAME, ELEMENT_LANE, ELEMENT_PROJECT
 from analysis_driver.util.fastq_handler import find_fastqs
 from analysis_driver.notification import default as ntf
 from analysis_driver import writer

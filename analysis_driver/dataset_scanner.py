@@ -1,5 +1,5 @@
 import json
-from analysis_driver.report_generation.demultiplexing_report import ELEMENT_NB_READS_SEQUENCED
+from analysis_driver.report_generation.run_report import ELEMENT_NB_READS_SEQUENCED
 
 __author__ = 'mwham'
 import os
@@ -120,10 +120,12 @@ class Dataset:
                 os.remove(f)
 
     def __str__(self):
+        out = [self.name]
+        if self.pid:
+            out.append('(%s)'%self.pid)
         if self.stages:
-            return '%s -- %s'%(self.name,', '.join(self.stages))
-        else:
-            return self.name
+            out.append('-- %s'%(', '.join(self.stages)))
+        return ' '.join(out)
 
     __repr__ = __str__
 

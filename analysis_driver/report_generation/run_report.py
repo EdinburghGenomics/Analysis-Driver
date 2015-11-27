@@ -2,6 +2,7 @@
 from collections import Counter, defaultdict
 import json
 import os
+from analysis_driver.app_logging import AppLogger
 from analysis_driver.reader.demultiplexing_parsers import parse_conversion_stats
 from analysis_driver.report_generation.rest_communication import post_entry, patch_entry
 from analysis_driver.config import default as cfg
@@ -10,11 +11,14 @@ __author__ = 'tcezard'
 
 ELEMENT_RUN_ELEMENT_ID = 'run_element_id'
 ELEMENT_RUN_NAME = 'run_id'
+ELEMENT_LANE_ID = 'lane_id'
 ELEMENT_LANE = 'lane'
+ELEMENT_NUMBER_LANE = 'number_of_lane'
 ELEMENT_BARCODE = 'barcode'
 ELEMENT_PROJECT='project'
 ELEMENT_LIBRARY_INTERNAL_ID = 'library_id'
 ELEMENT_SAMPLE_INTERNAL_ID = 'sample_id'
+ELEMENT_SAMPLES = 'samples'
 ELEMENT_NB_READS_SEQUENCED = 'total_reads'
 ELEMENT_NB_READS_PASS_FILTER = 'passing_filter_reads'
 ELEMENT_PC_READ_IN_LANE = 'pc_reads_in_lane'
@@ -38,7 +42,8 @@ ELEMENT_PC_BASES_CALLABLE = 'pc_callable'
 ELEMENT_MEAN_COVERAGE = 'Mean coverage'
 ELEMENT_RUN_ELEMENTS = 'run_elements'
 
-class RunCrawler:
+
+class RunCrawler(AppLogger):
 
     def __init__(self, run_id, samplesheet, conversion_xml_file=None):
         self.run_id = run_id
@@ -49,6 +54,11 @@ class RunCrawler:
     def _populate_barcode_info_from_SampleSheet(self, samplesheet):
         self.barcodes_info={}
         self.libraries = defaultdict(dict)
+        self.lanes = defaultdict(dict)
+        self.run={ELEMENT_RUN_NAME : self.run_id,
+                  ELEMENT_NUMBER_LANE : "8",
+                  ELEMENT_RUN_ELEMENTS : []}
+        self.projects=defaultdict(dict)
         for project_id, proj_obj in samplesheet.sample_projects.items():
             for sample_id_obj in proj_obj.sample_ids.values():
                 for sample in sample_id_obj.samples:
@@ -69,6 +79,23 @@ class RunCrawler:
                         if not ELEMENT_RUN_ELEMENTS in self.libraries[sample.sample_name]:
                             self.libraries[sample.sample_name][ELEMENT_RUN_ELEMENTS] = []
                         self.libraries[sample.sample_name][ELEMENT_RUN_ELEMENTS].append(barcode_info[ELEMENT_RUN_ELEMENT_ID])
+
+                        #Populate the projects
+                        self.projects[project_id][ELEMENT_PROJECT]=project_id
+                        if not ELEMENT_SAMPLES in self.projects[project_id]:
+                            self.projects[project_id][ELEMENT_SAMPLES] = []
+                        self.projects[project_id][ELEMENT_SAMPLES].append(sample.sample_id)
+
+                        #Populate the lanes
+                        lane_id = '%s_%s'%(self.run_id, lane)
+                        self.lanes[lane_id][ELEMENT_RUN_NAME] = self.run_id
+                        self.lanes[lane_id][ELEMENT_LANE] = lane
+                        if not ELEMENT_RUN_ELEMENTS in self.libraries[sample.sample_name]:
+                            self.lanes[lane_id][ELEMENT_RUN_ELEMENTS] = []
+                        self.lanes[lane_id][ELEMENT_RUN_ELEMENTS].append(barcode_info[ELEMENT_RUN_ELEMENT_ID])
+
+                        #Populate the run
+                        self.run[ELEMENT_RUN_ELEMENTS].append(barcode_info[ELEMENT_RUN_ELEMENT_ID])
 
                         barcode_info = {}
                         barcode_info[ELEMENT_BARCODE]='unknown'
@@ -113,14 +140,17 @@ class RunCrawler:
 
     def write_json(self, json_file):
         payload ={
-            'demultiplexing' : list(self.barcodes_info.values()),
+            'run_elements' : list(self.barcodes_info.values()),
             'unexpected_barcodes' : list(self.unexpected_barcode_info.values()),
-            'libraries' : list(self.libraries.values())
+            'lanes' : list(self.lanes.values()),
+            'runs' : self.run,
+            'samples' : list(self.libraries.values()),
+            'project' : list(self.projects.values())
         }
         with open(json_file, 'w') as open_file:
             json.dump(payload, open_file, indent=4)
 
-    def write_json_per_sample(self, sample_dir):
+    def update_json_per_sample(self, sample_dir):
         self.libraries.values()
         for library in self.libraries:
             file_name = os.path.join(sample_dir,self.libraries[library][ELEMENT_SAMPLE_INTERNAL_ID])
@@ -135,32 +165,47 @@ class RunCrawler:
                 json.dump(payload, open_file, indent=4)
 
     def send_data(self):
+
+        if not cfg.get('rest_api'):
+            self.warn('rest_api is not set in the config: Cancel upload')
+            return
+
         #Send run elements
-        if cfg.get('rest_api'):
-            array_json = self.barcodes_info.values()
-            url=cfg.query('rest_api','url') + 'run_elements/'
-            for payload in array_json:
-                if not post_entry(url, payload):
-                    id = payload.pop(ELEMENT_RUN_ELEMENT_ID)
-                    patch_entry(url, payload, **{ELEMENT_RUN_ELEMENT_ID:id})
+        array_json = self.barcodes_info.values()
+        url=cfg.query('rest_api','url') + 'run_elements/'
+        for payload in array_json:
+            if not post_entry(url, payload):
+                id = payload.pop(ELEMENT_RUN_ELEMENT_ID)
+                patch_entry(url, payload, **{ELEMENT_RUN_ELEMENT_ID:id})
 
-            #Send unexpected barcodes
-            array_json = self.unexpected_barcode_info.values()
-            url=cfg.query('rest_api','url') + 'unexpected_barcodes/'
-            for payload in array_json:
-                if not post_entry(url, payload):
-                    id = payload.pop(ELEMENT_RUN_ELEMENT_ID.key)
-                    patch_entry(url, payload, **{ELEMENT_RUN_ELEMENT_ID.key:id})
+        #Send unexpected barcodes
+        array_json = self.unexpected_barcode_info.values()
+        url=cfg.query('rest_api','url') + 'unexpected_barcodes/'
+        for payload in array_json:
+            if not post_entry(url, payload):
+                id = payload.pop(ELEMENT_RUN_ELEMENT_ID)
+                patch_entry(url, payload, **{ELEMENT_RUN_ELEMENT_ID:id})
 
-            #Send samples information
-            array_json = self.libraries.values()
-            url=cfg.query('rest_api','url') + 'samples/'
-            for payload in array_json:
-                lib_id = {ELEMENT_LIBRARY_INTERNAL_ID:payload.get(ELEMENT_LIBRARY_INTERNAL_ID)}
-                if not post_entry(url, payload):
-                    patch_entry(url, payload, **lib_id)
+        #Send lanes
+        array_json = self.lanes.values()
+        url=cfg.query('rest_api','url') + 'lanes/'
+        for payload in array_json:
+            if not post_entry(url, payload):
+                id = payload.pop(ELEMENT_LANE_ID)
+                patch_entry(url, payload, **{ELEMENT_LANE_ID:id})
 
+        #Send samples information
+        array_json = self.libraries.values()
+        url=cfg.query('rest_api','url') + 'samples/'
+        for payload in array_json:
+            lib_id = {ELEMENT_LIBRARY_INTERNAL_ID:payload.get(ELEMENT_LIBRARY_INTERNAL_ID)}
+            if not post_entry(url, payload):
+                patch_entry(url, payload, **lib_id)
 
-
-    def __str__(self):
-        return self.write_report_wiki()
+        #Send projects
+        array_json = self.projects.values()
+        url=cfg.query('rest_api','url') + 'projects/'
+        for payload in array_json:
+            if not post_entry(url, payload):
+                id = payload.pop(ELEMENT_PROJECT)
+                patch_entry(url, payload, **{ELEMENT_PROJECT:id})
