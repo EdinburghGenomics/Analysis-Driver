@@ -57,6 +57,7 @@ def demultiplexing_pipeline(dataset):
 
     mask = sample_sheet.generate_mask(run_info.mask)
     app_logger.info('bcl2fastq mask: ' + mask)  # e.g: mask = 'y150n,i6,y150n'
+
     #Send the information about the run to the rest API
     crawler = RunCrawler(run_id, sample_sheet)
     crawler.send_data()
@@ -110,7 +111,8 @@ def demultiplexing_pipeline(dataset):
     for f in ['SampleSheet.csv', 'SampleSheet_analysis_driver.csv', 'runParameters.xml',
               'RunInfo.xml', 'RTAConfiguration.xml']:
         shutil.copy2(os.path.join(input_run_folder,f), os.path.join(fastq_dir, f))
-    shutil.copytree(os.path.join(input_run_folder,'InterOp'), os.path.join(fastq_dir,'InterOp'))
+    if not os.path.exists(os.path.join(fastq_dir,'InterOp')):
+        shutil.copytree(os.path.join(input_run_folder,'InterOp'), os.path.join(fastq_dir,'InterOp'))
 
     #Find conversion xml file and send the results to the rest API
     conversion_xml = os.path.join(fastq_dir, 'Stats','ConversionStats.xml')

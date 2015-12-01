@@ -4,43 +4,15 @@ import json
 import os
 from analysis_driver.app_logging import AppLogger
 from analysis_driver.reader.demultiplexing_parsers import parse_conversion_stats
+from analysis_driver.report_generation import ELEMENT_RUN_NAME, ELEMENT_NUMBER_LANE, ELEMENT_RUN_ELEMENTS, \
+    ELEMENT_BARCODE, ELEMENT_RUN_ELEMENT_ID, ELEMENT_PROJECT, ELEMENT_SAMPLE_INTERNAL_ID, ELEMENT_LIBRARY_INTERNAL_ID, \
+    ELEMENT_LANE, ELEMENT_SAMPLES, ELEMENT_NB_READS_SEQUENCED, ELEMENT_NB_READS_PASS_FILTER, ELEMENT_NB_BASE_R1, \
+    ELEMENT_NB_BASE_R2, ELEMENT_NB_Q30_R1, ELEMENT_NB_Q30_R2, ELEMENT_PC_READ_IN_LANE, ELEMENT_LANE_ID
 from analysis_driver.report_generation.rest_communication import post_entry, patch_entry
 from analysis_driver.config import default as cfg
 
 __author__ = 'tcezard'
 
-ELEMENT_RUN_ELEMENT_ID = 'run_element_id'
-ELEMENT_RUN_NAME = 'run_id'
-ELEMENT_LANE_ID = 'lane_id'
-ELEMENT_LANE = 'lane'
-ELEMENT_NUMBER_LANE = 'number_of_lane'
-ELEMENT_BARCODE = 'barcode'
-ELEMENT_PROJECT='project'
-ELEMENT_LIBRARY_INTERNAL_ID = 'library_id'
-ELEMENT_SAMPLE_INTERNAL_ID = 'sample_id'
-ELEMENT_SAMPLES = 'samples'
-ELEMENT_NB_READS_SEQUENCED = 'total_reads'
-ELEMENT_NB_READS_PASS_FILTER = 'passing_filter_reads'
-ELEMENT_PC_READ_IN_LANE = 'pc_reads_in_lane'
-ELEMENT_NB_BASE_R1 = 'bases_r1'
-ELEMENT_NB_BASE_R2 = 'bases_r2'
-ELEMENT_NB_Q30_R1 = 'q30_bases_r1'
-ELEMENT_NB_Q30_R2 = 'q30_bases_r2'
-ELEMENT_FASTQC_REPORT_R1 = 'fastqc_report_r1'
-ELEMENT_FASTQC_REPORT_R2 = 'fastqc_report_r2'
-
-ELEMENT_SAMPLE_EXTERNAL_ID = 'user_sample_id'
-ELEMENT_NB_READS_IN_BAM = 'bam_file_reads'
-ELEMENT_NB_MAPPED_READS = 'mapped_reads'
-ELEMENT_NB_SEC_MAPPED_READS = 'Nb secondary alignments'
-ELEMENT_NB_DUPLICATE_READS = 'duplicate_reads'
-ELEMENT_NB_PROPERLY_MAPPED = 'properly_mapped_reads'
-ELEMENT_MEDIAN_INSERT_SIZE = 'Median Insert Size'
-ELEMENT_MEAN_INSERT_SIZE = 'Mean Insert Size'
-ELEMENT_MEDIAN_COVERAGE = 'median_coverage'
-ELEMENT_PC_BASES_CALLABLE = 'pc_callable'
-ELEMENT_MEAN_COVERAGE = 'Mean coverage'
-ELEMENT_RUN_ELEMENTS = 'run_elements'
 
 
 class RunCrawler(AppLogger):
@@ -90,7 +62,7 @@ class RunCrawler(AppLogger):
                         lane_id = '%s_%s'%(self.run_id, lane)
                         self.lanes[lane_id][ELEMENT_RUN_NAME] = self.run_id
                         self.lanes[lane_id][ELEMENT_LANE] = lane
-                        if not ELEMENT_RUN_ELEMENTS in self.libraries[sample.sample_name]:
+                        if not ELEMENT_RUN_ELEMENTS in self.lanes[lane_id]:
                             self.lanes[lane_id][ELEMENT_RUN_ELEMENTS] = []
                         self.lanes[lane_id][ELEMENT_RUN_ELEMENTS].append(barcode_info[ELEMENT_RUN_ELEMENT_ID])
 
