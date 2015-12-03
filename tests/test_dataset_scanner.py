@@ -1,8 +1,6 @@
+__author__ = 'tcezard'
 import shutil
 import pytest
-
-__author__ = 'mwham'
-__author__ = 'tcezard'
 import os
 from tests.test_analysisdriver import TestAnalysisDriver
 from analysis_driver.dataset_scanner import RunScanner, DATASET_NEW, DATASET_READY, DATASET_PROCESSING, \
@@ -17,8 +15,10 @@ def seed_directories(base_dir):
     for f in file_to_touch:
         open(os.path.join(base_dir, f), 'w').close()
 
+
 def clean(base_dir):
     shutil.rmtree(os.path.join(base_dir))
+
 
 class TestRunDataset(TestAnalysisDriver):
     def setUp(self):
@@ -26,7 +26,7 @@ class TestRunDataset(TestAnalysisDriver):
         seed_directories(self.base_dir)
         self.dataset_ready = RunDataset(
             name='that',
-            path=os.path.join(self.base_dir,'that'),
+            path=os.path.join(self.base_dir, 'that'),
             lock_file_dir=self.base_dir
         )
         self.dataset_not_ready = RunDataset(
@@ -68,9 +68,7 @@ class TestRunDataset(TestAnalysisDriver):
         assert self.dataset_ready.dataset_status == DATASET_PROCESSED_SUCCESS
 
 
-
 class TestRunScanner(TestAnalysisDriver):
-
     @property
     def triggerignore(self):
         return os.path.join(self.scanner.lock_file_dir, '.triggerignore')
@@ -80,8 +78,8 @@ class TestRunScanner(TestAnalysisDriver):
         seed_directories(self.base_dir)
 
         cfg = {
-            'lock_file_dir' : self.base_dir,
-            'input_dir' : self.base_dir
+            'lock_file_dir': self.base_dir,
+            'input_dir': self.base_dir
         }
         self.scanner = RunScanner(cfg)
         more = self.scanner.get('more')
@@ -91,13 +89,13 @@ class TestRunScanner(TestAnalysisDriver):
         that.reset()
         that.start()
         that.fail()
+
         with open(self.triggerignore, 'w') as f:
             for d in ['test_dataset\n']:
                 f.write(d)
 
     def tearDown(self):
         clean(self.base_dir)
-
 
     def test_scan_datasets(self):
         datasets = self.scanner.scan_datasets()
@@ -106,12 +104,13 @@ class TestRunScanner(TestAnalysisDriver):
         for d in os.listdir(self.base_dir):
             if os.path.isdir(os.path.join(self.base_dir, d)):
                 print(os.listdir(os.path.join(self.base_dir, d)))
-        for observed, expected in (
-            (set([str(s) for s in datasets[DATASET_NEW]]), set(['this', 'other'])),
-            (set([str(s) for s in datasets[DATASET_READY]]), set(['another'])),
-            (set([str(s) for s in datasets[DATASET_PROCESSING]]), set(['more'])),
-            (set([str(s) for s in datasets[DATASET_PROCESSED_FAIL]]), set(['that'])),
+        for status, expected in (
+            (DATASET_NEW, {'this', 'other'}),
+            (DATASET_READY, {'another'}),
+            (DATASET_PROCESSING, {'more'}),
+            (DATASET_PROCESSED_FAIL, {'that'})
         ):
+            observed = self.dataset_names(datasets, status)
             assert observed == expected
 
     def test_triggerignore(self):
@@ -128,8 +127,6 @@ class TestRunScanner(TestAnalysisDriver):
             for d in expected:
                 assert d.strip() not in self._flatten(self.scanner.scan_datasets())
 
-
-
     @staticmethod
     def _flatten(d):
         l = list()
@@ -140,4 +137,6 @@ class TestRunScanner(TestAnalysisDriver):
                 l.append(v)
         return l
 
-
+    @staticmethod
+    def dataset_names(datasets, status):
+        return set([str(s).split(' ')[0] for s in datasets[status]])

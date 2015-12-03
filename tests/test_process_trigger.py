@@ -1,6 +1,5 @@
-import analysis_driver
-
 __author__ = 'mwham'
+import analysis_driver
 import os
 import shutil
 from tests.test_analysisdriver import TestAnalysisDriver
@@ -21,7 +20,7 @@ class TestProcessTrigger(TestAnalysisDriver):
     def setUp(self):
         self.dataset = RunDataset(
             name='test_dataset',
-            path=os.path.join(self.from_dir,'test_dataset'),
+            path=os.path.join(self.from_dir, 'test_dataset'),
             lock_file_dir=self.from_dir
         )
         self.dataset.reset()
@@ -32,13 +31,15 @@ class TestProcessTrigger(TestAnalysisDriver):
         self.dataset.reset()
 
     def test_transfer(self):
-        print(os.getcwd())
-        print(os.path.exists("tests/assets/data_transfer/from/"))
-        transfer_data._transfer_to_int_dir(self.dataset, self.from_dir, self.to_dir, 1)
-
+        transfer_data._transfer_to_int_dir(
+            self.dataset,
+            self.from_dir,
+            self.to_dir,
+            1,
+            rsync_append_verify=False
+        )
         new_dataset = os.path.join(self.to_dir, self.dataset.name)
         observed = os.listdir(new_dataset)
         expected = ['RTAComplete.txt', 'thang', 'thing']
         print(observed, '\n', expected)
         assert observed == expected
-

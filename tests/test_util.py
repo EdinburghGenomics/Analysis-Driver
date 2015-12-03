@@ -1,12 +1,9 @@
 __author__ = 'mwham'
 from tests.test_analysisdriver import TestAnalysisDriver
-from analysis_driver import util
+from analysis_driver import util, transfer_data
+from analysis_driver.config import default as cfg
 import shutil
-from analysis_driver.driver import _output_data
-from analysis_driver.reader import SampleSheet
 import os.path
-
-helper = TestAnalysisDriver()
 
 
 def test_setup_bcbio_run():
@@ -38,125 +35,140 @@ class TestFastqHandler(TestAnalysisDriver):
             ) in fastqs
 
 
-def test_output_data():
-    sample_project = '10015AT'
-    sample_id = '10015AT0001'
-    destination = os.path.join(helper.data_output, 'output_data', sample_project)
-    if not os.path.isdir(destination):
-        os.makedirs(destination)
-    for f in os.listdir(destination):
-        shutil.rmtree(os.path.join(destination, f))
-    assert not os.listdir(destination)
-
-    records = [
-        {
-            'location': ['samples_{runfolder}-merged', 'final', '{sample_id}'],
-            'basename': '{sample_id}-gatk-haplotype.vcf.gz',
-            'new_name': '{sample_id}.g.vcf.gz'
-        },
-        {
-            'location': ['samples_{runfolder}-merged', 'final', '{sample_id}'],
-            'basename': '{sample_id}-gatk-haplotype.vcf.gz.tbi',
-            'new_name': '{sample_id}.g.vcf.gz.tbi'
-        },
-        {
-            'location': ['samples_{runfolder}-merged', 'final', '{sample_id}'],
-            'basename': '{sample_id}-ready.bam',
-            'new_name': '{sample_id}.bam'
-        },
-        {
-            'location': ['samples_{runfolder}-merged', 'final', '{sample_id}'],
-            'basename': '{sample_id}-ready.bam.bai',
-
-            'new_name': '{sample_id}.bam.bai'
-        },
-        {
-            'location': ['samples_{runfolder}-merged', 'final', '{sample_id}', 'qc', 'bamtools'],
-            'basename': 'bamtools_stats.txt'
-        },
-        {
-            'location': ['samples_{runfolder}-merged', 'work', 'align', '{sample_id}'],
-            'basename': '*{sample_id}*-sort-highdepth-stats.yaml'
-        },
-        {
-            'location': ['samples_{runfolder}-merged', 'work', 'align', '{sample_id}'],
-            'basename': '*{sample_id}*-sort-callable.bed'
-        },
-
-        {'location': ['merged'], 'basename': '{sample_id}_R1.fastq.gz'},
-        {'location': ['merged'], 'basename': '{sample_id}_R2.fastq.gz'},
-        {'location': ['fastq', 'Stats'], 'basename': 'ConversionStats.xml'}
-    ]
-
-    exit_status = _output_data(
-        sample_project,
-        sample_id,
-        helper.data_output,
-        os.path.join(helper.data_output, 'output_data'),
-        records,
-        query_lims=False
-    )
-
-    output_files = os.listdir(os.path.join(destination, sample_id))
-    output_files.sort()
-
-    expected_outputs = [
-        '10015AT0001.bam',
-        '10015AT0001.bam.bai',
-        '10015AT0001.bam.bai.md5',
-        '10015AT0001.bam.md5',
-        '10015AT0001.g.vcf.gz',
-        '10015AT0001.g.vcf.gz.md5',
-        '10015AT0001.g.vcf.gz.tbi',
-        '10015AT0001.g.vcf.gz.tbi.md5',
-        '10015AT0001_R1.fastq.gz',
-        '10015AT0001_R1.fastq.gz.md5',
-        '10015AT0001_R2.fastq.gz',
-        '10015AT0001_R2.fastq.gz.md5',
-        '1_2015-10-16_samples_10015AT0001-merged-sort-callable.bed',
-        '1_2015-10-16_samples_10015AT0001-merged-sort-callable.bed.md5',
-        '1_2015-10-16_samples_10015AT0001-merged-sort-highdepth-stats.yaml',
-        '1_2015-10-16_samples_10015AT0001-merged-sort-highdepth-stats.yaml.md5',
-        'ConversionStats.xml',
-        'ConversionStats.xml.md5',
-        'bamtools_stats.txt',
-        'bamtools_stats.txt.md5',
-        'run_config.yaml'
-    ]
-
-    print(output_files)
-    print(expected_outputs)
-    assert exit_status == 0
-    #assert output_files == expected_outputs
-
-
-def _join(*parts):
-        return ''.join(parts)
-
-
-def test_prep_samples_cmd():
-    cmd = util.bcbio_prepare_samples_cmd(
-        helper.assets_path,
-        'a_sample_id',
-        ['test_R1.fastq', 'test_R2.fastq'],
-        user_sample_id='a_user_sample_id'
-    )
-
-    bcbio_csv = os.path.join(helper.assets_path, 'samples_a_sample_id.csv')
-    with open(bcbio_csv) as f:
-        content = f.read()
-        print(content)
-        assert content == (
-            'samplename,description\n'
-            'test_R1.fastq,a_user_sample_id\n'
-            'test_R2.fastq,a_user_sample_id\n'
+class TestOutputData(TestAnalysisDriver):
+    def setUp(self):
+        self.param_remappings = (
+            {'name': 'job_execution', 'new': 'pbs'},
+            {'name': 'qsub', 'new': '/bin/sh'},
+            {'name': 'output_dir', 'new': os.path.join(self.data_output, 'to')},
+            {'name': 'jobs_dir', 'new': os.path.join(self.data_output, 'jobs')}
         )
-    os.remove(bcbio_csv)
-    assert not os.path.isfile(bcbio_csv)
-    expected = _join(
-        'bcbio_prepare_samples.py --out ',
-        os.path.join(helper.assets_path, 'merged'),
-        ' --csv ',
-        bcbio_csv
-    )
-    assert expected in cmd
+
+        for p in self.param_remappings:
+            p['original'] = cfg.get(p['name'])
+            cfg.content[p['name']] = p['new']
+
+    def tearDown(self):
+        for p in self.param_remappings:
+            cfg.content[p['name']] = p['original']
+
+    def test_output_sample_data(self):
+        sample_id = '10015AT0001'
+        destination = os.path.join(self.data_output, 'to')
+        if not os.path.exists(os.path.join(self.data_output, 'jobs', sample_id)):
+            os.mkdir(os.path.join(self.data_output, 'jobs', sample_id))
+
+        if not os.path.isdir(destination):
+            os.makedirs(destination)
+
+        records = [
+            {
+                'location': ['samples_{runfolder}-merged', 'final', '{sample_id}'],
+                'basename': '{sample_id}-gatk-haplotype.vcf.gz',
+                'new_name': '{sample_id}.g.vcf.gz'
+            },
+            {
+                'location': ['samples_{runfolder}-merged', 'final', '{sample_id}'],
+                'basename': '{sample_id}-gatk-haplotype.vcf.gz.tbi',
+                'new_name': '{sample_id}.g.vcf.gz.tbi'
+            },
+            {
+                'location': ['samples_{runfolder}-merged', 'final', '{sample_id}'],
+                'basename': '{sample_id}-ready.bam',
+                'new_name': '{sample_id}.bam'
+            },
+            {
+                'location': ['samples_{runfolder}-merged', 'final', '{sample_id}'],
+                'basename': '{sample_id}-ready.bam.bai',
+
+                'new_name': '{sample_id}.bam.bai'
+            },
+            {
+                'location': ['samples_{runfolder}-merged', 'final', '{sample_id}', 'qc', 'bamtools'],
+                'basename': 'bamtools_stats.txt'
+            },
+            {
+                'location': ['samples_{runfolder}-merged', 'work', 'align', '{sample_id}'],
+                'basename': '*{sample_id}*-sort-highdepth-stats.yaml'
+            },
+            {
+                'location': ['samples_{runfolder}-merged', 'work', 'align', '{sample_id}'],
+                'basename': '*{sample_id}*-sort-callable.bed'
+            },
+
+            {'location': ['merged'], 'basename': '{sample_id}_R1.fastq.gz'},
+            {'location': ['merged'], 'basename': '{sample_id}_R2.fastq.gz'},
+            {'location': ['fastq', 'Stats'], 'basename': 'ConversionStats.xml'}
+        ]
+
+        if os.path.isdir(os.path.join(self.data_output, 'linked_output_files')):
+            shutil.rmtree(os.path.join(self.data_output, 'linked_output_files'))
+
+        exit_status = transfer_data.output_sample_data(
+            sample_id,
+            self.data_output,
+            destination,
+            records,
+            query_lims=False,
+            rsync_append=False
+        )
+        output_files = os.path.join(
+            destination,
+            'proj_' + sample_id,
+            sample_id,
+            'linked_output_files'
+        )
+
+        expected_outputs = [
+            '10015AT0001.bam',
+            '10015AT0001.bam.bai',
+            '10015AT0001.g.vcf.gz',
+            '10015AT0001.g.vcf.gz.tbi',
+            '10015AT0001_R1.fastq.gz',
+            '10015AT0001_R2.fastq.gz',
+            '1_2015-10-16_samples_10015AT0001-merged-sort-callable.bed',
+            '1_2015-10-16_samples_10015AT0001-merged-sort-highdepth-stats.yaml',
+            'ConversionStats.xml',
+            'bamtools_stats.txt'
+            # 'run_config.yaml'
+        ]
+
+        o = list(sorted(os.listdir(output_files)))
+        print()
+        print(o)
+        print(expected_outputs)
+        assert exit_status == 0
+        assert o == expected_outputs
+        shutil.rmtree(output_files)
+        assert not os.path.exists(output_files)
+
+    @staticmethod
+    def _join(*parts):
+            return ''.join(parts)
+
+    def test_prep_samples_cmd(self):
+        cmd = util.bcbio_prepare_samples_cmd(
+            self.assets_path,
+            'a_sample_id',
+            ['test_R1.fastq', 'test_R2.fastq'],
+            user_sample_id='a_user_sample_id'
+        )
+
+        bcbio_csv = os.path.join(self.assets_path, 'samples_a_sample_id.csv')
+        with open(bcbio_csv) as f:
+            content = f.read()
+            print(content)
+            assert content == (
+                'samplename,description\n'
+                'test_R1.fastq,a_user_sample_id\n'
+                'test_R2.fastq,a_user_sample_id\n'
+            )
+        os.remove(bcbio_csv)
+        assert not os.path.isfile(bcbio_csv)
+        expected = self._join(
+            'bcbio_prepare_samples.py --out ',
+            os.path.join(self.assets_path, 'merged'),
+            ' --csv ',
+            bcbio_csv
+        )
+        assert expected in cmd

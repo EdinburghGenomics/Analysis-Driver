@@ -39,14 +39,14 @@ def prepare_run_data(dataset):
     return os.path.join(dataset_dir, dataset.name)
 
 
-def _transfer_to_int_dir(dataset, from_dir, to_dir, repeat_delay):
+def _transfer_to_int_dir(dataset, from_dir, to_dir, repeat_delay, rsync_append_verify=True):
     """
     rsync -aqu --size-only --partial from_dir/dataset to_dir
     """
     exit_status = 0
     app_logger.info('Starting transfer')
 
-    rsync_cmd = rsync_from_to(os.path.join(from_dir, dataset.name), to_dir)
+    rsync_cmd = rsync_from_to(os.path.join(from_dir, dataset.name), to_dir, append_verify=rsync_append_verify)
 
     while dataset.dataset_status != DATASET_READY:
         exit_status += executor.execute([rsync_cmd], job_name='rsync', run_id=dataset.name, walltime=36).join()
@@ -88,23 +88,26 @@ def prepare_sample_data(dataset):
 
 def output_run_data(fastq_dir, run_id):
     """Retrieve and copy the fastq files to the output directory"""
-    output_dir = cfg['output_dir']
-    output_run_dir = os.path.join(output_dir, run_id)
+    output_run_dir = os.path.join(cfg['output_dir'], run_id)
     if not os.path.isdir(output_run_dir):
         os.makedirs(output_run_dir)
     command = rsync_from_to(fastq_dir, output_run_dir)
     return executor.execute([command], job_name='final_copy', run_id=run_id, walltime=36).join()
 
 
-def output_sample_data(sample_id, intput_dir, output_dir, output_config):
+def output_sample_data(sample_id, intput_dir, output_dir, output_config, query_lims=True, rsync_append=True):
     exit_status = 0
-    
-    project_id = clarity.find_project_from_sample(sample_id)
-    user_sample_id = clarity.get_user_sample_name(sample_id)
+
+    if query_lims:
+        project_id = clarity.find_project_from_sample(sample_id)
+        user_sample_id = clarity.get_user_sample_name(sample_id)
+    else:
+        project_id = 'proj_' + sample_id
+        user_sample_id = None
     if not user_sample_id:
         user_sample_id = sample_id
 
-    dir_with_linked_files = os.path.join(intput_dir,"linked_output_files")
+    dir_with_linked_files = os.path.join(intput_dir, "linked_output_files")
     os.makedirs(dir_with_linked_files)
 
     list_of_link = []
@@ -145,7 +148,7 @@ def output_sample_data(sample_id, intput_dir, output_dir, output_config):
     if not os.path.isdir(output_loc):
         os.makedirs(output_loc)
 
-    command = rsync_from_to(dir_with_linked_files, output_loc)
+    command = rsync_from_to(dir_with_linked_files, output_loc, append_verify=rsync_append)
     exit_status += executor.execute([command], job_name='final_copy', run_id=sample_id, walltime=36).join()
 
     #with open(os.path.join(output_loc, 'run_config.yaml'), 'w') as f:
