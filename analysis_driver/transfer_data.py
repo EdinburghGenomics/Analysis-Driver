@@ -60,14 +60,17 @@ def _transfer_to_int_dir(dataset, from_dir, to_dir, repeat_delay):
     return exit_status
 
 def find_run_location(run_id):
-    fastq_dir = os.path.join(cfg['jobs_dir'], run_id, 'fastq')
-    if not os.path.isdir(fastq_dir):
-        app_logger.debug(fastq_dir + 'does not exist')
-        fastq_dir = os.path.join(cfg['output_dir'], 'runs', run_id)
-    if not os.path.isdir(fastq_dir):
-        app_logger.debug(fastq_dir + 'does not exist')
-        return None
-    return fastq_dir
+    searchable_input_dirs = (
+        os.path.join(cfg['jobs_dir'], run_id, 'fastq'),
+        os.path.join(cfg['input_dir'], run_id, 'fastq')
+    )
+    for s in searchable_input_dirs:
+        app_logger.debug('searching in ' + s)
+        if os.path.isdir(s):
+            return s
+    app_logger.error('could not find any input fastq dir')
+    return None
+
 
 def prepare_sample_data(dataset):
     """
@@ -86,15 +89,9 @@ def prepare_sample_data(dataset):
 def output_run_data(fastq_dir, run_id):
     """Retrieve and copy the fastq files to the output directory"""
     output_dir = cfg['output_dir']
-    output_run_dir = os.path.join(output_dir, 'runs', run_id)
-    command = rsync_from_to(fastq_dir, output_run_dir)
-    return executor.execute([command], job_name='final_copy', run_id=run_id, walltime=36).join()
-
-
-def output_sample_data(fastq_dir, run_id):
-    """Retrieve and copy the fastq files to the output directory"""
-    output_dir = cfg['output_dir']
-    output_run_dir = os.path.join(output_dir, 'runs', run_id)
+    output_run_dir = os.path.join(output_dir, run_id)
+    if not os.path.isdir(output_run_dir):
+        os.makedirs(output_run_dir)
     command = rsync_from_to(fastq_dir, output_run_dir)
     return executor.execute([command], job_name='final_copy', run_id=run_id, walltime=36).join()
 
@@ -118,7 +115,7 @@ def output_sample_data(sample_id, intput_dir, output_dir, output_config):
             output_record['basename']
         ).format(runfolder=sample_id, sample_id=user_sample_id)
 
-        sources = glob(src_pattern)
+        sources = glob.glob(src_pattern)
         if sources:
             source = sources[-1]
             link_file = os.path.join(
@@ -140,7 +137,7 @@ def output_sample_data(sample_id, intput_dir, output_dir, output_config):
         cpus=1,
         mem=2,
         log_command = False
-    ).join
+    ).join()
     ntf.end_stage('md5sum', md5sum_exit_status)
 
     exit_status += md5sum_exit_status
@@ -153,6 +150,5 @@ def output_sample_data(sample_id, intput_dir, output_dir, output_config):
 
     #with open(os.path.join(output_loc, 'run_config.yaml'), 'w') as f:
     #    f.write(cfg.report())
-
 
     return exit_status

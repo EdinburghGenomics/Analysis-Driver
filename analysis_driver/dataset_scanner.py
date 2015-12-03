@@ -269,7 +269,10 @@ class RunScanner(DatasetScanner):
 class SampleScanner(DatasetScanner):
 
     def __init__(self, cfg):
-        super().__init__(cfg)
+        self.lock_file_dir = cfg.get('lock_file_dir', cfg['metadata_input_dir'])
+        self.input_dir = cfg.get('metadata_input_dir')
+        self.data_threshold = cfg.get('data_threshold', None)
+
 
     def report(self, all_datasets=False):
         out = ['========= Sample Scanner report =========']

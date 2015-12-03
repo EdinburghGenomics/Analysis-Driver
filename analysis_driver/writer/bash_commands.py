@@ -82,3 +82,4 @@ def rsync_from_to(source, dest, server_source=None, server_dest=None):
               '%s: %s'%(source, dest)
     else:
         command = 'rsync -rLD --size-only --append-verify %s %s'%(source, dest)
+    return command
