@@ -7,7 +7,8 @@ from analysis_driver.reader.demultiplexing_parsers import parse_conversion_stats
 from analysis_driver.report_generation import ELEMENT_RUN_NAME, ELEMENT_NUMBER_LANE, ELEMENT_RUN_ELEMENTS, \
     ELEMENT_BARCODE, ELEMENT_RUN_ELEMENT_ID, ELEMENT_PROJECT, ELEMENT_SAMPLE_INTERNAL_ID, ELEMENT_LIBRARY_INTERNAL_ID, \
     ELEMENT_LANE, ELEMENT_SAMPLES, ELEMENT_NB_READS_SEQUENCED, ELEMENT_NB_READS_PASS_FILTER, ELEMENT_NB_BASE_R1, \
-    ELEMENT_NB_BASE_R2, ELEMENT_NB_Q30_R1, ELEMENT_NB_Q30_R2, ELEMENT_PC_READ_IN_LANE, ELEMENT_LANE_ID
+    ELEMENT_NB_BASE_R2, ELEMENT_NB_Q30_R1, ELEMENT_NB_Q30_R2, ELEMENT_PC_READ_IN_LANE, ELEMENT_LANE_ID, \
+    ELEMENT_PROJECT_ID
 from analysis_driver.report_generation.rest_communication import post_entry, patch_entry
 from analysis_driver.config import default as cfg
 
@@ -48,12 +49,13 @@ class RunCrawler(AppLogger):
                         #Populate the libraries
                         self.libraries[sample.sample_name][ELEMENT_SAMPLE_INTERNAL_ID] = sample.sample_id
                         self.libraries[sample.sample_name][ELEMENT_PROJECT] = project_id
+                        self.libraries[sample.sample_name][ELEMENT_LIBRARY_INTERNAL_ID] = sample.sample_name
                         if not ELEMENT_RUN_ELEMENTS in self.libraries[sample.sample_name]:
                             self.libraries[sample.sample_name][ELEMENT_RUN_ELEMENTS] = []
                         self.libraries[sample.sample_name][ELEMENT_RUN_ELEMENTS].append(barcode_info[ELEMENT_RUN_ELEMENT_ID])
 
                         #Populate the projects
-                        self.projects[project_id][ELEMENT_PROJECT]=project_id
+                        self.projects[project_id][ELEMENT_PROJECT_ID]=project_id
                         if not ELEMENT_SAMPLES in self.projects[project_id]:
                             self.projects[project_id][ELEMENT_SAMPLES] = []
                         self.projects[project_id][ELEMENT_SAMPLES].append(sample.sample_id)
@@ -61,7 +63,7 @@ class RunCrawler(AppLogger):
                         #Populate the lanes
                         lane_id = '%s_%s'%(self.run_id, lane)
                         self.lanes[lane_id][ELEMENT_RUN_NAME] = self.run_id
-                        self.lanes[lane_id][ELEMENT_LANE] = lane
+                        self.lanes[lane_id][ELEMENT_LANE_ID] = lane_id
                         if not ELEMENT_RUN_ELEMENTS in self.lanes[lane_id]:
                             self.lanes[lane_id][ELEMENT_RUN_ELEMENTS] = []
                         self.lanes[lane_id][ELEMENT_RUN_ELEMENTS].append(barcode_info[ELEMENT_RUN_ELEMENT_ID])
@@ -179,5 +181,5 @@ class RunCrawler(AppLogger):
         url=cfg.query('rest_api','url') + 'projects/'
         for payload in array_json:
             if not post_entry(url, payload):
-                id = payload.pop(ELEMENT_PROJECT)
-                patch_entry(url, payload, **{ELEMENT_PROJECT:id})
+                id = payload.pop(ELEMENT_PROJECT_ID)
+                patch_entry(url, payload, **{ELEMENT_PROJECT_ID:id})
