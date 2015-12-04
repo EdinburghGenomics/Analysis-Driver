@@ -36,9 +36,15 @@ def get_valid_lanes(flowcell_name):
 def find_project_from_sample(sample_name):
     """Query clarity to get the project name of a sample"""
     lims = _get_lims_connection()
-    sample = get_lims_sample(sample_name, lims)
-    if sample:
-        return sample.project.name
+    samples = get_lims_samples(sample_name, lims)
+    if samples:
+        project_names = set([s.project.name for s in samples])
+        if len(project_names) != 1:
+            app_logger.error('%s projects found for sample %s' % (len(project_names), sample_name))
+            return None
+        else:
+            return project_names.pop()
+
 
 def find_run_elements_from_sample(sample_name):
     lims = _get_lims_connection()
@@ -60,7 +66,7 @@ def sanitize_user_id(user_id):
     else:
         return None
 
-def get_lims_sample(sample_name, lims):
+def get_lims_samples(sample_name, lims):
     samples = lims.get_samples(name=sample_name)
     #FIXME: Remove the hack when we're sure our sample id don't have colon
     if len(samples) == 0:
@@ -69,6 +75,10 @@ def get_lims_sample(sample_name, lims):
     if len(samples) == 0:
         sample_name_sub = re.sub("__(\w)_(\d{2})"," _\g<1>:\g<2>",sample_name)
         samples = lims.get_samples(name=sample_name_sub)
+    return samples
+
+def get_lims_sample(sample_name, lims):
+    samples = get_lims_samples(sample_name, lims)
     if len(samples) != 1:
         app_logger.warning('%s Sample(s) found for name %s' % (len(samples), sample_name))
         return None

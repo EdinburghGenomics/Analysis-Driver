@@ -98,9 +98,9 @@ def create_links_from_bcbio(sample_id, intput_dir, output_config, link_dir, quer
     exit_status = 0
     if query_lims:
         user_sample_id = clarity.get_user_sample_name(sample_id)
-    else:
+    if not user_sample_id:
         user_sample_id = sample_id
-    os.makedirs(link_dir)
+    os.makedirs(link_dir, exist_ok=True)
 
     list_of_link = []
     for output_record in output_config:
@@ -117,7 +117,8 @@ def create_links_from_bcbio(sample_id, intput_dir, output_config, link_dir, quer
                 link_dir,
                 output_record.get('new_name', os.path.basename(source))
             ).format(sample_id=user_sample_id)
-            os.symlink(source, link_file)
+            if not os.path.islink(link_file):
+                os.symlink(source, link_file)
             list_of_link.append(link_file)
         else:
             app_logger.warning('No files found for pattern ' + src_pattern)
