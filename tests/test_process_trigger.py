@@ -1,7 +1,5 @@
 __author__ = 'mwham'
-import analysis_driver
 import os
-import shutil
 from tests.test_analysisdriver import TestAnalysisDriver
 from analysis_driver import transfer_data
 from analysis_driver.dataset_scanner import RunDataset

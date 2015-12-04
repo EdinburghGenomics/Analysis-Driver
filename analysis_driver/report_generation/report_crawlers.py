@@ -1,14 +1,18 @@
 #!/usr/bin/env python
 from collections import Counter, defaultdict
+import glob
 import json
 import os
 from analysis_driver.app_logging import AppLogger
 from analysis_driver.reader.demultiplexing_parsers import parse_conversion_stats
+from analysis_driver.reader.mapping_stats_parsers import parse_bamtools_stats, parse_highdepth_yaml_file, \
+    parse_callable_bed_file
 from analysis_driver.report_generation import ELEMENT_RUN_NAME, ELEMENT_NUMBER_LANE, ELEMENT_RUN_ELEMENTS, \
     ELEMENT_BARCODE, ELEMENT_RUN_ELEMENT_ID, ELEMENT_PROJECT, ELEMENT_SAMPLE_INTERNAL_ID, ELEMENT_LIBRARY_INTERNAL_ID, \
     ELEMENT_LANE, ELEMENT_SAMPLES, ELEMENT_NB_READS_SEQUENCED, ELEMENT_NB_READS_PASS_FILTER, ELEMENT_NB_BASE_R1, \
     ELEMENT_NB_BASE_R2, ELEMENT_NB_Q30_R1, ELEMENT_NB_Q30_R2, ELEMENT_PC_READ_IN_LANE, ELEMENT_LANE_ID, \
-    ELEMENT_PROJECT_ID
+    ELEMENT_PROJECT_ID, ELEMENT_SAMPLE_EXTERNAL_ID, ELEMENT_NB_READS_IN_BAM, ELEMENT_NB_MAPPED_READS, \
+    ELEMENT_NB_DUPLICATE_READS, ELEMENT_NB_PROPERLY_MAPPED, ELEMENT_MEDIAN_COVERAGE, ELEMENT_PC_BASES_CALLABLE
 from analysis_driver.report_generation.rest_communication import post_entry, patch_entry
 from analysis_driver.config import default as cfg
 
@@ -183,3 +187,78 @@ class RunCrawler(AppLogger):
             if not post_entry(url, payload):
                 id = payload.pop(ELEMENT_PROJECT_ID)
                 patch_entry(url, payload, **{ELEMENT_PROJECT_ID:id})
+
+
+
+
+class SampleCrawler(AppLogger):
+
+    def __init__(self, sample_id,  project_id,  sample_dir):
+        self.sample_id = sample_id
+        self.project_id = project_id
+        self.all_info = []
+        self.sample = self._populate_lib_info(sample_dir)
+
+    def _populate_lib_info(self, sample_dir):
+        sample = {}
+        sample[ELEMENT_SAMPLE_INTERNAL_ID]= self.sample_id
+        sample[ELEMENT_PROJECT]= self.project_id
+        fastq_file = glob.glob(os.path.join(sample_dir,"*_R1.fastq.gz"))[0]
+        external_sample_name = os.path.basename(fastq_file)[:-len("_R1.fastq.gz")]
+        sample[ELEMENT_SAMPLE_EXTERNAL_ID]= external_sample_name
+        
+        bamtools_path = glob.glob(os.path.join(sample_dir, 'bamtools_stats.txt'))
+        if bamtools_path:
+            total_reads, mapped_reads, duplicate_reads, proper_pairs = parse_bamtools_stats(bamtools_path[0])
+            sample[ELEMENT_NB_READS_IN_BAM]= int(total_reads)
+            sample[ELEMENT_NB_MAPPED_READS]= int(mapped_reads)
+            sample[ELEMENT_NB_DUPLICATE_READS]= int(duplicate_reads)
+            sample[ELEMENT_NB_PROPERLY_MAPPED]= int(proper_pairs)
+        else:
+            self.critical('Missing bamtools_stats.txt')
+
+        yaml_metric_paths = glob.glob(os.path.join(sample_dir, '*%s-sort-highdepth-stats.yaml'%external_sample_name))
+        if yaml_metric_paths:
+            yaml_metric_path = yaml_metric_paths[0]
+            median_coverage  = parse_highdepth_yaml_file(yaml_metric_path)
+            sample[ELEMENT_MEDIAN_COVERAGE]= median_coverage
+        else:
+            self.critical('Missing %s-sort-highdepth-stats.yaml'%external_sample_name)
+
+        bed_file_paths = glob.glob(os.path.join(sample_dir,'*%s-sort-callable.bed'%external_sample_name))
+        if bed_file_paths:
+            bed_file_path = bed_file_paths[0]
+            coverage_per_type = parse_callable_bed_file(bed_file_path)
+            callable_bases = coverage_per_type.get('CALLABLE')
+            total = sum(coverage_per_type.values())
+            sample[ELEMENT_PC_BASES_CALLABLE]= callable_bases/total
+        else:
+            self.critical('Missing *%s-sort-callable.bed'%external_sample_name)
+        return sample
+
+        self.run_id = run_id
+        self._populate_barcode_info_from_SampleSheet(samplesheet)
+        if conversion_xml_file:
+            self._populate_barcode_info_from_conversion_file(conversion_xml_file)
+
+    def write_json(self, json_file):
+        payload ={
+            'samples' : list(self.sample)
+        }
+        with open(json_file, 'w') as open_file:
+            json.dump(payload, open_file, indent=4)
+
+
+    def send_data(self):
+
+        if not cfg.get('rest_api'):
+            self.warn('rest_api is not set in the config: Cancel upload')
+            return
+
+        #Send sample
+        array_json = self.sample
+        url=cfg.query('rest_api','url') + 'samples/'
+        for payload in array_json:
+            if not post_entry(url, payload):
+                id = payload.get(ELEMENT_SAMPLE_INTERNAL_ID)
+                patch_entry(url, payload, **{ELEMENT_SAMPLE_INTERNAL_ID:id})

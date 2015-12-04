@@ -38,8 +38,6 @@ class TestFastqHandler(TestAnalysisDriver):
 class TestOutputData(TestAnalysisDriver):
     def setUp(self):
         self.param_remappings = (
-            {'name': 'job_execution', 'new': 'pbs'},
-            {'name': 'qsub', 'new': '/bin/sh'},
             {'name': 'output_dir', 'new': os.path.join(self.data_output, 'to')},
             {'name': 'jobs_dir', 'new': os.path.join(self.data_output, 'jobs')}
         )
@@ -52,7 +50,7 @@ class TestOutputData(TestAnalysisDriver):
         for p in self.param_remappings:
             cfg.content[p['name']] = p['original']
 
-    def test_output_sample_data(self):
+    def test_create_links(self):
         sample_id = '10015AT0001'
         destination = os.path.join(self.data_output, 'to')
         if not os.path.exists(os.path.join(self.data_output, 'jobs', sample_id)):
@@ -104,11 +102,46 @@ class TestOutputData(TestAnalysisDriver):
         if os.path.isdir(os.path.join(self.data_output, 'linked_output_files')):
             shutil.rmtree(os.path.join(self.data_output, 'linked_output_files'))
 
-        exit_status = transfer_data.output_sample_data(
+        list_of_linked_files = transfer_data.create_links_from_bcbio(
             sample_id,
             self.data_output,
-            destination,
             records,
+            os.path.join(self.data_output, 'linked_output_files'),
+            query_lims=False,
+        )
+
+        output_files = os.path.join(self.data_output, 'linked_output_files')
+
+        expected_outputs = [
+            '10015AT0001.bam',
+            '10015AT0001.bam.bai',
+            '10015AT0001.g.vcf.gz',
+            '10015AT0001.g.vcf.gz.tbi',
+            '10015AT0001_R1.fastq.gz',
+            '10015AT0001_R2.fastq.gz',
+            '1_2015-10-16_samples_10015AT0001-merged-sort-callable.bed',
+            '1_2015-10-16_samples_10015AT0001-merged-sort-highdepth-stats.yaml',
+            'ConversionStats.xml',
+            'bamtools_stats.txt'
+            # 'run_config.yaml'
+        ]
+        o = list(sorted(os.listdir(output_files)))
+        assert len(list_of_linked_files) == len(expected_outputs)
+        assert o == expected_outputs
+        shutil.rmtree(output_files)
+        assert not os.path.exists(output_files)
+
+    def test_output_sample_data(self):
+        sample_id = '10015AT0001'
+        destination = os.path.join(self.data_output, 'to')
+        if not os.path.isdir(destination):
+            os.makedirs(destination)
+        source = os.path.join(self.data_output, 'pseudo_links')
+
+        exit_status = transfer_data.output_sample_data(
+            sample_id,
+            source,
+            destination,
             query_lims=False,
             rsync_append=False
         )
@@ -116,7 +149,6 @@ class TestOutputData(TestAnalysisDriver):
             destination,
             'proj_' + sample_id,
             sample_id,
-            'linked_output_files'
         )
 
         expected_outputs = [
@@ -134,9 +166,6 @@ class TestOutputData(TestAnalysisDriver):
         ]
 
         o = list(sorted(os.listdir(output_files)))
-        print()
-        print(o)
-        print(expected_outputs)
         assert exit_status == 0
         assert o == expected_outputs
         shutil.rmtree(output_files)

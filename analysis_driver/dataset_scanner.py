@@ -1,5 +1,5 @@
 import json
-from analysis_driver.report_generation.run_report import ELEMENT_NB_READS_SEQUENCED
+from analysis_driver.report_generation import ELEMENT_NB_READS_SEQUENCED
 
 __author__ = 'mwham'
 import os

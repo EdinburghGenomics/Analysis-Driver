@@ -9,8 +9,9 @@ from analysis_driver.exceptions import AnalysisDriverError
 from analysis_driver.app_logging import get_logger
 from analysis_driver.config import default as cfg  # imports the default config singleton
 from analysis_driver.notification import default as ntf
-from analysis_driver.report_generation.run_report import RunCrawler
-from analysis_driver.transfer_data import prepare_run_data, prepare_sample_data, output_sample_data, output_run_data
+from analysis_driver.report_generation.report_crawlers import RunCrawler, SampleCrawler
+from analysis_driver.transfer_data import prepare_run_data, prepare_sample_data, output_sample_data, output_run_data, \
+    create_links_from_bcbio
 
 app_logger = get_logger('driver')
 
@@ -196,9 +197,34 @@ def variant_calling_pipeline(dataset):
         return bcbio_exit_status
     exit_status += fastqc2_exit_status + bcbio_exit_status
 
+    #Create the links from the bcbio output to one directory
+    dir_with_linked_files = os.path.join(sample_dir,"linked_output_files")
+    linked_files = create_links_from_bcbio(sample_id, sample_dir, cfg['output_files'], dir_with_linked_files)
+
+    #upload the data to the rest API
+    project_id = clarity.find_project_from_sample(sample_id)
+    crawler = SampleCrawler(sample_id,  project_id,  dir_with_linked_files)
+    crawler.send_data()
+
+    ntf.start_stage('md5sum')
+    md5sum_exit_status = executor.execute(
+        [writer.bash_commands.md5sum(f) for f in linked_files],
+        job_name='md5sum',
+        run_id=sample_id,
+        walltime=6,
+        cpus=1,
+        mem=2,
+        log_command = False
+    ).join()
+    ntf.end_stage('md5sum', md5sum_exit_status)
+
+    exit_status += md5sum_exit_status
+
     # transfer output data
     ntf.start_stage('data_transfer')
-    transfer_exit_status = output_sample_data(sample_id, sample_dir, cfg['output_dir'], cfg['output_files'])
+    transfer_exit_status = output_sample_data(sample_id,
+                                              dir_with_linked_files,
+                                              cfg['output_dir'])
     ntf.end_stage('data_transfer', transfer_exit_status)
     exit_status += transfer_exit_status
 
