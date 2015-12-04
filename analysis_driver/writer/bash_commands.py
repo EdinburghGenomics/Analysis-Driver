@@ -81,7 +81,7 @@ def rsync_from_to(source, dest, server_source=None, server_dest=None, append_ver
     if append_verify:
         command += '--append-verify '
     if server_source or server_dest:
-        command += '-e ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -c arcfour" %s: %s'%(source, dest)
+        command += '-e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -c arcfour" %s %s'%(source, dest)
     else:
         command += '%s %s'%(source, dest)
     return command

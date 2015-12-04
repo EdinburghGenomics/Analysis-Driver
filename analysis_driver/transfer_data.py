@@ -13,7 +13,7 @@ from analysis_driver.util.fastq_handler import find_fastqs
 from analysis_driver.notification import default as ntf
 from analysis_driver import writer
 
-app_logger = get_logger('proctrigger')
+app_logger = get_logger(__name__)
 
 
 def prepare_run_data(dataset):
@@ -143,4 +143,8 @@ def output_sample_data(sample_id, source_dir, output_dir, query_lims=True, rsync
     command = rsync_from_to(source_dir, output_sample, append_verify=rsync_append)
     print(command)
     exit_status += executor.execute([command], job_name='final_copy', run_id=sample_id, walltime=36).join()
+
+    # with open(os.path.join(output_loc, 'run_config.yaml'), 'w') as f:
+    #     f.write(cfg.report())
+
     return exit_status
