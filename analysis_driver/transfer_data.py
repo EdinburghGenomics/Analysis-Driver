@@ -22,8 +22,6 @@ def prepare_run_data(dataset):
     status = dataset.dataset_status
     exit_status = 0
     if cfg.get('intermediate_dir'):
-        assert status in [DATASET_NEW, DATASET_READY], 'Invalid dataset status: ' + status
-        dataset.transfer()
         exit_status = _transfer_to_int_dir(
             dataset,
             cfg['input_dir'],
@@ -32,7 +30,6 @@ def prepare_run_data(dataset):
         )
         dataset_dir = cfg['intermediate_dir']
     else:
-        assert status in [DATASET_READY], 'Invalid dataset status: ' + status
         dataset_dir = cfg['input_dir']
 
     return os.path.join(dataset_dir, dataset.name)
@@ -47,7 +44,7 @@ def _transfer_to_int_dir(dataset, from_dir, to_dir, repeat_delay, rsync_append_v
 
     rsync_cmd = rsync_from_to(os.path.join(from_dir, dataset.name), to_dir, append_verify=rsync_append_verify)
 
-    while dataset.dataset_status != DATASET_READY:
+    while not dataset._rta_complete():
         exit_status += executor.execute([rsync_cmd], job_name='rsync', run_id=dataset.name, walltime=36).join()
         sleep(repeat_delay)
 

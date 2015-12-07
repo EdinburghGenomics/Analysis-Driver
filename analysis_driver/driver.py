@@ -35,11 +35,11 @@ def demultiplexing_pipeline(dataset):
     :rtype: int
     """
     exit_status = 0
+
+    dataset.start()
     ntf.start_stage('transfer')
     input_run_folder = prepare_run_data(dataset)
     ntf.end_stage('transfer')
-
-    dataset.start()
 
     run_id = os.path.basename(input_run_folder)
     job_dir = os.path.join(cfg['jobs_dir'], run_id)

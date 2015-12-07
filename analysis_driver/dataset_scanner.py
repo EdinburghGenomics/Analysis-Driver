@@ -10,14 +10,13 @@ from analysis_driver.app_logging import get_logger
 app_logger = get_logger('scanner')
 
 DATASET_NEW = 'new'
-DATASET_TRANSFERING = 'transfering'
 DATASET_READY = 'ready'
 DATASET_PROCESSING = 'processing'
 DATASET_PROCESSED_SUCCESS = 'finished'
 DATASET_PROCESSED_FAIL = 'failed'
 DATASET_ABORTED = 'aborted'
 
-STATUS_VISIBLE=[DATASET_NEW, DATASET_TRANSFERING, DATASET_READY, DATASET_PROCESSING]
+STATUS_VISIBLE=[DATASET_NEW, DATASET_READY, DATASET_PROCESSING]
 STATUS_HIDEN=[DATASET_PROCESSED_SUCCESS, DATASET_PROCESSED_FAIL, DATASET_ABORTED]
 
 class Dataset:
@@ -33,13 +32,8 @@ class Dataset:
         raise NotImplementedError("Function not implemented in DatasetScanner")
 
     def start(self):
-        assert self.dataset_status==DATASET_READY
+        assert self.dataset_status==DATASET_READY or self.dataset_status==DATASET_NEW
         self._change_status(DATASET_PROCESSING)
-        self.set_pid()
-
-    def transfer(self):
-        assert self.dataset_status==DATASET_NEW or self.dataset_status==DATASET_READY
-        self._change_status(DATASET_TRANSFERING)
         self.set_pid()
 
     def succeed(self):
@@ -48,7 +42,7 @@ class Dataset:
         self._change_status(DATASET_PROCESSED_SUCCESS)
 
     def fail(self):
-        assert self.dataset_status==DATASET_PROCESSING or self.dataset_status==DATASET_TRANSFERING
+        assert self.dataset_status==DATASET_PROCESSING
         self._clear_stage()
         self.clear_pid()
         self._change_status(DATASET_PROCESSED_FAIL)
@@ -63,8 +57,11 @@ class Dataset:
         self.clear_pid()
         self._rm(*glob(self._lock_file('*')))
 
+    def reset_status(self):
+        self._rm(*glob(self._lock_file('*')))
+
     def _change_status(self, status):
-        self.reset()
+        self.reset_status()
         self._touch(self._lock_file(status))
 
     def _lock_file(self, status):
@@ -148,7 +145,7 @@ class RunDataset(Dataset):
             lf_status = DATASET_NEW
 
         rta_complete = self._rta_complete()
-        if rta_complete and lf_status == DATASET_NEW or rta_complete and lf_status == DATASET_TRANSFERING:
+        if rta_complete and lf_status == DATASET_NEW:
             return DATASET_READY
         else:
             return lf_status
