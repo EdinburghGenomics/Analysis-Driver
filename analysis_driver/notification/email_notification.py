@@ -80,7 +80,6 @@ class EmailNotification(Notification):
         }
         if diagnostics:
             render_params['env_vars'] = self._get_envs('ANALYSISDRIVERCONFIG', 'ANALYSISDRIVERENV')
-            render_params['config'] = self._prepare_string(cfg.report(), {' ': '&nbsp', '\n': '<br/>'})
 
         msg = MIMEText(content.render(**render_params), 'html')
         msg['Subject'] = 'Analysis Driver %s %s'%(self.dataset.type, self.dataset.name)
