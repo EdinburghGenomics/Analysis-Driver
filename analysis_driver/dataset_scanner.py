@@ -1,5 +1,5 @@
 import json
-from analysis_driver.report_generation import ELEMENT_NB_READS_SEQUENCED
+from analysis_driver.report_generation import ELEMENT_NB_Q30_R1, ELEMENT_NB_Q30_R2
 
 __author__ = 'mwham'
 import os
@@ -175,7 +175,7 @@ class SampleDataset(Dataset):
     def _amount_data(self):
         if not hasattr(self,'run_elements'):
             self._read_json()
-        return sum([int(r.get(ELEMENT_NB_READS_SEQUENCED)) for r in self.run_elements.values()])
+        return sum([int(r.get(ELEMENT_NB_Q30_R1)) + int(r.get(ELEMENT_NB_Q30_R2)) for r in self.run_elements.values()])
 
     def _is_ready(self):
         if self.data_threshold and int(self._amount_data()) > int(self.data_threshold):
