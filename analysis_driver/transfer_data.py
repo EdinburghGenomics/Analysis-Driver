@@ -10,8 +10,6 @@ from analysis_driver.app_logging import get_logger
 from analysis_driver.config import default as cfg
 from analysis_driver.report_generation.report_crawlers import ELEMENT_RUN_NAME, ELEMENT_LANE, ELEMENT_PROJECT
 from analysis_driver.util.fastq_handler import find_fastqs
-from analysis_driver.notification import default as ntf
-from analysis_driver import writer
 
 app_logger = get_logger(__name__)
 
@@ -25,6 +23,7 @@ def prepare_run_data(dataset):
     exit_status = 0
     if cfg.get('intermediate_dir'):
         assert status in [DATASET_NEW, DATASET_READY], 'Invalid dataset status: ' + status
+        dataset.transfer()
         exit_status = _transfer_to_int_dir(
             dataset,
             cfg['input_dir'],

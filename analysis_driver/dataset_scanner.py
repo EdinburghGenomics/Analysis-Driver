@@ -10,13 +10,14 @@ from analysis_driver.app_logging import get_logger
 app_logger = get_logger('scanner')
 
 DATASET_NEW = 'new'
+DATASET_TRANSFERING = 'transfering'
 DATASET_READY = 'ready'
 DATASET_PROCESSING = 'processing'
 DATASET_PROCESSED_SUCCESS = 'finished'
 DATASET_PROCESSED_FAIL = 'failed'
 DATASET_ABORTED = 'aborted'
 
-STATUS_VISIBLE=[DATASET_NEW, DATASET_READY, DATASET_PROCESSING]
+STATUS_VISIBLE=[DATASET_NEW, DATASET_TRANSFERING, DATASET_READY, DATASET_PROCESSING]
 STATUS_HIDEN=[DATASET_PROCESSED_SUCCESS, DATASET_PROCESSED_FAIL, DATASET_ABORTED]
 
 class Dataset:
@@ -36,13 +37,18 @@ class Dataset:
         self._change_status(DATASET_PROCESSING)
         self.set_pid()
 
+    def transfer(self):
+        assert self.dataset_status==DATASET_NEW or self.dataset_status==DATASET_READY
+        self._change_status(DATASET_TRANSFERING)
+        self.set_pid()
+
     def succeed(self):
         assert self.dataset_status==DATASET_PROCESSING
         self.clear_pid()
         self._change_status(DATASET_PROCESSED_SUCCESS)
 
     def fail(self):
-        assert self.dataset_status==DATASET_PROCESSING
+        assert self.dataset_status==DATASET_PROCESSING or self.dataset_status==DATASET_TRANSFERING
         self._clear_stage()
         self.clear_pid()
         self._change_status(DATASET_PROCESSED_FAIL)
@@ -50,7 +56,7 @@ class Dataset:
     def abort(self):
         self._clear_stage()
         self.clear_pid()
-        self._change_status( DATASET_ABORTED)
+        self._change_status(DATASET_ABORTED)
 
     def reset(self):
         self._clear_stage()
@@ -142,7 +148,7 @@ class RunDataset(Dataset):
             lf_status = DATASET_NEW
 
         rta_complete = self._rta_complete()
-        if rta_complete and lf_status == DATASET_NEW:
+        if rta_complete and lf_status == DATASET_NEW or rta_complete and lf_status == DATASET_TRANSFERING:
             return DATASET_READY
         else:
             return lf_status
