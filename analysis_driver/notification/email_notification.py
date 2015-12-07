@@ -4,7 +4,7 @@ from email.mime.text import MIMEText
 import jinja2
 import os.path
 from time import sleep
-from analysis_driver.config import default as cfg
+# from analysis_driver.config import default as cfg
 from .notification_center import Notification
 from analysis_driver.exceptions import AnalysisDriverError
 
@@ -80,6 +80,7 @@ class EmailNotification(Notification):
         }
         if diagnostics:
             render_params['env_vars'] = self._get_envs('ANALYSISDRIVERCONFIG', 'ANALYSISDRIVERENV')
+            # render_params['config'] = self._prepare_string(cfg.report(), {' ': '&nbsp', '\n': '<br/>'})
 
         msg = MIMEText(content.render(**render_params), 'html')
         msg['Subject'] = 'Analysis Driver %s %s'%(self.dataset.type, self.dataset.name)

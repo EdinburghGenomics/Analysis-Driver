@@ -114,6 +114,7 @@ class RunCrawler(AppLogger):
             barcode_info[ELEMENT_RUN_ELEMENT_ID] = '%s_%s_%s'%(self.run_id, lane, barcode)
             barcode_info[ELEMENT_RUN_NAME]=self.run_id
             barcode_info[ELEMENT_LANE]=lane
+            barcode_info[ELEMENT_PC_READ_IN_LANE] = int(clust_count) / nb_read_per_lane.get(lane)
             barcode_info[ELEMENT_BARCODE]=barcode
             barcode_info[ELEMENT_NB_READS_PASS_FILTER]=int(clust_count)
             self.unexpected_barcode_info[barcode_info[ELEMENT_RUN_ELEMENT_ID]]=(barcode_info)
@@ -245,18 +246,12 @@ class SampleCrawler(AppLogger):
             self.critical('Missing *%s-sort-callable.bed'%external_sample_name)
         return sample
 
-        self.run_id = run_id
-        self._populate_barcode_info_from_SampleSheet(samplesheet)
-        if conversion_xml_file:
-            self._populate_barcode_info_from_conversion_file(conversion_xml_file)
-
     def write_json(self, json_file):
         payload ={
             'samples' : list(self.sample)
         }
         with open(json_file, 'w') as open_file:
             json.dump(payload, open_file, indent=4)
-
 
     def send_data(self):
 
