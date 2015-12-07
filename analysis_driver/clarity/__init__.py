@@ -33,12 +33,56 @@ def get_valid_lanes(flowcell_name):
     app_logger.info('Valid lanes for %s: %s' % (flowcell_name, str(valid_lanes)))
     return valid_lanes
 
+def find_project_from_sample(sample_name):
+    """Query clarity to get the project name of a sample"""
+    lims = _get_lims_connection()
+    samples = get_lims_samples(sample_name, lims)
+    if samples:
+        project_names = set([s.project.name for s in samples])
+        if len(project_names) != 1:
+            app_logger.error('%s projects found for sample %s' % (len(project_names), sample_name))
+            return None
+        else:
+            return project_names.pop()
+
+
+def find_run_elements_from_sample(sample_name):
+    lims = _get_lims_connection()
+    sample = get_lims_sample(sample_name, lims)
+    if sample:
+        run_log_files = lims.get_artifacts(sample_name=sample.name, process_type="AUTOMATED - Sequence")
+        for run_log_file in run_log_files:
+            p = run_log_file.parent_process
+            run_id = p.udf.get('RunID')
+            lanes = p.input_per_sample(sample.name)
+            for artifact in lanes:
+                lane = artifact.position.split(':')[0]
+                if not artifact.udf.get('Lane Failed?', False):
+                    yield run_id, lane
 
 def sanitize_user_id(user_id):
     if isinstance(user_id,str):
         return re.sub("[^\w_\-.]","_",user_id)
     else:
         return None
+
+def get_lims_samples(sample_name, lims):
+    samples = lims.get_samples(name=sample_name)
+    #FIXME: Remove the hack when we're sure our sample id don't have colon
+    if len(samples) == 0:
+        sample_name_sub = re.sub("_(\d{2})",":\g<1>",sample_name)
+        samples = lims.get_samples(name=sample_name_sub)
+    if len(samples) == 0:
+        sample_name_sub = re.sub("__(\w)_(\d{2})"," _\g<1>:\g<2>",sample_name)
+        samples = lims.get_samples(name=sample_name_sub)
+    return samples
+
+def get_lims_sample(sample_name, lims):
+    samples = get_lims_samples(sample_name, lims)
+    if len(samples) != 1:
+        app_logger.warning('%s Sample(s) found for name %s' % (len(samples), sample_name))
+        return None
+    return samples[0]
 
 
 def get_user_sample_name(sample_name):
@@ -48,19 +92,9 @@ def get_user_sample_name(sample_name):
     :return: the user's sample name or None
     """
     lims = _get_lims_connection()
-    samples = lims.get_samples(name=sample_name)
-    #FIXME: Remove the hack when we're sure our sample id don't have colon
-    if len(samples) == 0:
-        sample_name_sub = re.sub("_(\d{2})",":\g<1>",sample_name)
-        samples = lims.get_samples(name=sample_name_sub)
-    if len(samples) == 0:
-        sample_name_sub = re.sub("__(\w)_(\d{2})"," _\g<1>:\g<2>",sample_name)
-        samples = lims.get_samples(name=sample_name_sub)
-    if len(samples) != 1:
-        app_logger.warning('%s Sample(s) found for name %s' % (len(samples), sample_name))
-        return None
-
-    return sanitize_user_id(samples[0].udf.get('User Sample Name'))
+    sample = get_lims_sample(sample_name, lims)
+    if sample:
+        return sanitize_user_id(sample.udf.get('User Sample Name'))
 
 
 def run_tests():
@@ -69,6 +103,8 @@ def run_tests():
 
     assert get_user_sample_name('10094AT0001') == '1118-RP'
     assert get_user_sample_name('NA12877_25SEPT15 2/5') is None
+
+    assert find_run_elements_from_sample('10094AT0001')
 
 if __name__ == '__main__':
     # will only work with a valid connection to the production server

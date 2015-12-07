@@ -4,14 +4,14 @@ from email.mime.text import MIMEText
 import jinja2
 import os.path
 from time import sleep
-from analysis_driver.config import default as cfg
+# from analysis_driver.config import default as cfg
 from .notification_center import Notification
 from analysis_driver.exceptions import AnalysisDriverError
 
 
 class EmailNotification(Notification):
-    def __init__(self, run_id, config):
-        super().__init__(run_id)
+    def __init__(self, dataset, config):
+        super().__init__(dataset)
         self.reporter = config['reporter_email']
         self.recipients = config['recipient_emails']
         self.mailhost = config['mailhost']
@@ -19,7 +19,7 @@ class EmailNotification(Notification):
         self.port = config['port']
 
     def start_pipeline(self):
-        self._send_mail('Pipeline started for run ' + self.run_id)
+        self._send_mail('Pipeline started for %s %s '%(self.dataset.type, self.dataset.name))
 
     def end_stage(self, stage_name, exit_status=0):
         if exit_status != 0:
@@ -73,14 +73,17 @@ class EmailNotification(Notification):
             ).read()
         )
         render_params = {
-            'run': self.run_id,
+            'dataset_type': self.dataset.type,
+            'run': self.dataset.name,
+
             'body': self._prepare_string(body, {' ': '&nbsp', '\n': '<br/>'})
         }
         if diagnostics:
             render_params['env_vars'] = self._get_envs('ANALYSISDRIVERCONFIG', 'ANALYSISDRIVERENV')
+            # render_params['config'] = self._prepare_string(cfg.report(), {' ': '&nbsp', '\n': '<br/>'})
 
         msg = MIMEText(content.render(**render_params), 'html')
-        msg['Subject'] = 'Analysis Driver run ' + self.run_id
+        msg['Subject'] = 'Analysis Driver %s %s'%(self.dataset.type, self.dataset.name)
         msg['From'] = self.reporter
         msg['To'] = ','.join(self.recipients)
 

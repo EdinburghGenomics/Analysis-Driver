@@ -9,11 +9,11 @@ class PBSWriter(ScriptWriter):
     """
     suffix = '.pbs'
 
-    def __init__(self, job_name, run_id, walltime, cpus, mem, jobs=1):
+    def __init__(self, job_name, run_id, walltime, cpus, mem, jobs=1, **kwargs):
         """
         :param int jobs: Number of jobs to submit, in an array if needed
         """
-        super().__init__(job_name, run_id, jobs)
+        super().__init__(job_name, run_id, jobs, **kwargs)
         self._write_header(walltime, cpus, mem, job_name, self.queue, jobs)
         self.info(
             'Written PBS header. Walltime %s, cpus %s, memory %s, job name %s, queue %s, array %s' % (

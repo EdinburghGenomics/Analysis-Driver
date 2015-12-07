@@ -30,6 +30,11 @@ def fastqc(fastq, threads=1):
     app_logger.debug('Writing: ' + cmd)
     return cmd
 
+def md5sum(input_file, threads=1):
+    cmd = cfg.get('md5sum', 'md5sum') + ' %s > %s.md5'%(input_file,input_file)
+    app_logger.debug('Writing: ' + cmd)
+    return cmd
+
 
 def bcbio_env_vars():
     """
@@ -63,3 +68,20 @@ def _export(env_var, value, prepend=False):
     if prepend:
         statement += ':$' + env_var
     return statement
+
+
+def rsync_from_to(source, dest, server_source=None, server_dest=None, append_verify=True):
+    """rsync command that will transfer the file to the desired destination"""
+    if server_source:
+        source = "%s:%s"%(server_source, source)
+    if server_dest:
+        source = "%s:%s"%(server_dest, dest)
+
+    command = 'rsync -rLD --size-only '
+    if append_verify:
+        command += '--append-verify '
+    if server_source or server_dest:
+        command += '-e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -c arcfour" %s %s'%(source, dest)
+    else:
+        command += '%s %s'%(source, dest)
+    return command

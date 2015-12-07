@@ -12,12 +12,13 @@ class ScriptWriter(AppLogger):
     """
     suffix = '.sh'
 
-    def __init__(self, job_name, run_id, jobs=1):
+    def __init__(self, job_name, run_id, jobs=1, log_command=True):
         """
         :param str job_name: Desired full path to the pbs script to write
         :param int jobs: A number of jobs to submit in an array
         """
         self.script_name = os.path.join(cfg['jobs_dir'], run_id, job_name + self.suffix)
+        self.log_command = log_command
         self.log_file = os.path.join(cfg['jobs_dir'], run_id, job_name + '.log')
         self.queue = cfg['job_queue']
         self.info('Writing: ' + self.script_name)
@@ -40,7 +41,10 @@ class ScriptWriter(AppLogger):
         else:
             self._start_array()
             for idx, cmd in enumerate(cmds):
-                self._write_array_cmd(idx + 1, cmd, log_file=self.log_file + str(idx + 1))
+                if self.log_command:
+                    self._write_array_cmd(idx + 1, cmd, log_file=self.log_file + str(idx + 1))
+                else:
+                    self._write_array_cmd(idx + 1, cmd)
             self._finish_array()
         self._save()
 
