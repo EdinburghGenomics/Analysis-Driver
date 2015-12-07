@@ -96,6 +96,7 @@ def output_run_data(fastq_dir, run_id):
 
 def create_links_from_bcbio(sample_id, intput_dir, output_config, link_dir, query_lims=True):
     exit_status = 0
+    user_sample_id = None
     if query_lims:
         user_sample_id = clarity.get_user_sample_name(sample_id)
     if not user_sample_id:

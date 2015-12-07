@@ -54,7 +54,7 @@ class TestOutputData(TestAnalysisDriver):
         sample_id = '10015AT0001'
         destination = os.path.join(self.data_output, 'to')
         if not os.path.exists(os.path.join(self.data_output, 'jobs', sample_id)):
-            os.mkdir(os.path.join(self.data_output, 'jobs', sample_id))
+            os.makedirs(os.path.join(self.data_output, 'jobs', sample_id))
 
         if not os.path.isdir(destination):
             os.makedirs(destination)
