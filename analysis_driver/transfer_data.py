@@ -58,7 +58,7 @@ def _transfer_to_int_dir(dataset, from_dir, to_dir, repeat_delay, rsync_append_v
 def find_run_location(run_id):
     searchable_input_dirs = (
         os.path.join(cfg['jobs_dir'], run_id, 'fastq'),
-        os.path.join(cfg['input_dir'], run_id, 'fastq')
+        os.path.join(cfg['input_dir'], run_id, )
     )
     for s in searchable_input_dirs:
         app_logger.debug('searching in ' + s)
