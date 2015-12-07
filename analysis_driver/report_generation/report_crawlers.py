@@ -256,9 +256,8 @@ class SampleCrawler(AppLogger):
             return
 
         #Send sample
-        array_json = self.sample
+        payload = self.sample
         url=cfg.query('rest_api','url') + 'samples/'
-        for payload in array_json:
-            if not post_entry(url, payload):
-                id = payload.get(ELEMENT_SAMPLE_INTERNAL_ID)
-                patch_entry(url, payload, **{ELEMENT_SAMPLE_INTERNAL_ID:id})
+        if not post_entry(url, payload):
+            id = payload.get(ELEMENT_SAMPLE_INTERNAL_ID)
+            patch_entry(url, payload, **{ELEMENT_SAMPLE_INTERNAL_ID:id})
