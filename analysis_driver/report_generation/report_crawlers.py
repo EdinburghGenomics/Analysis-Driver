@@ -12,7 +12,8 @@ from analysis_driver.report_generation import ELEMENT_RUN_NAME, ELEMENT_NUMBER_L
     ELEMENT_LANE, ELEMENT_SAMPLES, ELEMENT_NB_READS_SEQUENCED, ELEMENT_NB_READS_PASS_FILTER, ELEMENT_NB_BASE_R1, \
     ELEMENT_NB_BASE_R2, ELEMENT_NB_Q30_R1, ELEMENT_NB_Q30_R2, ELEMENT_PC_READ_IN_LANE, ELEMENT_LANE_ID, \
     ELEMENT_PROJECT_ID, ELEMENT_SAMPLE_EXTERNAL_ID, ELEMENT_NB_READS_IN_BAM, ELEMENT_NB_MAPPED_READS, \
-    ELEMENT_NB_DUPLICATE_READS, ELEMENT_NB_PROPERLY_MAPPED, ELEMENT_MEDIAN_COVERAGE, ELEMENT_PC_BASES_CALLABLE
+    ELEMENT_NB_DUPLICATE_READS, ELEMENT_NB_PROPERLY_MAPPED, ELEMENT_MEDIAN_COVERAGE, ELEMENT_PC_BASES_CALLABLE, \
+    ELEMENT_LANE_NUMBER
 from analysis_driver.report_generation.rest_communication import post_entry, patch_entry
 from analysis_driver.config import default as cfg
 
@@ -33,7 +34,6 @@ class RunCrawler(AppLogger):
         self.libraries = defaultdict(dict)
         self.lanes = defaultdict(dict)
         self.run={ELEMENT_RUN_NAME : self.run_id,
-                  ELEMENT_NUMBER_LANE : "8",
                   ELEMENT_RUN_ELEMENTS : []}
         self.projects=defaultdict(dict)
         for project_id, proj_obj in samplesheet.sample_projects.items():
@@ -68,6 +68,7 @@ class RunCrawler(AppLogger):
                         lane_id = '%s_%s'%(self.run_id, lane)
                         self.lanes[lane_id][ELEMENT_RUN_NAME] = self.run_id
                         self.lanes[lane_id][ELEMENT_LANE_ID] = lane_id
+                        self.lanes[lane_id][ELEMENT_LANE_NUMBER] = int(lane)
                         if not ELEMENT_RUN_ELEMENTS in self.lanes[lane_id]:
                             self.lanes[lane_id][ELEMENT_RUN_ELEMENTS] = []
                         self.lanes[lane_id][ELEMENT_RUN_ELEMENTS].append(barcode_info[ELEMENT_RUN_ELEMENT_ID])
@@ -84,6 +85,7 @@ class RunCrawler(AppLogger):
                         barcode_info[ELEMENT_LIBRARY_INTERNAL_ID]='Undetermined'
                         barcode_info[ELEMENT_LANE]=lane
                         self.barcodes_info[barcode_info[ELEMENT_RUN_ELEMENT_ID]]=(barcode_info)
+        self.run[ELEMENT_NUMBER_LANE] = len(self.lanes)
         self.unexpected_barcode_info={}
 
     def _populate_barcode_info_from_conversion_file(self, conversion_xml_file):
@@ -171,6 +173,13 @@ class RunCrawler(AppLogger):
             if not post_entry(url, payload):
                 id = payload.pop(ELEMENT_LANE_ID)
                 patch_entry(url, payload, **{ELEMENT_LANE_ID:id})
+
+        #Send runs
+        url = cfg.query('rest_api', 'url') + 'runs/'
+        payload = self.run
+        if not post_entry(url, payload):
+            patch_entry(url, payload)
+
 
         #Send samples information
         array_json = self.libraries.values()
