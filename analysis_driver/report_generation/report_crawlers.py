@@ -24,7 +24,7 @@ class Crawler(AppLogger):
         :param list input_json:
         :param str elem_key:
         """
-        url = cfg.query('rest_api', 'url', endpoint + '/')
+        url = '/'.join((cfg.query('rest_api', 'url').rstrip('/'), endpoint, ''))
         for payload in input_json:
             if not rest_communication.post_entry(url, payload):
                 elem_query = {}
