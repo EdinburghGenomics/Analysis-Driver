@@ -10,8 +10,6 @@ from analysis_driver.app_logging import get_logger
 from analysis_driver.config import default as cfg
 from analysis_driver.report_generation.report_crawlers import ELEMENT_RUN_NAME, ELEMENT_LANE, ELEMENT_PROJECT
 from analysis_driver.util.fastq_handler import find_fastqs
-from analysis_driver.notification import default as ntf
-from analysis_driver import writer
 
 app_logger = get_logger(__name__)
 
@@ -24,7 +22,6 @@ def prepare_run_data(dataset):
     status = dataset.dataset_status
     exit_status = 0
     if cfg.get('intermediate_dir'):
-        assert status in [DATASET_NEW, DATASET_READY], 'Invalid dataset status: ' + status
         exit_status = _transfer_to_int_dir(
             dataset,
             cfg['input_dir'],
@@ -33,7 +30,6 @@ def prepare_run_data(dataset):
         )
         dataset_dir = cfg['intermediate_dir']
     else:
-        assert status in [DATASET_READY], 'Invalid dataset status: ' + status
         dataset_dir = cfg['input_dir']
 
     return os.path.join(dataset_dir, dataset.name)
@@ -48,7 +44,7 @@ def _transfer_to_int_dir(dataset, from_dir, to_dir, repeat_delay, rsync_append_v
 
     rsync_cmd = rsync_from_to(os.path.join(from_dir, dataset.name), to_dir, append_verify=rsync_append_verify)
 
-    while dataset.dataset_status != DATASET_READY:
+    while not dataset._rta_complete():
         exit_status += executor.execute([rsync_cmd], job_name='rsync', run_id=dataset.name, walltime=36).join()
         sleep(repeat_delay)
 
@@ -62,7 +58,7 @@ def _transfer_to_int_dir(dataset, from_dir, to_dir, repeat_delay, rsync_append_v
 def find_run_location(run_id):
     searchable_input_dirs = (
         os.path.join(cfg['jobs_dir'], run_id, 'fastq'),
-        os.path.join(cfg['input_dir'], run_id, 'fastq')
+        os.path.join(cfg['input_dir'], run_id, )
     )
     for s in searchable_input_dirs:
         app_logger.debug('searching in ' + s)

@@ -35,11 +35,11 @@ def demultiplexing_pipeline(dataset):
     :rtype: int
     """
     exit_status = 0
+
+    dataset.start()
     ntf.start_stage('transfer')
     input_run_folder = prepare_run_data(dataset)
     ntf.end_stage('transfer')
-
-    dataset.start()
 
     run_id = os.path.basename(input_run_folder)
     job_dir = os.path.join(cfg['jobs_dir'], run_id)
@@ -132,10 +132,10 @@ def demultiplexing_pipeline(dataset):
     ntf.end_stage('data_transfer', transfer_exit_status)
     exit_status += transfer_exit_status + fastqc_exit_status + md5_exit_status
 
-    if exit_status == 0:
-        ntf.start_stage('cleanup')
-        exit_status += _cleanup(run_id)
-        ntf.end_stage('cleanup', exit_status)
+    #if exit_status == 0:
+    #    ntf.start_stage('cleanup')
+    #    exit_status += _cleanup(run_id)
+    #    ntf.end_stage('cleanup', exit_status)
     return exit_status
 
 
@@ -255,6 +255,7 @@ def _bcbio_prepare_sample(job_dir, sample_id, fastq_files):
     app_logger.info('bcbio_prepare_samples finished with exit status ' + str(exit_status))
 
     return sample_fastqs
+
 
 def _run_bcbio(sample_id, sample_dir, sample_fastqs):
     run_template = os.path.join(

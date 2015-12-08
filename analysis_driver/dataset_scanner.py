@@ -32,7 +32,7 @@ class Dataset:
         raise NotImplementedError("Function not implemented in DatasetScanner")
 
     def start(self):
-        assert self.dataset_status==DATASET_READY
+        assert self.dataset_status==DATASET_READY or self.dataset_status==DATASET_NEW
         self._change_status(DATASET_PROCESSING)
         self.set_pid()
 
@@ -50,15 +50,18 @@ class Dataset:
     def abort(self):
         self._clear_stage()
         self.clear_pid()
-        self._change_status( DATASET_ABORTED)
+        self._change_status(DATASET_ABORTED)
 
     def reset(self):
         self._clear_stage()
         self.clear_pid()
         self._rm(*glob(self._lock_file('*')))
 
+    def reset_status(self):
+        self._rm(*glob(self._lock_file('*')))
+
     def _change_status(self, status):
-        self.reset()
+        self.reset_status()
         self._touch(self._lock_file(status))
 
     def _lock_file(self, status):

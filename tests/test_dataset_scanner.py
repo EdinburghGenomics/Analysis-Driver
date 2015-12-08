@@ -48,8 +48,9 @@ class TestRunDataset(TestAnalysisDriver):
         assert self.dataset_not_ready.dataset_status == DATASET_ABORTED
         self.dataset_not_ready.reset()
         assert self.dataset_not_ready.dataset_status == DATASET_NEW
-        with pytest.raises(AssertionError):
-            self.dataset_not_ready.start()
+        self.dataset_not_ready.start()
+        assert self.dataset_not_ready.dataset_status == DATASET_PROCESSING
+        self.dataset_not_ready.reset()
         with pytest.raises(AssertionError):
             self.dataset_not_ready.fail()
         with pytest.raises(AssertionError):
