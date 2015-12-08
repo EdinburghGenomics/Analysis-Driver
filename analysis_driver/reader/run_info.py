@@ -1,5 +1,5 @@
 import os.path
-from xml.etree import ElementTree as et
+from xml.etree import ElementTree
 from analysis_driver.app_logging import AppLogger
 
 
@@ -18,7 +18,7 @@ class RunInfo(AppLogger):
         :param str data_dir: A file path to the input_data folder containing RunInfo.xml
         """
         run_info = os.path.join(data_dir, 'RunInfo.xml')
-        root = et.parse(run_info).getroot()
+        root = ElementTree.parse(run_info).getroot()
         reads = root.find('Run/Reads').getchildren()
 
         # Populate a Mask object with Read XML entities

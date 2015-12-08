@@ -1,7 +1,6 @@
 __author__ = 'tcezard'
 
 
-
 ELEMENT_RUN_ELEMENT_ID = 'run_element_id'
 ELEMENT_RUN_NAME = 'run_id'
 ELEMENT_LANE_ID = 'lane_id'
@@ -9,8 +8,8 @@ ELEMENT_LANE = 'lane'
 ELEMENT_LANE_NUMBER = 'lane_number'
 ELEMENT_NUMBER_LANE = 'number_of_lanes'
 ELEMENT_BARCODE = 'barcode'
-ELEMENT_PROJECT='project'
-ELEMENT_PROJECT_ID='project_id'
+ELEMENT_PROJECT = 'project'
+ELEMENT_PROJECT_ID = 'project_id'
 ELEMENT_LIBRARY_INTERNAL_ID = 'library_id'
 ELEMENT_SAMPLE_INTERNAL_ID = 'sample_id'
 ELEMENT_SAMPLES = 'samples'

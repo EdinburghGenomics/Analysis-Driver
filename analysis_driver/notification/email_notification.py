@@ -19,7 +19,7 @@ class EmailNotification(Notification):
         self.port = config['port']
 
     def start_pipeline(self):
-        self._send_mail('Pipeline started for %s %s '%(self.dataset.type, self.dataset.name))
+        self._send_mail('Pipeline started for %s %s ' % (self.dataset.type, self.dataset.name))
 
     def end_stage(self, stage_name, exit_status=0):
         if exit_status != 0:
@@ -83,7 +83,7 @@ class EmailNotification(Notification):
             # render_params['config'] = self._prepare_string(cfg.report(), {' ': '&nbsp', '\n': '<br/>'})
 
         msg = MIMEText(content.render(**render_params), 'html')
-        msg['Subject'] = 'Analysis Driver %s %s'%(self.dataset.type, self.dataset.name)
+        msg['Subject'] = 'Analysis Driver %s %s' % (self.dataset.type, self.dataset.name)
         msg['From'] = self.reporter
         msg['To'] = ','.join(self.recipients)
 

@@ -1,7 +1,6 @@
 __author__ = 'mwham'
 import shutil
 import os.path
-import hashlib
 from . import fastq_handler
 from analysis_driver import writer
 from analysis_driver.app_logging import get_logger

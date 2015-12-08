@@ -4,7 +4,7 @@ import logging
 import os
 import sys
 from analysis_driver.app_logging import get_logger
-from analysis_driver.config import default as cfg, logging_default as log_cfg, Configuration
+from analysis_driver.config import default as cfg, logging_default as log_cfg
 from analysis_driver.notification import default as ntf, LogNotification, EmailNotification
 from analysis_driver.exceptions import AnalysisDriverError
 from analysis_driver.dataset_scanner import SampleScanner, DATASET_READY, DATASET_NEW, RunScanner
@@ -38,7 +38,8 @@ def main():
         if 'run' in cfg:
             cfg.merge(cfg['run'])
         scanner = RunScanner(cfg)
-    elif args.sample:
+    else:
+        assert args.sample
         if 'sample' in cfg:
             cfg.merge(cfg['sample'])
         scanner = SampleScanner(cfg)
@@ -72,6 +73,7 @@ def main():
         # being kicked off per minute.
         return _process_dataset(dataset_ready[0])
 
+
 def setup_logging(d):
     log_repo = cfg.query('logging', 'repo')
     if log_repo:
@@ -90,7 +92,6 @@ def setup_logging(d):
     log_cfg.switch_formatter(log_cfg.blank_formatter)
 
 
-
 def _process_dataset(d):
     """
     :param d: Name of a dataset (not a full path!) to process
@@ -102,7 +103,6 @@ def _process_dataset(d):
     if not os.path.isdir(dataset_job_dir):
         os.makedirs(dataset_job_dir)
 
-    #initialize logging
     setup_logging(d)
 
     app_logger.info('\nEdinburgh Genomics Analysis Driver')
@@ -119,7 +119,7 @@ def _process_dataset(d):
     exit_status = 9
     stacktrace = None
     try:
-        #TODO: launch a pipeline directly which includes the process trigger step instead of launching the process trigger which launch the pipeline
+        # TODO: launch a pipeline directly which includes the process trigger step instead of launching the process trigger which launch the pipeline
         # Only process the first new dataset found. Run through Cron, this will result
         # in one new pipeline being kicked off per minute.
         from analysis_driver import driver
