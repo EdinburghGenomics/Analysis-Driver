@@ -111,8 +111,9 @@ class RunCrawler(Crawler):
             barcode_info = self.barcodes_info.get('%s_%s_%s' % (self.run_id, lane, barcode))
             barcode_info[ELEMENT_NB_READS_SEQUENCED] = int(clust_count)
             barcode_info[ELEMENT_NB_READS_PASS_FILTER] = int(clust_count_pf)
-            # For the paired end reads
-            barcode_info[ELEMENT_NB_BASE_R1] = int(nb_bases)  # TODO: is this correct?
+            # For the paired end reads. For the moment, assume that r1 and r2 are the same lengths.
+            # TODO: we should remove this assumption by parsing ConversionStats.xml
+            barcode_info[ELEMENT_NB_BASE_R1] = int(nb_bases)
             barcode_info[ELEMENT_NB_BASE_R2] = int(nb_bases)
             barcode_info[ELEMENT_NB_Q30_R1] = int(nb_bases_r1_q30)
             barcode_info[ELEMENT_NB_Q30_R2] = int(nb_bases_r2_q30)
