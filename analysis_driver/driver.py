@@ -296,7 +296,7 @@ def _run_bcbio(sample_id, sample_dir, sample_fastqs):
 
     bcbio_executor = executor.execute(
         [bcbio_cmd],
-        prelim_cmds=writer.bash_commands.bcbio_env_vars(),
+        prelim_cmds=writer.bash_commands.export_env_vars(),
         job_name='bcb%s' % sample_id,
         run_id=sample_id,
         walltime=240,

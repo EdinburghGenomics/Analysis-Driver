@@ -3,7 +3,7 @@ from tests.test_analysisdriver import TestAnalysisDriver
 from analysis_driver.writer.pbs_writer import PBSWriter
 from analysis_driver.config import default as cfg
 import os.path
-from analysis_driver.writer.bash_commands import bcbio_env_vars, bcbio
+from analysis_driver.writer.bash_commands import export_env_vars, bcbio
 
 
 class TestPBSWriter(TestAnalysisDriver):
@@ -55,7 +55,7 @@ class TestPBSWriter(TestAnalysisDriver):
                 assert line.strip() in file_lines
 
     def test_bcbio(self):
-        for c in bcbio_env_vars():
+        for c in export_env_vars():
             self.writer.write_line(c)
 
         self.writer.write_line(bcbio('test.yaml', self.assets_path))

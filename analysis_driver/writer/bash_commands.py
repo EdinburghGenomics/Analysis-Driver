@@ -37,10 +37,8 @@ def md5sum(input_file):
     return cmd
 
 
-def bcbio_env_vars():
-    """
-    Write export statements for environment variables required by BCBio
-    """
+def export_env_vars():
+    """Write export statements for environment variables required by BCBio"""
     app_logger.debug('Writing Java paths')
     return (
         _export('PATH', os.path.join(cfg['bcbio'], 'bin'), prepend=True),
@@ -71,23 +69,18 @@ def _export(env_var, value, prepend=False):
     return statement
 
 
-def rsync_from_to(source, dest, server_source=None, server_dest=None, append_verify=True):
-    """rsync command that will transfer the file to the desired destination"""
-    if server_source:
-        source = '%s:%s' % (server_source, source)
-    if server_dest:
-        source = '%s:%s' % (server_dest, dest)
+def _is_remote_path(fp):
+    return (':' in fp) and ('@' in fp)
 
+
+def rsync_from_to(source, dest, append_verify=True):
+    """rsync command that will transfer the file to the desired destination"""
     command = 'rsync -rLD --size-only '
     if append_verify:
         command += '--append-verify '
-    if server_source or server_dest:
-        command += (
-            '-e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -c arcfour"' +
-            source +
-            dest
-        )
-    else:
-        command += '%s %s' % (source, dest)
+    if _is_remote_path(source) or _is_remote_path(dest):
+        command += '-e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -c arcfour" '
+
+    command += '%s %s' % (source, dest)
 
     return command

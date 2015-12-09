@@ -54,9 +54,6 @@ def prepare_sample_data(dataset):
 
 
 def _transfer_to_int_dir(dataset, from_dir, to_dir, repeat_delay, rsync_append_verify=True):
-    """
-    rsync -aqu --size-only --partial from_dir/dataset to_dir
-    """
     exit_status = 0
     app_logger.info('Starting transfer')
 
