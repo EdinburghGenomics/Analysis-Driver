@@ -1,0 +1,9 @@
+column_names:
+    sample_project: [Sample_Project, SampleProject, Project_Name]
+    sample_id:      [Sample_ID, SampleID]
+    sample_name:    [Sample_Name]
+    lane:           [Lane]
+    barcode:        [Index, index]
+
+transformations:
+    Project_Name: Sample_Project

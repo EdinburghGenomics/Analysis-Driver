@@ -14,9 +14,8 @@ def main():
     args = _parse_args()
 
     if args.debug:
-        log_cfg.log_level = logging.DEBUG
-    else:
-        log_cfg.log_level = logging.INFO
+        log_cfg.default_level = logging.DEBUG
+
 
     logging_handlers = cfg.query('logging', 'handlers')
     if logging_handlers:
@@ -32,7 +31,7 @@ def main():
                 handler = logging.StreamHandler(stream=s)
             else:
                 raise AnalysisDriverError('Invalid logging configuration: %s %s' % name, str(config))
-            log_cfg.add_handler(name, handler)
+            log_cfg.add_handler(name, handler, config.get('level', log_cfg.default_level))
 
     if args.run:
         if 'run' in cfg:
@@ -78,11 +77,12 @@ def setup_logging(d):
     log_repo = cfg.query('logging', 'repo')
     if log_repo:
         handler = logging.FileHandler(filename=os.path.join(log_repo, d.name + '.log'), mode='w')
-        log_cfg.add_handler(d, handler)
+        log_cfg.add_handler(d, handler, log_cfg.default_level)
 
     log_cfg.add_handler(
         'dataset',
-        logging.FileHandler(filename=os.path.join(cfg['jobs_dir'], d.name, 'analysis_driver.log'), mode='w')
+        logging.FileHandler(filename=os.path.join(cfg['jobs_dir'], d.name, 'analysis_driver.log'), mode='w'),
+        log_cfg.default_level
     )
     ntf.add_subscribers(
         (LogNotification, d, cfg.query('notification', 'log_notification')),
@@ -111,9 +111,6 @@ def _process_dataset(d):
     log_cfg.switch_formatter(log_cfg.default_formatter)
 
     app_logger.info('Using config file at ' + cfg.config_file)
-    invalid_cfg_paths = cfg.validate_file_paths(cfg.content)
-    if invalid_cfg_paths:
-        app_logger.warning('Invalid config paths: ' + str(invalid_cfg_paths))
     app_logger.info('Triggering for dataset: ' + d.name)
 
     exit_status = 9

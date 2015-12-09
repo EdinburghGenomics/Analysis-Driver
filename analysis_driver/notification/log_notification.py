@@ -13,7 +13,7 @@ class LogNotification(Notification):
             datefmt='%Y-%b-%d %H:%M:%S'
         )
         self.handler.setFormatter(self.formatter)
-        self.handler.setLevel(log_cfg.log_level)
+        self.handler.setLevel(log_cfg.default_level)
         # this class will log to the usual places in the usual format, as well as a notification log file in
         # the format '[<date> <time>][dataset name] msg'
 
