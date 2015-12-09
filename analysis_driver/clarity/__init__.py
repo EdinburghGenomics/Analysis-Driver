@@ -33,6 +33,7 @@ def get_valid_lanes(flowcell_name):
     app_logger.info('Valid lanes for %s: %s' % (flowcell_name, str(valid_lanes)))
     return valid_lanes
 
+
 def find_project_from_sample(sample_name):
     """Query clarity to get the project name of a sample"""
     lims = _get_lims_connection()
@@ -60,22 +61,25 @@ def find_run_elements_from_sample(sample_name):
                 if not artifact.udf.get('Lane Failed?', False):
                     yield run_id, lane
 
+
 def sanitize_user_id(user_id):
-    if isinstance(user_id,str):
-        return re.sub("[^\w_\-.]","_",user_id)
+    if isinstance(user_id, str):
+        return re.sub("[^\w_\-.]", "_", user_id)
     else:
         return None
 
+
 def get_lims_samples(sample_name, lims):
     samples = lims.get_samples(name=sample_name)
-    #FIXME: Remove the hack when we're sure our sample id don't have colon
+    # FIXME: Remove the hack when we're sure our sample id don't have colon
     if len(samples) == 0:
-        sample_name_sub = re.sub("_(\d{2})",":\g<1>",sample_name)
+        sample_name_sub = re.sub("_(\d{2})", ":\g<1>", sample_name)
         samples = lims.get_samples(name=sample_name_sub)
     if len(samples) == 0:
-        sample_name_sub = re.sub("__(\w)_(\d{2})"," _\g<1>:\g<2>",sample_name)
+        sample_name_sub = re.sub("__(\w)_(\d{2})", " _\g<1>:\g<2>", sample_name)
         samples = lims.get_samples(name=sample_name_sub)
     return samples
+
 
 def get_lims_sample(sample_name, lims):
     samples = get_lims_samples(sample_name, lims)

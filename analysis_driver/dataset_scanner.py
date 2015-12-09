@@ -1,11 +1,11 @@
-import json
-from analysis_driver.report_generation import ELEMENT_NB_Q30_R1, ELEMENT_NB_Q30_R2
-
 __author__ = 'mwham'
+import json
 import os
 from glob import glob
 from collections import defaultdict
+from analysis_driver.report_generation import ELEMENT_NB_Q30_R1, ELEMENT_NB_Q30_R2
 from analysis_driver.app_logging import get_logger
+
 
 app_logger = get_logger('scanner')
 
@@ -16,8 +16,9 @@ DATASET_PROCESSED_SUCCESS = 'finished'
 DATASET_PROCESSED_FAIL = 'failed'
 DATASET_ABORTED = 'aborted'
 
-STATUS_VISIBLE=[DATASET_NEW, DATASET_READY, DATASET_PROCESSING]
-STATUS_HIDEN=[DATASET_PROCESSED_SUCCESS, DATASET_PROCESSED_FAIL, DATASET_ABORTED]
+STATUS_VISIBLE = [DATASET_NEW, DATASET_READY, DATASET_PROCESSING]
+STATUS_HIDDEN = [DATASET_PROCESSED_SUCCESS, DATASET_PROCESSED_FAIL, DATASET_ABORTED]
+
 
 class Dataset:
     def __init__(self, name, path, lock_file_dir, data_threshold=None):
@@ -25,24 +26,25 @@ class Dataset:
         self.path = path
         self.lock_file_dir = lock_file_dir
         self.data_threshold = data_threshold
-
+        self._stages = None
+        self._pid = None
 
     @property
     def dataset_status(self):
         raise NotImplementedError("Function not implemented in DatasetScanner")
 
     def start(self):
-        assert self.dataset_status==DATASET_READY or self.dataset_status==DATASET_NEW
+        assert self.dataset_status == DATASET_READY or self.dataset_status == DATASET_NEW
         self._change_status(DATASET_PROCESSING)
         self.set_pid()
 
     def succeed(self):
-        assert self.dataset_status==DATASET_PROCESSING
+        assert self.dataset_status == DATASET_PROCESSING
         self.clear_pid()
         self._change_status(DATASET_PROCESSED_SUCCESS)
 
     def fail(self):
-        assert self.dataset_status==DATASET_PROCESSING
+        assert self.dataset_status == DATASET_PROCESSING
         self._clear_stage()
         self.clear_pid()
         self._change_status(DATASET_PROCESSED_FAIL)
@@ -86,9 +88,7 @@ class Dataset:
         self._rm(self._stage_file(stage))
 
     def _pid_file(self, pid):
-        return os.path.join(
-            self.lock_file_dir,
-        '.pid_'+ self.name + '.' + pid)
+        return os.path.join(self.lock_file_dir, '.pid_' + self.name + '.' + pid)
 
     def set_pid(self):
         self._touch(self._pid_file(str(os.getpid())))
@@ -96,28 +96,29 @@ class Dataset:
     def clear_pid(self):
         self._rm(*glob(self._pid_file('*')))
 
-
     @property
     def stages(self):
-        if not hasattr(self,'_stages'):
+        if self._stages is None:
             stage_files = glob(self._stage_file('*'))
             self._stages = [sf.split('.')[-1] for sf in stage_files]
         return self._stages
 
     @property
     def pid(self):
-        if not hasattr(self,'_pid'):
+        if self._pid is None:
             pid_files = glob(self._pid_file('*'))
-            if len(pid_files) == 1 :
+            if len(pid_files) == 1:
                 self._pid = [sf.split('.')[-1] for sf in pid_files][0]
             else:
-                self._pid=None
+                self._pid = None
         return self._pid
 
-    def _touch(self, file):
+    @staticmethod
+    def _touch(file):
         open(file, 'w').close()
 
-    def _rm(self, *files):
+    @staticmethod
+    def _rm(*files):
         for f in files:
             if os.path.isfile(f):
                 os.remove(f)
@@ -125,15 +126,17 @@ class Dataset:
     def __str__(self):
         out = [self.name]
         if self.pid:
-            out.append('(%s)'%self.pid)
+            out.append('(%s)' % self.pid)
         if self.stages:
-            out.append('-- %s'%(', '.join(self.stages)))
+            out.append('-- %s' % (', '.join(self.stages)))
         return ' '.join(out)
 
     __repr__ = __str__
 
+
 class RunDataset(Dataset):
     type = 'run'
+
     @property
     def dataset_status(self):
         dataset_lock_files = glob(self._lock_file('*'))
@@ -144,18 +147,19 @@ class RunDataset(Dataset):
         else:
             lf_status = DATASET_NEW
 
-        rta_complete = self._rta_complete()
+        rta_complete = self.rta_complete()
         if rta_complete and lf_status == DATASET_NEW:
             return DATASET_READY
         else:
             return lf_status
 
-    def _rta_complete(self):
+    def rta_complete(self):
         return os.path.isfile(os.path.join(self.path, 'RTAComplete.txt'))
 
 
 class SampleDataset(Dataset):
     type = 'sample'
+
     @property
     def dataset_status(self):
         dataset_lock_files = glob(self._lock_file('*'))
@@ -176,9 +180,14 @@ class SampleDataset(Dataset):
             self.run_elements = json.load(open_file)
 
     def _amount_data(self):
-        if not hasattr(self,'run_elements'):
+        if not hasattr(self, 'run_elements'):
             self._read_json()
-        return sum([int(r.get(ELEMENT_NB_Q30_R1)) + int(r.get(ELEMENT_NB_Q30_R2)) for r in self.run_elements.values()])
+        return sum(
+            [
+                int(r.get(ELEMENT_NB_Q30_R1)) + int(r.get(ELEMENT_NB_Q30_R2))
+                for r in self.run_elements.values()
+            ]
+        )
 
     def _is_ready(self):
         if self.data_threshold and int(self._amount_data()) > int(self.data_threshold):
@@ -187,9 +196,10 @@ class SampleDataset(Dataset):
             return False
 
     def __str__(self):
-        return '%s  (%s / %s)'%(super().__str__(), self._amount_data(), self.data_threshold)
+        return '%s  (%s / %s)' % (super().__str__(), self._amount_data(), self.data_threshold)
 
-class DatasetScanner():
+
+class DatasetScanner:
     def __init__(self, cfg):
         self.lock_file_dir = cfg.get('lock_file_dir', cfg['input_dir'])
         self.input_dir = cfg.get('input_dir')
@@ -200,8 +210,7 @@ class DatasetScanner():
 
     def report(self, all_datasets=False):
         datasets = self.scan_datasets()
-        out = []
-        out.append('dataset location: ' + self.input_dir)
+        out = ['dataset location: ' + self.input_dir]
         for status in STATUS_VISIBLE:
             ds = datasets.pop(status, [])
             if ds:
@@ -224,17 +233,18 @@ class DatasetScanner():
         directory = glob(os.path.join(self.input_dir, dataset_name))
         if directory:
             directory = directory[0]
-            d = dataset_class(name=os.path.basename(directory),
-                        path=directory,
-                        lock_file_dir=self.lock_file_dir)
-            return d
+            return dataset_class(
+                name=os.path.basename(directory),
+                path=directory,
+                lock_file_dir=self.lock_file_dir
+            )
         return None
+
 
 class RunScanner(DatasetScanner):
 
     def __init__(self, cfg):
         super().__init__(cfg)
-
 
     def report(self, all_datasets=False):
         out = ['========= Run Scanner report =========']
@@ -266,16 +276,15 @@ class RunScanner(DatasetScanner):
         app_logger.debug('Found %s datasets' % n_datasets)
         return datasets
 
-    def get(self, dataset_name):
+    def get(self, dataset_name, dataset_class=None):
         return super().get(dataset_name, RunDataset)
 
-class SampleScanner(DatasetScanner):
 
+class SampleScanner(DatasetScanner):
     def __init__(self, cfg):
+        super().__init__(cfg)
         self.lock_file_dir = cfg.get('lock_file_dir', cfg['metadata_input_dir'])
         self.input_dir = cfg.get('metadata_input_dir')
-        self.data_threshold = cfg.get('data_threshold', None)
-
 
     def report(self, all_datasets=False):
         out = ['========= Sample Scanner report =========']
@@ -308,5 +317,5 @@ class SampleScanner(DatasetScanner):
         app_logger.debug('Found %s datasets' % n_datasets)
         return datasets
 
-    def get(self, dataset_name):
+    def get(self, dataset_name, dataset_class=None):
         return super().get(dataset_name, SampleDataset)

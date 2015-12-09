@@ -43,7 +43,7 @@ class TestRunDataset(TestAnalysisDriver):
         self.dataset_not_ready.reset()
 
     def test_change_status_not_ready(self):
-        #dataset not ready
+        # dataset not ready
         self.dataset_not_ready.abort()
         assert self.dataset_not_ready.dataset_status == DATASET_ABORTED
         self.dataset_not_ready.reset()

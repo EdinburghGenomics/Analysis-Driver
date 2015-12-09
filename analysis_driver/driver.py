@@ -15,12 +15,15 @@ from analysis_driver.transfer_data import prepare_run_data, prepare_sample_data,
 
 app_logger = get_logger('driver')
 
+
 def pipeline(dataset):
 
     if isinstance(dataset, RunDataset):
         exit_status = demultiplexing_pipeline(dataset)
     elif isinstance(dataset, SampleDataset):
         exit_status = variant_calling_pipeline(dataset)
+    else:
+        raise AssertionError('Unexpected dataset type: ' + str(dataset))
 
     if exit_status != 0:
         dataset.fail()
@@ -28,9 +31,10 @@ def pipeline(dataset):
         dataset.succeed()
     return exit_status
 
+
 def demultiplexing_pipeline(dataset):
     """
-    :param str input_run_folder: Full path to an input data directory
+    :param RunDataset dataset: Dataset object
     :return: Exit status
     :rtype: int
     """
@@ -59,7 +63,7 @@ def demultiplexing_pipeline(dataset):
     mask = sample_sheet.generate_mask(run_info.mask)
     app_logger.info('bcl2fastq mask: ' + mask)  # e.g: mask = 'y150n,i6,y150n'
 
-    #Send the information about the run to the rest API
+    # Send the information about the run to the rest API
     crawler = RunCrawler(run_id, sample_sheet)
     crawler.send_data()
     ntf.end_stage('setup')
@@ -98,25 +102,25 @@ def demultiplexing_pipeline(dataset):
         walltime=6,
         cpus=1,
         mem=2,
-        log_command = False
+        log_command=False
     )
 
-    valid_lanes = clarity.get_valid_lanes(run_info.flowcell_name)
+    valid_lanes = clarity.get_valid_lanes(run_info.flowcell_name)  # TODO: do we need this in demultiplexing?
 
     fastqc_exit_status = fastqc_executor.join()
     ntf.end_stage('fastqc', fastqc_exit_status)
     md5_exit_status = md5sum_executor.join()
     ntf.end_stage('md5sum', md5_exit_status)
 
-    #copy the Samplesheet Runinfo.xml run_parameters.xml to the fastq dir
+    # Copy the Samplesheet Runinfo.xml run_parameters.xml to the fastq dir
     for f in ['SampleSheet.csv', 'SampleSheet_analysis_driver.csv', 'runParameters.xml',
               'RunInfo.xml', 'RTAConfiguration.xml']:
-        shutil.copy2(os.path.join(input_run_folder,f), os.path.join(fastq_dir, f))
-    if not os.path.exists(os.path.join(fastq_dir,'InterOp')):
-        shutil.copytree(os.path.join(input_run_folder,'InterOp'), os.path.join(fastq_dir,'InterOp'))
+        shutil.copy2(os.path.join(input_run_folder, f), os.path.join(fastq_dir, f))
+    if not os.path.exists(os.path.join(fastq_dir, 'InterOp')):
+        shutil.copytree(os.path.join(input_run_folder, 'InterOp'), os.path.join(fastq_dir, 'InterOp'))
 
-    #Find conversion xml file and send the results to the rest API
-    conversion_xml = os.path.join(fastq_dir, 'Stats','ConversionStats.xml')
+    # Find conversion xml file and send the results to the rest API
+    conversion_xml = os.path.join(fastq_dir, 'Stats', 'ConversionStats.xml')
     if os.path.exists(conversion_xml):
         crawler = RunCrawler(run_id, sample_sheet, conversion_xml)
         json_file = os.path.join(fastq_dir, 'demultiplexing_results.json')
@@ -124,32 +128,30 @@ def demultiplexing_pipeline(dataset):
         crawler.update_json_per_sample(cfg['metadata_output_dir'])
         crawler.send_data()
     else:
-        app_logger.error('File not found: %s'%conversion_xml)
-        exit_status+=1
+        app_logger.error('File not found: %s' % conversion_xml)
+        exit_status += 1
 
     ntf.start_stage('data_transfer')
     transfer_exit_status = output_run_data(fastq_dir, run_id)
     ntf.end_stage('data_transfer', transfer_exit_status)
     exit_status += transfer_exit_status + fastqc_exit_status + md5_exit_status
 
-    #if exit_status == 0:
-    #    ntf.start_stage('cleanup')
-    #    exit_status += _cleanup(run_id)
-    #    ntf.end_stage('cleanup', exit_status)
+    # if exit_status == 0:
+    #     ntf.start_stage('cleanup')
+    #     exit_status += _cleanup(run_id)
+    #     ntf.end_stage('cleanup', exit_status)
     return exit_status
-
 
 
 def variant_calling_pipeline(dataset):
     """
-    :param str input_run_folder: Full path to an input data directory
+    :param SampleDataset dataset:
     :return: Exit status
     :rtype: int
     """
     exit_status = 0
     dataset.start()
     fastq_files = prepare_sample_data(dataset)
-
 
     sample_id = dataset.name
     sample_dir = os.path.join(cfg['jobs_dir'], sample_id)
@@ -197,11 +199,11 @@ def variant_calling_pipeline(dataset):
         return bcbio_exit_status
     exit_status += fastqc2_exit_status + bcbio_exit_status
 
-    #Create the links from the bcbio output to one directory
-    dir_with_linked_files = os.path.join(sample_dir,"linked_output_files")
+    # Create the links from the bcbio output to one directory
+    dir_with_linked_files = os.path.join(sample_dir, 'linked_output_files')
     linked_files = create_links_from_bcbio(sample_id, sample_dir, cfg['output_files'], dir_with_linked_files)
 
-    #upload the data to the rest API
+    # Upload the data to the rest API
     project_id = clarity.find_project_from_sample(sample_id)
     crawler = SampleCrawler(sample_id,  project_id,  dir_with_linked_files)
     crawler.send_data()
@@ -214,7 +216,7 @@ def variant_calling_pipeline(dataset):
         walltime=6,
         cpus=1,
         mem=2,
-        log_command = False
+        log_command=False
     ).join()
     ntf.end_stage('md5sum', md5sum_exit_status)
 
@@ -222,9 +224,7 @@ def variant_calling_pipeline(dataset):
 
     # transfer output data
     ntf.start_stage('data_transfer')
-    transfer_exit_status = output_sample_data(sample_id,
-                                              dir_with_linked_files,
-                                              cfg['output_dir'])
+    transfer_exit_status = output_sample_data(sample_id, dir_with_linked_files, cfg['output_dir'])
     ntf.end_stage('data_transfer', transfer_exit_status)
     exit_status += transfer_exit_status
 
@@ -242,12 +242,7 @@ def _bcbio_prepare_sample(job_dir, sample_id, fastq_files):
     user_sample_id = clarity.get_user_sample_name(sample_id)
     if not user_sample_id:
         user_sample_id = sample_id
-    cmd = util.bcbio_prepare_samples_cmd(
-            job_dir,
-            sample_id,
-            fastq_files,
-            user_sample_id=user_sample_id
-          )
+    cmd = util.bcbio_prepare_samples_cmd(job_dir, sample_id, fastq_files, user_sample_id=user_sample_id)
 
     exit_status = executor.execute([cmd], job_name='bcbio_prepare_samples', run_id=sample_id).join()
     sample_fastqs = glob(os.path.join(job_dir, 'merged', user_sample_id + '_R?.fastq.gz'))
@@ -284,11 +279,8 @@ def _run_bcbio(sample_id, sample_dir, sample_fastqs):
     ] + sample_fastqs
 
     run_yaml = os.path.join(bcbio_dir, 'config', 'samples_' + sample_id + '-merged.yaml')
-    bcbio_cmd= writer.bash_commands.bcbio(
-        run_yaml,
-        os.path.join(bcbio_dir, 'work'),
-        threads=16
-    )
+    bcbio_cmd = writer.bash_commands.bcbio(run_yaml, os.path.join(bcbio_dir, 'work'), threads=16)
+
     prep_status = executor.execute([' '.join(sample_prep)], env='local').join()
     app_logger.info('BCBio sample prep exit status: ' + str(prep_status))
 
@@ -305,7 +297,7 @@ def _run_bcbio(sample_id, sample_dir, sample_fastqs):
     bcbio_executor = executor.execute(
         [bcbio_cmd],
         prelim_cmds=writer.bash_commands.bcbio_env_vars(),
-        job_name='bcb%s'%sample_id,
+        job_name='bcb%s' % sample_id,
         run_id=sample_id,
         walltime=240,
         cpus=8,
@@ -318,7 +310,7 @@ def _run_bcbio(sample_id, sample_dir, sample_fastqs):
 
 def _cleanup(dataset_name):
     exit_status = 0
-    #Wait for all the previous PBS step to be done writing to the folder before cleaning it up
+    # Wait for all the previous PBS step to be done writing to the folder before cleaning it up
     time.sleep(20)
     job_dir = os.path.join(cfg['jobs_dir'], dataset_name)
     cleanup_targets = [job_dir]
