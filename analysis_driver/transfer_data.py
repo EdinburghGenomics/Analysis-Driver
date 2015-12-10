@@ -70,7 +70,7 @@ def _transfer_to_int_dir(dataset, from_dir, to_dir, repeat_delay, rsync_append_v
             [rsync_cmd],
             job_name='rsync',
             run_id=dataset.name,
-            walltime=36
+            # walltime=36
         ).join()
         sleep(repeat_delay)
 
@@ -142,7 +142,12 @@ def _output_data(source_dir, output_dir, run_id, rsync_append=True):
         os.makedirs(output_dir, exist_ok=True)
 
     command = rsync_from_to(source_dir, output_dir, append_verify=rsync_append)
-    return executor.execute([command], job_name='final_copy', run_id=run_id, walltime=36).join()
+    return executor.execute(
+        [command],
+        job_name='data_output',
+        run_id=run_id,
+        # walltime=36
+    ).join()
 
 
 def output_run_data(fastq_dir, run_id):
