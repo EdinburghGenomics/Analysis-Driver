@@ -79,7 +79,4 @@ class TestPBSWriter(TestAnalysisDriver):
             '',
             cfg['bcbio'] + '/bin/bcbio_nextgen.py test.yaml -n 10 --workdir ' + self.assets_path
         ]
-        print('\n', self.writer.lines)
-        print('', expected)
-
-        assert self.writer.lines == expected
+        self.compare_lists(observed=self.writer.lines, expected=expected)

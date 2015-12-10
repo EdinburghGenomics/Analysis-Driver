@@ -73,9 +73,11 @@ def is_remote_path(fp):
     return (':' in fp) and ('@' in fp)
 
 
-def rsync_from_to(source, dest, append_verify=True):
+def rsync_from_to(source, dest, append_verify=True, exclude=None):
     """rsync command that will transfer the file to the desired destination"""
     command = 'rsync -rLD --size-only '
+    if exclude:
+        command += '--exclude=%s ' % exclude
     if append_verify:
         command += '--append-verify '
     if is_remote_path(source) or is_remote_path(dest):

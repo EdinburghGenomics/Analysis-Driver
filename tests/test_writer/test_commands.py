@@ -13,18 +13,18 @@ run_info = RunInfo(helper.assets_path)
 
 def test_bcl2fastq():
     mask = sample_sheet.generate_mask(run_info.mask)
-    expected = (
-        cfg['bcl2fastq'] +
-        ' -l INFO'
-        ' --runfolder-dir ' + helper.assets_path +
-        ' --output-dir ' + helper.fastq_path +
-        ' -r 8 -d 8 -p 8 -w 8' +
-        ' --sample-sheet ' + sample_sheet_csv +
-        ' --use-bases-mask ' + mask
+    helper.compare_lists(
+        observed=bash_commands.bcl2fastq(helper.assets_path, helper.fastq_path, sample_sheet_csv, mask),
+        expected=(
+            cfg['bcl2fastq'] +
+            ' -l INFO'
+            ' --runfolder-dir ' + helper.assets_path +
+            ' --output-dir ' + helper.fastq_path +
+            ' -r 8 -d 8 -p 8 -w 8' +
+            ' --sample-sheet ' + sample_sheet_csv +
+            ' --use-bases-mask ' + mask
+        )
     )
-    observed = bash_commands.bcl2fastq(helper.assets_path, helper.fastq_path, sample_sheet_csv, mask)
-
-    assert observed == expected
 
 
 def test_fastqc():

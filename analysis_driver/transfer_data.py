@@ -58,7 +58,12 @@ def _transfer_to_int_dir(dataset, from_dir, to_dir, repeat_delay, rsync_append_v
     exit_status = 0
     app_logger.info('Starting transfer')
 
-    rsync_cmd = rsync_from_to(os.path.join(from_dir, dataset.name), to_dir, append_verify=rsync_append_verify)
+    rsync_cmd = rsync_from_to(
+        os.path.join(from_dir, dataset.name),
+        to_dir,
+        append_verify=rsync_append_verify,
+        exclude='Thumbnail_Images'
+    )
 
     while not dataset.rta_complete():
         exit_status += executor.execute(
