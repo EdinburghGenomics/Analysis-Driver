@@ -11,30 +11,30 @@ app_logger = get_logger('scanner')
 
 DATASET_NEW = 'new'
 DATASET_READY = 'ready'
+DATASET_FORCE_READY = 'force_ready'
 DATASET_PROCESSING = 'processing'
 DATASET_PROCESSED_SUCCESS = 'finished'
 DATASET_PROCESSED_FAIL = 'failed'
 DATASET_ABORTED = 'aborted'
 
-STATUS_VISIBLE = [DATASET_NEW, DATASET_READY, DATASET_PROCESSING]
+STATUS_VISIBLE = [DATASET_NEW, DATASET_READY, DATASET_FORCE_READY, DATASET_PROCESSING]
 STATUS_HIDDEN = [DATASET_PROCESSED_SUCCESS, DATASET_PROCESSED_FAIL, DATASET_ABORTED]
 
 
 class Dataset:
-    def __init__(self, name, path, lock_file_dir, data_threshold=None):
+    def __init__(self, name, path, lock_file_dir):
         self.name = name
         self.path = path
         self.lock_file_dir = lock_file_dir
-        self.data_threshold = data_threshold
         self._stages = None
         self._pid = None
 
     @property
     def dataset_status(self):
-        raise NotImplementedError("Function not implemented in DatasetScanner")
+        raise NotImplementedError
 
     def start(self):
-        assert self.dataset_status == DATASET_READY or self.dataset_status == DATASET_NEW
+        assert self.dataset_status in (DATASET_READY, DATASET_FORCE_READY, DATASET_NEW)
         self._change_status(DATASET_PROCESSING)
         self.set_pid()
 
@@ -160,6 +160,13 @@ class RunDataset(Dataset):
 class SampleDataset(Dataset):
     type = 'sample'
 
+    def __init__(self, name, path, lock_file_dir, data_threshold=None):
+        super().__init__(name, path, lock_file_dir)
+        self.data_threshold = data_threshold
+
+    def force(self):
+        self._change_status(DATASET_FORCE_READY)
+
     @property
     def dataset_status(self):
         dataset_lock_files = glob(self._lock_file('*'))
@@ -190,7 +197,9 @@ class SampleDataset(Dataset):
         )
 
     def _is_ready(self):
-        if self.data_threshold and int(self._amount_data()) > int(self.data_threshold):
+        if self.dataset_status == DATASET_FORCE_READY:
+            return True
+        elif self.data_threshold and int(self._amount_data()) > int(self.data_threshold):
             return True
         else:
             return False
