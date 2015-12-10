@@ -163,8 +163,12 @@ class SampleDataset(Dataset):
     def __init__(self, name, path, lock_file_dir, data_threshold=None):
         super().__init__(name, path, lock_file_dir)
         self.data_threshold = data_threshold
+        self.run_elements = self._read_data()
+
 
     def force(self):
+        self._clear_stage()
+        self.clear_pid()
         self._change_status(DATASET_FORCE_READY)
 
     @property
@@ -182,13 +186,11 @@ class SampleDataset(Dataset):
         else:
             return lf_status
 
-    def _read_json(self):
-        with open(self.path) as open_file:
-            self.run_elements = json.load(open_file)
+    def _read_data(self):
+        with open(self.path, 'r') as open_file:
+            return json.load(open_file)
 
     def _amount_data(self):
-        if not hasattr(self, 'run_elements'):
-            self._read_json()
         return sum(
             [
                 int(r.get(ELEMENT_NB_Q30_R1)) + int(r.get(ELEMENT_NB_Q30_R2))
@@ -197,9 +199,7 @@ class SampleDataset(Dataset):
         )
 
     def _is_ready(self):
-        if self.dataset_status == DATASET_FORCE_READY:
-            return True
-        elif self.data_threshold and int(self._amount_data()) > int(self.data_threshold):
+        if self.data_threshold and int(self._amount_data()) > int(self.data_threshold):
             return True
         else:
             return False

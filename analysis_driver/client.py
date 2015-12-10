@@ -7,7 +7,7 @@ from analysis_driver.app_logging import get_logger
 from analysis_driver.config import default as cfg, logging_default as log_cfg
 from analysis_driver.notification import default as ntf, LogNotification, EmailNotification
 from analysis_driver.exceptions import AnalysisDriverError
-from analysis_driver.dataset_scanner import SampleScanner, DATASET_READY, DATASET_NEW, RunScanner
+from analysis_driver.dataset_scanner import SampleScanner, DATASET_READY, DATASET_NEW, DATASET_FORCE_READY, RunScanner
 
 
 def main():
@@ -15,7 +15,6 @@ def main():
 
     if args.debug:
         log_cfg.default_level = logging.DEBUG
-
 
     logging_handlers = cfg.query('logging', 'handlers')
     if logging_handlers:
@@ -43,7 +42,7 @@ def main():
             cfg.merge(cfg['sample'])
         scanner = SampleScanner(cfg)
 
-    if args.abort or args.skip or args.reset or args.report or args.report_all:
+    if any([args.abort, args.skip, args.reset, args.force, args.report, args.report_all]):
         for d in args.abort:
             scanner.get(d).abort()
         for d in args.skip:
@@ -53,6 +52,8 @@ def main():
             dataset.succeed()
         for d in args.reset:
             scanner.get(d).reset()
+        for d in args.force:
+            scanner.get(d).force()
 
         if args.report:
             scanner.report()
@@ -61,16 +62,16 @@ def main():
         return 0
 
     all_datasets = scanner.scan_datasets()
-    dataset_ready = all_datasets.get(DATASET_READY, [])
+    ready_datasets = all_datasets.get(DATASET_READY, []) + all_datasets.get(DATASET_FORCE_READY, [])
     if cfg.get('intermediate_dir'):
-        dataset_ready.extend(all_datasets.get(DATASET_NEW, []))
+        ready_datasets.extend(all_datasets.get(DATASET_NEW, []))
 
-    if not dataset_ready:
+    if not ready_datasets:
         return 0
     else:
         # Only process the first new dataset found. Run through Cron, this will result in one new pipeline
         # being kicked off per minute.
-        return _process_dataset(dataset_ready[0])
+        return _process_dataset(ready_datasets[0])
 
 
 def setup_logging(d):
@@ -147,5 +148,11 @@ def _parse_args():
     p.add_argument('--skip', nargs='+', default=[], help='mark a dataset as completed')
     p.add_argument('--reset', nargs='+', default=[], help='unmark a dataset as unprocessed for rerunning')
     p.add_argument('--abort', nargs='+', default=[], help='mark a dataset as aborted')
+    p.add_argument(
+        '--force',
+        nargs='+',
+        default=[],
+        help='mark a sample for processing, even if below the data threshold'
+    )
 
     return p.parse_args()
