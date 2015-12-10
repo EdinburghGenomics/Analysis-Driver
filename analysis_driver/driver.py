@@ -74,7 +74,7 @@ def demultiplexing_pipeline(dataset):
         [writer.bash_commands.bcl2fastq(input_run_folder, fastq_dir, sample_sheet.filename, mask)],
         job_name='bcl2fastq',
         run_id=run_id,
-        walltime=32,
+        # walltime=32,
         cpus=8,
         mem=32
     ).join()
@@ -88,7 +88,7 @@ def demultiplexing_pipeline(dataset):
         [writer.bash_commands.fastqc(fq) for fq in util.fastq_handler.find_all_fastqs(fastq_dir)],
         job_name='fastqc',
         run_id=run_id,
-        walltime=6,
+        # walltime=6,
         cpus=1,
         mem=2
     )
@@ -99,7 +99,7 @@ def demultiplexing_pipeline(dataset):
         [writer.bash_commands.md5sum(fq) for fq in util.fastq_handler.find_all_fastqs(fastq_dir)],
         job_name='md5sum',
         run_id=run_id,
-        walltime=6,
+        # walltime=6,
         cpus=1,
         mem=2,
         log_command=False
@@ -169,7 +169,7 @@ def variant_calling_pipeline(dataset):
         [writer.bash_commands.fastqc(fastq_file) for fastq_file in fastq_pair],
         job_name='fastqc2',
         run_id=sample_id,
-        walltime=10,
+        # walltime=10,
         cpus=1,
         mem=2
     )
@@ -213,7 +213,7 @@ def variant_calling_pipeline(dataset):
         [writer.bash_commands.md5sum(f) for f in linked_files],
         job_name='md5sum',
         run_id=sample_id,
-        walltime=6,
+        # walltime=6,
         cpus=1,
         mem=2,
         log_command=False
@@ -299,7 +299,7 @@ def _run_bcbio(sample_id, sample_dir, sample_fastqs):
         prelim_cmds=writer.bash_commands.export_env_vars(),
         job_name='bcb%s' % sample_id,
         run_id=sample_id,
-        walltime=240,
+        # walltime=240,
         cpus=8,
         mem=64
     )

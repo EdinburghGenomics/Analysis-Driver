@@ -62,7 +62,40 @@ class TestPBSWriter(TestAnalysisDriver):
 
         expected = [
             '#!/bin/bash\n',
+            '#PBS -l ncpus=2,mem=1gb',
             '#PBS -l walltime=24:00:00',
+            '#PBS -N test',
+            '#PBS -q uv2000',
+            '#PBS -j oe',
+            '#PBS -o ' + cfg['jobs_dir'] + '/test_run/test.log',
+            '#PBS -W block=true',
+            '',
+            'export PATH=' + cfg['bcbio'] + '/bin:$PATH',
+            'export LD_LIBRARY_PATH=' + cfg['bcbio'] + '/lib:$LD_LIBRARY_PATH',
+            'export PERL5LIB=' + cfg['bcbio'] + '/lib/perl5:$PERL5LIB',
+            'export JAVA_HOME=' + cfg['jdk'],
+            'export JAVA_BINDIR=' + cfg['jdk'] + '/bin',
+            'export JAVA_ROOT=' + cfg['jdk'],
+            '',
+            cfg['bcbio'] + '/bin/bcbio_nextgen.py test.yaml -n 10 --workdir ' + self.assets_path
+        ]
+        self.compare_lists(observed=self.writer.lines, expected=expected)
+
+    def test_bcbio_no_walltime(self):
+        self.writer = PBSWriter(
+            job_name='test',
+            run_id='test_run',
+            cpus=2,
+            mem=1
+        )
+        self.writer.script_name = self.tmp_script
+        for c in export_env_vars():
+            self.writer.write_line(c)
+
+        self.writer.write_line(bcbio('test.yaml', self.assets_path))
+
+        expected = [
+            '#!/bin/bash\n',
             '#PBS -l ncpus=2,mem=1gb',
             '#PBS -N test',
             '#PBS -q uv2000',
