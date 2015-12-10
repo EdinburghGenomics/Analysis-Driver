@@ -69,7 +69,7 @@ def _export(env_var, value, prepend=False):
     return statement
 
 
-def _is_remote_path(fp):
+def is_remote_path(fp):
     return (':' in fp) and ('@' in fp)
 
 
@@ -78,7 +78,7 @@ def rsync_from_to(source, dest, append_verify=True):
     command = 'rsync -rLD --size-only '
     if append_verify:
         command += '--append-verify '
-    if _is_remote_path(source) or _is_remote_path(dest):
+    if is_remote_path(source) or is_remote_path(dest):
         command += '-e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -c arcfour" '
 
     command += '%s %s' % (source, dest)
