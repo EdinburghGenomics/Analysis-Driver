@@ -183,17 +183,20 @@ class SampleDataset(Dataset):
                 for r in self.run_elements.values()
             ]
         )
+
     def _runs(self):
-        if not hasattr(self, 'run_elements'):
-            self._read_json()
-        return set([ r.get(ELEMENT_RUN_NAME) for r in self.run_elements.values() ])
+        return set([r.get(ELEMENT_RUN_NAME) for r in self.run_elements.values()])
 
     def _is_ready(self):
         return self.data_threshold and int(self._amount_data()) > int(self.data_threshold)
 
     def __str__(self):
-        return '%s  (%s / %s  from %s) ' % (super().__str__(), self._amount_data(), self.data_threshold ,
-                                            ', '.join(self._runs()))
+        return '%s  (%s / %s  from %s) ' % (
+            super().__str__(),
+            self._amount_data(),
+            self.data_threshold,
+            ', '.join(self._runs())
+        )
 
 
 class DatasetScanner:
