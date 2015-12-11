@@ -21,7 +21,11 @@ def pipeline(dataset):
     if isinstance(dataset, RunDataset):
         exit_status = demultiplexing_pipeline(dataset)
     elif isinstance(dataset, SampleDataset):
-        exit_status = variant_calling_pipeline(dataset)
+        species = clarity.get_species_from_sample(dataset.name)
+        if species == 'Homo sapiens':
+            exit_status = variant_calling_pipeline(dataset)
+        else:
+            exit_status = qc_pipeline(dataset, species)
     else:
         raise AssertionError('Unexpected dataset type: ' + str(dataset))
 
@@ -234,6 +238,9 @@ def variant_calling_pipeline(dataset):
         ntf.end_stage('cleanup', exit_status)
     return exit_status
 
+
+def qc_pipeline(dataset, species):
+    pass
 
 def _bcbio_prepare_sample(job_dir, sample_id, fastq_files):
     """

@@ -1,4 +1,5 @@
 import re
+import requests
 from genologics.lims import Lims
 from analysis_driver.config import default as cfg
 from analysis_driver.app_logging import get_logger
@@ -61,6 +62,47 @@ def find_run_elements_from_sample(sample_name):
                 if not artifact.udf.get('Lane Failed?', False):
                     yield run_id, lane
 
+def get_species_information_from_ncbi(species):
+    """Query NCBI taxomomy database to get the taxomoy id scientific name and common name
+    Documentation available at http://www.ncbi.nlm.nih.gov/books/NBK25499/"""
+    esearch_url = 'http://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi'
+    payload = {'db': 'Taxonomy', 'term': species, 'retmode': 'JSON'}
+    r = requests.get(esearch_url, params=payload)
+    results = r.json()
+
+    count = int(results.get('esearchresult').get('count', 0))
+    if count > 1:
+        app_logger.error("More than one taxon corresponding to %s" % species)
+        return None, None, None
+    elif count == 0:
+        app_logger.error("No taxon found corresponding to %s" % species)
+        return None, None, None
+    taxid = results.get('esearchresult').get('idlist')[0]
+    scientific_name = common_name = None
+
+    efetch_url = 'http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi'
+    payload = {'db': 'Taxonomy', 'id': taxid}
+    r = requests.get(efetch_url, params=payload)
+    match = re.search('<ScientificName>(.+?)</ScientificName>', r.text, re.MULTILINE)
+    if match:
+        scientific_name = match.group(1)
+    match = re.search('<GenbankCommonName>(.+?)</GenbankCommonName>', r.text, re.MULTILINE)
+    if not match:
+        match = re.search('<CommonName>(.+?)</CommonName>', r.text, re.MULTILINE)
+    if match:
+        common_name = match.group(1)
+    app_logger.info('taxid=%s, scientific_name=%s, common_name=%s' % (taxid, scientific_name, common_name))
+    return taxid, scientific_name, common_name
+
+def get_species_from_sample(sample_name):
+    lims = _get_lims_connection()
+    sample = get_lims_sample(sample_name, lims)
+    species_string = sample.udf.get('Species')
+    taxid, scientific_name, common_name = get_species_information_from_ncbi(species_string)
+    if taxid:
+        return scientific_name
+    else:
+        return None
 
 def sanitize_user_id(user_id):
     if isinstance(user_id, str):
@@ -109,6 +151,7 @@ def run_tests():
     assert get_user_sample_name('NA12877_25SEPT15 2/5') is None
 
     assert find_run_elements_from_sample('10094AT0001')
+    print(get_species_from_sample('10094AT0001'))
 
 if __name__ == '__main__':
     # will only work with a valid connection to the production server
