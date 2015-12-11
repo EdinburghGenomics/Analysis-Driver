@@ -7,7 +7,7 @@ from analysis_driver import reader, writer, util, executor, clarity
 from analysis_driver.dataset_scanner import RunDataset, SampleDataset
 from analysis_driver.exceptions import AnalysisDriverError
 from analysis_driver.app_logging import get_logger
-from analysis_driver.config import default as cfg  # imports the default config singleton
+from analysis_driver.config import output_files, default as cfg  # imports the default config singleton
 from analysis_driver.notification import default as ntf
 from analysis_driver.report_generation.report_crawlers import RunCrawler, SampleCrawler
 from analysis_driver.transfer_data import prepare_run_data, prepare_sample_data, output_sample_data, output_run_data, \
@@ -74,7 +74,7 @@ def demultiplexing_pipeline(dataset):
         [writer.bash_commands.bcl2fastq(input_run_folder, fastq_dir, sample_sheet.filename, mask)],
         job_name='bcl2fastq',
         run_id=run_id,
-        walltime=32,
+        # walltime=32,
         cpus=8,
         mem=32
     ).join()
@@ -88,7 +88,7 @@ def demultiplexing_pipeline(dataset):
         [writer.bash_commands.fastqc(fq) for fq in util.fastq_handler.find_all_fastqs(fastq_dir)],
         job_name='fastqc',
         run_id=run_id,
-        walltime=6,
+        # walltime=6,
         cpus=1,
         mem=2
     )
@@ -99,7 +99,7 @@ def demultiplexing_pipeline(dataset):
         [writer.bash_commands.md5sum(fq) for fq in util.fastq_handler.find_all_fastqs(fastq_dir)],
         job_name='md5sum',
         run_id=run_id,
-        walltime=6,
+        # walltime=6,
         cpus=1,
         mem=2,
         log_command=False
@@ -169,7 +169,7 @@ def variant_calling_pipeline(dataset):
         [writer.bash_commands.fastqc(fastq_file) for fastq_file in fastq_pair],
         job_name='fastqc2',
         run_id=sample_id,
-        walltime=10,
+        # walltime=10,
         cpus=1,
         mem=2
     )
@@ -201,7 +201,7 @@ def variant_calling_pipeline(dataset):
 
     # Create the links from the bcbio output to one directory
     dir_with_linked_files = os.path.join(sample_dir, 'linked_output_files')
-    linked_files = create_links_from_bcbio(sample_id, sample_dir, cfg['output_files'], dir_with_linked_files)
+    linked_files = create_links_from_bcbio(sample_id, sample_dir, output_files.content, dir_with_linked_files)
 
     # Upload the data to the rest API
     project_id = clarity.find_project_from_sample(sample_id)
@@ -213,7 +213,7 @@ def variant_calling_pipeline(dataset):
         [writer.bash_commands.md5sum(f) for f in linked_files],
         job_name='md5sum',
         run_id=sample_id,
-        walltime=6,
+        # walltime=6,
         cpus=1,
         mem=2,
         log_command=False
@@ -296,10 +296,10 @@ def _run_bcbio(sample_id, sample_dir, sample_fastqs):
 
     bcbio_executor = executor.execute(
         [bcbio_cmd],
-        prelim_cmds=writer.bash_commands.bcbio_env_vars(),
+        prelim_cmds=writer.bash_commands.export_env_vars(),
         job_name='bcb%s' % sample_id,
         run_id=sample_id,
-        walltime=240,
+        # walltime=240,
         cpus=8,
         mem=64
     )

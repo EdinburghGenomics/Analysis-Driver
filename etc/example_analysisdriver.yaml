@@ -26,15 +26,6 @@ default:
 #            another_handler:
 #                level: INFO
 #                filename: /path/to/analysis_driver.log
-    sample_sheet:
-        column_names:
-            sample_project: [Sample_Project, SampleProject, Project_Name]
-            sample_id: [Sample_ID, SampleID]
-            sample_name: [Sample_Name]
-            lane: [Lane]
-            barcode: [Index, index]
-        transformations:
-            Project_Name: Sample_Project
 
     notification:
 #        log_notification: /path/to/analysis_driver_notifications.log
@@ -52,30 +43,3 @@ default:
         samblaster: path/to/samblaster
         samtools: path/to/samtools
         sambamba: path/to/sambamba
-
-    output_files:
-
-        - location: ['samples_{runfolder}-merged', 'final', '{sample_id}']
-          basename: '{sample_id}-gatk-haplotype.vcf.gz'
-          new_name: '{sample_id}.g.vcf.gz'
-        - location: ['samples_{runfolder}-merged', 'final', '{sample_id}']
-          basename: '{sample_id}-gatk-haplotype.vcf.gz.tbi'
-          new_name: '{sample_id}.g.vcf.gz.tbi'
-        - location: ['samples_{runfolder}-merged', 'final', '{sample_id}']
-          basename: '{sample_id}-ready.bam'
-          new_name: '{sample_id}.bam'
-        - location: ['samples_{runfolder}-merged', 'final', '{sample_id}']
-          basename: '{sample_id}-ready.bam.bai'
-          new_name: '{sample_id}.bam.bai'
-        - location: ['samples_{runfolder}-merged', 'final', '{sample_id}', 'qc', 'bamtools']
-          basename: 'bamtools_stats.txt'
-        - location: ['samples_{runfolder}-merged', 'work', 'align', '{sample_id}']
-          basename: '*{sample_id}*-sort-highdepth-stats.yaml'
-        - location: ['samples_{runfolder}-merged', 'work', 'align', '{sample_id}']
-          basename: '*{sample_id}*-sort-callable.bed'
-        - location: ['merged']
-          basename: '{sample_id}_R1.fastq.gz'
-        - location: ['merged']
-          basename: '{sample_id}_R2.fastq.gz'
-        - location: ['fastq', 'Stats']
-          basename: 'ConversionStats.xml'

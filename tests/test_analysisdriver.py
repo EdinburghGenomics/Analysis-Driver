@@ -13,3 +13,8 @@ class TestAnalysisDriver(TestCase):
     @classmethod
     def exec_path(cls, executable):
         return os.path.join(cls.execs, executable)
+
+    def compare_lists(self, observed, expected):
+        print()
+        print('observed', '\n', observed, '\n', 'expected', '\n', expected)
+        assert observed == expected

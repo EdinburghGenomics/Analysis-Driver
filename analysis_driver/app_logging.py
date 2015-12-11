@@ -50,7 +50,7 @@ def get_logger(name):
     :rtype: logging.Logger
     """
     logger = logging.getLogger(name)
-    logger.setLevel(log_cfg.log_level)
+    logger.setLevel(log_cfg.default_level)
     for name, h in log_cfg.handlers.items():
         logger.addHandler(h)
 

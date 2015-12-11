@@ -3,7 +3,8 @@ import glob
 import os
 from time import sleep
 from analysis_driver import executor, clarity
-from analysis_driver.writer.bash_commands import rsync_from_to
+from analysis_driver.exceptions import AnalysisDriverError
+from analysis_driver.writer.bash_commands import rsync_from_to, is_remote_path
 from analysis_driver.app_logging import get_logger
 from analysis_driver.config import default as cfg
 from analysis_driver.report_generation.report_crawlers import ELEMENT_RUN_NAME, ELEMENT_LANE, ELEMENT_PROJECT
@@ -54,20 +55,22 @@ def prepare_sample_data(dataset):
 
 
 def _transfer_to_int_dir(dataset, from_dir, to_dir, repeat_delay, rsync_append_verify=True):
-    """
-    rsync -aqu --size-only --partial from_dir/dataset to_dir
-    """
     exit_status = 0
     app_logger.info('Starting transfer')
 
-    rsync_cmd = rsync_from_to(os.path.join(from_dir, dataset.name), to_dir, append_verify=rsync_append_verify)
+    rsync_cmd = rsync_from_to(
+        os.path.join(from_dir, dataset.name),
+        to_dir,
+        append_verify=rsync_append_verify,
+        exclude='Thumbnail_Images'
+    )
 
     while not dataset.rta_complete():
         exit_status += executor.execute(
             [rsync_cmd],
             job_name='rsync',
             run_id=dataset.name,
-            walltime=36
+            # walltime=36
         ).join()
         sleep(repeat_delay)
 
@@ -127,11 +130,24 @@ def create_links_from_bcbio(sample_id, intput_dir, output_config, link_dir, quer
 
 
 def _output_data(source_dir, output_dir, run_id, rsync_append=True):
-    if not os.path.isdir(output_dir):
-        os.makedirs(output_dir)
+    if is_remote_path(output_dir):
+        app_logger.info('output dir is remote')
+        host, path = output_dir.split(':')
+        ssh_cmd = 'ssh %s mkdir -p %s' % (host, path)
+        exit_status = executor.execute([ssh_cmd], env='local', stream=False).join()
+        if exit_status:
+            raise AnalysisDriverError('Could not create remote output dir: ' + output_dir)
+
+    else:
+        os.makedirs(output_dir, exist_ok=True)
 
     command = rsync_from_to(source_dir, output_dir, append_verify=rsync_append)
-    return executor.execute([command], job_name='final_copy', run_id=run_id, walltime=36).join()
+    return executor.execute(
+        [command],
+        job_name='data_output',
+        run_id=run_id,
+        # walltime=36
+    ).join()
 
 
 def output_run_data(fastq_dir, run_id):

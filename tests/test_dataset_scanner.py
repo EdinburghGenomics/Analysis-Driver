@@ -100,7 +100,7 @@ class TestRunScanner(TestAnalysisDriver):
 
     def test_scan_datasets(self):
         datasets = self.scanner.scan_datasets()
-        print(datasets)
+        print('datasets: ', datasets)
         print(os.listdir(self.base_dir))
         for d in os.listdir(self.base_dir):
             if os.path.isdir(os.path.join(self.base_dir, d)):
@@ -111,8 +111,7 @@ class TestRunScanner(TestAnalysisDriver):
             (DATASET_PROCESSING, {'more'}),
             (DATASET_PROCESSED_FAIL, {'that'})
         ):
-            observed = self.dataset_names(datasets, status)
-            assert observed == expected
+            self.compare_lists(observed=self._dataset_names(datasets, status), expected=expected)
 
     def test_triggerignore(self):
         with open(self.triggerignore, 'r') as f:
@@ -139,5 +138,5 @@ class TestRunScanner(TestAnalysisDriver):
         return l
 
     @staticmethod
-    def dataset_names(datasets, status):
+    def _dataset_names(datasets, status):
         return set([str(s).split(' ')[0] for s in datasets[status]])

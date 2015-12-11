@@ -7,16 +7,14 @@ from analysis_driver.app_logging import get_logger
 from analysis_driver.config import default as cfg, logging_default as log_cfg
 from analysis_driver.notification import default as ntf, LogNotification, EmailNotification
 from analysis_driver.exceptions import AnalysisDriverError
-from analysis_driver.dataset_scanner import SampleScanner, DATASET_READY, DATASET_NEW, RunScanner
+from analysis_driver.dataset_scanner import SampleScanner, DATASET_READY, DATASET_NEW, DATASET_FORCE_READY, RunScanner
 
 
 def main():
     args = _parse_args()
 
     if args.debug:
-        log_cfg.log_level = logging.DEBUG
-    else:
-        log_cfg.log_level = logging.INFO
+        log_cfg.default_level = logging.DEBUG
 
     logging_handlers = cfg.query('logging', 'handlers')
     if logging_handlers:
@@ -32,7 +30,7 @@ def main():
                 handler = logging.StreamHandler(stream=s)
             else:
                 raise AnalysisDriverError('Invalid logging configuration: %s %s' % name, str(config))
-            log_cfg.add_handler(name, handler)
+            log_cfg.add_handler(name, handler, config.get('level', log_cfg.default_level))
 
     if args.run:
         if 'run' in cfg:
@@ -44,7 +42,7 @@ def main():
             cfg.merge(cfg['sample'])
         scanner = SampleScanner(cfg)
 
-    if args.abort or args.skip or args.reset or args.report or args.report_all:
+    if any([args.abort, args.skip, args.reset, args.force, args.report, args.report_all]):
         for d in args.abort:
             scanner.get(d).abort()
         for d in args.skip:
@@ -54,6 +52,8 @@ def main():
             dataset.succeed()
         for d in args.reset:
             scanner.get(d).reset()
+        for d in args.force:
+            scanner.get(d).force()
 
         if args.report:
             scanner.report()
@@ -62,27 +62,28 @@ def main():
         return 0
 
     all_datasets = scanner.scan_datasets()
-    dataset_ready = all_datasets.get(DATASET_READY, [])
+    ready_datasets = all_datasets.get(DATASET_READY, []) + all_datasets.get(DATASET_FORCE_READY, [])
     if cfg.get('intermediate_dir'):
-        dataset_ready.extend(all_datasets.get(DATASET_NEW, []))
+        ready_datasets.extend(all_datasets.get(DATASET_NEW, []))
 
-    if not dataset_ready:
+    if not ready_datasets:
         return 0
     else:
         # Only process the first new dataset found. Run through Cron, this will result in one new pipeline
         # being kicked off per minute.
-        return _process_dataset(dataset_ready[0])
+        return _process_dataset(ready_datasets[0])
 
 
 def setup_logging(d):
     log_repo = cfg.query('logging', 'repo')
     if log_repo:
         handler = logging.FileHandler(filename=os.path.join(log_repo, d.name + '.log'), mode='w')
-        log_cfg.add_handler(d, handler)
+        log_cfg.add_handler(d, handler, log_cfg.default_level)
 
     log_cfg.add_handler(
         'dataset',
-        logging.FileHandler(filename=os.path.join(cfg['jobs_dir'], d.name, 'analysis_driver.log'), mode='w')
+        logging.FileHandler(filename=os.path.join(cfg['jobs_dir'], d.name, 'analysis_driver.log'), mode='w'),
+        log_cfg.default_level
     )
     ntf.add_subscribers(
         (LogNotification, d, cfg.query('notification', 'log_notification')),
@@ -111,9 +112,6 @@ def _process_dataset(d):
     log_cfg.switch_formatter(log_cfg.default_formatter)
 
     app_logger.info('Using config file at ' + cfg.config_file)
-    invalid_cfg_paths = cfg.validate_file_paths(cfg.content)
-    if invalid_cfg_paths:
-        app_logger.warning('Invalid config paths: ' + str(invalid_cfg_paths))
     app_logger.info('Triggering for dataset: ' + d.name)
 
     exit_status = 9
@@ -150,5 +148,11 @@ def _parse_args():
     p.add_argument('--skip', nargs='+', default=[], help='mark a dataset as completed')
     p.add_argument('--reset', nargs='+', default=[], help='unmark a dataset as unprocessed for rerunning')
     p.add_argument('--abort', nargs='+', default=[], help='mark a dataset as aborted')
+    p.add_argument(
+        '--force',
+        nargs='+',
+        default=[],
+        help='mark a sample for processing, even if below the data threshold'
+    )
 
     return p.parse_args()

@@ -1,0 +1,31 @@
+
+- location: ['samples_{runfolder}-merged', 'final', '{sample_id}']
+  basename: '{sample_id}-gatk-haplotype.vcf.gz'
+  new_name: '{sample_id}.g.vcf.gz'
+
+- location: ['samples_{runfolder}-merged', 'final', '{sample_id}']
+  basename: '{sample_id}-gatk-haplotype.vcf.gz.tbi'
+  new_name: '{sample_id}.g.vcf.gz.tbi'
+
+- location: ['samples_{runfolder}-merged', 'final', '{sample_id}']
+  basename: '{sample_id}-ready.bam'
+  new_name: '{sample_id}.bam'
+
+- location: ['samples_{runfolder}-merged', 'final', '{sample_id}']
+  basename: '{sample_id}-ready.bam.bai'
+  new_name: '{sample_id}.bam.bai'
+
+- location: ['samples_{runfolder}-merged', 'final', '{sample_id}', 'qc', 'bamtools']
+  basename: 'bamtools_stats.txt'
+
+- location: ['samples_{runfolder}-merged', 'work', 'align', '{sample_id}']
+  basename: '*{sample_id}*-sort-highdepth-stats.yaml'
+
+- location: ['samples_{runfolder}-merged', 'work', 'align', '{sample_id}']
+  basename: '*{sample_id}*-sort-callable.bed'
+
+- location: ['merged']
+  basename: '{sample_id}_R1.fastq.gz'
+
+- location: ['merged']
+  basename: '{sample_id}_R2.fastq.gz'

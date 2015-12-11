@@ -2,7 +2,7 @@ __author__ = 'mwham'
 import csv
 import os.path
 from analysis_driver.app_logging import AppLogger, get_logger
-from analysis_driver.config import default as cfg
+from analysis_driver import config
 
 app_logger = get_logger('reader')
 
@@ -15,7 +15,7 @@ def transform_sample_sheet(data_dir):
     before, header = _read_sample_sheet(os.path.join(data_dir, 'SampleSheet.csv'))
     cols = before.readline().strip().split(',')
     after = open(os.path.join(data_dir, 'SampleSheet_analysis_driver.csv'), 'w')
-    transformations = cfg['sample_sheet'].get('transformations', [])
+    transformations = config.sample_sheet.get('transformations', [])
     for idx, col in enumerate(cols):
         if col in transformations:
             cols[idx] = transformations[col]
@@ -164,7 +164,7 @@ class SampleSheet(AppLogger):
 
     @staticmethod
     def _get_column(header, name):
-        possible_fields = cfg['sample_sheet']['column_names'][name]
+        possible_fields = config.sample_sheet['column_names'][name]
         for f in possible_fields:
             if f in header:
                 return f
