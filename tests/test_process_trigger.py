@@ -30,7 +30,7 @@ class TestProcessTrigger(TestAnalysisDriver):
         self.dataset.reset()
 
     def test_transfer(self):
-        transfer_data._transfer_to_int_dir(
+        transfer_data._transfer_run_to_int_dir(
             self.dataset,
             self.from_dir,
             self.to_dir,

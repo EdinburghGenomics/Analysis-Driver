@@ -20,7 +20,7 @@ def prepare_run_data(dataset):
     """
     app_logger.debug('Preparing dataset %s (%s)' % (dataset.name, dataset.dataset_status))
     if cfg.get('intermediate_dir'):
-        _transfer_to_int_dir(
+        _transfer_run_to_int_dir(
             dataset,
             cfg['input_dir'],
             cfg['intermediate_dir'],
@@ -39,10 +39,11 @@ def prepare_sample_data(dataset):
     :param Dataset dataset: A dataset object
     """
     app_logger.debug('Preparing dataset %s (%s)' % (dataset.name, dataset.dataset_status))
-    all_fastqs = []
+    fastqs = []
+
     for run_element in dataset.run_elements.values():
-        run_location = find_run_location(run_element.get(ELEMENT_RUN_NAME))
-        all_fastqs.extend(
+        run_location = _find_run_location(run_element.get(ELEMENT_RUN_NAME))
+        fastqs.extend(
             find_fastqs(
                 run_location,
                 run_element.get(ELEMENT_PROJECT),
@@ -50,13 +51,50 @@ def prepare_sample_data(dataset):
                 run_element.get(ELEMENT_LANE)
             )
         )
+    return fastqs
 
-    return all_fastqs
+
+def _find_run_location(run_id):
+    fastqs_in_job_dir = os.path.join(cfg['jobs_dir'], run_id, 'fastq')
+    app_logger.debug('Searching for fastqs in ' + fastqs_in_job_dir)
+    if os.path.isdir(fastqs_in_job_dir):
+        return fastqs_in_job_dir
+
+    fastqs_in_int_dir = os.path.join(cfg.get('intermediate_dir', ''), run_id, 'fastq')
+    app_logger.debug('Searching for fastqs in ' + fastqs_in_int_dir)
+    if os.path.isdir(fastqs_in_int_dir):
+        return fastqs_in_int_dir
+
+    fastqs_in_input_dir = os.path.join(cfg['input_dir'], run_id, 'fastq')
+    app_logger.debug('Searching for fastqs in ' + fastqs_in_input_dir)
+    if os.path.isdir(fastqs_in_input_dir) and not is_remote_path(fastqs_in_input_dir):
+        return fastqs_in_input_dir
+
+    if is_remote_path(fastqs_in_input_dir):
+        app_logger.info('Could not find any local fastqs, retrieving from remote')
+        _transfer_fastqs_to_int_dir(run_id, cfg['input_dir'], cfg['intermediate_dir'])
+        app_logger.debug('Searching again for fastqs in ' + fastqs_in_int_dir)
+        if os.path.isdir(fastqs_in_int_dir):
+            return fastqs_in_int_dir
+
+    raise AnalysisDriverError('Could not find fastqs')
 
 
-def _transfer_to_int_dir(dataset, from_dir, to_dir, repeat_delay, rsync_append_verify=True):
+def _transfer_fastqs_to_int_dir(dataset, from_dir, to_dir, rsync_append_verify=True):
+    app_logger.info('Starting sample transfer')
+
+    rsync_cmd = rsync_from_to(
+        os.path.join(from_dir, dataset.name),
+        to_dir,
+        append_verify=rsync_append_verify,
+    )
+    exit_status = executor.execute([rsync_cmd], job_name='transfer_sample', run_id=dataset.name).join()
+    app_logger.info('Transfer complete with exit status ' + str(exit_status))
+
+
+def _transfer_run_to_int_dir(dataset, from_dir, to_dir, repeat_delay, rsync_append_verify=True):
     exit_status = 0
-    app_logger.info('Starting transfer')
+    app_logger.info('Starting run transfer')
 
     rsync_cmd = rsync_from_to(
         os.path.join(from_dir, dataset.name),
@@ -68,7 +106,7 @@ def _transfer_to_int_dir(dataset, from_dir, to_dir, repeat_delay, rsync_append_v
     while not dataset.rta_complete():
         exit_status += executor.execute(
             [rsync_cmd],
-            job_name='rsync',
+            job_name='transfer_run',
             run_id=dataset.name,
             # walltime=36
         ).join()
@@ -76,23 +114,10 @@ def _transfer_to_int_dir(dataset, from_dir, to_dir, repeat_delay, rsync_append_v
 
     # one more rsync after the RTAComplete is created. After this, everything should be synced
     sleep(repeat_delay)
-    exit_status += executor.execute([rsync_cmd], job_name='rsync', run_id=dataset.name, walltime=36).join()
+    exit_status += executor.execute([rsync_cmd], job_name='rsync', run_id=dataset.name).join()
     assert os.path.isfile(os.path.join(dataset.path, 'RTAComplete.txt'))
     app_logger.info('Transfer complete with exit status ' + str(exit_status))
     return exit_status
-
-
-def find_run_location(run_id):
-    searchable_input_dirs = (
-        os.path.join(cfg['jobs_dir'], run_id, 'fastq'),
-        os.path.join(cfg['input_dir'], run_id, )
-    )
-    for s in searchable_input_dirs:
-        app_logger.debug('searching in ' + s)
-        if os.path.isdir(s):
-            return s
-    app_logger.error('could not find any input fastq dir')
-    return None
 
 
 def create_links_from_bcbio(sample_id, intput_dir, output_config, link_dir, query_lims=True):
