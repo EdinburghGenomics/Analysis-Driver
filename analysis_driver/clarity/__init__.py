@@ -151,7 +151,7 @@ def run_tests():
     assert get_user_sample_name('NA12877_25SEPT15 2/5') is None
 
     assert find_run_elements_from_sample('10094AT0001')
-    print(get_species_from_sample('10094AT0001'))
+    assert get_species_from_sample('10094AT0001') is "Homo Sapiens"
 
 if __name__ == '__main__':
     # will only work with a valid connection to the production server
