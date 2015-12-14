@@ -15,7 +15,7 @@ def transform_sample_sheet(data_dir):
     before, header = _read_sample_sheet(os.path.join(data_dir, 'SampleSheet.csv'))
     cols = before.readline().strip().split(',')
     after = open(os.path.join(data_dir, 'SampleSheet_analysis_driver.csv'), 'w')
-    transformations = config.sample_sheet.get('transformations', [])
+    transformations = config.sample_sheet_config.get('transformations', [])
     for idx, col in enumerate(cols):
         if col in transformations:
             cols[idx] = transformations[col]
@@ -164,7 +164,7 @@ class SampleSheet(AppLogger):
 
     @staticmethod
     def _get_column(header, name):
-        possible_fields = config.sample_sheet['column_names'][name]
+        possible_fields = config.sample_sheet_config['column_names'][name]
         for f in possible_fields:
             if f in header:
                 return f

@@ -146,6 +146,6 @@ default = EnvConfiguration(
         os.path.expanduser('~/.analysisdriver.yaml')
     ]
 )
-output_files = Configuration([_etc_config('output_files.yaml')])
-sample_sheet = Configuration([_etc_config('sample_sheet_cfg.yaml')])
+output_files_config = Configuration([_etc_config('output_files.yaml')])
+sample_sheet_config = Configuration([_etc_config('sample_sheet_cfg.yaml')])
 logging_default = LoggingConfiguration()
