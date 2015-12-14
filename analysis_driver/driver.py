@@ -228,10 +228,10 @@ def variant_calling_pipeline(dataset):
     ntf.end_stage('data_transfer', transfer_exit_status)
     exit_status += transfer_exit_status
 
-    if exit_status == 0:
-        ntf.start_stage('cleanup')
-        exit_status += _cleanup(sample_id)
-        ntf.end_stage('cleanup', exit_status)
+    # if exit_status == 0:
+    #     ntf.start_stage('cleanup')
+    #     exit_status += _cleanup(sample_id)
+    #     ntf.end_stage('cleanup', exit_status)
     return exit_status
 
 

@@ -42,7 +42,7 @@ def prepare_sample_data(dataset):
     fastqs = []
 
     for run_element in dataset.run_elements.values():
-        run_location = _find_run_location(run_element.get(ELEMENT_RUN_NAME))
+        run_location = _find_run_location(run_id=run_element.get(ELEMENT_RUN_NAME), sample_id=dataset.name)
         fastqs.extend(
             find_fastqs(
                 run_location,
@@ -54,7 +54,7 @@ def prepare_sample_data(dataset):
     return fastqs
 
 
-def _find_run_location(run_id):
+def _find_run_location(run_id, sample_id):
     fastqs_in_job_dir = os.path.join(cfg['jobs_dir'], run_id, 'fastq')
     app_logger.debug('Searching for fastqs in ' + fastqs_in_job_dir)
     if os.path.isdir(fastqs_in_job_dir):
@@ -72,7 +72,7 @@ def _find_run_location(run_id):
 
     if is_remote_path(fastqs_in_input_dir):
         app_logger.info('Could not find any local fastqs, retrieving from remote')
-        _transfer_fastqs_to_int_dir(run_id, cfg['input_dir'], cfg['intermediate_dir'])
+        _transfer_fastqs_to_int_dir(run_id, sample_id, cfg['input_dir'], cfg['intermediate_dir'])
         app_logger.debug('Searching again for fastqs in ' + fastqs_in_int_dir)
         if os.path.isdir(fastqs_in_int_dir):
             return fastqs_in_int_dir
@@ -80,7 +80,7 @@ def _find_run_location(run_id):
     raise AnalysisDriverError('Could not find fastqs')
 
 
-def _transfer_fastqs_to_int_dir(run_id, from_dir, to_dir, rsync_append_verify=True):
+def _transfer_fastqs_to_int_dir(run_id, sample_id, from_dir, to_dir, rsync_append_verify=True):
     app_logger.info('Starting sample transfer')
 
     rsync_cmd = rsync_from_to(
@@ -88,7 +88,7 @@ def _transfer_fastqs_to_int_dir(run_id, from_dir, to_dir, rsync_append_verify=Tr
         to_dir,
         append_verify=rsync_append_verify,
     )
-    exit_status = executor.execute([rsync_cmd], job_name='transfer_sample', run_id=run_id).join()
+    exit_status = executor.execute([rsync_cmd], job_name='transfer_sample', run_id=sample_id).join()
     app_logger.info('Transfer complete with exit status ' + str(exit_status))
 
 
