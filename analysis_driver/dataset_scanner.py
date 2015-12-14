@@ -152,8 +152,12 @@ class Dataset:
 class RunDataset(Dataset):
     type = 'run'
 
+    def __init__(self, name, path, lock_file_dir, use_int_dir):
+        super().__init__(name, path, lock_file_dir)
+        self.use_int_dir = use_int_dir
+
     def _is_ready(self):
-        return self.rta_complete()
+        return self.rta_complete() or self.use_int_dir
 
     def rta_complete(self):
         return os.path.isfile(os.path.join(self.path, 'RTAComplete.txt'))
@@ -259,11 +263,16 @@ class DatasetScanner:
 
 
 class RunScanner(DatasetScanner):
+    def __init__(self, cfg):
+        super().__init__(cfg)
+        self.use_int_dir = 'intermediate_dir' in cfg
+
     def _get_dataset(self, dataset_path):
         return RunDataset(
             name=os.path.basename(dataset_path),
             path=dataset_path,
-            lock_file_dir=self.lock_file_dir
+            lock_file_dir=self.lock_file_dir,
+            use_int_dir=self.use_int_dir
         )
 
 
