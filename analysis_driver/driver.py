@@ -189,7 +189,7 @@ def variant_calling_pipeline(dataset):
     # ntf.end_stage('genotype validation')
 
     fastqc2_exit_status = fastqc2_executor.join()
-    ntf.end_stage('sample_fastqc2', fastqc2_exit_status)
+    ntf.end_stage('sample_fastqc', fastqc2_exit_status)
 
     bcbio_exit_status = bcbio_executor.join()
     ntf.end_stage('bcbio', bcbio_exit_status)
