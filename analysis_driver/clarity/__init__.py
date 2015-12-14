@@ -69,30 +69,34 @@ def get_species_information_from_ncbi(species):
     payload = {'db': 'Taxonomy', 'term': species, 'retmode': 'JSON'}
     r = requests.get(esearch_url, params=payload)
     results = r.json()
-
-    count = int(results.get('esearchresult').get('count', 0))
-    if count > 1:
+    taxid_list = taxid = results.get('esearchresult').get('idlist')
+    all_species_names = []
+    for taxid in taxid_list:
+        efetch_url = 'http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi'
+        payload = {'db': 'Taxonomy', 'id': taxid}
+        r = requests.get(efetch_url, params=payload)
+        match = re.search('<Rank>(.+?)</Rank>', r.text, re.MULTILINE)
+        if match:
+            rank = match.group(1)
+        if rank == 'species':
+            scientific_name = common_name = None
+            match = re.search('<ScientificName>(.+?)</ScientificName>', r.text, re.MULTILINE)
+            if match:
+                scientific_name = match.group(1)
+            match = re.search('<GenbankCommonName>(.+?)</GenbankCommonName>', r.text, re.MULTILINE)
+            if not match:
+                match = re.search('<CommonName>(.+?)</CommonName>', r.text, re.MULTILINE)
+            if match:
+                common_name = match.group(1)
+            all_species_names.append((taxid, scientific_name, common_name))
+    if len(all_species_names) > 1:
         app_logger.error("More than one taxon corresponding to %s" % species)
         return None, None, None
-    elif count == 0:
+    elif len(all_species_names) == 0:
         app_logger.error("No taxon found corresponding to %s" % species)
         return None, None, None
-    taxid = results.get('esearchresult').get('idlist')[0]
-    scientific_name = common_name = None
 
-    efetch_url = 'http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi'
-    payload = {'db': 'Taxonomy', 'id': taxid}
-    r = requests.get(efetch_url, params=payload)
-    match = re.search('<ScientificName>(.+?)</ScientificName>', r.text, re.MULTILINE)
-    if match:
-        scientific_name = match.group(1)
-    match = re.search('<GenbankCommonName>(.+?)</GenbankCommonName>', r.text, re.MULTILINE)
-    if not match:
-        match = re.search('<CommonName>(.+?)</CommonName>', r.text, re.MULTILINE)
-    if match:
-        common_name = match.group(1)
-    app_logger.info('taxid=%s, scientific_name=%s, common_name=%s' % (taxid, scientific_name, common_name))
-    return taxid, scientific_name, common_name
+    return all_species_names[0]
 
 def get_species_from_sample(sample_name):
     lims = _get_lims_connection()
@@ -157,7 +161,16 @@ def run_tests():
     assert get_user_sample_name('NA12877_25SEPT15 2/5') is None
 
     assert find_run_elements_from_sample('10094AT0001')
-    assert get_species_from_sample('10094AT0001') is "Homo Sapiens"
+    assert get_species_from_sample('10094AT0001') == "Homo sapiens"
+    print(get_species_information_from_ncbi('mouse'))
+    print(get_species_information_from_ncbi('human'))
+    print(get_species_information_from_ncbi('pig'))
+    print(get_species_information_from_ncbi('fruit fly'))
+    print(get_species_information_from_ncbi('chicken'))
+    print(get_species_information_from_ncbi('potato'))
+    print(get_species_information_from_ncbi('wheat'))
+
+
 
 if __name__ == '__main__':
     # will only work with a valid connection to the production server
