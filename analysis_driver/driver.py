@@ -22,7 +22,8 @@ def pipeline(dataset):
         exit_status = demultiplexing_pipeline(dataset)
     elif isinstance(dataset, SampleDataset):
         species = clarity.get_species_from_sample(dataset.name)
-        if species == 'Homo sapiens':
+        # TODO: Assume species is Human if not specified for now change this when can garantee that all samples have species
+        if species == 'Homo sapiens' or species is None:
             exit_status = variant_calling_pipeline(dataset)
         else:
             exit_status = qc_pipeline(dataset, species)
@@ -267,6 +268,7 @@ def qc_pipeline(dataset, species):
     # bwa mem
     expected_output_bam = os.path.join(sample_dir, sample_id + '.bam')
     reference = cfg.query('references', species, 'fasta')
+    app_logger.info("align %s to %s genome found at %s"%(sample_id, species, reference))
     ntf.start_stage('sample_bwa')
     bwa_mem_executor = executor.execute(
             [writer.bash_commands.bwa_mem_samblaster(fastq_pair, reference, expected_output_bam, thread=16)],
@@ -305,6 +307,7 @@ def qc_pipeline(dataset, species):
     crawler = SampleCrawler(sample_id,  project_id,  dir_with_linked_files)
     crawler.send_data()
 
+    #md5sum
     ntf.start_stage('md5sum')
     md5sum_exit_status = executor.execute(
         [writer.bash_commands.md5sum(f) for f in linked_files],

@@ -96,13 +96,19 @@ def get_species_information_from_ncbi(species):
 
 def get_species_from_sample(sample_name):
     lims = _get_lims_connection()
-    sample = get_lims_sample(sample_name, lims)
-    species_string = sample.udf.get('Species')
-    taxid, scientific_name, common_name = get_species_information_from_ncbi(species_string)
-    if taxid:
-        return scientific_name
-    else:
-        return None
+    samples = get_lims_samples(sample_name, lims)
+    species_string = None
+    if samples:
+        species_strings = set([s.udf.get('Species') for s in samples])
+        if len(species_strings) != 1:
+            app_logger.error('%s species found for sample %s' % (len(species_strings), sample_name))
+        else:
+            species_string = species_strings.pop()
+    if species_string:
+        taxid, scientific_name, common_name = get_species_information_from_ncbi(species_string)
+        if taxid:
+            return scientific_name
+    return None
 
 def sanitize_user_id(user_id):
     if isinstance(user_id, str):
