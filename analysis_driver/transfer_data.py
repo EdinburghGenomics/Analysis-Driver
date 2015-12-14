@@ -80,15 +80,15 @@ def _find_run_location(run_id):
     raise AnalysisDriverError('Could not find fastqs')
 
 
-def _transfer_fastqs_to_int_dir(dataset, from_dir, to_dir, rsync_append_verify=True):
+def _transfer_fastqs_to_int_dir(run_id, from_dir, to_dir, rsync_append_verify=True):
     app_logger.info('Starting sample transfer')
 
     rsync_cmd = rsync_from_to(
-        os.path.join(from_dir, dataset.name),
+        os.path.join(from_dir, run_id),
         to_dir,
         append_verify=rsync_append_verify,
     )
-    exit_status = executor.execute([rsync_cmd], job_name='transfer_sample', run_id=dataset.name).join()
+    exit_status = executor.execute([rsync_cmd], job_name='transfer_sample', run_id=run_id).join()
     app_logger.info('Transfer complete with exit status ' + str(exit_status))
 
 

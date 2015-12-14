@@ -27,12 +27,14 @@ class TestRunDataset(TestAnalysisDriver):
         self.dataset_ready = RunDataset(
             name='that',
             path=os.path.join(self.base_dir, 'that'),
-            lock_file_dir=self.base_dir
+            lock_file_dir=self.base_dir,
+            use_int_dir=False
         )
         self.dataset_not_ready = RunDataset(
             name='this',
             path=os.path.join(self.data_transfer, 'this'),
-            lock_file_dir=self.base_dir
+            lock_file_dir=self.base_dir,
+            use_int_dir=False
         )
         self.dataset_ready.reset()
         self.dataset_not_ready.reset()
