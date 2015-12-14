@@ -8,7 +8,7 @@ from analysis_driver.writer.bash_commands import rsync_from_to, is_remote_path
 from analysis_driver.app_logging import get_logger
 from analysis_driver.config import default as cfg
 from analysis_driver.report_generation.report_crawlers import ELEMENT_RUN_NAME, ELEMENT_LANE, ELEMENT_PROJECT
-from analysis_driver.util.fastq_handler import find_fastqs
+from analysis_driver.util import fastq_handler
 
 app_logger = get_logger(__name__)
 
@@ -42,49 +42,47 @@ def prepare_sample_data(dataset):
     fastqs = []
 
     for run_element in dataset.run_elements.values():
-        run_location = _find_run_location(run_id=run_element.get(ELEMENT_RUN_NAME), sample_id=dataset.name)
         fastqs.extend(
-            find_fastqs(
-                run_location,
-                run_element.get(ELEMENT_PROJECT),
-                dataset.name,
-                run_element.get(ELEMENT_LANE)
-            )
+            _find_fastqs_for_sample(dataset.name, run_element)
         )
     return fastqs
 
 
-def _find_run_location(run_id, sample_id):
-    fastqs_in_job_dir = os.path.join(cfg['jobs_dir'], run_id, 'fastq')
-    app_logger.debug('Searching for fastqs in ' + fastqs_in_job_dir)
-    if os.path.isdir(fastqs_in_job_dir):
-        return fastqs_in_job_dir
+def _find_fastqs_for_sample(sample_id, run_element):
+    run_id = run_element.get(ELEMENT_RUN_NAME)
+    project_id = run_element.get(ELEMENT_PROJECT)
+    lane = run_element.get(ELEMENT_LANE)
 
-    fastqs_in_int_dir = os.path.join(cfg.get('intermediate_dir', ''), run_id, 'fastq')
-    app_logger.debug('Searching for fastqs in ' + fastqs_in_int_dir)
-    if os.path.isdir(fastqs_in_int_dir):
-        return fastqs_in_int_dir
+    local_fastq_dir = os.path.join(cfg['jobs_dir'], run_id, 'fastq')
+    app_logger.debug('Searching for fastqs in ' + local_fastq_dir)
+    local_fastqs = fastq_handler.find_fastqs(local_fastq_dir, project_id, sample_id, lane)
+    if local_fastqs:
+        return local_fastqs
 
-    fastqs_in_input_dir = os.path.join(cfg['input_dir'], run_id, 'fastq')
-    app_logger.debug('Searching for fastqs in ' + fastqs_in_input_dir)
-    if os.path.isdir(fastqs_in_input_dir) and not is_remote_path(fastqs_in_input_dir):
-        return fastqs_in_input_dir
+    search_path = (
+        os.path.join(cfg.get('intermediate_dir', ''), run_id, 'fastq'),
+        os.path.join(cfg['input_dir'], run_id, 'fastq')
+    )
+    remote_fastq_dir = None
+    for s in search_path:
+        app_logger.debug('Searching for fastqs in ' + s)
+        if fastq_handler.find_fastqs(s, project_id, sample_id, lane) or is_remote_path(s):
+            remote_fastq_dir = s
+            break
 
-    if is_remote_path(fastqs_in_input_dir):
-        app_logger.info('Could not find any local fastqs, retrieving from remote')
-        _transfer_fastqs_to_int_dir(run_id, sample_id, cfg['input_dir'], cfg['intermediate_dir'])
-        app_logger.debug('Searching again for fastqs in ' + fastqs_in_int_dir)
-        if os.path.isdir(fastqs_in_int_dir):
-            return fastqs_in_int_dir
-
-    raise AnalysisDriverError('Could not find fastqs')
+    _transfer_fastqs_to_int_dir(run_id, sample_id, remote_fastq_dir, os.path.join(cfg['jobs_dir'], sample_id))
+    app_logger.info('Searching again for fastqs in ' + local_fastq_dir)
+    local_fastqs = fastq_handler.find_fastqs(local_fastq_dir, project_id, sample_id, lane)
+    if not local_fastqs:
+        app_logger.warn('No fastqs found for %s/%s/%s/L00%s' % (run_id, project_id, sample_id, lane))
+    return local_fastqs
 
 
 def _transfer_fastqs_to_int_dir(run_id, sample_id, from_dir, to_dir, rsync_append_verify=True):
-    app_logger.info('Starting sample transfer')
+    app_logger.info('Starting sample transfer from %s to %s' % (from_dir, to_dir))
 
     rsync_cmd = rsync_from_to(
-        os.path.join(from_dir, run_id),
+        from_dir,
         to_dir,
         append_verify=rsync_append_verify,
     )
