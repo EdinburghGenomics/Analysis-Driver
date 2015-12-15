@@ -42,9 +42,7 @@ def prepare_sample_data(dataset):
     fastqs = []
 
     for run_element in dataset.run_elements.values():
-        fastqs.extend(
-            _find_fastqs_for_sample(dataset.name, run_element)
-        )
+        fastqs.extend(_find_fastqs_for_sample(dataset.name, run_element))
     return fastqs
 
 
@@ -55,39 +53,33 @@ def _find_fastqs_for_sample(sample_id, run_element):
 
     local_fastq_dir = os.path.join(cfg['jobs_dir'], run_id, 'fastq')
     app_logger.debug('Searching for fastqs in ' + local_fastq_dir)
-    local_fastqs = fastq_handler.find_fastqs(local_fastq_dir, project_id, sample_id, lane)
-    if local_fastqs:
-        return local_fastqs
+    fastqs = fastq_handler.find_fastqs(local_fastq_dir, project_id, sample_id, lane)
+    if fastqs:
+        return fastqs
 
-    search_path = (
-        os.path.join(cfg.get('intermediate_dir', ''), run_id, 'fastq'),
-        os.path.join(cfg['input_dir'], run_id, 'fastq')
-    )
-    remote_fastq_dir = None
-    for s in search_path:
-        app_logger.debug('Searching for fastqs in ' + s)
-        if fastq_handler.find_fastqs(s, project_id, sample_id, lane) or is_remote_path(s):
-            remote_fastq_dir = s
-            break
+    remote_fastq_dir = os.path.join(cfg['input_dir'], run_id, 'fastq')
+    app_logger.debug('Searching for fastqs in ' + remote_fastq_dir)
+    fastqs = fastq_handler.find_fastqs(remote_fastq_dir, project_id, sample_id, lane)
+    if fastqs:
+        return fastqs
 
-    _transfer_fastqs_to_int_dir(run_id, sample_id, remote_fastq_dir, os.path.join(cfg['jobs_dir'], sample_id))
-    app_logger.info('Searching again for fastqs in ' + local_fastq_dir)
-    local_fastqs = fastq_handler.find_fastqs(local_fastq_dir, project_id, sample_id, lane)
-    if not local_fastqs:
-        app_logger.warn('No fastqs found for %s/%s/%s/L00%s' % (run_id, project_id, sample_id, lane))
-    return local_fastqs
+    elif is_remote_path(remote_fastq_dir):
+        pattern = os.path.join(remote_fastq_dir, project_id, sample_id, '*L00%s*.fastq.gz' % lane)
 
+        # rsync the remote fastqs to a unique jobs dir
+        rsync_cmd = rsync_from_to(pattern, os.path.join(cfg['jobs_dir'], sample_id, run_id))
+        # TODO: try and parallelise this (although this avoids spamming the rdf server)
+        exit_status = executor.execute([rsync_cmd], job_name='transfer_sample', run_id=sample_id).join()
+        app_logger.info('Transfer complete with exit status ' + str(exit_status))
 
-def _transfer_fastqs_to_int_dir(run_id, sample_id, from_dir, to_dir, rsync_append_verify=True):
-    app_logger.info('Starting sample transfer from %s to %s' % (from_dir, to_dir))
+        app_logger.info('Searching again for fastqs in ' + local_fastq_dir)
+        fastqs = glob.glob(os.path.join(cfg['jobs_dir'], sample_id, run_id, '*L00%s*.fastq.gz' % lane))
 
-    rsync_cmd = rsync_from_to(
-        from_dir,
-        to_dir,
-        append_verify=rsync_append_verify,
-    )
-    exit_status = executor.execute([rsync_cmd], job_name='transfer_sample', run_id=sample_id).join()
-    app_logger.info('Transfer complete with exit status ' + str(exit_status))
+    if len(fastqs) != 2:
+        raise AnalysisDriverError(
+            '%s fastqs found for %s/%s/%s/L00%s' % (len(fastqs), run_id, project_id, sample_id, lane)
+        )
+    return fastqs
 
 
 def _transfer_run_to_int_dir(dataset, from_dir, to_dir, repeat_delay, rsync_append_verify=True):
@@ -105,8 +97,7 @@ def _transfer_run_to_int_dir(dataset, from_dir, to_dir, repeat_delay, rsync_appe
         exit_status += executor.execute(
             [rsync_cmd],
             job_name='transfer_run',
-            run_id=dataset.name,
-            # walltime=36
+            run_id=dataset.name
         ).join()
         sleep(repeat_delay)
 
@@ -168,8 +159,7 @@ def _output_data(source_dir, output_dir, run_id, rsync_append=True):
     return executor.execute(
         [command],
         job_name='data_output',
-        run_id=run_id,
-        # walltime=36
+        run_id=run_id
     ).join()
 
 
