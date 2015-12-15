@@ -259,7 +259,7 @@ def qc_pipeline(dataset, species):
 
     # bwa mem
     expected_output_bam = os.path.join(sample_dir, sample_id + '.bam')
-    reference = cfg.query('references', species, 'fasta')
+    reference = cfg.query('references', species.replace(' ', '_'), 'fasta')
     app_logger.info("align %s to %s genome found at %s"%(sample_id, species, reference))
     ntf.start_stage('sample_bwa')
     bwa_mem_executor = executor.execute(
