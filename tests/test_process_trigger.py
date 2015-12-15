@@ -20,7 +20,8 @@ class TestProcessTrigger(TestAnalysisDriver):
         self.dataset = RunDataset(
             name='test_dataset',
             path=os.path.join(self.from_dir, 'test_dataset'),
-            lock_file_dir=self.from_dir
+            lock_file_dir=self.from_dir,
+            use_int_dir=False
         )
         self.dataset.reset()
 
@@ -30,7 +31,7 @@ class TestProcessTrigger(TestAnalysisDriver):
         self.dataset.reset()
 
     def test_transfer(self):
-        transfer_data._transfer_to_int_dir(
+        transfer_data._transfer_run_to_int_dir(
             self.dataset,
             self.from_dir,
             self.to_dir,

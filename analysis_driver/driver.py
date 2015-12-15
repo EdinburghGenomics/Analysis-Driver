@@ -79,7 +79,6 @@ def demultiplexing_pipeline(dataset):
         [writer.bash_commands.bcl2fastq(input_run_folder, fastq_dir, sample_sheet.filename, mask)],
         job_name='bcl2fastq',
         run_id=run_id,
-        # walltime=32,
         cpus=8,
         mem=32
     ).join()
@@ -93,7 +92,6 @@ def demultiplexing_pipeline(dataset):
         [writer.bash_commands.fastqc(fq) for fq in util.fastq_handler.find_all_fastqs(fastq_dir)],
         job_name='fastqc',
         run_id=run_id,
-        # walltime=6,
         cpus=1,
         mem=2
     )
@@ -104,13 +102,10 @@ def demultiplexing_pipeline(dataset):
         [writer.bash_commands.md5sum(fq) for fq in util.fastq_handler.find_all_fastqs(fastq_dir)],
         job_name='md5sum',
         run_id=run_id,
-        # walltime=6,
         cpus=1,
         mem=2,
         log_command=False
     )
-
-    valid_lanes = clarity.get_valid_lanes(run_info.flowcell_name)  # TODO: do we need this in demultiplexing?
 
     fastqc_exit_status = fastqc_executor.join()
     ntf.end_stage('fastqc', fastqc_exit_status)
@@ -174,7 +169,6 @@ def variant_calling_pipeline(dataset):
         [writer.bash_commands.fastqc(fastq_file) for fastq_file in fastq_pair],
         job_name='fastqc2',
         run_id=sample_id,
-        # walltime=10,
         cpus=1,
         mem=2
     )
@@ -218,7 +212,6 @@ def variant_calling_pipeline(dataset):
         [writer.bash_commands.md5sum(f) for f in linked_files],
         job_name='md5sum',
         run_id=sample_id,
-        # walltime=6,
         cpus=1,
         mem=2,
         log_command=False
@@ -241,7 +234,6 @@ def variant_calling_pipeline(dataset):
 
 
 def qc_pipeline(dataset, species):
-    exit_status = 0
     dataset.start()
     fastq_files = prepare_sample_data(dataset)
 

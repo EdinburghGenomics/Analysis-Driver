@@ -8,7 +8,7 @@ from analysis_driver.writer.bash_commands import rsync_from_to, is_remote_path
 from analysis_driver.app_logging import get_logger
 from analysis_driver.config import default as cfg
 from analysis_driver.report_generation.report_crawlers import ELEMENT_RUN_NAME, ELEMENT_LANE, ELEMENT_PROJECT
-from analysis_driver.util.fastq_handler import find_fastqs
+from analysis_driver.util import fastq_handler
 
 app_logger = get_logger(__name__)
 
@@ -20,7 +20,7 @@ def prepare_run_data(dataset):
     """
     app_logger.debug('Preparing dataset %s (%s)' % (dataset.name, dataset.dataset_status))
     if cfg.get('intermediate_dir'):
-        _transfer_to_int_dir(
+        _transfer_run_to_int_dir(
             dataset,
             cfg['input_dir'],
             cfg['intermediate_dir'],
@@ -39,24 +39,52 @@ def prepare_sample_data(dataset):
     :param Dataset dataset: A dataset object
     """
     app_logger.debug('Preparing dataset %s (%s)' % (dataset.name, dataset.dataset_status))
-    all_fastqs = []
+    fastqs = []
+
     for run_element in dataset.run_elements.values():
-        run_location = find_run_location(run_element.get(ELEMENT_RUN_NAME))
-        all_fastqs.extend(
-            find_fastqs(
-                run_location,
-                run_element.get(ELEMENT_PROJECT),
-                dataset.name,
-                run_element.get(ELEMENT_LANE)
-            )
+        fastqs.extend(_find_fastqs_for_sample(dataset.name, run_element))
+    return fastqs
+
+
+def _find_fastqs_for_sample(sample_id, run_element):
+    run_id = run_element.get(ELEMENT_RUN_NAME)
+    project_id = run_element.get(ELEMENT_PROJECT)
+    lane = run_element.get(ELEMENT_LANE)
+
+    local_fastq_dir = os.path.join(cfg['jobs_dir'], run_id, 'fastq')
+    app_logger.debug('Searching for fastqs in ' + local_fastq_dir)
+    fastqs = fastq_handler.find_fastqs(local_fastq_dir, project_id, sample_id, lane)
+    if fastqs:
+        return fastqs
+
+    remote_fastq_dir = os.path.join(cfg['input_dir'], run_id, 'fastq')
+    app_logger.debug('Searching for fastqs in ' + remote_fastq_dir)
+    fastqs = fastq_handler.find_fastqs(remote_fastq_dir, project_id, sample_id, lane)
+    if fastqs:
+        return fastqs
+
+    elif is_remote_path(remote_fastq_dir):
+        pattern = os.path.join(remote_fastq_dir, project_id, sample_id, '*L00%s*.fastq.gz' % lane)
+
+        # rsync the remote fastqs to a unique jobs dir
+        rsync_cmd = rsync_from_to(pattern, os.path.join(cfg['jobs_dir'], sample_id, run_id))
+        # TODO: try and parallelise this (although this avoids spamming the rdf server)
+        exit_status = executor.execute([rsync_cmd], job_name='transfer_sample', run_id=sample_id).join()
+        app_logger.info('Transfer complete with exit status ' + str(exit_status))
+
+        app_logger.info('Searching again for fastqs in ' + local_fastq_dir)
+        fastqs = glob.glob(os.path.join(cfg['jobs_dir'], sample_id, run_id, '*L00%s*.fastq.gz' % lane))
+
+    if len(fastqs) != 2:
+        raise AnalysisDriverError(
+            '%s fastqs found for %s/%s/%s/L00%s' % (len(fastqs), run_id, project_id, sample_id, lane)
         )
+    return fastqs
 
-    return all_fastqs
 
-
-def _transfer_to_int_dir(dataset, from_dir, to_dir, repeat_delay, rsync_append_verify=True):
+def _transfer_run_to_int_dir(dataset, from_dir, to_dir, repeat_delay, rsync_append_verify=True):
     exit_status = 0
-    app_logger.info('Starting transfer')
+    app_logger.info('Starting run transfer')
 
     rsync_cmd = rsync_from_to(
         os.path.join(from_dir, dataset.name),
@@ -68,31 +96,17 @@ def _transfer_to_int_dir(dataset, from_dir, to_dir, repeat_delay, rsync_append_v
     while not dataset.rta_complete():
         exit_status += executor.execute(
             [rsync_cmd],
-            job_name='rsync',
-            run_id=dataset.name,
-            # walltime=36
+            job_name='transfer_run',
+            run_id=dataset.name
         ).join()
         sleep(repeat_delay)
 
     # one more rsync after the RTAComplete is created. After this, everything should be synced
     sleep(repeat_delay)
-    exit_status += executor.execute([rsync_cmd], job_name='rsync', run_id=dataset.name, walltime=36).join()
+    exit_status += executor.execute([rsync_cmd], job_name='rsync', run_id=dataset.name).join()
     assert os.path.isfile(os.path.join(dataset.path, 'RTAComplete.txt'))
     app_logger.info('Transfer complete with exit status ' + str(exit_status))
     return exit_status
-
-
-def find_run_location(run_id):
-    searchable_input_dirs = (
-        os.path.join(cfg['jobs_dir'], run_id, 'fastq'),
-        os.path.join(cfg['input_dir'], run_id, )
-    )
-    for s in searchable_input_dirs:
-        app_logger.debug('searching in ' + s)
-        if os.path.isdir(s):
-            return s
-    app_logger.error('could not find any input fastq dir')
-    return None
 
 
 def create_links_from_bcbio(sample_id, intput_dir, output_config, link_dir, query_lims=True):
@@ -145,8 +159,7 @@ def _output_data(source_dir, output_dir, run_id, rsync_append=True):
     return executor.execute(
         [command],
         job_name='data_output',
-        run_id=run_id,
-        # walltime=36
+        run_id=run_id
     ).join()
 
 
