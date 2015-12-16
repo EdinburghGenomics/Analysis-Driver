@@ -1,3 +1,4 @@
+__author__ = 'mwham'
 import json
 import os
 from glob import glob
@@ -6,7 +7,6 @@ from analysis_driver.report_generation import ELEMENT_NB_Q30_R1, ELEMENT_NB_Q30_
 from analysis_driver.app_logging import get_logger
 from analysis_driver.clarity import get_expected_yield_for_sample
 
-__author__ = 'mwham'
 
 app_logger = get_logger('scanner')
 
@@ -225,7 +225,7 @@ class DatasetScanner:
             with open(triggerignore, 'r') as f:
                 for p in f.readlines():
                     if not p.startswith('#'):
-                        ignorables.extend(glob(os.path.join(self.input_dir, p.rstrip('\n'))))
+                        ignorables.append(p.rstrip('\n'))
         app_logger.debug('Ignoring %s datasets' % len(ignorables))
 
         n_datasets = 0
