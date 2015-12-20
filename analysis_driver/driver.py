@@ -267,7 +267,7 @@ def qc_pipeline(dataset, species):
             job_name='bwa_mem',
         run_id=sample_id,
         cpus=12,
-        mem=6
+        mem=32
     )
 
     fastqc_exit_status = fastqc2_executor.join()
