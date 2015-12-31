@@ -126,7 +126,7 @@ def get_lims_samples(sample_name, lims):
     samples = lims.get_samples(name=sample_name)
     # FIXME: Remove the hack when we're sure our sample id don't have colon
     if len(samples) == 0:
-        sample_name_sub = re.sub("_(\d{2})", ":\g<1>", sample_name)
+        sample_name_sub = re.sub("_(\d{2})$", ":\g<1>", sample_name)
         samples = lims.get_samples(name=sample_name_sub)
     if len(samples) == 0:
         sample_name_sub = re.sub("__(\w)_(\d{2})", " _\g<1>:\g<2>", sample_name)
