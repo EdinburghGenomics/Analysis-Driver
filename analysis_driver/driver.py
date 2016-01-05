@@ -12,6 +12,7 @@ from analysis_driver.notification import default as ntf
 from analysis_driver.report_generation.report_crawlers import RunCrawler, SampleCrawler
 from analysis_driver.transfer_data import prepare_run_data, prepare_sample_data, output_sample_data, output_run_data, \
     create_links_from_bcbio
+from analysis_driver.quality_control import ContaminationCheck
 
 app_logger = get_logger('driver')
 
@@ -200,11 +201,23 @@ def variant_calling_pipeline(dataset):
 
     # Create the links from the bcbio output to one directory
     dir_with_linked_files = os.path.join(sample_dir, 'linked_output_files')
-    linked_files = create_links_from_bcbio(sample_id, sample_dir, output_files_config.query('bcbio'), dir_with_linked_files)
+    linked_files = create_links_from_bcbio(
+        sample_id,
+        sample_dir,
+        output_files_config.query('bcbio'),
+        dir_with_linked_files
+    )
+
+    user_sample_id = clarity.get_user_sample_name(sample_id, default_to_sample_id=True)
+    c = ContaminationCheck(
+        sample_id,
+        file_prefix=os.path.join(dir_with_linked_files, user_sample_id)
+    )
+    c.run()
 
     # Upload the data to the rest API
     project_id = clarity.find_project_from_sample(sample_id)
-    crawler = SampleCrawler(sample_id,  project_id,  dir_with_linked_files)
+    crawler = SampleCrawler(sample_id, project_id, dir_with_linked_files)
     crawler.send_data()
 
     ntf.start_stage('md5sum')
@@ -331,9 +344,7 @@ def _bcbio_prepare_sample(job_dir, sample_id, fastq_files):
     """
     Merge the fastq files per sample using bcbio prepare sample
     """
-    user_sample_id = clarity.get_user_sample_name(sample_id)
-    if not user_sample_id:
-        user_sample_id = sample_id
+    user_sample_id = clarity.get_user_sample_name(sample_id, default_to_sample_id=True)
     cmd = util.bcbio_prepare_samples_cmd(job_dir, sample_id, fastq_files, user_sample_id=user_sample_id)
 
     exit_status = executor.execute([cmd], job_name='bcbio_prepare_samples', run_id=sample_id).join()

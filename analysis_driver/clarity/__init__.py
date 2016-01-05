@@ -142,16 +142,18 @@ def get_lims_sample(sample_name, lims):
     return samples[0]
 
 
-def get_user_sample_name(sample_name):
+def get_user_sample_name(sample_name, default_to_sample_id=False):
     """
     Query the LIMS and return the name the user gave to the sample
     :param sample_name: the sample name from the Samplesheet.csv
-    :return: the user's sample name or None
+    :return: the user's sample name, None or the input sample name
     """
     lims = _get_lims_connection()
     sample = get_lims_sample(sample_name, lims)
     if sample:
         return sanitize_user_id(sample.udf.get('User Sample Name'))
+    elif default_to_sample_id:
+        return sample_name
 
 
 def get_expected_yield_for_sample(sample_name):
@@ -166,7 +168,6 @@ def get_expected_yield_for_sample(sample_name):
         nb_gb = sample.udf.get('Yield for Quoted Coverage (Gb)')
         if nb_gb:
             return nb_gb * 1000000000
-
 
 
 def run_tests():

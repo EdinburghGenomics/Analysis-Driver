@@ -90,7 +90,6 @@ def is_remote_path(fp):
 
 
 def rsync_from_to(source, dest, append_verify=True, exclude=None):
-    """rsync command that will transfer the file to the desired destination"""
     command = 'rsync -rLD --size-only '
     if exclude:
         command += '--exclude=%s ' % exclude
@@ -100,5 +99,10 @@ def rsync_from_to(source, dest, append_verify=True, exclude=None):
         command += '-e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -c arcfour" '
 
     command += '%s %s' % (source, dest)
-
     return command
+
+
+def verify_bam_id(bam_file, vcf_file, out_prefix):
+    return '%s --bam %s --vcf %s --out %s' % (
+        cfg.query('tools', 'verify_bam_id'), bam_file, vcf_file, out_prefix
+    )
