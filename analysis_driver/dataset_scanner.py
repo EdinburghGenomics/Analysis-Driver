@@ -5,6 +5,7 @@ from glob import glob
 from collections import defaultdict
 from analysis_driver.report_generation import ELEMENT_NB_Q30_R1, ELEMENT_NB_Q30_R2, ELEMENT_RUN_NAME
 from analysis_driver.app_logging import get_logger
+from analysis_driver.clarity import get_expected_yield_for_sample
 
 
 app_logger = get_logger('scanner')
@@ -39,7 +40,7 @@ class Dataset:
         else:
             lf_status = DATASET_NEW
 
-        if self._is_ready() and lf_status == DATASET_NEW:
+        if lf_status == DATASET_NEW and self._is_ready():
             return DATASET_READY
         else:
             return lf_status
@@ -168,7 +169,7 @@ class SampleDataset(Dataset):
 
     def __init__(self, name, path, lock_file_dir, data_threshold=None):
         super().__init__(name, path, lock_file_dir)
-        self.data_threshold = data_threshold
+        self.default_data_threshold = data_threshold
         self.run_elements = self._read_data()
 
     def force(self):
@@ -190,6 +191,14 @@ class SampleDataset(Dataset):
 
     def _runs(self):
         return set([r.get(ELEMENT_RUN_NAME) for r in self.run_elements.values()])
+
+    @property
+    def data_threshold(self):
+        if not hasattr(self, '_data_threshold'):
+            self._data_threshold = get_expected_yield_for_sample(self.name)
+        if not self._data_threshold:
+            self._data_threshold = self.default_data_threshold
+        return self._data_threshold
 
     def _is_ready(self):
         return self.data_threshold and int(self._amount_data()) > int(self.data_threshold)
@@ -216,7 +225,7 @@ class DatasetScanner:
             with open(triggerignore, 'r') as f:
                 for p in f.readlines():
                     if not p.startswith('#'):
-                        ignorables.extend(glob(os.path.join(self.input_dir, p.rstrip('\n'))))
+                        ignorables.append(p.rstrip('\n'))
         app_logger.debug('Ignoring %s datasets' % len(ignorables))
 
         n_datasets = 0

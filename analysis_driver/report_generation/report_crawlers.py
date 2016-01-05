@@ -101,6 +101,13 @@ class RunCrawler(Crawler):
                             ELEMENT_LANE: lane
                         }
                         self.barcodes_info[barcode_info[ELEMENT_RUN_ELEMENT_ID]] = barcode_info
+
+        #Add the unknown to the lane
+        for lane_id in self.lanes:
+            lane = self.lanes[lane_id][ELEMENT_LANE_NUMBER]
+            unknown = '%s_%s_%s' % (self.run_id, lane, 'unknown')
+            self.lanes[lane_id][ELEMENT_RUN_ELEMENTS].append(unknown)
+
         self.run[ELEMENT_NUMBER_LANE] = len(self.lanes)
 
     def _populate_barcode_info_from_conversion_file(self, conversion_xml_file):
