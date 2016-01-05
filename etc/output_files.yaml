@@ -50,6 +50,7 @@ bcbio:
   - location: ['merged']
     basename: '{sample_id}_R2_fastqc.zip'
 
+
 non_human_qc:
   - location: ['']
     basename: 'bamtools_stats.txt'
@@ -58,4 +59,16 @@ non_human_qc:
     basename: '{sample_id}_R1.fastq.gz'
 
   - location: ['merged']
+    basename: '{sample_id}_R1.fastqc.html'
+
+  - location: ['merged']
+    basename: '{sample_id}_R1.fastqc.zip'
+
+  - location: ['merged']
     basename: '{sample_id}_R2.fastq.gz'
+
+  - location: ['merged']
+    basename: '{sample_id}_R2.fastqc.html'
+
+  - location: ['merged']
+    basename: '{sample_id}_R2.fastqc.zip'
