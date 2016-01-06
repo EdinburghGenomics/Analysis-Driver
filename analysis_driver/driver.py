@@ -11,7 +11,7 @@ from analysis_driver.config import output_files_config, default as cfg  # import
 from analysis_driver.notification import default as ntf
 from analysis_driver.report_generation.report_crawlers import RunCrawler, SampleCrawler
 from analysis_driver.transfer_data import prepare_run_data, prepare_sample_data, output_sample_data, output_run_data, \
-    create_links_from_bcbio
+    create_links_from_bcbio, create_link
 from analysis_driver.quality_control import ContaminationCheck
 
 app_logger = get_logger('driver')
@@ -209,11 +209,18 @@ def variant_calling_pipeline(dataset):
     )
 
     user_sample_id = clarity.get_user_sample_name(sample_id, default_to_sample_id=True)
+    contamination_check_dir = os.path.join(sample_dir, 'contamination_check')
+    os.makedirs(contamination_check_dir, exist_ok=True)
     c = ContaminationCheck(
         sample_id,
-        file_prefix=os.path.join(dir_with_linked_files, user_sample_id)
+        user_sample_id,
+        input_dir=dir_with_linked_files,
+        output_dir=contamination_check_dir
     )
     c.run()
+    self_sm = os.path.join(contamination_check_dir, user_sample_id + '.selfSM')
+    if self_sm:
+        create_link(self_sm, os.path.join(dir_with_linked_files, user_sample_id + '.selfSM'))
 
     # Upload the data to the rest API
     project_id = clarity.find_project_from_sample(sample_id)

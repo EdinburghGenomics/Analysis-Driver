@@ -109,7 +109,13 @@ def _transfer_run_to_int_dir(dataset, from_dir, to_dir, repeat_delay, rsync_appe
     return exit_status
 
 
-def create_links_from_bcbio(sample_id, intput_dir, output_config, link_dir, query_lims=True):
+def create_link(f, link):
+    if not os.path.islink(link):
+        os.symlink(f, link)
+    return link
+
+
+def create_links_from_bcbio(sample_id, input_dir, output_config, link_dir, query_lims=True):
     exit_status = 0
     user_sample_id = None
     if query_lims:
@@ -121,7 +127,7 @@ def create_links_from_bcbio(sample_id, intput_dir, output_config, link_dir, quer
     links = []
     for output_record in output_config:
         src_pattern = os.path.join(
-            intput_dir,
+            input_dir,
             os.path.join(*output_record['location']),
             output_record['basename']
         ).format(runfolder=sample_id, sample_id=user_sample_id)
@@ -133,9 +139,7 @@ def create_links_from_bcbio(sample_id, intput_dir, output_config, link_dir, quer
                 link_dir,
                 output_record.get('new_name', os.path.basename(source))
             ).format(sample_id=user_sample_id)
-            if not os.path.islink(link_file):
-                os.symlink(source, link_file)
-            links.append(link_file)
+            links.append(create_link(source, link_file))
         else:
             app_logger.warning('No files found for pattern ' + src_pattern)
             exit_status += 1
