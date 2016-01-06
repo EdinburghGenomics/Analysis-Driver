@@ -7,6 +7,14 @@ bcbio:
     basename: '{sample_id}-gatk-haplotype.vcf.gz.tbi'
     new_name: '{sample_id}.g.vcf.gz.tbi'
 
+  - location: ['samples_{runfolder}-merged', 'final', '*_{sample_id}']
+    basename: '{sample_id}-joint-gatk-haplotype-joint.vcf.gz'
+    new_name: '{sample_id}.vcf.gz'
+
+  - location: ['samples_{runfolder}-merged', 'final', '*_{sample_id}']
+    basename: '{sample_id}-joint-gatk-haplotype-joint.vcf.gz.tbi'
+    new_name: '{sample_id}.vcf.gz.tbi'
+
   - location: ['samples_{runfolder}-merged', 'final', '{sample_id}']
     basename: '{sample_id}-ready.bam'
     new_name: '{sample_id}.bam'
@@ -28,7 +36,20 @@ bcbio:
     basename: '{sample_id}_R1.fastq.gz'
 
   - location: ['merged']
+    basename: '{sample_id}_R1_fastqc.html'
+
+  - location: ['merged']
+    basename: '{sample_id}_R1_fastqc.zip'
+
+  - location: ['merged']
     basename: '{sample_id}_R2.fastq.gz'
+
+  - location: ['merged']
+    basename: '{sample_id}_R2_fastqc.html'
+
+  - location: ['merged']
+    basename: '{sample_id}_R2_fastqc.zip'
+
 
 non_human_qc:
   - location: ['']
@@ -38,4 +59,16 @@ non_human_qc:
     basename: '{sample_id}_R1.fastq.gz'
 
   - location: ['merged']
+    basename: '{sample_id}_R1.fastqc.html'
+
+  - location: ['merged']
+    basename: '{sample_id}_R1.fastqc.zip'
+
+  - location: ['merged']
     basename: '{sample_id}_R2.fastq.gz'
+
+  - location: ['merged']
+    basename: '{sample_id}_R2.fastqc.html'
+
+  - location: ['merged']
+    basename: '{sample_id}_R2.fastqc.zip'
