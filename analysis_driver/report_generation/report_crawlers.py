@@ -2,6 +2,7 @@ __author__ = 'tcezard'
 from collections import Counter, defaultdict
 import glob
 import json
+import csv
 import os
 from analysis_driver.app_logging import AppLogger
 from analysis_driver.reader import demultiplexing_parsers, mapping_stats_parsers
@@ -13,7 +14,7 @@ from analysis_driver.report_generation import ELEMENT_RUN_NAME, ELEMENT_NUMBER_L
     ELEMENT_NB_BASE_R2, ELEMENT_NB_Q30_R1, ELEMENT_NB_Q30_R2, ELEMENT_PC_READ_IN_LANE, ELEMENT_LANE_ID, \
     ELEMENT_PROJECT_ID, ELEMENT_SAMPLE_EXTERNAL_ID, ELEMENT_NB_READS_IN_BAM, ELEMENT_NB_MAPPED_READS, \
     ELEMENT_NB_DUPLICATE_READS, ELEMENT_NB_PROPERLY_MAPPED, ELEMENT_MEDIAN_COVERAGE, ELEMENT_PC_BASES_CALLABLE, \
-    ELEMENT_LANE_NUMBER
+    ELEMENT_LANE_NUMBER, ELEMENT_FREEMIX
 
 
 class Crawler(AppLogger):
@@ -31,6 +32,15 @@ class Crawler(AppLogger):
                 if elem_key:
                     elem_query = {elem_key: payload.pop(elem_key)}
                 rest_communication.patch_entry(url, payload, **elem_query)
+
+    def send_data(self):
+        if not cfg.get('rest_api'):
+            self.warn('rest_api is not set in the config: Cancel upload')
+            return
+        self._send_data()
+
+    def _send_data(self):
+        raise NotImplementedError
 
 
 class RunCrawler(Crawler):
@@ -168,11 +178,7 @@ class RunCrawler(Crawler):
             with open(file_name, 'w') as open_file:
                 json.dump(payload, open_file, indent=4)
 
-    def send_data(self):
-        if not cfg.get('rest_api'):
-            self.warn('rest_api is not set in the config: Cancel upload')
-            return
-
+    def _send_data(self):
         self._post_or_patch('run_elements', self.barcodes_info.values(), ELEMENT_RUN_ELEMENT_ID)
         self._post_or_patch('unexpected_barcodes', self.unexpected_barcodes.values(), ELEMENT_RUN_ELEMENT_ID)
         self._post_or_patch('lanes', self.lanes.values(), ELEMENT_LANE_ID)
@@ -238,10 +244,26 @@ class SampleCrawler(Crawler):
         with open(json_file, 'w') as open_file:
             json.dump(payload, open_file, indent=4)
 
-    def send_data(self):
-
-        if not cfg.get('rest_api'):
-            self.warn('rest_api is not set in the config: Cancel upload')
-            return
-
+    def _send_data(self):
         self._post_or_patch('samples', [self.sample], ELEMENT_SAMPLE_INTERNAL_ID)
+
+
+class ContaminationCrawler(Crawler):
+    def __init__(self, sample_id,  project_id, self_sm_file):
+
+        # TODO: do we need these?
+        self.sample_id = sample_id
+        self.project_id = project_id
+
+        self.samples = []
+        self.populate_from_self_sm(self_sm_file)
+
+    def populate_from_self_sm(self, sm_file):
+        r = csv.DictReader(sm_file)
+        for line in r:
+            s = {ELEMENT_SAMPLE_INTERNAL_ID: line['SEQ-SM'], ELEMENT_FREEMIX: float(line['FREEMIX'])}
+            self.samples.append(s)
+
+    def _send_data(self):
+        # TODO: does a patch with an incomplete entry erase fields in the original?
+        self._post_or_patch('samples', self.samples, ELEMENT_SAMPLE_INTERNAL_ID)

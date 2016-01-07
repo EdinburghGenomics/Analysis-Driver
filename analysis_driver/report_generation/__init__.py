@@ -35,3 +35,5 @@ ELEMENT_MEDIAN_COVERAGE = 'median_coverage'
 ELEMENT_PC_BASES_CALLABLE = 'pc_callable'
 ELEMENT_MEAN_COVERAGE = 'Mean coverage'
 ELEMENT_RUN_ELEMENTS = 'run_elements'
+
+ELEMENT_FREEMIX = 'freemix'
