@@ -217,10 +217,15 @@ def variant_calling_pipeline(dataset):
         input_dir=dir_with_linked_files,
         output_dir=contamination_check_dir
     )
-    c.run()
+    c.start()
+    c_check_exit_status = c.join()
     self_sm = os.path.join(contamination_check_dir, user_sample_id + '.selfSM')
-    if self_sm:
+    if os.path.isfile(self_sm):
         create_link(self_sm, os.path.join(dir_with_linked_files, user_sample_id + '.selfSM'))
+    else:
+        c.error('No selfSM output file found')
+        c_check_exit_status += 1
+    exit_status += c_check_exit_status
 
     # Upload the data to the rest API
     project_id = clarity.find_project_from_sample(sample_id)
