@@ -250,20 +250,24 @@ class SampleCrawler(Crawler):
 
 class ContaminationCrawler(Crawler):
     def __init__(self, sample_id,  project_id, self_sm_file):
-
-        # TODO: do we need these?
         self.sample_id = sample_id
         self.project_id = project_id
-
         self.samples = []
         self.populate_from_self_sm(self_sm_file)
 
     def populate_from_self_sm(self, sm_file):
         r = csv.DictReader(sm_file)
         for line in r:
-            s = {ELEMENT_SAMPLE_INTERNAL_ID: line['SEQ-SM'], ELEMENT_FREEMIX: float(line['FREEMIX'])}
+            s = {
+                ELEMENT_SAMPLE_INTERNAL_ID: self.sample_id,
+                ELEMENT_SAMPLE_EXTERNAL_ID: line['SEQ-SM'],
+                ELEMENT_PROJECT: self.project_id,
+                ELEMENT_FREEMIX: float(line['FREEMIX'])
+            }
             self.samples.append(s)
+        assert len(self.samples) == 1, 'Multiple samples found in selfRG file'
 
     def _send_data(self):
-        # TODO: does a patch with an incomplete entry erase fields in the original?
+        if len(self.samples) != 1:
+            self.error('Multiple samples found in selfRG file. Aborting.')
         self._post_or_patch('samples', self.samples, ELEMENT_SAMPLE_INTERNAL_ID)
