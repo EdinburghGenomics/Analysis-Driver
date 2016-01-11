@@ -4,6 +4,7 @@ import glob
 import json
 import csv
 import os
+from re import sub
 from analysis_driver.app_logging import AppLogger
 from analysis_driver.reader import demultiplexing_parsers, mapping_stats_parsers
 from analysis_driver.report_generation import rest_communication
@@ -188,8 +189,7 @@ class RunCrawler(Crawler):
 
 
 class SampleCrawler(Crawler):
-
-    def __init__(self, sample_id,  project_id,  sample_dir):
+    def __init__(self, sample_id,  project_id, sample_dir):
         self.sample_id = sample_id
         self.project_id = project_id
         self.all_info = []
@@ -237,6 +237,19 @@ class SampleCrawler(Crawler):
             sample[ELEMENT_PC_BASES_CALLABLE] = callable_bases/total
         else:
             self.critical('Missing *%s-sort-callable.bed' % external_sample_name)
+
+        self_sm_file = glob.glob(os.path.join(sample_dir, external_sample_name + '.selfSM'))
+        if self_sm_file:
+            with open(self_sm_file) as f:
+                header = sub(r'  +', ' ', f.readline()).split(' ')
+                data = sub('  +', ' ', f.readline()).split(' ')
+                if len(header) != len(data):
+                    self.warn('Inconsistent header and data length: %s and %s' % (len(header), len(data)))
+                assert header[6] == 'FREEMIX'
+                sample[ELEMENT_FREEMIX] = data[6]
+        else:
+            self.error('Missing selfSM file')
+
         return sample
 
     def write_json(self, json_file):
@@ -246,28 +259,3 @@ class SampleCrawler(Crawler):
 
     def _send_data(self):
         self._post_or_patch('samples', [self.sample], ELEMENT_SAMPLE_INTERNAL_ID)
-
-
-class ContaminationCrawler(Crawler):
-    def __init__(self, sample_id,  project_id, self_sm_file):
-        self.sample_id = sample_id
-        self.project_id = project_id
-        self.samples = []
-        self.populate_from_self_sm(self_sm_file)
-
-    def populate_from_self_sm(self, sm_file):
-        r = csv.DictReader(sm_file)
-        for line in r:
-            s = {
-                ELEMENT_SAMPLE_INTERNAL_ID: self.sample_id,
-                ELEMENT_SAMPLE_EXTERNAL_ID: line['SEQ-SM'],
-                ELEMENT_PROJECT: self.project_id,
-                ELEMENT_FREEMIX: float(line['FREEMIX'])
-            }
-            self.samples.append(s)
-        assert len(self.samples) == 1, 'Multiple samples found in selfRG file'
-
-    def _send_data(self):
-        if len(self.samples) != 1:
-            self.error('Multiple samples found in selfRG file. Aborting.')
-        self._post_or_patch('samples', self.samples, ELEMENT_SAMPLE_INTERNAL_ID)
