@@ -73,6 +73,11 @@ def demultiplexing_pipeline(dataset):
     crawler.send_data()
     ntf.end_stage('setup')
 
+    run_status = clarity.get_run(run_id).udf.get('Run Status')
+    if run_status != 'RunCompleted':
+        app_logger.error('Run status is \'%s\'. Stopping.' % run_status)
+        return 2
+
     # bcl2fastq
     ntf.start_stage('bcl2fastq')
     exit_status += executor.execute(

@@ -3,7 +3,8 @@ import json
 import os
 from glob import glob
 from collections import defaultdict
-from analysis_driver.report_generation import ELEMENT_NB_Q30_R1, ELEMENT_NB_Q30_R2, ELEMENT_RUN_NAME
+from analysis_driver.config import default as cfg
+from analysis_driver.report_generation import rest_communication, ELEMENT_NB_Q30_R1, ELEMENT_NB_Q30_R2, ELEMENT_RUN_NAME
 from analysis_driver.app_logging import get_logger
 from analysis_driver.clarity import get_expected_yield_for_sample
 
@@ -178,8 +179,9 @@ class SampleDataset(Dataset):
         self._change_status(DATASET_FORCE_READY)
 
     def _read_data(self):
-        with open(self.path, 'r') as open_file:
-            return json.load(open_file)
+        # with open(self.path, 'r') as open_file:
+        #     return json.load(open_file)
+        return rest_communication.get_documents(cfg['rest_api']['url'], sample_id=self.name)
 
     def _amount_data(self):
         return sum(
@@ -289,7 +291,7 @@ class SampleScanner(DatasetScanner):
     def __init__(self, cfg):
         super().__init__(cfg)
         self.lock_file_dir = cfg.get('lock_file_dir', cfg['metadata_input_dir'])
-        self.input_dir = cfg.get('metadata_input_dir')
+        self.input_dir = cfg.get('metadata_input_dir')  # override input_dir
         self.data_threshold = cfg.get('data_threshold')
 
     def _get_dataset(self, dataset_path):
