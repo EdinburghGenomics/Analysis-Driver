@@ -173,12 +173,13 @@ def output_run_data(fastq_dir, run_id):
 
 
 def output_sample_data(sample_id, source_dir, output_dir, query_lims=True, rsync_append=True):
+    project_id = None
     if query_lims:
         project_id = clarity.find_project_from_sample(sample_id)
-    else:
+    if not project_id:
         project_id = 'proj_' + sample_id
-    output_project = os.path.join(output_dir, project_id)
-    output_sample = os.path.join(output_project, sample_id)
+
+    output_sample = os.path.join(output_dir, project_id, sample_id)
 
     return _output_data(
         source_dir.rstrip('/') + '/',
