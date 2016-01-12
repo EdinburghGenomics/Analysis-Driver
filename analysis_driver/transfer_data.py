@@ -7,7 +7,7 @@ from analysis_driver.exceptions import AnalysisDriverError
 from analysis_driver.writer.bash_commands import rsync_from_to, is_remote_path
 from analysis_driver.app_logging import get_logger
 from analysis_driver.config import default as cfg
-from analysis_driver.report_generation.report_crawlers import ELEMENT_RUN_NAME, ELEMENT_LANE, ELEMENT_PROJECT
+from analysis_driver.report_generation import ELEMENT_RUN_NAME, ELEMENT_LANE, ELEMENT_PROJECT, ELEMENT_PROJECT_ID
 from analysis_driver.util import fastq_handler
 
 app_logger = get_logger(__name__)
@@ -49,6 +49,9 @@ def prepare_sample_data(dataset):
 def _find_fastqs_for_sample(sample_id, run_element):
     run_id = run_element.get(ELEMENT_RUN_NAME)
     project_id = run_element.get(ELEMENT_PROJECT)
+    #TODO: Remove the ELEMENT_PROJECT when we will query the REST API instead of files
+    if not project_id:
+        project_id = run_element.get(ELEMENT_PROJECT_ID)
     lane = run_element.get(ELEMENT_LANE)
 
     local_fastq_dir = os.path.join(cfg['jobs_dir'], run_id, 'fastq')

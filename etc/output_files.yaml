@@ -32,6 +32,12 @@ bcbio:
   - location: ['samples_{runfolder}-merged', 'work', 'align', '{sample_id}']
     basename: '*{sample_id}*-sort-callable.bed'
 
+  - location: ['samples_{runfolder}-merged', 'final', '*_{sample_id}']
+    basename: 'programs.txt'
+
+  - location: ['samples_{runfolder}-merged', 'final', '*_{sample_id}']
+    basename: 'project-summary.yaml'
+
   - location: ['merged']
     basename: '{sample_id}_R1.fastq.gz'
 
@@ -59,16 +65,16 @@ non_human_qc:
     basename: '{sample_id}_R1.fastq.gz'
 
   - location: ['merged']
-    basename: '{sample_id}_R1.fastqc.html'
+    basename: '{sample_id}_R1_fastqc.html'
 
   - location: ['merged']
-    basename: '{sample_id}_R1.fastqc.zip'
+    basename: '{sample_id}_R1_fastqc.zip'
 
   - location: ['merged']
     basename: '{sample_id}_R2.fastq.gz'
 
   - location: ['merged']
-    basename: '{sample_id}_R2.fastqc.html'
+    basename: '{sample_id}_R2_fastqc.html'
 
   - location: ['merged']
-    basename: '{sample_id}_R2.fastqc.zip'
+    basename: '{sample_id}_R2_fastqc.zip'

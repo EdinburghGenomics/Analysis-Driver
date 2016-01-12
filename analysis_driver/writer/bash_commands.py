@@ -36,7 +36,7 @@ def bwa_mem_samblaster(fastq_pair, reference, expected_output_bam, thread=16):
     command_bwa = '%s mem -M -t %s %s %s' % (bwa_bin, thread, reference, ' '.join(fastq_pair))
     command_samblaster = '%s ' % (cfg.query('tools', 'samblaster'))
     command_samtools = '%s view -b -' % (cfg.query('tools', 'samtools'))
-    command_sambamba = '%s sort  -m 682M --tmpdir %s -t %s -o  %s /dev/stdin' % ( cfg.query('tools', 'sambamba'), tmp_dir, thread,  expected_output_bam)
+    command_sambamba = '%s sort  -m 5G --tmpdir %s -t %s -o  %s /dev/stdin' % ( cfg.query('tools', 'sambamba'), tmp_dir, thread,  expected_output_bam)
     cmd = ' | '.join([command_bwa, command_samblaster, command_samtools, command_sambamba])
     app_logger.debug('Writing: ' + cmd)
     return cmd
