@@ -179,20 +179,24 @@ class SampleDataset(Dataset):
         self._change_status(DATASET_FORCE_READY)
 
     def _read_data(self):
+        # TODO: remove
         # with open(self.path, 'r') as open_file:
-        #     return json.load(open_file)
-        return rest_communication.get_documents(cfg['rest_api']['url'], sample_id=self.name)
+        #     return json.load(open_file).values()
+        return rest_communication.get_documents(
+            cfg['rest_api']['url'].rstrip('/') + '/run_elements',
+            sample_id=self.name
+        )
 
     def _amount_data(self):
         return sum(
             [
                 int(r.get(ELEMENT_NB_Q30_R1)) + int(r.get(ELEMENT_NB_Q30_R2))
-                for r in self.run_elements.values()
+                for r in self.run_elements
             ]
         )
 
     def _runs(self):
-        return set([r.get(ELEMENT_RUN_NAME) for r in self.run_elements.values()])
+        return set([r.get(ELEMENT_RUN_NAME) for r in self.run_elements])
 
     @property
     def data_threshold(self):

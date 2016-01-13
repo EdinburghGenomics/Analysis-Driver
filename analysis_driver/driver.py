@@ -128,9 +128,11 @@ def demultiplexing_pipeline(dataset):
     conversion_xml = os.path.join(fastq_dir, 'Stats', 'ConversionStats.xml')
     if os.path.exists(conversion_xml):
         crawler = RunCrawler(run_id, sample_sheet, conversion_xml)
+        # TODO: review whether we need this
         json_file = os.path.join(fastq_dir, 'demultiplexing_results.json')
         crawler.write_json(json_file)
-        crawler.update_json_per_sample(cfg['metadata_output_dir'])
+        # TODO: remove
+        # crawler.update_json_per_sample(cfg['metadata_output_dir'])
         crawler.send_data()
     else:
         app_logger.error('File not found: %s' % conversion_xml)

@@ -41,7 +41,7 @@ def prepare_sample_data(dataset):
     app_logger.debug('Preparing dataset %s (%s)' % (dataset.name, dataset.dataset_status))
     fastqs = []
 
-    for run_element in dataset.run_elements.values():
+    for run_element in dataset.run_elements:
         fastqs.extend(_find_fastqs_for_sample(dataset.name, run_element))
     return fastqs
 

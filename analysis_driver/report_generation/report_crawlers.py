@@ -155,19 +155,19 @@ class RunCrawler(Crawler):
         with open(json_file, 'w') as open_file:
             json.dump(payload, open_file, indent=4)
 
-    def update_json_per_sample(self, sample_dir):
-        self.libraries.values()
-        for library in self.libraries:
-            file_name = os.path.join(sample_dir, self.libraries[library][ELEMENT_SAMPLE_INTERNAL_ID])
-            if os.path.exists(file_name):
-                with open(file_name) as open_file:
-                    payload = json.load(open_file)
-            else:
-                payload = {}
-            for run_element_id in self.libraries[library][ELEMENT_RUN_ELEMENTS]:
-                payload[run_element_id] = self.barcodes_info[run_element_id]
-            with open(file_name, 'w') as open_file:
-                json.dump(payload, open_file, indent=4)
+    # TODO: remove
+    # def update_json_per_sample(self, sample_dir):
+    #     for library in self.libraries:
+    #         file_name = os.path.join(sample_dir, self.libraries[library][ELEMENT_SAMPLE_INTERNAL_ID])
+    #         if os.path.exists(file_name):
+    #             with open(file_name) as open_file:
+    #                 payload = json.load(open_file)
+    #         else:
+    #             payload = {}
+    #         for run_element_id in self.libraries[library][ELEMENT_RUN_ELEMENTS]:
+    #             payload[run_element_id] = self.barcodes_info[run_element_id]
+    #         with open(file_name, 'w') as open_file:
+    #             json.dump(payload, open_file, indent=4)
 
     def send_data(self):
         if not cfg.get('rest_api'):
@@ -234,10 +234,11 @@ class SampleCrawler(Crawler):
             self.critical('Missing *%s-sort-callable.bed' % external_sample_name)
         return sample
 
-    def write_json(self, json_file):
-        payload = {'samples': list(self.sample)}
-        with open(json_file, 'w') as open_file:
-            json.dump(payload, open_file, indent=4)
+    # TODO: remove
+    # def write_json(self, json_file):
+    #     payload = {'samples': list(self.sample)}
+    #     with open(json_file, 'w') as open_file:
+    #         json.dump(payload, open_file, indent=4)
 
     def send_data(self):
 
