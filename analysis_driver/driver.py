@@ -392,7 +392,7 @@ def _run_bcbio(sample_id, sample_dir, sample_fastqs):
         job_name='bcb%s' % sample_id,
         run_id=sample_id,
         # walltime=240,
-        cpus=8,
+        cpus=12,
         mem=64
     )
     os.chdir(original_dir)
