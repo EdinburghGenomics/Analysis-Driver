@@ -5,6 +5,7 @@ import os.path
 
 class TestAnalysisDriver(TestCase):
     assets_path = os.path.join(os.path.dirname(__file__), 'assets')
+    sample_sheet_path = os.path.join(assets_path, 'SampleSheet_analysis_driver.csv')
     data_output = os.path.join(assets_path, 'data_output')
     fastq_path = os.path.join(assets_path, 'fastqs')
     execs = os.path.join(assets_path, 'fake_tools')
