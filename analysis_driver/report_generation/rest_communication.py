@@ -10,7 +10,7 @@ app_logger = get_logger(__name__)
 def _req(*args, **kwargs):
     r = requests.request(*args, **kwargs)
     if r.status_code != 200:
-        app_logger.debug('%s %s %s' % (r.request, r.status_code, r.reason))
+        app_logger.debug('%s %s %s %s' % (r.request.method, r.request.path_url, r.status_code, r.reason))
         json = r.json()
         if json:
             app_logger.debug(pformat(json))
@@ -53,12 +53,15 @@ def put_entry(url, element_id, payload):
     return True
 
 
-def patch_entry(url, payload, **kwargs):
+def patch_entry(url, payload, update_lists=None, **kwargs):
     """Upload Assuming we can get the id of this entry from kwargs"""
     doc = get_document(url.rstrip('/'), **kwargs)
     if doc:
         url = urljoin(url, doc.get('_id'))
         headers = {'If-Match': doc.get('_etag')}
+        if update_lists:
+            for l in update_lists:
+                payload[l] = list(set(payload.get(l, []) + doc.get(l, [])))
         r = _req('PATCH', url, headers=headers, json=payload)
         if r.status_code == 200:
             return True

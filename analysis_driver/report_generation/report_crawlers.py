@@ -18,7 +18,7 @@ from analysis_driver.report_generation import ELEMENT_RUN_NAME, ELEMENT_NUMBER_L
 
 class Crawler(AppLogger):
     @staticmethod
-    def _post_or_patch(endpoint, input_json, elem_key=None):
+    def _post_or_patch(endpoint, input_json, elem_key=None, update_lists=None):
         """
         :param str endpoint:
         :param list input_json:
@@ -31,7 +31,7 @@ class Crawler(AppLogger):
                 elem_query = {}
                 if elem_key:
                     elem_query = {elem_key: payload.pop(elem_key)}
-                success = success and rest_communication.patch_entry(url, payload, **elem_query)
+                success = success and rest_communication.patch_entry(url, payload, update_lists, **elem_query)
         return success
 
 class RunCrawler(Crawler):
@@ -76,8 +76,8 @@ class RunCrawler(Crawler):
                         # Populate the projects
                         self.projects[project_id][ELEMENT_PROJECT_ID] = project_id
                         if ELEMENT_SAMPLES not in self.projects[project_id]:
-                            self.projects[project_id][ELEMENT_SAMPLES] = []
-                        self.projects[project_id][ELEMENT_SAMPLES].append(sample.sample_id)
+                            self.projects[project_id][ELEMENT_SAMPLES] = set()
+                        self.projects[project_id][ELEMENT_SAMPLES].add(sample.sample_id)
 
                         # Populate the lanes
                         lane_id = '%s_%s' % (self.run_id, lane)
@@ -102,6 +102,9 @@ class RunCrawler(Crawler):
                             ELEMENT_LANE: lane
                         }
                         self.barcodes_info[barcode_info[ELEMENT_RUN_ELEMENT_ID]] = barcode_info
+
+        for project_id in self.projects:
+            self.projects[project_id][ELEMENT_SAMPLES] = list(self.projects[project_id][ELEMENT_SAMPLES])
 
         #Add the unknown to the lane
         for lane_id in self.lanes:
@@ -129,8 +132,6 @@ class RunCrawler(Crawler):
             run_element = self.barcodes_info[run_element_id]
             if nb_read_per_lane.get(run_element[ELEMENT_LANE]) > 0:
                 run_element[ELEMENT_PC_READ_IN_LANE] = run_element[ELEMENT_NB_READS_PASS_FILTER] / nb_read_per_lane.get(run_element[ELEMENT_LANE])
-            else:
-                run_element[ELEMENT_PC_READ_IN_LANE] = ''
 
         for lane, barcode, clust_count in top_unknown_barcodes_per_lanes:
             barcode_info = {
@@ -173,13 +174,17 @@ class RunCrawler(Crawler):
         if not cfg.get('rest_api'):
             self.warn('rest_api is not set in the config: Cancel upload')
             return None
-        success = True
-        success = success and self._post_or_patch('run_elements', self.barcodes_info.values(), ELEMENT_RUN_ELEMENT_ID)
-        success = success and self._post_or_patch('unexpected_barcodes', self.unexpected_barcodes.values(), ELEMENT_RUN_ELEMENT_ID)
-        success = success and self._post_or_patch('lanes', self.lanes.values(), ELEMENT_LANE_ID)
-        success = success and self._post_or_patch('runs', [self.run])
-        success = success and self._post_or_patch('samples', self.libraries.values(), ELEMENT_LIBRARY_INTERNAL_ID)
-        success = success and self._post_or_patch('projects', self.projects.values(), ELEMENT_PROJECT_ID)
+        
+        return all(
+            (
+                self._post_or_patch('run_elements', self.barcodes_info.values(), ELEMENT_RUN_ELEMENT_ID),
+                self._post_or_patch('unexpected_barcodes', self.unexpected_barcodes.values(), ELEMENT_RUN_ELEMENT_ID),
+                self._post_or_patch('lanes', self.lanes.values(), ELEMENT_LANE_ID),
+                self._post_or_patch('runs', [self.run], ELEMENT_RUN_NAME),
+                self._post_or_patch('samples', self.libraries.values(), ELEMENT_SAMPLE_INTERNAL_ID, update_lists=['run_elements']),
+                self._post_or_patch('projects', self.projects.values(), ELEMENT_PROJECT_ID, update_lists=['samples'])
+            )
+        )
 
 
 class SampleCrawler(Crawler):
