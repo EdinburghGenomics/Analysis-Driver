@@ -1,7 +1,10 @@
 __author__ = 'mwham'
 import json
 import os
+import requests
+from datetime import datetime
 from glob import glob
+from time import sleep
 from collections import defaultdict
 from analysis_driver.config import default as cfg
 from analysis_driver.report_generation import rest_communication, ELEMENT_NB_Q30_R1, ELEMENT_NB_Q30_R2, ELEMENT_RUN_NAME
@@ -24,111 +27,106 @@ STATUS_HIDDEN = [DATASET_PROCESSED_SUCCESS, DATASET_PROCESSED_FAIL, DATASET_ABOR
 
 
 class Dataset:
+    type = None
+
     def __init__(self, name, path, lock_file_dir):
         self.name = name
         self.path = path
         self.lock_file_dir = lock_file_dir
         self._stages = None
-        self._pid = None
+        self.pid = None
+        self.proc_id = self._most_recent_proc().get('proc_id')
+
+    def _most_recent_proc(self):
+        # TODO: add embedding support into rest_communication
+        query_url = cfg.query('rest_api', 'url').rstrip('/') + '/' + self.type + 's?where={"run_id":"' + self.name + '"}&embedded={"analysis_driver_procs":1}'
+        datasets = requests.get(query_url).json()['data']
+        if len(datasets) > 1:
+            raise AssertionError('Found %s database entries for %s' % (len(datasets), self.name))
+        elif datasets:
+            return datasets[0]['analysis_driver_procs'][-1]
+        else:
+            return {}
 
     @property
     def dataset_status(self):
-        dataset_lock_files = glob(self._lock_file('*'))
-        assert len(dataset_lock_files) < 2
+        most_recent_proc = self._most_recent_proc()
+        db_proc_status = most_recent_proc.get('status', DATASET_NEW)
 
-        if dataset_lock_files:
-            lf_status = dataset_lock_files[0].split('.')[-1]
+        if most_recent_proc.get('rerun'):
+            if self._is_ready():
+                return DATASET_READY
+            else:
+                return DATASET_NEW
         else:
-            lf_status = DATASET_NEW
-
-        if lf_status == DATASET_NEW and self._is_ready():
-            return DATASET_READY
-        else:
-            return lf_status
+            return db_proc_status
 
     @property
     def _is_ready(self):
         raise NotImplementedError
 
+    @staticmethod
+    def _now():
+        return datetime.utcnow().strftime('%d_%m_%Y_%H:%M:%S')
+
     def start(self):
         assert self.dataset_status in (DATASET_READY, DATASET_FORCE_READY, DATASET_NEW)
-        self._change_status(DATASET_PROCESSING)
-        self.set_pid()
+        self.pid = os.getpid()
+        sleep(1.1)
+        start_time = self._now()
+        self.proc_id = '_'.join((self.type, self.name, start_time))
+        proc = {
+            'proc_id': self.proc_id,
+            'dataset_type': self.type,
+            'dataset_name': self.name,
+            'start_date': start_time,
+            'pid': self.pid,
+            'status': DATASET_PROCESSING,
+            'rerun': False
+        }
+        rest_communication.post_or_patch('analysis_driver_procs', [proc], elem_key='proc_id')
+        run = {'run_id': self.name, 'analysis_driver_procs': [self.proc_id]}
+        rest_communication.post_or_patch('runs', [run], elem_key='run_id', update_lists=['analysis_driver_procs'])
 
     def succeed(self):
         assert self.dataset_status == DATASET_PROCESSING
-        self.clear_pid()
-        self._change_status(DATASET_PROCESSED_SUCCESS)
+        self._finish(DATASET_PROCESSED_SUCCESS)
 
     def fail(self):
         assert self.dataset_status == DATASET_PROCESSING
-        self._clear_stage()
-        self.clear_pid()
-        self._change_status(DATASET_PROCESSED_FAIL)
+        self._finish(DATASET_PROCESSED_FAIL)
 
     def abort(self):
-        self._clear_stage()
-        self.clear_pid()
-        self._change_status(DATASET_ABORTED)
+        self._finish(DATASET_ABORTED)
 
     def reset(self):
-        self._clear_stage()
-        self.clear_pid()
-        self._rm(*glob(self._lock_file('*')))
+        new_content = {'proc_id': self.proc_id, 'rerun': True}
+        rest_communication.post_or_patch('analysis_driver_procs', [new_content], elem_key='proc_id')
 
-    def reset_status(self):
-        self._rm(*glob(self._lock_file('*')))
-
-    def _change_status(self, status):
-        self.reset_status()
-        self._touch(self._lock_file(status))
-
-    def _lock_file(self, status):
-        return os.path.join(
-            self.lock_file_dir,
-            '.' + self.name + '.' + status
-        )
-
-    def _stage_file(self, stage):
-        return os.path.join(
-            self.lock_file_dir,
-            '.stage_' + self.name + '.' + stage
-        )
-
-    def _clear_stage(self):
-        self._rm(*glob(self._stage_file('*')))
+    def _finish(self, status):
+        new_content = {
+            'proc_id': self.proc_id,
+            'end_date': self._now(),
+            'status': status
+        }
+        rest_communication.post_or_patch('analysis_driver_procs', [new_content], elem_key='proc_id')
 
     def add_stage(self, stage):
-        self._touch(self._stage_file(stage))
+        new_content = {
+            'proc_id': self.proc_id,
+            'stages': [stage]
+        }
+        rest_communication.post_or_patch('analysis_driver_procs', [new_content], update_lists=['stages'])
 
     def remove_stage(self, stage):
-        self._rm(self._stage_file(stage))
-
-    def _pid_file(self, pid):
-        return os.path.join(self.lock_file_dir, '.pid_' + self.name + '.' + pid)
-
-    def set_pid(self):
-        self._touch(self._pid_file(str(os.getpid())))
-
-    def clear_pid(self):
-        self._rm(*glob(self._pid_file('*')))
+        pass
 
     @property
     def stages(self):
         if self._stages is None:
-            stage_files = glob(self._stage_file('*'))
-            self._stages = [sf.split('.')[-1] for sf in stage_files]
+            proc = self._most_recent_proc()
+            self._stages = [s['stage_name'] for s in proc.get('stages', []) if 'date_finished' in s]
         return self._stages
-
-    @property
-    def pid(self):
-        if self._pid is None:
-            pid_files = glob(self._pid_file('*'))
-            if len(pid_files) == 1:
-                self._pid = [sf.split('.')[-1] for sf in pid_files][0]
-            else:
-                self._pid = None
-        return self._pid
 
     @staticmethod
     def _touch(file):
@@ -174,14 +172,13 @@ class SampleDataset(Dataset):
         self.run_elements = self._read_data()
 
     def force(self):
-        self._clear_stage()
-        self.clear_pid()
-        self._change_status(DATASET_FORCE_READY)
+        new_content = {
+            'proc_id': self.proc_id,
+            'status': DATASET_FORCE_READY
+        }
+        rest_communication.post_or_patch('analysis_driver_procs', [new_content], elem_key='proc_id')
 
     def _read_data(self):
-        # TODO: remove
-        # with open(self.path, 'r') as open_file:
-        #     return json.load(open_file).values()
         return rest_communication.get_documents(
             cfg['rest_api']['url'].rstrip('/') + '/run_elements',
             sample_id=self.name

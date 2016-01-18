@@ -1,7 +1,7 @@
 from urllib.parse import urljoin
 import requests
 from pprint import pformat
-
+from analysis_driver.config import default as cfg
 from analysis_driver.app_logging import get_logger
 
 app_logger = get_logger(__name__)
@@ -27,12 +27,15 @@ def get_documents(url, **kwargs):
     return r.json().get('data')
 
 
-def get_document(url, **kwargs):
+def get_document(url, last_item=False, **kwargs):
     documents = get_documents(url, **kwargs)
-    if len(documents)>0:
-        return documents[0]
+    if documents:
+        if last_item:
+            return documents[-1]
+        else:
+            return documents[0]
     else:
-        app_logger.error('No document found for ' + url + ' kwargs='+ str(kwargs))
+        app_logger.error('No document found for ' + url + ' kwargs=' + str(kwargs))
         return None
 
 
@@ -61,8 +64,25 @@ def patch_entry(url, payload, update_lists=None, **kwargs):
         headers = {'If-Match': doc.get('_etag')}
         if update_lists:
             for l in update_lists:
-                payload[l] = list(set(payload.get(l, []) + doc.get(l, [])))
+                payload[l] = sorted(list(set(payload.get(l, []) + doc.get(l, []))))
         r = _req('PATCH', url, headers=headers, json=payload)
         if r.status_code == 200:
             return True
     return False
+
+
+def post_or_patch(endpoint, input_json, elem_key=None, update_lists=None):
+    """
+    :param str endpoint:
+    :param list input_json:
+    :param str elem_key:
+    """
+    url = '/'.join((cfg.query('rest_api', 'url').rstrip('/'), endpoint, ''))
+    success = True
+    for payload in input_json:
+        if not post_entry(url, payload):
+            elem_query = {}
+            if elem_key:
+                elem_query = {elem_key: payload.pop(elem_key)}
+            success = success and patch_entry(url, payload, update_lists, **elem_query)
+    return success

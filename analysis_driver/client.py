@@ -47,7 +47,6 @@ def main():
             scanner.get(d).abort()
         for d in args.skip:
             dataset = scanner.get(d)
-            dataset.reset()
             dataset.start()
             dataset.succeed()
         for d in args.reset:

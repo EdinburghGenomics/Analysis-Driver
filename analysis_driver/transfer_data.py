@@ -48,10 +48,7 @@ def prepare_sample_data(dataset):
 
 def _find_fastqs_for_sample(sample_id, run_element):
     run_id = run_element.get(ELEMENT_RUN_NAME)
-    project_id = run_element.get(ELEMENT_PROJECT)
-    #TODO: Remove the ELEMENT_PROJECT when we will query the REST API instead of files
-    if not project_id:
-        project_id = run_element.get(ELEMENT_PROJECT_ID)
+    project_id = run_element.get(ELEMENT_PROJECT_ID)
     lane = run_element.get(ELEMENT_LANE)
 
     local_fastq_dir = os.path.join(cfg['jobs_dir'], run_id, 'fastq')
