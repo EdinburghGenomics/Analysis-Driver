@@ -171,12 +171,10 @@ def get_expected_yield_for_sample(sample_name):
 def get_run(run_id):
     lims = _get_lims_connection()
     runs = lims.get_processes(type='AUTOMATED - Sequence', udf={'RunID': run_id})
-    if not runs:
-        return None
-    if len(runs) > 1:
-        app_logger.error('%s runs found for %s. Returning the last one found')
-    return runs[0]
-
+    if len(runs) != 1:
+        app_logger.error('%s runs found for %s' % (len(runs), run_id))
+    if runs:
+        return runs[0]
 
 
 def run_tests():
