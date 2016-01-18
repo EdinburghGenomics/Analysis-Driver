@@ -127,6 +127,7 @@ def demultiplexing_pipeline(dataset):
     # Find conversion xml file and send the results to the rest API
     conversion_xml = os.path.join(fastq_dir, 'Stats', 'ConversionStats.xml')
     if os.path.exists(conversion_xml):
+        app_logger.info('Found ConversionStats. Sending data.')
         crawler = RunCrawler(run_id, sample_sheet, conversion_xml)
         # TODO: review whether we need this
         json_file = os.path.join(fastq_dir, 'demultiplexing_results.json')
