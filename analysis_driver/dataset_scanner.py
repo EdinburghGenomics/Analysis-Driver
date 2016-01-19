@@ -21,6 +21,7 @@ DATASET_PROCESSING = 'processing'
 DATASET_PROCESSED_SUCCESS = 'finished'
 DATASET_PROCESSED_FAIL = 'failed'
 DATASET_ABORTED = 'aborted'
+DATASET_REPROCESS = 'reprocess'
 
 STATUS_VISIBLE = [DATASET_NEW, DATASET_READY, DATASET_FORCE_READY, DATASET_PROCESSING]
 STATUS_HIDDEN = [DATASET_PROCESSED_SUCCESS, DATASET_PROCESSED_FAIL, DATASET_ABORTED]
@@ -35,24 +36,40 @@ class Dataset:
         self.lock_file_dir = lock_file_dir
         self._stages = None
         self.pid = None
-        self.proc_id = self._most_recent_proc().get('proc_id')
+        self.proc_id = self._most_recent_proc().get('proc_id', '_'.join((self.type, self.name)))
 
     def _most_recent_proc(self):
-        # TODO: add embedding support into rest_communication
-        query_url = cfg.query('rest_api', 'url').rstrip('/') + '/' + self.type + 's?where={"run_id":"' + self.name + '"}&embedded={"analysis_driver_procs":1}'
-        datasets = requests.get(query_url).json()['data']
-        if len(datasets) > 1:
-            raise AssertionError('Found %s database entries for %s' % (len(datasets), self.name))
-        elif datasets:
-            return datasets[0]['analysis_driver_procs'][-1]
+        # TODO: add embedding, sort, etc. support into rest_communication
+        query_url = cfg.query('rest_api', 'url').rstrip('/') + '/analysis_driver_procs?where={"dataset_type":"' + self.type + '","dataset_name":"' + self.name + '"}&sort=start_date'
+        procs = requests.get(query_url).json()['data']
+        if procs:
+            return procs[0]
         else:
             return {}
+
+    def _create_process(self, **extra_params):
+        proc = {
+            'proc_id': self.proc_id,
+            'dataset_type': self.type,
+            'dataset_name': self.name,
+        }
+        proc.update(extra_params)
+        rest_communication.post_or_patch('analysis_driver_procs', [proc], elem_key='proc_id')
+        name_key = self.type + '_id'
+        dataset = {name_key: self.name, 'analysis_driver_procs': [self.proc_id]}
+        rest_communication.post_or_patch(
+            self.type + 's',
+            [dataset],
+            elem_key=name_key,
+            update_lists=['analysis_driver_procs']
+        )
+        return proc
 
     @property
     def dataset_status(self):
         most_recent_proc = self._most_recent_proc()
-        db_proc_status = most_recent_proc.get('status', DATASET_NEW)
 
+        db_proc_status = most_recent_proc.get('status', DATASET_NEW)
         if most_recent_proc.get('rerun'):
             if self._is_ready():
                 return DATASET_READY
@@ -70,52 +87,50 @@ class Dataset:
         return datetime.utcnow().strftime('%d_%m_%Y_%H:%M:%S')
 
     def start(self):
-        assert self.dataset_status in (DATASET_READY, DATASET_FORCE_READY, DATASET_NEW)
+        assert self.dataset_status in (DATASET_READY, DATASET_FORCE_READY, DATASET_NEW, DATASET_REPROCESS)
         self.pid = os.getpid()
         sleep(1.1)
         start_time = self._now()
         self.proc_id = '_'.join((self.type, self.name, start_time))
-        proc = {
-            'proc_id': self.proc_id,
-            'dataset_type': self.type,
-            'dataset_name': self.name,
-            'start_date': start_time,
-            'pid': self.pid,
-            'status': DATASET_PROCESSING,
-            'rerun': False
-        }
-        rest_communication.post_or_patch('analysis_driver_procs', [proc], elem_key='proc_id')
-        run = {'run_id': self.name, 'analysis_driver_procs': [self.proc_id]}
-        rest_communication.post_or_patch('runs', [run], elem_key='run_id', update_lists=['analysis_driver_procs'])
+        # proc_id is now different, so _change_status should create a new analysis_driver_proc and register it
+        # to an appropriate endpoint
+        self._change_status(DATASET_PROCESSING)
 
     def succeed(self):
-        assert self.dataset_status == DATASET_PROCESSING
-        self._finish(DATASET_PROCESSED_SUCCESS)
+        self._change_status(DATASET_PROCESSED_SUCCESS, finish=True)
 
     def fail(self):
         assert self.dataset_status == DATASET_PROCESSING
-        self._finish(DATASET_PROCESSED_FAIL)
+        self._change_status(DATASET_PROCESSED_FAIL, finish=True)
 
     def abort(self):
-        self._finish(DATASET_ABORTED)
+        self._finish(DATASET_ABORTED, finish=True)
 
     def reset(self):
-        new_content = {'proc_id': self.proc_id, 'rerun': True}
+        new_content = {'proc_id': self.proc_id, 'status': DATASET_REPROCESS}
         rest_communication.post_or_patch('analysis_driver_procs', [new_content], elem_key='proc_id')
 
-    def _finish(self, status):
+    def _change_status(self, status, finish=False):
+        now = self._now()
         new_content = {
             'proc_id': self.proc_id,
-            'end_date': self._now(),
+            'dataset_type': self.type,
+            'dataset_name': self.name,
             'status': status
         }
-        rest_communication.post_or_patch('analysis_driver_procs', [new_content], elem_key='proc_id')
+        if finish:
+            new_content['end_date'] = now
+
+        patch_success = rest_communication.patch_entry(
+            cfg.query('rest_api', 'url').rstrip('/') + '/analysis_driver_procs',
+            new_content,
+            proc_id=self.proc_id
+        )
+        if not patch_success:
+            self._create_process(end_date=now, status=status)
 
     def add_stage(self, stage):
-        new_content = {
-            'proc_id': self.proc_id,
-            'stages': [stage]
-        }
+        new_content = {'proc_id': self.proc_id, 'stages': [stage]}
         rest_communication.post_or_patch('analysis_driver_procs', [new_content], update_lists=['stages'])
 
     def remove_stage(self, stage):
@@ -172,11 +187,7 @@ class SampleDataset(Dataset):
         self.run_elements = self._read_data()
 
     def force(self):
-        new_content = {
-            'proc_id': self.proc_id,
-            'status': DATASET_FORCE_READY
-        }
-        rest_communication.post_or_patch('analysis_driver_procs', [new_content], elem_key='proc_id')
+        self._change_status(DATASET_FORCE_READY)
 
     def _read_data(self):
         return rest_communication.get_documents(
