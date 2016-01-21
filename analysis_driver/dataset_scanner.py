@@ -1,13 +1,12 @@
 __author__ = 'mwham'
-import json
 import os
 import requests
 from datetime import datetime
-from glob import glob
 from time import sleep
 from collections import defaultdict
 from analysis_driver.config import default as cfg
-from analysis_driver.report_generation import rest_communication, ELEMENT_NB_Q30_R1, ELEMENT_NB_Q30_R2, ELEMENT_RUN_NAME
+from analysis_driver.report_generation import rest_communication, ELEMENT_NB_Q30_R1, ELEMENT_NB_Q30_R2,\
+    ELEMENT_RUN_NAME
 from analysis_driver.app_logging import get_logger
 from analysis_driver.clarity import get_expected_yield_for_sample
 
@@ -40,8 +39,17 @@ class Dataset:
 
     def _most_recent_proc(self):
         # TODO: add embedding, sort, etc. support into rest_communication
-        query_url = cfg.query('rest_api', 'url').rstrip('/') + '/analysis_driver_procs?where={"dataset_type":"' + self.type + '","dataset_name":"' + self.name + '"}&sort=start_date'
-        procs = requests.get(query_url).json()['data']
+        query_url = ''.join(
+            (
+                cfg.query('rest_api', 'url').rstrip('/'),
+                '/analysis_driver_procs?where={"dataset_type":"',
+                self.type,
+                '","dataset_name":"',
+                self.name,
+                '"}&sort=-_created'
+            )
+        )
+        procs = requests.request('GET', query_url).json()['data']
         if procs:
             return procs[0]
         else:
@@ -68,9 +76,8 @@ class Dataset:
     @property
     def dataset_status(self):
         most_recent_proc = self._most_recent_proc()
-
-        db_proc_status = most_recent_proc.get('status', DATASET_NEW)
-        if most_recent_proc.get('rerun'):
+        db_proc_status = most_recent_proc.get('status')
+        if not db_proc_status:
             if self._is_ready():
                 return DATASET_READY
             else:
@@ -104,7 +111,7 @@ class Dataset:
         self._change_status(DATASET_PROCESSED_FAIL, finish=True)
 
     def abort(self):
-        self._finish(DATASET_ABORTED, finish=True)
+        self._change_status(DATASET_ABORTED, finish=True)
 
     def reset(self):
         new_content = {'proc_id': self.proc_id, 'status': DATASET_REPROCESS}

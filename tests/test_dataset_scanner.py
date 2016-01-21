@@ -1,12 +1,14 @@
 __author__ = 'tcezard'
 import shutil
 import pytest
+from unittest.mock import patch
 import os
 import requests
 import subprocess
 from tests.test_analysisdriver import TestAnalysisDriver
+from tests.fake_rest_api import fake_request, DB, endpoints
 from analysis_driver.dataset_scanner import RunScanner, DATASET_NEW, DATASET_READY, DATASET_PROCESSING, \
-    DATASET_PROCESSED_FAIL, DATASET_PROCESSED_SUCCESS, DATASET_ABORTED, RunDataset
+    DATASET_PROCESSED_FAIL, DATASET_PROCESSED_SUCCESS, DATASET_ABORTED, DATASET_REPROCESS, RunDataset
 from analysis_driver.config import default as cfg
 
 
@@ -42,8 +44,9 @@ def safe_delete(*endpoints):
 
 
 class TestRunDataset(TestAnalysisDriver):
+    @patch('requests.request', new=fake_request)
     def setUp(self):
-        safe_delete('runs', 'samples', 'analysis_driver_procs')
+        self.setup_db(DB, endpoints)
         self.base_dir = os.path.join(self.assets_path, 'dataset_scanner')
         seed_directories(self.base_dir)
         self.dataset_ready = RunDataset(
@@ -62,37 +65,36 @@ class TestRunDataset(TestAnalysisDriver):
         )
         self.dataset_not_ready.start()
 
+    @patch('requests.request', new=fake_request)
     def tearDown(self):
         clean(self.base_dir)
-        self.dataset_ready.reset()
-        self.dataset_not_ready.reset()
 
+    @patch('requests.request', new=fake_request)
     def test_change_status_not_ready(self):
         d = self.dataset_not_ready
 
         d.abort()
         assert d.dataset_status == DATASET_ABORTED
         d.reset()
-        assert d.dataset_status == DATASET_NEW or d._most_recent_proc().get('rerun')
+        assert d.dataset_status == DATASET_REPROCESS
         d.start()
         assert d.dataset_status == DATASET_PROCESSING
         d.reset()
         with pytest.raises(AssertionError):
             d.fail()
-        with pytest.raises(AssertionError):
-            d.succeed()
 
+    @patch('requests.request', new=fake_request)
     def test_change_status_ready(self):
         d = self.dataset_ready
 
         d.reset()
-        assert d.dataset_status == DATASET_READY or d._most_recent_proc().get('rerun')
+        assert d.dataset_status in (DATASET_READY, DATASET_REPROCESS)
         d.start()
         assert d.dataset_status == DATASET_PROCESSING
         d.fail()
         assert d.dataset_status == DATASET_PROCESSED_FAIL
         d.reset()
-        assert d.dataset_status == DATASET_READY or d._most_recent_proc().get('rerun')
+        assert d.dataset_status in (DATASET_READY, DATASET_REPROCESS)
         d.start()
         assert d.dataset_status == DATASET_PROCESSING
         d.succeed()
@@ -104,7 +106,10 @@ class TestRunScanner(TestAnalysisDriver):
     def triggerignore(self):
         return os.path.join(self.scanner.lock_file_dir, '.triggerignore')
 
+    @patch('requests.request', new=fake_request)
     def setUp(self):
+        self.setup_db(DB, endpoints)
+        self.db = DB
         self.base_dir = os.path.join(self.assets_path, 'dataset_scanner')
         seed_directories(self.base_dir)
 
@@ -123,25 +128,25 @@ class TestRunScanner(TestAnalysisDriver):
             for d in ['test_dataset\n']:
                 f.write(d)
 
+    @patch('requests.request', new=fake_request)
     def tearDown(self):
         clean(self.base_dir)
         safe_delete('runs', 'analysis_driver_procs')
 
+    @patch('requests.request', new=fake_request)
     def test_scan_datasets(self):
         datasets = self.scanner.scan_datasets()
         print('datasets: ', datasets)
-        print(os.listdir(self.base_dir))
-        for d in os.listdir(self.base_dir):
-            if os.path.isdir(os.path.join(self.base_dir, d)):
-                print(os.listdir(os.path.join(self.base_dir, d)))
+
         for status, expected in (
-            (DATASET_NEW, {'other', 'another', 'dataset_not_ready'}),
-            (DATASET_READY, {'dataset_ready'}),
+            (DATASET_NEW, {'other', 'dataset_not_ready'}),
+            (DATASET_READY, {'dataset_ready', 'another'}),
             (DATASET_PROCESSING, {'more'}),
             (DATASET_PROCESSED_FAIL, {'that'})
         ):
             self.compare_lists(observed=self._dataset_names(datasets, status), expected=expected)
 
+    @patch('requests.request', new=fake_request)
     def test_triggerignore(self):
         with open(self.triggerignore, 'r') as f:
             assert f.readlines() == ['test_dataset\n']
