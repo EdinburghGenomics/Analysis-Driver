@@ -24,7 +24,6 @@ class TestProcessTrigger(TestAnalysisDriver):
         self.dataset = RunDataset(
             name='test_dataset',
             path=os.path.join(self.from_dir, 'test_dataset'),
-            lock_file_dir=self.from_dir,
             use_int_dir=False
         )
 

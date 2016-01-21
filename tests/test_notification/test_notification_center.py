@@ -25,7 +25,6 @@ class TestNotificationCenter(TestAnalysisDriver):
         dataset = RunDataset(
             name='test_run_id',
             path=os.path.join(base_dir, 'that'),
-            lock_file_dir=base_dir,
             use_int_dir=False
         )
         self.notification_center = NotificationCenter()

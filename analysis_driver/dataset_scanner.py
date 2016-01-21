@@ -2,7 +2,6 @@ __author__ = 'mwham'
 import os
 import requests
 from datetime import datetime
-from time import sleep
 from collections import defaultdict
 from analysis_driver.config import default as cfg
 from analysis_driver.report_generation import rest_communication, ELEMENT_NB_Q30_R1, ELEMENT_NB_Q30_R2,\
@@ -28,17 +27,18 @@ STATUS_HIDDEN = [DATASET_PROCESSED_SUCCESS, DATASET_PROCESSED_FAIL, DATASET_ABOR
 
 class Dataset:
     type = None
+    endpoint = None
+    id_field = None
 
-    def __init__(self, name, path, lock_file_dir):
+    def __init__(self, name, path):
         self.name = name
         self.path = path
-        self.lock_file_dir = lock_file_dir
         self._stages = None
         self.pid = None
         self.proc_id = self._most_recent_proc().get('proc_id', '_'.join((self.type, self.name)))
 
     def _most_recent_proc(self):
-        # TODO: add embedding, sort, etc. support into rest_communication
+        # TODO: add embedding, sort, etc. support into rest_communication - see genologics.lims
         query_url = ''.join(
             (
                 cfg.query('rest_api', 'url').rstrip('/'),
@@ -63,12 +63,11 @@ class Dataset:
         }
         proc.update(extra_params)
         rest_communication.post_or_patch('analysis_driver_procs', [proc], elem_key='proc_id')
-        name_key = self.type + '_id'
-        dataset = {name_key: self.name, 'analysis_driver_procs': [self.proc_id]}
+        dataset = {self.id_field: self.name, 'analysis_driver_procs': [self.proc_id]}
         rest_communication.post_or_patch(
-            self.type + 's',
+            self.endpoint,
             [dataset],
-            elem_key=name_key,
+            elem_key=self.id_field,
             update_lists=['analysis_driver_procs']
         )
         return proc
@@ -96,28 +95,29 @@ class Dataset:
     def start(self):
         assert self.dataset_status in (DATASET_READY, DATASET_FORCE_READY, DATASET_NEW, DATASET_REPROCESS)
         self.pid = os.getpid()
-        sleep(1.1)
+        # sleep(1.1)
         start_time = self._now()
         self.proc_id = '_'.join((self.type, self.name, start_time))
         # proc_id is now different, so _change_status should create a new analysis_driver_proc and register it
         # to an appropriate endpoint
-        self._change_status(DATASET_PROCESSING)
+        self._change_status(DATASET_PROCESSING, finish=False)
 
     def succeed(self):
-        self._change_status(DATASET_PROCESSED_SUCCESS, finish=True)
+        assert self.dataset_status == DATASET_PROCESSING  # TODO: do we need all these asserts?
+        self._change_status(DATASET_PROCESSED_SUCCESS)
 
     def fail(self):
         assert self.dataset_status == DATASET_PROCESSING
-        self._change_status(DATASET_PROCESSED_FAIL, finish=True)
+        self._change_status(DATASET_PROCESSED_FAIL)
 
     def abort(self):
-        self._change_status(DATASET_ABORTED, finish=True)
+        self._change_status(DATASET_ABORTED)
 
     def reset(self):
         new_content = {'proc_id': self.proc_id, 'status': DATASET_REPROCESS}
         rest_communication.post_or_patch('analysis_driver_procs', [new_content], elem_key='proc_id')
 
-    def _change_status(self, status, finish=False):
+    def _change_status(self, status, finish=True):
         now = self._now()
         new_content = {
             'proc_id': self.proc_id,
@@ -147,7 +147,7 @@ class Dataset:
     def stages(self):
         if self._stages is None:
             proc = self._most_recent_proc()
-            self._stages = [s['stage_name'] for s in proc.get('stages', []) if 'date_finished' in s]
+            self._stages = [s['stage_name'] for s in proc.get('stages', []) if 'date_finished' not in s]
         return self._stages
 
     @staticmethod
@@ -173,9 +173,11 @@ class Dataset:
 
 class RunDataset(Dataset):
     type = 'run'
+    endpoint = 'runs'
+    id_field = 'run_id'
 
-    def __init__(self, name, path, lock_file_dir, use_int_dir):
-        super().__init__(name, path, lock_file_dir)
+    def __init__(self, name, path, use_int_dir):
+        super().__init__(name, path)
         self.use_int_dir = use_int_dir
 
     def _is_ready(self):
@@ -187,14 +189,16 @@ class RunDataset(Dataset):
 
 class SampleDataset(Dataset):
     type = 'sample'
+    endpoint = 'samples'
+    id_field = 'sample_id'
 
-    def __init__(self, name, path, lock_file_dir, data_threshold=None):
-        super().__init__(name, path, lock_file_dir)
+    def __init__(self, name, path, data_threshold=None):
+        super().__init__(name, path)
         self.default_data_threshold = data_threshold
         self.run_elements = self._read_data()
 
     def force(self):
-        self._change_status(DATASET_FORCE_READY)
+        self._change_status(DATASET_FORCE_READY, finish=False)
 
     def _read_data(self):
         return rest_communication.get_documents(
@@ -235,11 +239,10 @@ class SampleDataset(Dataset):
 
 class DatasetScanner:
     def __init__(self, cfg):
-        self.lock_file_dir = cfg.get('lock_file_dir', cfg['input_dir'])
         self.input_dir = cfg.get('input_dir')
 
     def scan_datasets(self):
-        triggerignore = os.path.join(self.lock_file_dir, '.triggerignore')
+        triggerignore = os.path.join(self.input_dir, '.triggerignore')
 
         ignorables = []
         if os.path.isfile(triggerignore):
@@ -301,7 +304,6 @@ class RunScanner(DatasetScanner):
         return RunDataset(
             name=os.path.basename(dataset_path),
             path=dataset_path,
-            lock_file_dir=self.lock_file_dir,
             use_int_dir=self.use_int_dir
         )
 
@@ -310,13 +312,11 @@ class SampleScanner(DatasetScanner):
     def __init__(self, cfg):
         super().__init__(cfg)
         self.lock_file_dir = cfg.get('lock_file_dir', cfg['metadata_input_dir'])
-        self.input_dir = cfg.get('metadata_input_dir')  # override input_dir
         self.data_threshold = cfg.get('data_threshold')
 
     def _get_dataset(self, dataset_path):
         return SampleDataset(
             name=os.path.basename(dataset_path),
             path=dataset_path,
-            lock_file_dir=self.lock_file_dir,
             data_threshold=self.data_threshold
         )

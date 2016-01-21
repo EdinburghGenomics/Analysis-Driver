@@ -3,13 +3,11 @@ import shutil
 import pytest
 from unittest.mock import patch
 import os
-import requests
-import subprocess
+
 from tests.test_analysisdriver import TestAnalysisDriver
 from tests.fake_rest_api import fake_request, DB, endpoints
 from analysis_driver.dataset_scanner import RunScanner, DATASET_NEW, DATASET_READY, DATASET_PROCESSING, \
     DATASET_PROCESSED_FAIL, DATASET_PROCESSED_SUCCESS, DATASET_ABORTED, DATASET_REPROCESS, RunDataset
-from analysis_driver.config import default as cfg
 
 
 def seed_directories(base_dir):
@@ -25,24 +23,6 @@ def clean(base_dir):
     shutil.rmtree(os.path.join(base_dir))
 
 
-def mongod_running():
-    p = subprocess.Popen(['ps'], stdout=subprocess.PIPE)
-    out, err = p.communicate()
-    ps = out.decode('utf-8').split('\n')
-    for line in ps:
-        if 'mongod' in line:
-            return True
-    return False
-
-
-def safe_delete(*endpoints):
-    if mongod_running():
-        for e in endpoints:
-            requests.delete(cfg.query('rest_api', 'url').rstrip('/') + '/' + e)
-    else:
-        print('No local test database is running!')
-
-
 class TestRunDataset(TestAnalysisDriver):
     @patch('requests.request', new=fake_request)
     def setUp(self):
@@ -52,7 +32,6 @@ class TestRunDataset(TestAnalysisDriver):
         self.dataset_ready = RunDataset(
             name='dataset_ready',
             path=os.path.join(self.base_dir, 'dataset_ready'),
-            lock_file_dir=self.base_dir,
             use_int_dir=False
         )
         self.dataset_ready.start()
@@ -60,7 +39,6 @@ class TestRunDataset(TestAnalysisDriver):
         self.dataset_not_ready = RunDataset(
             name='dataset_not_ready',
             path=os.path.join(self.data_transfer, 'dataset_not_ready'),
-            lock_file_dir=self.base_dir,
             use_int_dir=False
         )
         self.dataset_not_ready.start()
@@ -104,7 +82,7 @@ class TestRunDataset(TestAnalysisDriver):
 class TestRunScanner(TestAnalysisDriver):
     @property
     def triggerignore(self):
-        return os.path.join(self.scanner.lock_file_dir, '.triggerignore')
+        return os.path.join(self.scanner.input_dir, '.triggerignore')
 
     @patch('requests.request', new=fake_request)
     def setUp(self):
@@ -131,7 +109,6 @@ class TestRunScanner(TestAnalysisDriver):
     @patch('requests.request', new=fake_request)
     def tearDown(self):
         clean(self.base_dir)
-        safe_delete('runs', 'analysis_driver_procs')
 
     @patch('requests.request', new=fake_request)
     def test_scan_datasets(self):

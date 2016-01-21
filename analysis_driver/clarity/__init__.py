@@ -67,14 +67,14 @@ def get_species_information_from_ncbi(species):
     Documentation available at http://www.ncbi.nlm.nih.gov/books/NBK25499/"""
     esearch_url = 'http://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi'
     payload = {'db': 'Taxonomy', 'term': species, 'retmode': 'JSON'}
-    r = requests.request('GET', esearch_url, params=payload)
+    r = requests.get(esearch_url, params=payload)
     results = r.json()
     taxid_list = taxid = results.get('esearchresult').get('idlist')
     all_species_names = []
     for taxid in taxid_list:
         efetch_url = 'http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi'
         payload = {'db': 'Taxonomy', 'id': taxid}
-        r = requests.request('GET', efetch_url, params=payload)
+        r = requests.get(efetch_url, params=payload)
         match = re.search('<Rank>(.+?)</Rank>', r.text, re.MULTILINE)
         rank = None
         if match:

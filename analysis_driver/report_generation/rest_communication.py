@@ -27,16 +27,12 @@ def get_documents(url, **kwargs):
     return r.json().get('data')
 
 
-def get_document(url, last_item=False, **kwargs):
+def get_document(url, idx=0, **kwargs):
     documents = get_documents(url, **kwargs)
     if documents:
-        if last_item:
-            return documents[-1]
-        else:
-            return documents[0]
+        return documents[idx]
     else:
         app_logger.error('No document found for ' + url + ' kwargs=' + str(kwargs))
-        return None
 
 
 def post_entry(url, payload):
@@ -64,7 +60,7 @@ def patch_entry(url, payload, update_lists=None, **kwargs):
         headers = {'If-Match': doc.get('_etag')}
         if update_lists:
             for l in update_lists:
-                payload[l] = sorted(list(set(payload.get(l, []) + doc.get(l, []))))
+                payload[l] = list(set(doc.get(l, []) + payload.get(l, [])))
         r = _req('PATCH', url, headers=headers, json=payload)
         if r.status_code == 200:
             return True

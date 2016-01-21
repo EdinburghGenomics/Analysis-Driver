@@ -74,6 +74,7 @@ def demultiplexing_pipeline(dataset):
     ntf.end_stage('setup')
 
     run_status = clarity.get_run(run_id).udf.get('Run Status')
+    # TODO: catch bcl2fastq error logs instead
     if run_status != 'RunCompleted':
         app_logger.error('Run status is \'%s\'. Stopping.' % run_status)
         return 2
