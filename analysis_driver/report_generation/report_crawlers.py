@@ -3,6 +3,7 @@ from collections import Counter, defaultdict
 import glob
 import json
 import os
+from analysis_driver.clarity import get_sex_from_lims
 from analysis_driver.app_logging import AppLogger
 from analysis_driver.reader import demultiplexing_parsers, mapping_stats_parsers
 from analysis_driver.report_generation import rest_communication
@@ -14,6 +15,19 @@ from analysis_driver.report_generation import ELEMENT_RUN_NAME, ELEMENT_NUMBER_L
     ELEMENT_PROJECT_ID, ELEMENT_SAMPLE_EXTERNAL_ID, ELEMENT_NB_READS_IN_BAM, ELEMENT_NB_MAPPED_READS, \
     ELEMENT_NB_DUPLICATE_READS, ELEMENT_NB_PROPERLY_MAPPED, ELEMENT_MEDIAN_COVERAGE, ELEMENT_PC_BASES_CALLABLE, \
     ELEMENT_LANE_NUMBER
+
+female_alias = ['f', 'female']
+male_alias = ['m', 'male']
+
+def match_gender(gender1, gender2):
+    gender1 = str(gender1).lower()
+    gender2 = str(gender2).lower()
+    if gender1.lower() in female_alias and gender2.lower() in female_alias:
+        return  'female'
+    elif gender1.lower() in male_alias and gender2.lower() in male_alias:
+        return 'male'
+    else:
+        return 'mismatch (vcf:%s lims:%s)'%(gender1, gender2)
 
 
 class Crawler(AppLogger):
@@ -224,6 +238,14 @@ class SampleCrawler(Crawler):
             sample[ELEMENT_PC_BASES_CALLABLE] = callable_bases/total
         else:
             self.critical('Missing *%s-sort-callable.bed' % external_sample_name)
+        sex_file_paths = glob.glob(os.path.join(sample_dir,'%s.sex'%external_sample_name))
+        if not sex_file_paths:
+            sex_file_paths = glob.glob(os.path.join(sample_dir,'.qc','%s.sex'%external_sample_name))
+        if sex_file_paths:
+            with open(sex_file_paths[0]) as open_file:
+                sex = open_file.read().strip()
+                gender_from_lims = get_sex_from_lims(self.sample_id)
+                sample[ELEMENT_GENDER]= match_gender(sex, gender_from_lims)
         return sample
 
     def write_json(self, json_file):
