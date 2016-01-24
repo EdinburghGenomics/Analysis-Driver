@@ -1,6 +1,7 @@
 __author__ = 'mwham'
+import os
 from tests.test_analysisdriver import TestAnalysisDriver
-from analysis_driver.config import Configuration, LoggingConfiguration, logging_default
+from analysis_driver.config import Configuration, EnvConfiguration, LoggingConfiguration, logging_default
 from analysis_driver import app_logging
 import pytest
 import logging
@@ -9,7 +10,15 @@ import sys
 
 class TestConfiguration(TestAnalysisDriver):
     def setUp(self):
-        self.cfg = Configuration()
+        self.cfg = EnvConfiguration(
+            (
+                os.getenv('ANALYSISDRIVERCONFIG'),
+                os.path.expanduser('~/.analysisdriver.yaml')
+            )
+        )
+        self.sample_sheet_cfg = Configuration(
+            [os.path.join(self.assets_path, '..', '..', 'etc', 'sample_sheet_cfg.yaml')]
+        )
 
     def test_get(self):
         get = self.cfg.get
@@ -37,18 +46,17 @@ class TestConfiguration(TestAnalysisDriver):
         }
 
         for q in [
-            self.cfg.query(
+            self.sample_sheet_cfg.query(
                 'sample_project',
-                top_level=self.cfg.query('sample_sheet', 'column_names')
+                top_level=self.sample_sheet_cfg.query('column_names')
             ),
-            self.cfg.query(
+            self.sample_sheet_cfg.query(
                 'column_names',
-                'sample_project',
-                top_level=self.cfg.query('sample_sheet')
+                'sample_project'
             ),
-            self.cfg.query(
+            self.sample_sheet_cfg.query(
                 'sample_project',
-                top_level=self.cfg.query('column_names', top_level=self.cfg.query('sample_sheet'))
+                top_level=self.sample_sheet_cfg.query('column_names')
             )
         ]:
             assert q == ['Sample_Project', 'SampleProject', 'Project_Name']
@@ -118,7 +126,7 @@ class TestLoggingConfiguration(TestAnalysisDriver):
         assert self.log_cfg.formatter is default
 
         assert self.log_cfg.handlers == {}
-        assert self.log_cfg.log_level == logging.INFO
+        assert self.log_cfg.default_level == logging.INFO
 
     def test_add_handler(self):
         h = logging.StreamHandler(stream=sys.stdout)
@@ -159,5 +167,5 @@ class TestAppLogging(app_logging.AppLogger, TestAnalysisDriver):
 
     def test_get_logger(self):
         logger = app_logging.get_logger('test')
-        assert logger.level == logging_default.log_level
+        assert logger.level == logging_default.default_level
         assert list(logging_default.handlers.values()) == logger.handlers

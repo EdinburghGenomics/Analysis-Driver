@@ -3,38 +3,54 @@ import json
 import os
 from glob import glob
 from collections import defaultdict
-from analysis_driver.report_generation import ELEMENT_NB_Q30_R1, ELEMENT_NB_Q30_R2
+from analysis_driver.report_generation import ELEMENT_NB_Q30_R1, ELEMENT_NB_Q30_R2, ELEMENT_RUN_NAME
 from analysis_driver.app_logging import get_logger
+from analysis_driver.clarity import get_expected_yield_for_sample
 
 
 app_logger = get_logger('scanner')
 
 DATASET_NEW = 'new'
 DATASET_READY = 'ready'
+DATASET_FORCE_READY = 'force_ready'
 DATASET_PROCESSING = 'processing'
 DATASET_PROCESSED_SUCCESS = 'finished'
 DATASET_PROCESSED_FAIL = 'failed'
 DATASET_ABORTED = 'aborted'
 
-STATUS_VISIBLE = [DATASET_NEW, DATASET_READY, DATASET_PROCESSING]
+STATUS_VISIBLE = [DATASET_NEW, DATASET_READY, DATASET_FORCE_READY, DATASET_PROCESSING]
 STATUS_HIDDEN = [DATASET_PROCESSED_SUCCESS, DATASET_PROCESSED_FAIL, DATASET_ABORTED]
 
 
 class Dataset:
-    def __init__(self, name, path, lock_file_dir, data_threshold=None):
+    def __init__(self, name, path, lock_file_dir):
         self.name = name
         self.path = path
         self.lock_file_dir = lock_file_dir
-        self.data_threshold = data_threshold
         self._stages = None
         self._pid = None
 
     @property
     def dataset_status(self):
-        raise NotImplementedError("Function not implemented in DatasetScanner")
+        dataset_lock_files = glob(self._lock_file('*'))
+        assert len(dataset_lock_files) < 2
+
+        if dataset_lock_files:
+            lf_status = dataset_lock_files[0].split('.')[-1]
+        else:
+            lf_status = DATASET_NEW
+
+        if lf_status == DATASET_NEW and self._is_ready():
+            return DATASET_READY
+        else:
+            return lf_status
+
+    @property
+    def _is_ready(self):
+        raise NotImplementedError
 
     def start(self):
-        assert self.dataset_status == DATASET_READY or self.dataset_status == DATASET_NEW
+        assert self.dataset_status in (DATASET_READY, DATASET_FORCE_READY, DATASET_NEW)
         self._change_status(DATASET_PROCESSING)
         self.set_pid()
 
@@ -137,21 +153,12 @@ class Dataset:
 class RunDataset(Dataset):
     type = 'run'
 
-    @property
-    def dataset_status(self):
-        dataset_lock_files = glob(self._lock_file('*'))
-        assert len(dataset_lock_files) < 2
+    def __init__(self, name, path, lock_file_dir, use_int_dir):
+        super().__init__(name, path, lock_file_dir)
+        self.use_int_dir = use_int_dir
 
-        if dataset_lock_files:
-            lf_status = dataset_lock_files[0].split('.')[-1]
-        else:
-            lf_status = DATASET_NEW
-
-        rta_complete = self.rta_complete()
-        if rta_complete and lf_status == DATASET_NEW:
-            return DATASET_READY
-        else:
-            return lf_status
+    def _is_ready(self):
+        return self.rta_complete() or self.use_int_dir
 
     def rta_complete(self):
         return os.path.isfile(os.path.join(self.path, 'RTAComplete.txt'))
@@ -160,28 +167,21 @@ class RunDataset(Dataset):
 class SampleDataset(Dataset):
     type = 'sample'
 
-    @property
-    def dataset_status(self):
-        dataset_lock_files = glob(self._lock_file('*'))
-        assert len(dataset_lock_files) < 2
+    def __init__(self, name, path, lock_file_dir, data_threshold=None):
+        super().__init__(name, path, lock_file_dir)
+        self.default_data_threshold = data_threshold
+        self.run_elements = self._read_data()
 
-        if dataset_lock_files:
-            lf_status = dataset_lock_files[0].split('.')[-1]
-        else:
-            lf_status = DATASET_NEW
+    def force(self):
+        self._clear_stage()
+        self.clear_pid()
+        self._change_status(DATASET_FORCE_READY)
 
-        if lf_status == DATASET_NEW and self._is_ready():
-            return DATASET_READY
-        else:
-            return lf_status
-
-    def _read_json(self):
-        with open(self.path) as open_file:
-            self.run_elements = json.load(open_file)
+    def _read_data(self):
+        with open(self.path, 'r') as open_file:
+            return json.load(open_file)
 
     def _amount_data(self):
-        if not hasattr(self, 'run_elements'):
-            self._read_json()
         return sum(
             [
                 int(r.get(ELEMENT_NB_Q30_R1)) + int(r.get(ELEMENT_NB_Q30_R2))
@@ -189,28 +189,69 @@ class SampleDataset(Dataset):
             ]
         )
 
+    def _runs(self):
+        return set([r.get(ELEMENT_RUN_NAME) for r in self.run_elements.values()])
+
+    @property
+    def data_threshold(self):
+        if not hasattr(self, '_data_threshold'):
+            self._data_threshold = get_expected_yield_for_sample(self.name)
+        if not self._data_threshold:
+            self._data_threshold = self.default_data_threshold
+        return self._data_threshold
+
     def _is_ready(self):
-        if self.data_threshold and int(self._amount_data()) > int(self.data_threshold):
-            return True
-        else:
-            return False
+        return self.data_threshold and int(self._amount_data()) > int(self.data_threshold)
 
     def __str__(self):
-        return '%s  (%s / %s)' % (super().__str__(), self._amount_data(), self.data_threshold)
+        return '%s  (%s / %s  from %s) ' % (
+            super().__str__(),
+            self._amount_data(),
+            self.data_threshold,
+            ', '.join(self._runs())
+        )
 
 
 class DatasetScanner:
     def __init__(self, cfg):
         self.lock_file_dir = cfg.get('lock_file_dir', cfg['input_dir'])
         self.input_dir = cfg.get('input_dir')
-        self.data_threshold = cfg.get('data_threshold', None)
 
     def scan_datasets(self):
-        raise NotImplementedError()
+        triggerignore = os.path.join(self.lock_file_dir, '.triggerignore')
+
+        ignorables = []
+        if os.path.isfile(triggerignore):
+            with open(triggerignore, 'r') as f:
+                for p in f.readlines():
+                    if not p.startswith('#'):
+                        ignorables.append(p.rstrip('\n'))
+        app_logger.debug('Ignoring %s datasets' % len(ignorables))
+
+        n_datasets = 0
+        datasets = defaultdict(list)
+        for name in os.listdir(self.input_dir):
+            if name not in ignorables and not name.startswith('.'):
+                d = self.get(os.path.join(self.input_dir, name))
+                datasets[d.dataset_status].append(d)
+                n_datasets += 1
+        app_logger.debug('Found %s datasets' % n_datasets)
+        return datasets
+
+    def get(self, name):
+        dataset_path = os.path.join(self.input_dir, name)
+        if os.path.exists(dataset_path):
+            return self._get_dataset(dataset_path)
+
+    def _get_dataset(self, dataset_path):
+        raise NotImplementedError
 
     def report(self, all_datasets=False):
+        out = [
+            '========= %s report =========' % self.__class__.__name__,
+            'dataset location: ' + self.input_dir
+        ]
         datasets = self.scan_datasets()
-        out = ['dataset location: ' + self.input_dir]
         for status in STATUS_VISIBLE:
             ds = datasets.pop(status, [])
             if ds:
@@ -227,57 +268,21 @@ class DatasetScanner:
                 out.append('\n'.join(('other datasets present', 'use --report-all to show')))
 
         out.append('_' * 42)
-        return out
-
-    def get(self, dataset_name, dataset_class):
-        directory = glob(os.path.join(self.input_dir, dataset_name))
-        if directory:
-            directory = directory[0]
-            return dataset_class(
-                name=os.path.basename(directory),
-                path=directory,
-                lock_file_dir=self.lock_file_dir
-            )
-        return None
+        print('\n'.join(out))
 
 
 class RunScanner(DatasetScanner):
-
     def __init__(self, cfg):
         super().__init__(cfg)
+        self.use_int_dir = 'intermediate_dir' in cfg
 
-    def report(self, all_datasets=False):
-        out = ['========= Run Scanner report =========']
-        out.extend(super().report(all_datasets=all_datasets))
-        print('\n'.join(out))
-
-    def scan_datasets(self):
-        triggerignore = os.path.join(self.lock_file_dir, '.triggerignore')
-
-        ignorables = []
-        if os.path.isfile(triggerignore):
-            with open(triggerignore, 'r') as f:
-                for p in f.readlines():
-                    if not p.startswith('#'):
-                        ignorables.extend(glob(os.path.join(self.input_dir, p.rstrip('\n'))))
-        app_logger.debug('Ignoring %s datasets' % len(ignorables))
-
-        n_datasets = 0
-        datasets = defaultdict(list)
-        for directory in glob(os.path.join(self.input_dir, '*')):
-            d = RunDataset(
-                name=os.path.basename(directory),
-                path=directory,
-                lock_file_dir=self.lock_file_dir
-            )
-            if os.path.isdir(directory) and directory not in ignorables:
-                datasets[d.dataset_status].append(d)
-                n_datasets += 1
-        app_logger.debug('Found %s datasets' % n_datasets)
-        return datasets
-
-    def get(self, dataset_name, dataset_class=None):
-        return super().get(dataset_name, RunDataset)
+    def _get_dataset(self, dataset_path):
+        return RunDataset(
+            name=os.path.basename(dataset_path),
+            path=dataset_path,
+            lock_file_dir=self.lock_file_dir,
+            use_int_dir=self.use_int_dir
+        )
 
 
 class SampleScanner(DatasetScanner):
@@ -285,37 +290,12 @@ class SampleScanner(DatasetScanner):
         super().__init__(cfg)
         self.lock_file_dir = cfg.get('lock_file_dir', cfg['metadata_input_dir'])
         self.input_dir = cfg.get('metadata_input_dir')
+        self.data_threshold = cfg.get('data_threshold')
 
-    def report(self, all_datasets=False):
-        out = ['========= Sample Scanner report =========']
-        out.extend(super().report(all_datasets=all_datasets))
-        print('\n'.join(out))
-
-    def scan_datasets(self):
-        triggerignore = os.path.join(self.lock_file_dir, '.triggerignore')
-
-        ignorables = []
-        if os.path.isfile(triggerignore):
-            with open(triggerignore, 'r') as f:
-                for p in f.readlines():
-                    if not p.startswith('#'):
-                        ignorables.extend(glob(os.path.join(self.input_dir, p.rstrip('\n'))))
-        app_logger.debug('Ignoring %s datasets' % len(ignorables))
-
-        n_datasets = 0
-        datasets = defaultdict(list)
-        for directory in glob(os.path.join(self.input_dir, '*')):
-            if os.path.isfile(directory) and directory not in ignorables:
-                d = SampleDataset(
-                    name=os.path.basename(directory),
-                    path=directory,
-                    lock_file_dir=self.lock_file_dir,
-                    data_threshold=self.data_threshold
-                )
-                datasets[d.dataset_status].append(d)
-                n_datasets += 1
-        app_logger.debug('Found %s datasets' % n_datasets)
-        return datasets
-
-    def get(self, dataset_name, dataset_class=None):
-        return super().get(dataset_name, SampleDataset)
+    def _get_dataset(self, dataset_path):
+        return SampleDataset(
+            name=os.path.basename(dataset_path),
+            path=dataset_path,
+            lock_file_dir=self.lock_file_dir,
+            data_threshold=self.data_threshold
+        )

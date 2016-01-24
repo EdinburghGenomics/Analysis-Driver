@@ -8,7 +8,7 @@ import pytest
 class TestSampleSheet(TestAnalysisDriver):
     def setUp(self):
         transform_sample_sheet(self.assets_path)
-        self.sample_sheet = SampleSheet(self.assets_path)
+        self.sample_sheet = SampleSheet(self.sample_sheet_path)
         self.run_info = RunInfo(self.assets_path)
         self.samples = []
         for name, p in self.sample_sheet.sample_projects.items():

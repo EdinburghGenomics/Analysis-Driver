@@ -1,15 +1,16 @@
-import logging
 from urllib.parse import urljoin
 import requests
 from pprint import pformat
 
-app_logger = logging.getLogger(__name__)
+from analysis_driver.app_logging import get_logger
+
+app_logger = get_logger(__name__)
 
 
 def _req(*args, **kwargs):
     r = requests.request(*args, **kwargs)
     if r.status_code != 200:
-        app_logger.debug('%s %s %s' % (r.request, r.status_code, r.reason))
+        app_logger.debug('%s %s %s %s' % (r.request.method, r.request.path_url, r.status_code, r.reason))
         json = r.json()
         if json:
             app_logger.debug(pformat(json))
@@ -27,7 +28,12 @@ def get_documents(url, **kwargs):
 
 
 def get_document(url, **kwargs):
-    return get_documents(url, **kwargs)[0]
+    documents = get_documents(url, **kwargs)
+    if len(documents)>0:
+        return documents[0]
+    else:
+        app_logger.error('No document found for ' + url + ' kwargs='+ str(kwargs))
+        return None
 
 
 def post_entry(url, payload):
@@ -47,12 +53,16 @@ def put_entry(url, element_id, payload):
     return True
 
 
-def patch_entry(url, payload, **kwargs):
+def patch_entry(url, payload, update_lists=None, **kwargs):
     """Upload Assuming we can get the id of this entry from kwargs"""
     doc = get_document(url.rstrip('/'), **kwargs)
-    url = urljoin(url, doc.get('_id'))
-    headers = {'If-Match': doc.get('_etag')}
-    r = _req('PATCH', url, headers=headers, json=payload)
-    if r.status_code != 200:
-        return False
-    return True
+    if doc:
+        url = urljoin(url, doc.get('_id'))
+        headers = {'If-Match': doc.get('_etag')}
+        if update_lists:
+            for l in update_lists:
+                payload[l] = list(set(payload.get(l, []) + doc.get(l, [])))
+        r = _req('PATCH', url, headers=headers, json=payload)
+        if r.status_code == 200:
+            return True
+    return False
