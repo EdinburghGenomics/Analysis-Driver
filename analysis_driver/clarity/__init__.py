@@ -154,6 +154,13 @@ def get_user_sample_name(sample_name):
         return sanitize_user_id(sample.udf.get('User Sample Name'))
 
 
+def get_sex_from_lims(sample_name):
+    lims = _get_lims_connection()
+    samples = get_lims_samples(sample_name, lims)
+    if len(samples) == 1:
+        gender = samples[0].udf.get('Gender')
+        return gender
+
 def get_expected_yield_for_sample(sample_name):
     """
     Query the LIMS and return the number of bases expected for a sample

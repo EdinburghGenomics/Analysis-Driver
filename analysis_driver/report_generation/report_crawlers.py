@@ -1,8 +1,8 @@
-__author__ = 'tcezard'
 from collections import Counter, defaultdict
 import glob
 import json
 import os
+from analysis_driver.clarity import get_sex_from_lims
 from analysis_driver.app_logging import AppLogger
 from analysis_driver.reader import demultiplexing_parsers, mapping_stats_parsers
 from analysis_driver.report_generation import rest_communication
@@ -13,7 +13,18 @@ from analysis_driver.report_generation import ELEMENT_RUN_NAME, ELEMENT_NUMBER_L
     ELEMENT_NB_BASE_R2, ELEMENT_NB_Q30_R1, ELEMENT_NB_Q30_R2, ELEMENT_PC_READ_IN_LANE, ELEMENT_LANE_ID, \
     ELEMENT_PROJECT_ID, ELEMENT_SAMPLE_EXTERNAL_ID, ELEMENT_NB_READS_IN_BAM, ELEMENT_NB_MAPPED_READS, \
     ELEMENT_NB_DUPLICATE_READS, ELEMENT_NB_PROPERLY_MAPPED, ELEMENT_MEDIAN_COVERAGE, ELEMENT_PC_BASES_CALLABLE, \
-    ELEMENT_LANE_NUMBER
+    ELEMENT_LANE_NUMBER, ELEMENT_CALLED_GENDER, ELEMENT_PROVIDED_GENDER
+
+gender_aliases = {'female': ['f', 'female', 'girl', 'women'],
+                  'male': ['m', 'male', 'boy', 'man']}
+
+
+def gender_alias(gender):
+    g = str(gender).lower()
+    for key in gender_aliases:
+        if g in gender_aliases[key]:
+            return key
+    return 'unknown'
 
 
 class Crawler(AppLogger):
@@ -33,6 +44,7 @@ class Crawler(AppLogger):
                     elem_query = {elem_key: payload.pop(elem_key)}
                 success = success and rest_communication.patch_entry(url, payload, update_lists, **elem_query)
         return success
+
 
 class RunCrawler(Crawler):
     def __init__(self, run_id, samplesheet, conversion_xml_file=None):
@@ -106,7 +118,7 @@ class RunCrawler(Crawler):
         for project_id in self.projects:
             self.projects[project_id][ELEMENT_SAMPLES] = list(self.projects[project_id][ELEMENT_SAMPLES])
 
-        #Add the unknown to the lane
+        # Add the unknown to the lane
         for lane_id in self.lanes:
             lane = self.lanes[lane_id][ELEMENT_LANE_NUMBER]
             unknown = '%s_%s_%s' % (self.run_id, lane, 'unknown')
@@ -237,6 +249,15 @@ class SampleCrawler(Crawler):
             sample[ELEMENT_PC_BASES_CALLABLE] = callable_bases/total
         else:
             self.critical('Missing *%s-sort-callable.bed' % external_sample_name)
+        sex_file_paths = glob.glob(os.path.join(sample_dir, '%s.sex'%external_sample_name))
+        if not sex_file_paths:
+            sex_file_paths = glob.glob(os.path.join(sample_dir, '.qc','%s.sex'%external_sample_name))
+        if sex_file_paths:
+            with open(sex_file_paths[0]) as open_file:
+                gender = open_file.read().strip()
+                gender_from_lims = get_sex_from_lims(self.sample_id)
+                sample[ELEMENT_PROVIDED_GENDER] = gender_alias(gender_from_lims)
+                sample[ELEMENT_CALLED_GENDER] = gender_alias(gender)
         return sample
 
     def write_json(self, json_file):
