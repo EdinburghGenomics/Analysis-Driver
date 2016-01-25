@@ -12,13 +12,13 @@ class GenotypeValidation(AppLogger, Thread):
     This class will perform the Genotype validation steps. It subclasses Thread, allowing it to run in the
     background.
     """
-    def __init__(self, sample_to_fastqs, run_id):
+    def __init__(self, fastqs_files, sample_id):
         """
         :param dict[str, list[str]] sample_to_fastqs: a dict linking sample ids to their fastq files
         :param str run_id: the id of the run these sample were sequenced on.
         """
-        self.sample_to_fastqs = sample_to_fastqs
-        self.run_id = run_id
+        self.fastqs_files = fastqs_files
+        self.sample_id = sample_id
         self.validation_cfg = cfg.get('genotype-validation')
         self.validation_results = None
         self.exception = None
@@ -65,43 +65,38 @@ class GenotypeValidation(AppLogger, Thread):
         :rtype: list
         :return list of bam file containing the reads aligned.
         """
-        commands = []
-        output_bams = []
-        work_dir = os.path.join(cfg['jobs_dir'], self.run_id)
-        for sample_name in self.sample_to_fastqs:
-            expected_bam = os.path.join(work_dir, sample_name + '.bam')
-            output_bams.append(expected_bam)
-            commands.append(
-                self._bwa_aln(
-                    self.sample_to_fastqs.get(sample_name),
-                    sample_name,
-                    expected_bam,
-                    self.validation_cfg.get('reference')
-                )
-            )
+        work_dir = os.path.join(cfg['jobs_dir'], self.sample_id)
+        expected_bam = os.path.join(work_dir, self.sample_id + 'geno_val.bam')
+
+        command = self._bwa_aln(
+            self.fastqs_files,
+            self.sample_id,
+            expected_bam,
+            self.validation_cfg.get('reference')
+        )
+
         
         ntf.start_stage('genotype_validation_bwa')
         bwa_executor = executor.execute(
-            commands,
+            [command],
             job_name='alignment_bwa',
-            run_id=self.run_id,
-            walltime=6,
+            run_id=self.sample_id,
             cpus=4,
             mem=8
         )
         exit_status = bwa_executor.join()
         ntf.end_stage('genotype_validation_bwa', exit_status)
 
-        return output_bams
+        return expected_bam
 
-    def _snp_calling(self, bam_files):
+    def _snp_calling(self, bam_file):
         """
         Call SNPs using GATK as defined in the config file.
         :param bam_files: The file containing all the read aligned to the synthetic genome.
         :rtype: str
         :return a vcf file that contains the variant for all samples.
         """
-        output_vcf = os.path.join(cfg['jobs_dir'], self.run_id, self.run_id + '_genotype_validation.vcf.gz')
+        output_vcf = os.path.join(cfg['jobs_dir'], self.sample_id, self.sample_id + '_genotype_validation.vcf.gz')
         gatk_command = ['java -Xmx4G -jar %s' % self.validation_cfg.get('gatk'),
                         '-T UnifiedGenotyper',
                         '-nt 4',
@@ -109,15 +104,14 @@ class GenotypeValidation(AppLogger, Thread):
                         ' --standard_min_confidence_threshold_for_calling 30.0',
                         '--standard_min_confidence_threshold_for_emitting 0',
                         '-out_mode EMIT_ALL_SITES']
-        gatk_command.extend(['-I %s' % bam_file for bam_file in bam_files])
+        gatk_command.append('-I %s' % bam_file)
         gatk_command.append('-o %s' % output_vcf)
 
         ntf.start_stage('genotype_validation_gatk')
         gatk_executor = executor.execute(
             [' '.join(gatk_command)],
             job_name='snpcall_gatk',
-            run_id=self.run_id,
-            walltime=2,
+            run_id=self.sample_id,
             cpus=4,
             mem=4
         )
@@ -132,34 +126,34 @@ class GenotypeValidation(AppLogger, Thread):
         :rtype: list
         :return list of files containing the results of the validation.
         """
-        genotypes_dir = self.validation_cfg.get('genotypes_repository')
-        work_dir = os.path.join(cfg['jobs_dir'], self.run_id)
+        #TODO fetch from the LIMS the vcf file for that sample and store it in the sample folder
+        #genotype_file = os.path.join(genotypes_dir, self.sample_id + '.vcf')
+        genotype_file = None
+        work_dir = os.path.join(cfg['jobs_dir'], self.sample_id)
         list_commands = []
-        validation_results = []
-        for sample_name in self.sample_to_fastqs:
-            genotype_file = os.path.join(genotypes_dir, sample_name + '.vcf')
-            validation_result = os.path.join(work_dir, sample_name + 'validation.txt')
-            gatk_command = ['java -Xmx4G -jar %s' % self.validation_cfg.get('gatk'),
-                            '-T GenotypeConcordance',
-                            '-eval:VCF %s ' % vcf_file,
-                            '-comp:VCF %s ' % genotype_file,
-                            '-R %s' % self.validation_cfg.get('reference'),
-                            ' > %s' % validation_result]
-            list_commands.append(' '.join(gatk_command))
-            validation_results.append(validation_result)
+
+        validation_result = os.path.join(work_dir, self.sample_id + 'validation.txt')
+        gatk_command = ['java -Xmx4G -jar %s' % self.validation_cfg.get('gatk'),
+                        '-T GenotypeConcordance',
+                        '-eval:VCF %s ' % vcf_file,
+                        '-comp:VCF %s ' % genotype_file,
+                        '-R %s' % self.validation_cfg.get('reference'),
+                        ' > %s' % validation_result]
+        list_commands.append(' '.join(gatk_command))
+
 
         ntf.start_stage('validation_genotype_concordance')
         genotype_concordance_executor = executor.execute(
             list_commands,
             job_name='genotype_concordance',
-            run_id=self.run_id,
-            walltime=2,
+            run_id=self.sample_id,
             cpus=4,
-            mem=8
+            mem=8,
+            log_command=False
         )
         exit_status = genotype_concordance_executor.join()
         ntf.end_stage('validation_genotype_concordance', exit_status)
-        return validation_results
+        return validation_result
 
     def _genotype_validation(self):
         """
@@ -167,8 +161,8 @@ class GenotypeValidation(AppLogger, Thread):
         :rtype: list
         :return list of file containing the results of the validation.
         """
-        bam_files = self._bwa_alignment()
-        vcf_file = self._snp_calling(bam_files)
+        bam_file = self._bwa_alignment()
+        vcf_file = self._snp_calling(bam_file)
         validation_results = self._vcf_validation(vcf_file)
         return validation_results
 
