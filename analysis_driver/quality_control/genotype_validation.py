@@ -183,3 +183,12 @@ class GenotypeValidation(AppLogger, Thread):
         if self.exception:
             raise self.exception
         return self.validation_results
+
+
+class ContaminationCheck():
+    def __init__(self, sample_to_fastqs, run_id):
+
+        self.sample_to_fastqs = sample_to_fastqs
+        self.run_id = run_id
+        #add contamination-check details to my/test yaml file in my branch
+        self.validation_cfg = cfg.get('contamination-check')
