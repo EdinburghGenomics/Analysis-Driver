@@ -19,7 +19,7 @@ class TestAnalysisDriver(TestCase):
     def compare_lists(observed, expected):
         print()
         print('observed', '\n', observed, '\n', 'expected', '\n', expected)
-        assert observed == expected
+        assert sorted(observed) == sorted(expected)
 
     def setup_db(self, db, endpoints):
         db.clear()
