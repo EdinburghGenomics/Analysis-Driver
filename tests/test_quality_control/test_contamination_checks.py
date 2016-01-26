@@ -44,5 +44,3 @@ class TestContaminationCheck(TestAnalysisDriver):
 
 
 
-
-
