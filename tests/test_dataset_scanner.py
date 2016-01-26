@@ -119,10 +119,9 @@ class TestDataset(TestAnalysisDriver):
         with patched_patch as mocked_patch:
             self.dataset._change_status('a_status', finish=True)
             mocked_patch.assert_called_with(
-                self._api('analysis_driver_procs'),
+                self._api('analysis_driver_procs/'),
                 {
                     'status': 'a_status',
-                    'proc_id': 'a_type_a_name',
                     'dataset_type': self.dataset.type,
                     'dataset_name': 'test_dataset',
                     'end_date': self.dataset._now()

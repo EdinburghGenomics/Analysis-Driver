@@ -122,7 +122,6 @@ class Dataset:
 
     def _change_status(self, status, finish=True):
         new_content = {
-            'proc_id': self.proc_id,
             'dataset_type': self.type,
             'dataset_name': self.name,
             'status': status
@@ -134,7 +133,7 @@ class Dataset:
             end_date = None
 
         patch_success = rest_communication.patch_entry(
-            cfg.query('rest_api', 'url').rstrip('/') + '/analysis_driver_procs',
+            cfg.query('rest_api', 'url').rstrip('/') + '/analysis_driver_procs/',
             new_content,
             proc_id=self.proc_id
         )
