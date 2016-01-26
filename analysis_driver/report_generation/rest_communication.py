@@ -60,7 +60,7 @@ def patch_entry(url, payload, update_lists=None, **kwargs):
         headers = {'If-Match': doc.get('_etag')}
         if update_lists:
             for l in update_lists:
-                payload[l] = list(set(doc.get(l, []) + payload.get(l, [])))
+                payload[l] = sorted(set(doc.get(l, []) + payload.get(l, [])))
         r = _req('PATCH', url, headers=headers, json=payload)
         if r.status_code == 200:
             return True

@@ -1,29 +1,40 @@
 __author__ = 'tcezard'
 import shutil
 import pytest
-from unittest.mock import patch, Mock
+from unittest.mock import patch, Mock, PropertyMock
 import os
-import re
 from tests.test_analysisdriver import TestAnalysisDriver
-from analysis_driver.dataset_scanner import RunScanner, DATASET_NEW, DATASET_READY, DATASET_PROCESSING, \
+from analysis_driver.dataset_scanner import DatasetScanner, RunScanner, SampleScanner, DATASET_NEW, DATASET_READY, DATASET_PROCESSING, \
     DATASET_PROCESSED_FAIL, DATASET_PROCESSED_SUCCESS, DATASET_ABORTED, DATASET_REPROCESS, DATASET_FORCE_READY,\
-    RunDataset
+    Dataset, RunDataset, SampleDataset
 from analysis_driver.config import default as cfg
 
 
+directories_to_create = ('dataset_ready', 'dataset_not_ready', 'ignored_dataset')
+ready_datasets = ('dataset_ready',)
+
+
 def seed_directories(base_dir):
-    directories_to_create = (
-        'failed_dataset', 'processing_dataset', 'dataset_ready', 'dataset_not_ready', 'ignored_dataset'
-    )
-    rta_completes = ('processing_dataset', 'dataset_ready')
     for d in directories_to_create:
         os.makedirs(os.path.join(base_dir, d), exist_ok=True)
-        if d in rta_completes:
-            open(os.path.join(base_dir, d, 'RTAComplete.txt'), 'w').close()
+        if d in ready_datasets:
+            _touch(os.path.join(base_dir, d, 'RTAComplete.txt'))
 
 
 def clean(base_dir):
     shutil.rmtree(os.path.join(base_dir))
+
+
+def _touch(path):
+    open(path, 'w').close()
+
+
+fake_analysis_driver_proc = {
+    'dataset_type': 'a_type', 'dataset_name': 'a_name', 'proc_id': 'a_type_a_name', 'status': 'a_status'
+}
+fake_analysis_driver_proc_no_status = {
+    'dataset_type': 'a_type', 'dataset_name': 'a_name', 'proc_id': 'a_type_a_name'
+}
 
 
 class FakeRestResponse(Mock):
@@ -31,144 +42,289 @@ class FakeRestResponse(Mock):
         return self.content
 
 
-def _fake_analysis_driver_proc(d_type, d_name, status=None):
-    proc = {
-        'proc_id': '_'.join((d_type, d_name)),
-        'dataset_type': d_type,
-        'dataset_name': d_name
-    }
-    if status:
-        proc['status'] = status
-    return proc
+patched_request = patch('requests.request', return_value=FakeRestResponse(content={'data': [fake_analysis_driver_proc]}))
+patched_post = patch('analysis_driver.report_generation.rest_communication.post_entry', return_value=True)
+patched_patch = patch('analysis_driver.report_generation.rest_communication.patch_entry', return_value=False)
+patched_post_or_patch = patch('analysis_driver.report_generation.rest_communication.post_or_patch')
+patched_change_status = patch('analysis_driver.dataset_scanner.Dataset._change_status')
+patched_expected_yield = patch('analysis_driver.dataset_scanner.get_expected_yield_for_sample', return_value=1000000000)
 
 
-def fake_scan_request(req_type, url):
-    assert req_type == 'GET'
-    endpoint, query_string = url.split('/')[-1].split('?')
-
-    dataset_type = re.search(r'"dataset_type":"(.+?)"', query_string).group(1)
-    dataset_name = re.search(r'"dataset_name":"(.+?)"', query_string).group(1)
-
-    s = dataset_name.replace('_dataset', '')
-
-    fake_content = _fake_analysis_driver_proc(dataset_type, dataset_name)
-    if s in (DATASET_FORCE_READY, DATASET_PROCESSING, DATASET_PROCESSED_SUCCESS, DATASET_PROCESSED_FAIL, DATASET_ABORTED, DATASET_REPROCESS):
-        fake_content['status'] = s
-    return FakeRestResponse(content={'data': [fake_content]})
-
-
-empty_proc_data = {'data': []}
-
-
-def empty_analysis_driver_procs():
-    return patch('requests.request', return_value=FakeRestResponse(content={'data': []}))
-
-
-def fake_analysis_driver_proc(dataset, status):
+def patched_dataset_status(status=DATASET_NEW):
     return patch(
-        'requests.request',
-        return_value=FakeRestResponse(
-            content={'data': [_fake_analysis_driver_proc(dataset.type, dataset.name, status=status)]}
-        )
+        'analysis_driver.dataset_scanner.Dataset.dataset_status',
+        new_callable=PropertyMock(return_value=status)
     )
 
 
-class TestRunDataset(TestAnalysisDriver):
+def patched_most_recent_proc(proc=fake_analysis_driver_proc):
+    return patch(
+        'analysis_driver.dataset_scanner.Dataset._most_recent_proc',
+        return_value=proc
+    )
+
+
+class TestDataset(TestAnalysisDriver):
     def setUp(self):
         self.base_dir = os.path.join(self.assets_path, 'dataset_scanner')
         seed_directories(self.base_dir)
+        self.setup_dataset()
 
     def tearDown(self):
         clean(self.base_dir)
 
-    def _query_most_recent_proc(self, dataset_name):
-        return ''.join(
-            (
-                cfg.query('rest_api', 'url'),
-                '/analysis_driver_procs',
-                '?where={"dataset_type":"run","dataset_name":"',
-                dataset_name,
-                '"}&sort=-_created'
+    def test_most_recent_proc(self):
+        with patched_request as mocked_instance:
+            proc = self.dataset._most_recent_proc()
+            assert proc == fake_analysis_driver_proc
+            mocked_instance.assert_called_with(
+                'GET',
+                self._api('analysis_driver_procs') + '?where={"dataset_type":"' + self.dataset.type + '","dataset_name":"test_dataset"}&sort=-_created'
             )
-        )
 
-    @empty_analysis_driver_procs()
-    def test_dataset_not_ready(self, mocked_instance):
-        d = RunDataset(
-            name='dataset_not_ready',
-            path=os.path.join(self.data_transfer, 'dataset_not_ready'),
-            use_int_dir=False
-        )
-        assert mocked_instance.call_count == 1  # setting a breakpoint here breaks test, makes call_count 2
-        assert d.dataset_status == DATASET_NEW
-        assert mocked_instance.call_count == 2
-        mocked_instance.assert_called_with('GET', self._query_most_recent_proc('dataset_not_ready'))
+    def test_create_process(self):
+        with patched_post as mocked_patch, patched_post_or_patch as mocked_post_or_patch:
+            proc = self.dataset._create_process('a_status', end_date='an_end_date')
 
-    @empty_analysis_driver_procs()
-    def test_dataset_ready(self, mocked_instance):
-        d = RunDataset(
-            name='dataset_ready',
-            path=os.path.join(self.base_dir, 'dataset_ready'),
-            use_int_dir=False
-        )
-        assert mocked_instance.call_count == 1
-        assert d.dataset_status == DATASET_READY
-        assert mocked_instance.call_count == 2
-        mocked_instance.assert_called_with('GET', self._query_most_recent_proc('dataset_ready'))
+            assert proc == {
+                'proc_id': self.dataset.proc_id,
+                'dataset_type': self.dataset.type,
+                'dataset_name': self.dataset.name,
+                'status': 'a_status',
+                'end_date': 'an_end_date'
+            }
+            mocked_patch.assert_called_with(
+                self._api('analysis_driver_procs'), [proc]
+            )
+            mocked_post_or_patch.assert_called_with(
+                self.dataset.endpoint,
+                [{self.dataset.id_field: 'test_dataset', 'analysis_driver_procs': ['a_type_a_name']}],
+                elem_key=self.dataset.id_field,
+                update_lists=['analysis_driver_procs']
+            )
 
     def test_dataset_status(self):
-        with empty_analysis_driver_procs():
-            d = RunDataset(
-                name='test',
-                path=os.path.join(self.base_dir, 'test'),
+        with patched_most_recent_proc() as mocked_instance:
+            assert self.dataset.dataset_status == 'a_status'
+            assert mocked_instance.call_count == 1
+            assert mocked_instance.return_value == {
+                'status': 'a_status',
+                'proc_id': 'a_type_a_name',
+                'dataset_type': 'a_type',
+                'dataset_name': 'a_name'
+            }
+
+    @patch('analysis_driver.dataset_scanner.Dataset._create_process')
+    def test_change_status(self, mocked_instance):
+        with patched_patch as mocked_patch:
+            self.dataset._change_status('a_status', finish=True)
+            mocked_patch.assert_called_with(
+                self._api('analysis_driver_procs'),
+                {
+                    'status': 'a_status',
+                    'proc_id': 'a_type_a_name',
+                    'dataset_type': self.dataset.type,
+                    'dataset_name': 'test_dataset',
+                    'end_date': self.dataset._now()
+                },
+                proc_id='a_type_a_name'
+            )
+            mocked_instance.assert_called_with(status='a_status', end_date=self.dataset._now())
+
+    @patched_change_status
+    def test_start(self, mocked_change_status):
+        with patched_dataset_status():
+            assert self.dataset.proc_id == 'a_type_a_name'
+            self.dataset.start()
+            assert self.dataset.proc_id == self.dataset.type + '_test_dataset_' + self.dataset._now()
+            mocked_change_status.assert_called_with(DATASET_PROCESSING, finish=False)
+
+        with patched_dataset_status(DATASET_ABORTED), pytest.raises(AssertionError) as e:
+            self.dataset.start()
+
+    @patched_change_status
+    def test_succeed(self, mocked_change_status):
+        with patched_dataset_status(DATASET_PROCESSING):
+            self.dataset.succeed()
+            mocked_change_status.assert_called_with(DATASET_PROCESSED_SUCCESS)
+
+        with patched_dataset_status(DATASET_NEW), pytest.raises(AssertionError):
+            self.dataset.succeed()
+
+    @patched_change_status
+    def test_fail(self, mocked_change_status):
+        with patched_dataset_status(DATASET_PROCESSING):
+            self.dataset.fail()
+            mocked_change_status.assert_called_with(DATASET_PROCESSED_FAIL)
+
+        with patched_dataset_status(DATASET_NEW), pytest.raises(AssertionError):
+            self.dataset.fail()
+
+    @patched_change_status
+    def test_abort(self, mocked_change_status):
+        with patched_dataset_status():
+            self.dataset.abort()
+            mocked_change_status.assert_called_with(DATASET_ABORTED)
+
+    @patched_post_or_patch
+    def test_reset(self, mocked_instance):
+        self.dataset.reset()
+        mocked_instance.assert_called_with(
+            'analysis_driver_procs',
+            [{'proc_id': 'a_type_a_name', 'status': DATASET_REPROCESS}],
+            elem_key='proc_id'
+        )
+
+    @patched_post_or_patch
+    def test_add_stage(self, mocked_instance):
+        self.dataset.add_stage('a_stage')
+        mocked_instance.assert_called_with(
+            'analysis_driver_procs',
+            [{'proc_id': 'a_type_a_name', 'stages': ['a_stage']}],
+            update_lists=['stages']
+        )
+
+    def test_stages(self):
+        fake_proc = {
+            'dataset_type': 'a_type',
+            'dataset_name': 'a_name',
+            'proc_id': 'a_type_a_name',
+            'status': 'a_status',
+            'stages': [
+                {
+                    'stage_name': 'a_stage',
+                    'date_started': '01_01_2016_12:00:00',
+                    'date_finished': '01_01_2016_13:00:00'
+                },
+                {
+                    'stage_name': 'another_stage',
+                    'date_started': '03_01_2016_12:00:00'
+                },
+                {
+                    'stage_name': 'yet_another_stage',
+                    'date_started': '03_01_2016_13:00:00'
+                }
+            ]
+        }
+        with patched_most_recent_proc(fake_proc):
+            assert self.dataset.stages == ['another_stage', 'yet_another_stage']
+
+    def setup_dataset(self):
+        with patched_request:
+            self.dataset = Dataset('test_dataset', os.path.join(self.base_dir, 'test_dataset'))
+
+    @staticmethod
+    def _api(endpoint):
+        return cfg.query('rest_api', 'url') + '/' + endpoint
+
+
+class TestRunDataset(TestDataset):
+    @patched_request
+    def test_is_ready(self, mocked_instance):
+        datasets = (
+            ('dataset_ready', True),
+            ('dataset_not_ready', False)
+        )
+        for d_name, rta_complete in datasets:
+            d = RunDataset(d_name, os.path.join(self.base_dir, d_name), use_int_dir=False)
+            assert d._is_ready() == rta_complete
+
+    def test_dataset_status(self):
+        super().test_dataset_status()
+        with patched_most_recent_proc(fake_analysis_driver_proc_no_status):
+            assert not self.dataset.rta_complete()
+            assert self.dataset.dataset_status == DATASET_NEW
+            os.mkdir(os.path.join(self.base_dir, self.dataset.name))
+            _touch(os.path.join(self.base_dir, self.dataset.name, 'RTAComplete.txt'))
+            assert self.dataset.rta_complete()
+            assert self.dataset.dataset_status == DATASET_READY
+
+    def setup_dataset(self):
+        with patched_request:
+            self.dataset = RunDataset(
+                'test_dataset',
+                os.path.join(self.base_dir, 'test_dataset'),
                 use_int_dir=False
             )
-            assert d.dataset_status == DATASET_NEW
-        for expected_status in (
-            DATASET_NEW,
-            DATASET_PROCESSING,
-            DATASET_REPROCESS,
-            DATASET_PROCESSED_FAIL,
-            DATASET_PROCESSED_SUCCESS
-        ):
-            with fake_analysis_driver_proc(d, expected_status):
-                assert d.dataset_status == expected_status
-
-    def _test_change_status(self, method_name, required_status=None):
-        with empty_analysis_driver_procs():
-            d = RunDataset(
-                name='test',
-                path=os.path.join(self.base_dir, 'test'),
-                use_int_dir=False
-            )
-            assert d.dataset_status == DATASET_NEW
-
-        if not required_status:
-            required_status = DATASET_READY
-        with fake_analysis_driver_proc(d, required_status) as mocked_instance:
-            method = d.__getattribute__(method_name)
-            method()
-            return d, mocked_instance
-
-    def test_start(self):
-        d, mocked_instance = self._test_change_status('start', DATASET_NEW)
-        mocked_instance.assert_any_call('POST', cfg.query('rest_api', 'url') + '/analysis_driver_procs/', json={'status': DATASET_PROCESSING, 'end_date': d._now(), 'dataset_name': 'test', 'dataset_type': 'run'})
-        mocked_instance.assert_any_call('POST', cfg.query('rest_api', 'url') + '/runs', json={'analysis_driver_procs': ['run_test_' + d._now()]})
-
-    def test_abort(self):
-        d, mocked_instance = self._test_change_status('abort')
-
-    def test_fail(self):
-        d, mocked_instance = self._test_change_status('fail', DATASET_PROCESSING)
-
-    def test_reset(self):
-        d, mocked_instance = self._test_change_status('reset')
-
-    def test_succeed(self):
-        d, mocked_instance = self._test_change_status('succeed', DATASET_PROCESSING)
 
 
-class TestRunScanner(TestAnalysisDriver):
+class TestSampleDataset(TestDataset):
+    @patched_change_status
+    def test_force(self, mocked_instance):
+        self.dataset.force()
+        mocked_instance.assert_called_with(DATASET_FORCE_READY, finish=False)
+
+    def test_amount_data(self):
+        assert self.dataset._amount_data() == 480
+
+    def test_runs(self):
+        assert self.dataset._runs() == {'a_run_id', 'another_run_id'}
+
+    @patched_expected_yield
+    def test_data_threshold(self, mocked_instance):
+        assert self.dataset.data_threshold == 1000000000
+        mocked_instance.assert_called_with('test_dataset')
+
+    @patched_expected_yield
+    def test_is_ready(self, mocked_instance):
+        assert not self.dataset._is_ready()
+        self.dataset.run_elements = [
+            {
+                'bases_r1': 1300000000,
+                'q30_bases_r1': 1200000000,
+                'bases_r2': 1250000000,
+                'q30_bases_r2': 1150000000
+            },
+            {
+                'bases_r1': 1200000000,
+                'q30_bases_r1': 1100000000,
+                'bases_r2': 1450000000,
+                'q30_bases_r2': 1350000000
+            }
+        ]
+        assert self.dataset._is_ready()
+        assert mocked_instance.call_count == 1  # even after 2 calls to data_threshold
+
+    def setup_dataset(self):
+        with patched_request:
+            self.dataset = SampleDataset('test_dataset', os.path.join(self.base_dir, 'test_dataset'))
+            self.dataset.run_elements = [
+                {
+                    'run_element_id': 'a_run_element_id',
+                    'run_id': 'a_run_id',
+                    'lane': 1,
+                    'barcode': 'TACGTACG',
+                    'project_id': 'a_project_id',
+                    'library_id': 'a_library_id',
+                    'sample_id': 'a_sample_id',
+                    'total_reads': 1337,
+                    'passing_filter_reads': 1000,
+                    'pc_reads_in_lane': 80,
+                    'bases_r1': 130,
+                    'q30_bases_r1': 120,
+                    'bases_r2': 125,
+                    'q30_bases_r2': 115
+                },
+                {
+                    'run_element_id': 'a_run_element_id',
+                    'run_id': 'another_run_id',
+                    'lane': 1,
+                    'barcode': 'ATGCATGC',
+                    'project_id': 'a_project_id',
+                    'library_id': 'a_library_id',
+                    'sample_id': 'a_sample_id',
+                    'total_reads': 1338,
+                    'passing_filter_reads': 980,
+                    'pc_reads_in_lane': 79,
+                    'bases_r1': 120,
+                    'q30_bases_r1': 110,
+                    'bases_r2': 145,
+                    'q30_bases_r2': 135
+                }
+            ]
+
+
+class TestScanner(TestAnalysisDriver):
     @property
     def triggerignore(self):
         return os.path.join(self.scanner.input_dir, '.triggerignore')
@@ -176,8 +332,8 @@ class TestRunScanner(TestAnalysisDriver):
     def setUp(self):
         self.base_dir = os.path.join(self.assets_path, 'dataset_scanner')
         seed_directories(self.base_dir)
-
-        self.scanner = RunScanner({'lock_file_dir': self.base_dir, 'input_dir': self.base_dir})
+        self._setup_scanner()
+        assert self.scanner.input_dir == self.base_dir
 
         with open(self.triggerignore, 'w') as f:
             for d in ['ignored_dataset\n']:
@@ -186,25 +342,14 @@ class TestRunScanner(TestAnalysisDriver):
     def tearDown(self):
         clean(self.base_dir)
 
-    @patch('requests.request', new=fake_scan_request)
-    def test_scan_datasets(self):
-        datasets = self.scanner.scan_datasets()
-        print('datasets: ', datasets)
+    @patched_most_recent_proc({})
+    def test_scan_datasets(self, mocked_instance):
+        with pytest.raises(NotImplementedError):
+            self.scanner.scan_datasets()
 
-        for status, expected in (
-            (DATASET_NEW, {'dataset_not_ready'}),
-            (DATASET_READY, {'dataset_ready'}),
-            (DATASET_PROCESSING, {'processing_dataset'}),
-            (DATASET_PROCESSED_FAIL, {'failed_dataset'})
-        ):
-            self.compare_lists(observed=self._dataset_names(datasets, status), expected=expected)
-
-    @patch('requests.request', new=fake_scan_request)
-    def test_triggerignore(self):
-        with open(self.triggerignore, 'r') as f:
-            assert f.readlines() == ['ignored_dataset\n']
-            assert os.path.isdir(os.path.join(self.base_dir, 'ignored_dataset'))
-            assert'ignored_dataset' not in self._flatten(self.scanner.scan_datasets())
+    def _fake_get_dataset(self, name):
+        with patched_most_recent_proc():
+            return Dataset(os.path.basename(name), os.path.join(self.scanner.input_dir, name))
 
     @staticmethod
     def _flatten(d):
@@ -219,3 +364,67 @@ class TestRunScanner(TestAnalysisDriver):
     @staticmethod
     def _dataset_names(datasets, status):
         return set([str(s).split(' ')[0] for s in datasets[status]])
+
+    def _setup_scanner(self):
+        self.scanner = DatasetScanner({'input_dir': self.base_dir})
+
+
+class TestRunScanner(TestScanner):
+    @patched_request
+    def test_get_dataset(self, mocked_instance):
+        observed = self.scanner._get_dataset(os.path.join(self.base_dir, 'test_dataset'))
+        expected = RunDataset('test_dataset', os.path.join(self.base_dir, 'test_dataset'), self.scanner.use_int_dir)
+        for a in ('name', 'path', 'use_int_dir'):
+                assert observed.__getattribute__(a) == expected.__getattribute__(a)
+
+    @patched_most_recent_proc({})
+    def test_scan_datasets(self, mocked_instance):
+        datasets = self.scanner.scan_datasets()
+        print('datasets: ', datasets)
+
+        for status, expected in (
+            (DATASET_NEW, {'dataset_not_ready'}),
+            (DATASET_READY, {'dataset_ready'}),
+        ):
+            self.compare_lists(observed=self._dataset_names(datasets, status), expected=expected)
+
+    @patched_most_recent_proc()
+    def test_triggerignore(self, mocked_instance):
+        with open(self.triggerignore, 'r') as f:
+            assert f.readlines() == ['ignored_dataset\n']
+            assert os.path.isdir(os.path.join(self.base_dir, 'ignored_dataset'))
+            assert 'ignored_dataset' not in self._flatten(self.scanner.scan_datasets())
+
+    def _setup_scanner(self):
+        self.scanner = RunScanner({'input_dir': self.base_dir})
+
+
+class TestSampleScanner(TestScanner):
+    def _setup_scanner(self):
+        self.scanner = SampleScanner({'input_dir': self.base_dir})
+
+    @patched_request
+    def test_get_dataset(self, mocked_instance):
+        with patched_expected_yield:
+            observed = self.scanner._get_dataset(os.path.join(self.base_dir, 'test_dataset'))
+            expected = SampleDataset('test_dataset', os.path.join(self.base_dir, 'test_dataset'))
+            for a in ('name', 'path', 'data_threshold'):
+                assert observed.__getattribute__(a) == expected.__getattribute__(a)
+
+    @patched_request
+    def test_scan_datasets(self, mocked_instance):
+        with patched_most_recent_proc(fake_analysis_driver_proc_no_status):
+            statuses = (
+                DATASET_ABORTED, DATASET_NEW, DATASET_READY, DATASET_FORCE_READY, DATASET_PROCESSED_FAIL,
+                DATASET_PROCESSED_SUCCESS, DATASET_PROCESSING, DATASET_REPROCESS
+            )
+            for status in statuses:
+                print(status)
+                with patched_dataset_status(status):
+                    datasets = self.scanner.scan_datasets()
+                    assert list(datasets.keys()) == [status]
+                    self.compare_lists(
+                        observed=[d.name for d in datasets[status]],
+                        expected=['dataset_not_ready', 'dataset_ready']
+                    )
+

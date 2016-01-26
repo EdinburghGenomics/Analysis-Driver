@@ -26,18 +26,17 @@ STATUS_HIDDEN = [DATASET_PROCESSED_SUCCESS, DATASET_PROCESSED_FAIL, DATASET_ABOR
 
 
 class Dataset:
-    type = None
-    endpoint = None
-    id_field = None
+    type = 'None'
+    endpoint = 'None'
+    id_field = 'None'
 
     def __init__(self, name, path):
         self.name = name
         self.path = path
-        self._stages = None
         self.pid = None
         self.proc_id = self._most_recent_proc().get('proc_id', '_'.join((self.type, self.name)))
 
-    def _most_recent_proc(self):
+    def _most_recent_proc(self, embedded_stages=False):
         # TODO: add embedding, sort, etc. support into rest_communication - see genologics.lims
         query_url = ''.join(
             (
@@ -49,20 +48,24 @@ class Dataset:
                 '"}&sort=-_created'
             )
         )
+        if embedded_stages:
+            query_url += '&embedding={"stages":1}'
         procs = requests.request('GET', query_url).json()['data']
         if procs:
             return procs[0]
         else:
             return {}
 
-    def _create_process(self, **extra_params):
+    def _create_process(self, status, end_date=None):
         proc = {
             'proc_id': self.proc_id,
             'dataset_type': self.type,
             'dataset_name': self.name,
+            'status': status
         }
-        proc.update(extra_params)
-        rest_communication.post_or_patch('analysis_driver_procs', [proc], elem_key='proc_id')
+        if end_date:
+            proc['end_date'] = end_date
+        rest_communication.post_entry(cfg.query('rest_api', 'url').rstrip('/') + '/analysis_driver_procs', [proc])
         dataset = {self.id_field: self.name, 'analysis_driver_procs': [self.proc_id]}
         rest_communication.post_or_patch(
             self.endpoint,
@@ -118,7 +121,6 @@ class Dataset:
         rest_communication.post_or_patch('analysis_driver_procs', [new_content], elem_key='proc_id')
 
     def _change_status(self, status, finish=True):
-        now = self._now()
         new_content = {
             'proc_id': self.proc_id,
             'dataset_type': self.type,
@@ -126,7 +128,10 @@ class Dataset:
             'status': status
         }
         if finish:
-            new_content['end_date'] = now
+            end_date = self._now()
+            new_content['end_date'] = end_date
+        else:
+            end_date = None
 
         patch_success = rest_communication.patch_entry(
             cfg.query('rest_api', 'url').rstrip('/') + '/analysis_driver_procs',
@@ -134,7 +139,7 @@ class Dataset:
             proc_id=self.proc_id
         )
         if not patch_success:
-            self._create_process(end_date=now, status=status)
+            self._create_process(status=status, end_date=end_date)
 
     def add_stage(self, stage):
         new_content = {'proc_id': self.proc_id, 'stages': [stage]}
@@ -145,20 +150,8 @@ class Dataset:
 
     @property
     def stages(self):
-        if self._stages is None:
-            proc = self._most_recent_proc()
-            self._stages = [s['stage_name'] for s in proc.get('stages', []) if 'date_finished' not in s]
-        return self._stages
-
-    @staticmethod
-    def _touch(file):
-        open(file, 'w').close()
-
-    @staticmethod
-    def _rm(*files):
-        for f in files:
-            if os.path.isfile(f):
-                os.remove(f)
+        proc = self._most_recent_proc()
+        return [s['stage_name'] for s in proc.get('stages', []) if 'date_finished' not in s]
 
     def __str__(self):
         out = [self.name]
@@ -311,7 +304,6 @@ class RunScanner(DatasetScanner):
 class SampleScanner(DatasetScanner):
     def __init__(self, cfg):
         super().__init__(cfg)
-        self.lock_file_dir = cfg.get('lock_file_dir', cfg['metadata_input_dir'])
         self.data_threshold = cfg.get('data_threshold')
 
     def _get_dataset(self, dataset_path):
