@@ -35,6 +35,12 @@ fake_analysis_driver_proc = {
 fake_analysis_driver_proc_no_status = {
     'dataset_type': 'a_type', 'dataset_name': 'a_name', 'proc_id': 'a_type_a_name'
 }
+fake_analysis_driver_proc_stages = {
+    'dataset_type': 'a_type',
+    'dataset_name': 'a_name',
+    'proc_id': 'a_type_a_name',
+    'stages': [{'date_started': 'a_start_date', 'stage_name': 'a_stage'}]
+}
 
 
 class FakeRestResponse(Mock):
@@ -174,13 +180,41 @@ class TestDataset(TestAnalysisDriver):
             elem_key='proc_id'
         )
 
+    @patched_most_recent_proc()
     @patched_post_or_patch
-    def test_add_stage(self, mocked_instance):
+    def test_add_stage(self, mocked_post_or_patch, mocked_most_recent_proc):
         self.dataset.add_stage('a_stage')
-        mocked_instance.assert_called_with(
+        mocked_post_or_patch.assert_called_with(
             'analysis_driver_procs',
-            [{'proc_id': 'a_type_a_name', 'stages': ['a_stage']}],
-            update_lists=['stages']
+            [
+                {
+                    'proc_id': 'a_type_a_name',
+                    'stages': [{'date_started': self.dataset._now(), 'stage_name': 'a_stage'}]
+                }
+            ],
+            elem_key='proc_id'
+        )
+
+    @patched_most_recent_proc(fake_analysis_driver_proc_stages)
+    @patched_post_or_patch
+    def test_end_stage(self, mocked_post_or_patch, mocked_most_recent_proc):
+        self.dataset.end_stage('a_stage', 0)
+        mocked_post_or_patch.assert_called_with(
+            'analysis_driver_procs',
+            [
+                {
+                    'proc_id': 'a_type_a_name',
+                    'stages': [
+                        {
+                            'date_started': 'a_start_date',
+                             'stage_name': 'a_stage',
+                             'exit_status': 0,
+                             'date_finished': self.dataset._now()
+                        }
+                    ]
+                }
+            ],
+            elem_key='proc_id'
         )
 
     def test_stages(self):

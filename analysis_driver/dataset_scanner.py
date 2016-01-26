@@ -36,7 +36,7 @@ class Dataset:
         self.pid = None
         self.proc_id = self._most_recent_proc().get('proc_id', '_'.join((self.type, self.name)))
 
-    def _most_recent_proc(self, embedded_stages=False):
+    def _most_recent_proc(self):
         # TODO: add embedding, sort, etc. support into rest_communication - see genologics.lims
         query_url = ''.join(
             (
@@ -48,8 +48,6 @@ class Dataset:
                 '"}&sort=-_created'
             )
         )
-        if embedded_stages:
-            query_url += '&embedding={"stages":1}'
         procs = requests.request('GET', query_url).json()['data']
         if procs:
             return procs[0]
@@ -140,12 +138,25 @@ class Dataset:
         if not patch_success:
             self._create_process(status=status, end_date=end_date)
 
-    def add_stage(self, stage):
-        new_content = {'proc_id': self.proc_id, 'stages': [stage]}
-        rest_communication.post_or_patch('analysis_driver_procs', [new_content], update_lists=['stages'])
+    def add_stage(self, stage_name):
+        stages = self._most_recent_proc().get('stages', [])
+        new_stage = {
+            'date_started': self._now(),
+            'stage_name': stage_name
+        }
+        stages.append(new_stage)
+        new_content = {'proc_id': self.proc_id, 'stages': stages}
+        rest_communication.post_or_patch('analysis_driver_procs', [new_content], elem_key='proc_id')
 
-    def remove_stage(self, stage):
-        pass
+    def end_stage(self, stage_name, exit_status):
+        stages = self._most_recent_proc().get('stages')
+        for s in stages:
+            if s['stage_name'] == stage_name:
+                s['date_finished'] = self._now()
+                s['exit_status'] = exit_status
+
+        new_content = {'proc_id': self.proc_id, 'stages': stages}
+        rest_communication.post_or_patch('analysis_driver_procs', [new_content], elem_key='proc_id')
 
     @property
     def stages(self):
