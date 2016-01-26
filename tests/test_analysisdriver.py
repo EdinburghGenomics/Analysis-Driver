@@ -20,18 +20,3 @@ class TestAnalysisDriver(TestCase):
         print()
         print('observed', '\n', observed, '\n', 'expected', '\n', expected)
         assert sorted(observed) == sorted(expected)
-
-    def setup_db(self, db, endpoints):
-        db.clear()
-        for e in endpoints:
-            db[e] = self._fake_rest_data(e)
-
-    def _fake_rest_data(self, endpoint):
-        return {
-            'data': [],
-            '_meta': {'max_results': 25, 'total': 0, 'page': 1},
-            '_links': {
-                'self': {'href': endpoint, 'title': endpoint},
-                'parent': {'href': '/', 'title': 'home'}
-            }
-        }

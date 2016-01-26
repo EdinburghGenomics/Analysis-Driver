@@ -1,11 +1,10 @@
 __author__ = 'mwham'
 import os
-from unittest.mock import patch
 from tests.test_analysisdriver import TestAnalysisDriver
 from analysis_driver import transfer_data, executor
 from analysis_driver.dataset_scanner import RunDataset
 from analysis_driver.writer.bash_commands import rsync_from_to
-from tests.fake_rest_api import fake_request, DB, endpoints
+from tests.test_dataset_scanner import patched_request
 
 
 class TestProcessTrigger(TestAnalysisDriver):
@@ -18,14 +17,13 @@ class TestProcessTrigger(TestAnalysisDriver):
     def to_dir(self):
         return os.path.join(self.data_transfer, 'to')
 
-    @patch('requests.request', new=fake_request)
     def setUp(self):
-        self.setup_db(DB, endpoints)
-        self.dataset = RunDataset(
-            name='test_dataset',
-            path=os.path.join(self.from_dir, 'test_dataset'),
-            use_int_dir=False
-        )
+        with patched_request:
+            self.dataset = RunDataset(
+                name='test_dataset',
+                path=os.path.join(self.from_dir, 'test_dataset'),
+                use_int_dir=False
+            )
 
     def tearDown(self):
         for f in os.listdir(os.path.join(self.to_dir, self.dataset.name)):
