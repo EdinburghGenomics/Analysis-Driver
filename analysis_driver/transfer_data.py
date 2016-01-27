@@ -7,7 +7,7 @@ from analysis_driver.exceptions import AnalysisDriverError
 from analysis_driver.writer.bash_commands import rsync_from_to, is_remote_path
 from analysis_driver.app_logging import get_logger
 from analysis_driver.config import default as cfg
-from analysis_driver.report_generation import ELEMENT_RUN_NAME, ELEMENT_LANE, ELEMENT_PROJECT, ELEMENT_PROJECT_ID
+from analysis_driver.report_generation import ELEMENT_RUN_NAME, ELEMENT_LANE, ELEMENT_PROJECT, ELEMENT_PROJECT_ID, ELEMENT_NB_READS_PASS_FILTER
 from analysis_driver.util import fastq_handler
 
 app_logger = get_logger(__name__)
@@ -42,7 +42,8 @@ def prepare_sample_data(dataset):
     fastqs = []
 
     for run_element in dataset.run_elements:
-        fastqs.extend(_find_fastqs_for_sample(dataset.name, run_element))
+        if int(run_element.get(ELEMENT_NB_READS_PASS_FILTER, 0)) > 0:
+            fastqs.extend(_find_fastqs_for_sample(dataset.name, run_element))
     return fastqs
 
 
