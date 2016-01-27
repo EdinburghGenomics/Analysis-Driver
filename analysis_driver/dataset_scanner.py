@@ -319,7 +319,7 @@ class SampleScanner(DatasetScanner):
         super().__init__(cfg)
         self.data_threshold = cfg.get('data_threshold')
 
-    def _list_datasets(self, query=None):
+    def _list_datasets(self, query=None):  # TODO: add depagination to rest_communication
         datasets = []
         if query is None:
             query = 'samples'

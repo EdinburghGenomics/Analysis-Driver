@@ -29,6 +29,10 @@ def _touch(path):
     open(path, 'w').close()
 
 
+def api(endpoint):
+    return cfg.query('rest_api', 'url') + '/' + endpoint
+
+
 fake_analysis_driver_proc = {
     'dataset_type': 'a_type', 'dataset_name': 'a_name', 'proc_id': 'a_type_a_name', 'status': 'a_status'
 }
@@ -41,19 +45,25 @@ fake_analysis_driver_proc_stages = {
     'proc_id': 'a_type_a_name',
     'stages': [{'date_started': 'a_start_date', 'stage_name': 'a_stage'}]
 }
-
+fake_sample = {
+    'library_id': 'a_library_id',
+    'project_id': 'a_project_id',
+    'sample_id': 'a_sample_id',
+    'user_sample_id': 'a_user_sample_id',
+}
 
 class FakeRestResponse(Mock):
     def json(self):
         return self.content
 
 
-patched_request = patch('requests.request', return_value=FakeRestResponse(content={'data': [fake_analysis_driver_proc]}))
+patched_request = patch('requests.request', return_value=FakeRestResponse(content={'_links': {}, 'data': [fake_analysis_driver_proc]}))
 patched_post = patch('analysis_driver.report_generation.rest_communication.post_entry', return_value=True)
 patched_patch = patch('analysis_driver.report_generation.rest_communication.patch_entry', return_value=False)
 patched_post_or_patch = patch('analysis_driver.report_generation.rest_communication.post_or_patch')
 patched_change_status = patch('analysis_driver.dataset_scanner.Dataset._change_status')
 patched_expected_yield = patch('analysis_driver.dataset_scanner.get_expected_yield_for_sample', return_value=1000000000)
+patched_get_fake_sample = patch('analysis_driver.dataset_scanner.requests.get', return_value=FakeRestResponse(content={'_links': {}, 'data': [fake_sample]}))
 
 
 def patched_dataset_status(status=DATASET_NEW):
@@ -85,7 +95,7 @@ class TestDataset(TestAnalysisDriver):
             assert proc == fake_analysis_driver_proc
             mocked_instance.assert_called_with(
                 'GET',
-                self._api('analysis_driver_procs') + '?where={"dataset_type":"' + self.dataset.type + '","dataset_name":"test_dataset"}&sort=-_created'
+                api('analysis_driver_procs') + '?where={"dataset_type":"' + self.dataset.type + '","dataset_name":"test_dataset"}&sort=-_created'
             )
 
     def test_create_process(self):
@@ -100,7 +110,7 @@ class TestDataset(TestAnalysisDriver):
                 'end_date': 'an_end_date'
             }
             mocked_patch.assert_called_with(
-                self._api('analysis_driver_procs'), [proc]
+                api('analysis_driver_procs'), [proc]
             )
             mocked_post_or_patch.assert_called_with(
                 self.dataset.endpoint,
@@ -125,7 +135,7 @@ class TestDataset(TestAnalysisDriver):
         with patched_patch as mocked_patch:
             self.dataset._change_status('a_status', finish=True)
             mocked_patch.assert_called_with(
-                self._api('analysis_driver_procs/'),
+                api('analysis_driver_procs/'),
                 {
                     'status': 'a_status',
                     'dataset_type': self.dataset.type,
@@ -245,10 +255,6 @@ class TestDataset(TestAnalysisDriver):
     def setup_dataset(self):
         with patched_request:
             self.dataset = Dataset('test_dataset', os.path.join(self.base_dir, 'test_dataset'))
-
-    @staticmethod
-    def _api(endpoint):
-        return cfg.query('rest_api', 'url') + '/' + endpoint
 
 
 class TestRunDataset(TestDataset):
@@ -405,10 +411,15 @@ class TestScanner(TestAnalysisDriver):
 class TestRunScanner(TestScanner):
     @patched_request
     def test_get_dataset(self, mocked_instance):
-        observed = self.scanner._get_dataset(os.path.join(self.base_dir, 'test_dataset'))
-        expected = RunDataset('test_dataset', os.path.join(self.base_dir, 'test_dataset'), self.scanner.use_int_dir)
+        test_dataset_path = os.path.join(self.base_dir, 'test_dataset')
+        os.mkdir(test_dataset_path)
+        observed = self.scanner.get_dataset(test_dataset_path)
+        expected = RunDataset('test_dataset', test_dataset_path, self.scanner.use_int_dir)
         for a in ('name', 'path', 'use_int_dir'):
-                assert observed.__getattribute__(a) == expected.__getattribute__(a)
+            assert observed.__getattribute__(a) == expected.__getattribute__(a)
+
+    def test_list_datasets(self):
+        self.compare_lists(self.scanner._list_datasets(), os.listdir(self.base_dir))
 
     @patched_most_recent_proc({})
     def test_scan_datasets(self, mocked_instance):
@@ -439,10 +450,15 @@ class TestSampleScanner(TestScanner):
     @patched_request
     def test_get_dataset(self, mocked_instance):
         with patched_expected_yield:
-            observed = self.scanner._get_dataset(os.path.join(self.base_dir, 'test_dataset'))
+            observed = self.scanner.get_dataset(os.path.join(self.base_dir, 'test_dataset'))
             expected = SampleDataset('test_dataset', os.path.join(self.base_dir, 'test_dataset'))
             for a in ('name', 'path', 'data_threshold'):
                 assert observed.__getattribute__(a) == expected.__getattribute__(a)
+
+    @patched_get_fake_sample
+    def test_list_datasets(self, mocked_instance):
+        assert self.scanner._list_datasets() == ['a_sample_id']
+        mocked_instance.assert_called_with(api('samples'))
 
     @patched_request
     def test_scan_datasets(self, mocked_instance):
@@ -453,11 +469,8 @@ class TestSampleScanner(TestScanner):
             )
             for status in statuses:
                 print(status)
-                with patched_dataset_status(status):
+                with patched_dataset_status(status), patched_get_fake_sample:
                     datasets = self.scanner.scan_datasets()
                     assert list(datasets.keys()) == [status]
-                    self.compare_lists(
-                        observed=[d.name for d in datasets[status]],
-                        expected=['dataset_not_ready', 'dataset_ready']
-                    )
+                    self.compare_lists([d.name for d in datasets[status]], ['a_sample_id'])
 
