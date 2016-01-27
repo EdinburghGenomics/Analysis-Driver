@@ -44,16 +44,16 @@ def main():
 
     if any([args.abort, args.skip, args.reset, args.force, args.report, args.report_all]):
         for d in args.abort:
-            scanner.get(d).abort()
+            scanner.get_dataset(d).abort()
         for d in args.skip:
-            dataset = scanner.get(d)
+            dataset = scanner.get_dataset(d)
             dataset.reset()
             dataset.start()
             dataset.succeed()
         for d in args.reset:
-            scanner.get(d).reset()
+            scanner.get_dataset(d).reset()
         for d in args.force:
-            scanner.get(d).force()
+            scanner.get_dataset(d).force()
 
         if args.report:
             scanner.report()

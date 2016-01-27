@@ -212,7 +212,7 @@ class SampleDataset(Dataset):
     def _amount_data(self):
         return sum(
             [
-                int(r.get(ELEMENT_NB_Q30_R1)) + int(r.get(ELEMENT_NB_Q30_R2))
+                int(r.get(ELEMENT_NB_Q30_R1, 0)) + int(r.get(ELEMENT_NB_Q30_R2, 0))
                 for r in self.run_elements
             ]
         )
@@ -257,20 +257,18 @@ class DatasetScanner:
 
         n_datasets = 0
         datasets = defaultdict(list)
-        for name in os.listdir(self.input_dir):
+        for name in self._list_datasets():
             if name not in ignorables and not name.startswith('.'):
-                d = self.get(os.path.join(self.input_dir, name))
+                d = self.get_dataset(name)
                 datasets[d.dataset_status].append(d)
                 n_datasets += 1
         app_logger.debug('Found %s datasets' % n_datasets)
         return datasets
 
-    def get(self, name):
-        dataset_path = os.path.join(self.input_dir, name)
-        if os.path.exists(dataset_path):
-            return self._get_dataset(dataset_path)
+    def _list_datasets(self):
+        raise NotImplementedError
 
-    def _get_dataset(self, dataset_path):
+    def get_dataset(self, dataset_path):
         raise NotImplementedError
 
     def report(self, all_datasets=False):
@@ -303,12 +301,17 @@ class RunScanner(DatasetScanner):
         super().__init__(cfg)
         self.use_int_dir = 'intermediate_dir' in cfg
 
-    def _get_dataset(self, dataset_path):
-        return RunDataset(
-            name=os.path.basename(dataset_path),
-            path=dataset_path,
-            use_int_dir=self.use_int_dir
-        )
+    def _list_datasets(self):
+        return os.listdir(self.input_dir)
+
+    def get_dataset(self, name):
+        dataset_path = os.path.join(self.input_dir, name)
+        if os.path.exists(dataset_path):
+            return RunDataset(
+                name=os.path.basename(dataset_path),
+                path=dataset_path,
+                use_int_dir=self.use_int_dir
+            )
 
 
 class SampleScanner(DatasetScanner):
@@ -316,7 +319,21 @@ class SampleScanner(DatasetScanner):
         super().__init__(cfg)
         self.data_threshold = cfg.get('data_threshold')
 
-    def _get_dataset(self, dataset_path):
+    def _list_datasets(self, query=None):
+        datasets = []
+        if query is None:
+            query = 'samples'
+        url = cfg.query('rest_api', 'url').rstrip('/') + '/' + query
+        content = requests.get(url).json()
+        datasets.extend([d['sample_id'] for d in content['data']])
+
+        if 'next' in content['_links']:
+            next_query = content['_links']['next']['href']
+            datasets.extend(self._list_datasets(next_query))
+        return datasets
+
+    def get_dataset(self, name):
+        dataset_path = os.path.join(self.input_dir, name)
         return SampleDataset(
             name=os.path.basename(dataset_path),
             path=dataset_path,
