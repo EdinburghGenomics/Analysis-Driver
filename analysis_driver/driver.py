@@ -74,6 +74,12 @@ def demultiplexing_pipeline(dataset):
     crawler.send_data()
     ntf.end_stage('setup')
 
+    run_status = clarity.get_run(run_id).udf.get('Run Status')
+    # TODO: catch bcl2fastq error logs instead
+    if run_status != 'RunCompleted':
+        app_logger.error('Run status is \'%s\'. Stopping.' % run_status)
+        return 2
+
     # bcl2fastq
     ntf.start_stage('bcl2fastq')
     exit_status += executor.execute(
@@ -123,10 +129,11 @@ def demultiplexing_pipeline(dataset):
     # Find conversion xml file and send the results to the rest API
     conversion_xml = os.path.join(fastq_dir, 'Stats', 'ConversionStats.xml')
     if os.path.exists(conversion_xml):
+        app_logger.info('Found ConversionStats. Sending data.')
         crawler = RunCrawler(run_id, sample_sheet, conversion_xml)
+        # TODO: review whether we need this
         json_file = os.path.join(fastq_dir, 'demultiplexing_results.json')
         crawler.write_json(json_file)
-        crawler.update_json_per_sample(cfg['metadata_output_dir'])
         crawler.send_data()
     else:
         app_logger.error('File not found: %s' % conversion_xml)

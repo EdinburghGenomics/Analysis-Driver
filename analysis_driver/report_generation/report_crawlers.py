@@ -28,22 +28,7 @@ def gender_alias(gender):
 
 
 class Crawler(AppLogger):
-    @staticmethod
-    def _post_or_patch(endpoint, input_json, elem_key=None, update_lists=None):
-        """
-        :param str endpoint:
-        :param list input_json:
-        :param str elem_key:
-        """
-        url = '/'.join((cfg.query('rest_api', 'url').rstrip('/'), endpoint, ''))
-        success = True
-        for payload in input_json:
-            if not rest_communication.post_entry(url, payload):
-                elem_query = {}
-                if elem_key:
-                    elem_query = {elem_key: payload.pop(elem_key)}
-                success = success and rest_communication.patch_entry(url, payload, update_lists, **elem_query)
-        return success
+    pass
 
 
 class RunCrawler(Crawler):
@@ -168,20 +153,6 @@ class RunCrawler(Crawler):
         with open(json_file, 'w') as open_file:
             json.dump(payload, open_file, indent=4)
 
-    def update_json_per_sample(self, sample_dir):
-        self.libraries.values()
-        for library in self.libraries:
-            file_name = os.path.join(sample_dir, self.libraries[library][ELEMENT_SAMPLE_INTERNAL_ID])
-            if os.path.exists(file_name):
-                with open(file_name) as open_file:
-                    payload = json.load(open_file)
-            else:
-                payload = {}
-            for run_element_id in self.libraries[library][ELEMENT_RUN_ELEMENTS]:
-                payload[run_element_id] = self.barcodes_info[run_element_id]
-            with open(file_name, 'w') as open_file:
-                json.dump(payload, open_file, indent=4)
-
     def send_data(self):
         if not cfg.get('rest_api'):
             self.warn('rest_api is not set in the config: Cancel upload')
@@ -189,12 +160,12 @@ class RunCrawler(Crawler):
         
         return all(
             (
-                self._post_or_patch('run_elements', self.barcodes_info.values(), ELEMENT_RUN_ELEMENT_ID),
-                self._post_or_patch('unexpected_barcodes', self.unexpected_barcodes.values(), ELEMENT_RUN_ELEMENT_ID),
-                self._post_or_patch('lanes', self.lanes.values(), ELEMENT_LANE_ID),
-                self._post_or_patch('runs', [self.run], ELEMENT_RUN_NAME),
-                self._post_or_patch('samples', self.libraries.values(), ELEMENT_SAMPLE_INTERNAL_ID, update_lists=['run_elements']),
-                self._post_or_patch('projects', self.projects.values(), ELEMENT_PROJECT_ID, update_lists=['samples'])
+                rest_communication.post_or_patch('run_elements', self.barcodes_info.values(), ELEMENT_RUN_ELEMENT_ID),
+                rest_communication.post_or_patch('unexpected_barcodes', self.unexpected_barcodes.values(), ELEMENT_RUN_ELEMENT_ID),
+                rest_communication.post_or_patch('lanes', self.lanes.values(), ELEMENT_LANE_ID),
+                rest_communication.post_or_patch('runs', [self.run], ELEMENT_RUN_NAME),
+                rest_communication.post_or_patch('samples', self.libraries.values(), ELEMENT_SAMPLE_INTERNAL_ID, update_lists=['run_elements']),
+                rest_communication.post_or_patch('projects', self.projects.values(), ELEMENT_PROJECT_ID, update_lists=['samples'])
             )
         )
 
@@ -260,15 +231,10 @@ class SampleCrawler(Crawler):
                 sample[ELEMENT_CALLED_GENDER] = gender_alias(gender)
         return sample
 
-    def write_json(self, json_file):
-        payload = {'samples': list(self.sample)}
-        with open(json_file, 'w') as open_file:
-            json.dump(payload, open_file, indent=4)
-
     def send_data(self):
 
         if not cfg.get('rest_api'):
             self.warn('rest_api is not set in the config: Cancel upload')
             return
 
-        return self._post_or_patch('samples', [self.sample], ELEMENT_SAMPLE_INTERNAL_ID)
+        return rest_communication.post_or_patch('samples', [self.sample], ELEMENT_SAMPLE_INTERNAL_ID)
