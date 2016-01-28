@@ -4,6 +4,7 @@ import pytest
 from unittest.mock import patch, Mock, PropertyMock
 import os
 from tests.test_analysisdriver import TestAnalysisDriver
+from analysis_driver import util
 from analysis_driver.dataset_scanner import DatasetScanner, RunScanner, SampleScanner, DATASET_NEW, DATASET_READY, DATASET_PROCESSING, \
     DATASET_PROCESSED_FAIL, DATASET_PROCESSED_SUCCESS, DATASET_ABORTED, DATASET_REPROCESS, DATASET_FORCE_READY,\
     Dataset, RunDataset, SampleDataset
@@ -52,18 +53,27 @@ fake_sample = {
     'user_sample_id': 'a_user_sample_id',
 }
 
+
 class FakeRestResponse(Mock):
     def json(self):
         return self.content
 
 
-patched_request = patch('requests.request', return_value=FakeRestResponse(content={'_links': {}, 'data': [fake_analysis_driver_proc]}))
+patched_request = patch(
+    'requests.request',
+    return_value=FakeRestResponse(content={'_links': {}, 'data': [fake_analysis_driver_proc]})
+)
 patched_post = patch('analysis_driver.report_generation.rest_communication.post_entry', return_value=True)
 patched_patch = patch('analysis_driver.report_generation.rest_communication.patch_entry', return_value=False)
 patched_post_or_patch = patch('analysis_driver.report_generation.rest_communication.post_or_patch')
 patched_change_status = patch('analysis_driver.dataset_scanner.Dataset._change_status')
-patched_expected_yield = patch('analysis_driver.dataset_scanner.get_expected_yield_for_sample', return_value=1000000000)
-patched_get_fake_sample = patch('analysis_driver.dataset_scanner.requests.get', return_value=FakeRestResponse(content={'_links': {}, 'data': [fake_sample]}))
+patched_expected_yield = patch(
+    'analysis_driver.dataset_scanner.get_expected_yield_for_sample', return_value=1000000000
+)
+patched_get_fake_sample = patch(
+    'analysis_driver.dataset_scanner.requests.get',
+    return_value=FakeRestResponse(content={'_links': {}, 'data': [fake_sample]})
+)
 
 
 def patched_dataset_status(status=DATASET_NEW):
@@ -95,7 +105,12 @@ class TestDataset(TestAnalysisDriver):
             assert proc == fake_analysis_driver_proc
             mocked_instance.assert_called_with(
                 'GET',
-                api('analysis_driver_procs') + '?where={"dataset_type":"' + self.dataset.type + '","dataset_name":"test_dataset"}&sort=-_created'
+                util.str_join(
+                    api('analysis_driver_procs'),
+                    '?where={"dataset_type":"',
+                    self.dataset.type,
+                    '","dataset_name":"test_dataset"}&sort=-_created'
+                )
             )
 
     def test_create_process(self):
@@ -154,7 +169,7 @@ class TestDataset(TestAnalysisDriver):
             assert self.dataset.proc_id == self.dataset.type + '_test_dataset_' + self.dataset._now()
             mocked_change_status.assert_called_with(DATASET_PROCESSING, finish=False)
 
-        with patched_dataset_status(DATASET_ABORTED), pytest.raises(AssertionError) as e:
+        with patched_dataset_status(DATASET_ABORTED), pytest.raises(AssertionError):
             self.dataset.start()
 
     @patched_change_status
@@ -217,9 +232,9 @@ class TestDataset(TestAnalysisDriver):
                     'stages': [
                         {
                             'date_started': 'a_start_date',
-                             'stage_name': 'a_stage',
-                             'exit_status': 0,
-                             'date_finished': self.dataset._now()
+                            'stage_name': 'a_stage',
+                            'exit_status': 0,
+                            'date_finished': self.dataset._now()
                         }
                     ]
                 }
@@ -473,4 +488,3 @@ class TestSampleScanner(TestScanner):
                     datasets = self.scanner.scan_datasets()
                     assert list(datasets.keys()) == [status]
                     self.compare_lists([d.name for d in datasets[status]], ['a_sample_id'])
-

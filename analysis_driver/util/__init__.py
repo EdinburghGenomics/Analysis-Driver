@@ -1,7 +1,6 @@
 __author__ = 'mwham'
-import shutil
-import os.path
-from . import fastq_handler
+import os
+from glob import glob
 from analysis_driver import writer
 from analysis_driver.app_logging import get_logger
 from analysis_driver.config import default as cfg
@@ -32,19 +31,47 @@ def bcbio_prepare_samples_cmd(job_dir, sample_id, fastqs, user_sample_id=None):
     )
 
 
-def transfer_output_file(source, dest):
-    """
-    :param str source:
-    :param str dest:
-    :return: exit status
-    """
-    app_logger.info('Transferring file: ' + source)
-    if os.path.isfile(source):
-        app_logger.debug('Found file. Transferring.')
-        shutil.copyfile(source, dest)
+def find_files(*path_parts):
+    files = glob(os.path.join(*path_parts))
+    if files:
+        return files
 
-        app_logger.debug('Done')
-        return 0
+
+def find_file(*path_parts):
+    files = find_files(*path_parts)
+    if files:
+        return files[0]
+
+
+def str_join(*parts, separator=''):
+    return separator.join(parts)
+
+
+def find_fastqs(location, sample_project, sample_id, lane=None):
+    """
+    Find all .fastq.gz files in an input folder 'location/sample_project'
+    :param location: The overall directory to search
+    :param sample_project: The sample_project directory to search
+    :return: Full paths to *.fastq.gz files in the sample_project dir.
+    :rtype: list[str]
+    """
+    if lane:
+        pattern = os.path.join(sample_project, sample_id, '*L00%s*.fastq.gz' % lane)
     else:
-        app_logger.warning('Could not find output file.')
-        return 1
+        pattern = os.path.join(sample_project, sample_id, '*.fastq.gz')
+    fastqs = find_files(location, pattern)
+    app_logger.info('Found %s fastq files for %s' % (len(fastqs), pattern))
+    return fastqs
+
+
+def find_all_fastqs(location):
+    """
+    Return the results of find_fastqs as a flat list.
+    :return: Full paths to all *.fastq.gz files for all sample projects and sample ids in the input dir
+    :rtype: list[str]
+    """
+    fastqs = []
+    for name, dirs, files in os.walk(location):
+        fastqs.extend([os.path.join(name, f) for f in files if f.endswith('.fastq.gz')])
+    app_logger.info('Found %s fastqs in %s' % (len(fastqs), location))
+    return fastqs

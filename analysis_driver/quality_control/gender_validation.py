@@ -12,12 +12,11 @@ class GenderValidation(AppLogger, Thread):
     This class will perform the Gender validation steps. It subclasses Thread, allowing it to run in the
     background.
     """
-    def __init__(self, sample_id , vcf_file):
-        """
-        """
+    def __init__(self, sample_id, vcf_file):
         self.vcf_file = vcf_file
         self.sample_id = sample_id
         self.exception = None
+        self.return_value = None
         Thread.__init__(self)
 
     def _gender_call(self):
@@ -27,27 +26,28 @@ class GenderValidation(AppLogger, Thread):
         :return list of file containing the results of the validation.
         """
 
-        name, ext  = os.path.splitext(self.vcf_file)
+        name, ext = os.path.splitext(self.vcf_file)
         if ext == '.gz':
-            open = 'zcat'
-            name, dummy  = os.path.splitext(name)
+            file_opener = 'zcat'
+            name, dummy = os.path.splitext(name)
         else:
-            open = 'cat'
+            file_opener = 'cat'
 
         gender_call_file = name + '.sex'
 
-        command =  '''%s %s | grep '^chrX' | awk '{split($10,a,":"); count[a[1]]++; total++} END{for (g in count){print g" "count[g]/total}}' | grep '0/1' | awk '{if ($2>.35){gender="FEMALE"}else{if ($2<.15){gender="MALE"}else{gender="UNKNOWN"}} print gender}' > %s'''
+        command = '''%s %s | grep '^chrX' | awk '{split($10,a,":"); count[a[1]]++; total++} END{for (g in count){print g" "count[g]/total}}' | grep '0/1' | awk '{if ($2>.35){gender="FEMALE"}else{if ($2<.15){gender="MALE"}else{gender="UNKNOWN"}} print gender}' > %s'''
         self.info(command)
-        command = command%(open, self.vcf_file, gender_call_file)
+        command = command % (file_opener, self.vcf_file, gender_call_file)
 
-        return_code = executor.execute([command],
-                                       job_name='sex_dection',
-                                       run_id=self.sample_id,
-                                       walltime=6,
-                                       cpus=1,
-                                       mem=2,
-                                       log_command=False).join()
-        return return_code
+        return executor.execute(
+            [command],
+            job_name='sex_detection',
+            run_id=self.sample_id,
+            walltime=6,
+            cpus=1,
+            mem=2,
+            log_command=False
+        ).join()
 
     def run(self):
         try:
@@ -61,18 +61,19 @@ class GenderValidation(AppLogger, Thread):
             raise self.exception
         return self.return_value
 
+
 def main():
     args = _parse_args()
     os.makedirs(os.path.join(cfg['jobs_dir'], args.sample_id), exist_ok=True)
-    s = GenderValidation(args.sample_id,args.vcf_file)
+    s = GenderValidation(args.sample_id, args.vcf_file)
     s.start()
     return s.join()
+
 
 def _parse_args():
     p = argparse.ArgumentParser()
     p.add_argument('-v', '--vcf_file', dest="vcf_file", type=str, help='the vcf file used to detect the gender')
     p.add_argument('-s', '--sample_id', dest="sample_id", type=str, help='the sample id to be used as job directory')
-
 
     return p.parse_args()
 

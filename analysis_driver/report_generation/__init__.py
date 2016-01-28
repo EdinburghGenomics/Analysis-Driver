@@ -1,6 +1,5 @@
 __author__ = 'tcezard'
 
-
 ELEMENT_RUN_ELEMENT_ID = 'run_element_id'
 ELEMENT_RUN_NAME = 'run_id'
 ELEMENT_LANE_ID = 'lane_id'
@@ -37,3 +36,5 @@ ELEMENT_MEAN_COVERAGE = 'Mean coverage'
 ELEMENT_RUN_ELEMENTS = 'run_elements'
 ELEMENT_CALLED_GENDER = 'called_gender'
 ELEMENT_PROVIDED_GENDER = 'provided_gender'
+
+from .report_crawlers import RunCrawler, SampleCrawler

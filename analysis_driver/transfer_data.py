@@ -1,14 +1,13 @@
 __author__ = 'mwham'
-import glob
 import os
 from time import sleep
-from analysis_driver import executor, clarity
+from analysis_driver import executor, clarity, util
 from analysis_driver.exceptions import AnalysisDriverError
 from analysis_driver.writer.bash_commands import rsync_from_to, is_remote_path
 from analysis_driver.app_logging import get_logger
 from analysis_driver.config import default as cfg
-from analysis_driver.report_generation import ELEMENT_RUN_NAME, ELEMENT_LANE, ELEMENT_PROJECT, ELEMENT_PROJECT_ID, ELEMENT_NB_READS_PASS_FILTER
-from analysis_driver.util import fastq_handler
+from analysis_driver.report_generation import ELEMENT_RUN_NAME, ELEMENT_LANE, ELEMENT_PROJECT_ID,\
+    ELEMENT_NB_READS_PASS_FILTER
 
 app_logger = get_logger(__name__)
 
@@ -54,13 +53,13 @@ def _find_fastqs_for_sample(sample_id, run_element):
 
     local_fastq_dir = os.path.join(cfg['jobs_dir'], run_id, 'fastq')
     app_logger.debug('Searching for fastqs in ' + local_fastq_dir)
-    fastqs = fastq_handler.find_fastqs(local_fastq_dir, project_id, sample_id, lane)
+    fastqs = util.find_fastqs(local_fastq_dir, project_id, sample_id, lane)
     if fastqs:
         return fastqs
 
     remote_fastq_dir = os.path.join(cfg['input_dir'], run_id, 'fastq')
     app_logger.debug('Searching for fastqs in ' + remote_fastq_dir)
-    fastqs = fastq_handler.find_fastqs(remote_fastq_dir, project_id, sample_id, lane)
+    fastqs = util.find_fastqs(remote_fastq_dir, project_id, sample_id, lane)
     if fastqs:
         return fastqs
 
@@ -74,7 +73,7 @@ def _find_fastqs_for_sample(sample_id, run_element):
         app_logger.info('Transfer complete with exit status ' + str(exit_status))
 
         app_logger.info('Searching again for fastqs in ' + local_fastq_dir)
-        fastqs = glob.glob(os.path.join(cfg['jobs_dir'], sample_id, run_id, '*L00%s*.fastq.gz' % lane))
+        fastqs = util.find_files(cfg['jobs_dir'], sample_id, run_id, '*L00%s*.fastq.gz' % lane)
 
     if len(fastqs) != 2:
         raise AnalysisDriverError(
@@ -110,24 +109,19 @@ def _transfer_run_to_int_dir(dataset, from_dir, to_dir, repeat_delay, rsync_appe
     return exit_status
 
 
-def create_links_from_bcbio(sample_id, intput_dir, output_config, link_dir, query_lims=True):
+def create_links_from_bcbio(sample_id, input_dir, output_config, link_dir):
     exit_status = 0
-    user_sample_id = None
-    if query_lims:
-        user_sample_id = clarity.get_user_sample_name(sample_id)
-    if not user_sample_id:
-        user_sample_id = sample_id
-    os.makedirs(link_dir, exist_ok=True)
+    user_sample_id = clarity.get_user_sample_name(sample_id, lenient=True)
 
     links = []
     for output_record in output_config:
         src_pattern = os.path.join(
-            intput_dir,
+            input_dir,
             os.path.join(*output_record['location']),
             output_record['basename']
         ).format(runfolder=sample_id, sample_id=user_sample_id)
 
-        sources = glob.glob(src_pattern)
+        sources = util.find_files(src_pattern)
         if sources:
             source = sources[-1]
             link_file = os.path.join(

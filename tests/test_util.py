@@ -1,4 +1,5 @@
 __author__ = 'mwham'
+from unittest.mock import patch
 from tests.test_analysisdriver import TestAnalysisDriver
 from analysis_driver import util, transfer_data
 from analysis_driver.config import default as cfg
@@ -6,14 +7,9 @@ import shutil
 import os.path
 
 
-def test_setup_bcbio_run():
-    print('Setup_bcbio_run currently untestable')
-    assert True
-
-
-class TestFastqHandler(TestAnalysisDriver):
+class TestUtil(TestAnalysisDriver):
     def test_find_fastqs(self):
-        fastqs = util.fastq_handler.find_fastqs(self.fastq_path, '10015AT', '10015AT0001')
+        fastqs = util.find_fastqs(self.fastq_path, '10015AT', '10015AT0001')
         for file_name in ['10015AT0001_S6_L004_R1_001.fastq.gz', '10015AT0001_S6_L004_R2_001.fastq.gz',
                           '10015AT0001_S6_L005_R1_001.fastq.gz', '10015AT0001_S6_L005_R2_001.fastq.gz']:
             assert os.path.join(
@@ -21,21 +17,21 @@ class TestFastqHandler(TestAnalysisDriver):
             ) in fastqs
 
     def test_find_fastqs_with_lane(self):
-        fastqs = util.fastq_handler.find_fastqs(self.fastq_path, '10015AT', '10015AT0001', lane=4)
+        fastqs = util.find_fastqs(self.fastq_path, '10015AT', '10015AT0001', lane=4)
         for file_name in ['10015AT0001_S6_L004_R1_001.fastq.gz', '10015AT0001_S6_L004_R2_001.fastq.gz']:
             assert os.path.join(
                 self.fastq_path, '10015AT', '10015AT0001', file_name
             ) in fastqs
 
     def test_find_all_fastqs(self):
-        fastqs = util.fastq_handler.find_all_fastqs(self.fastq_path)
+        fastqs = util.find_all_fastqs(self.fastq_path)
         for file_name in ['10015AT0001_S6_L004_R1_001.fastq.gz', '10015AT0001_S6_L004_R2_001.fastq.gz']:
             assert os.path.join(
                 self.fastq_path, '10015AT', '10015AT0001', file_name
             ) in fastqs
 
 
-class TestOutputData(TestAnalysisDriver):
+class TestTransferData(TestAnalysisDriver):
     def setUp(self):
         self.param_remappings = (
             {'name': 'output_dir', 'new': os.path.join(self.data_output, 'to')},
@@ -99,16 +95,18 @@ class TestOutputData(TestAnalysisDriver):
             {'location': ['fastq', 'Stats'], 'basename': 'ConversionStats.xml'}
         ]
 
-        if os.path.isdir(os.path.join(self.data_output, 'linked_output_files')):
-            shutil.rmtree(os.path.join(self.data_output, 'linked_output_files'))
+        dir_with_linked_files = os.path.join(self.data_output, 'linked_output_files')
+        if os.path.isdir(dir_with_linked_files):
+            shutil.rmtree(dir_with_linked_files)
+        os.makedirs(dir_with_linked_files)
 
-        list_of_linked_files = transfer_data.create_links_from_bcbio(
-            sample_id,
-            self.data_output,
-            records,
-            os.path.join(self.data_output, 'linked_output_files'),
-            query_lims=False,
-        )
+        with patch('analysis_driver.clarity.get_user_sample_name', return_value=sample_id):
+            list_of_linked_files = transfer_data.create_links_from_bcbio(
+                sample_id,
+                self.data_output,
+                records,
+                dir_with_linked_files
+            )
 
         output_files = os.path.join(self.data_output, 'linked_output_files')
 

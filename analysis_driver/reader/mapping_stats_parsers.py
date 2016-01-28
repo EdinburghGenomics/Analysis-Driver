@@ -12,18 +12,18 @@ def parse_bamtools_stats(bamtools_stats):
     :return a tuple of 4 integers: total_reads, mapped_reads, duplicate_reads, proper_pairs
     """
     total_reads, mapped_reads, duplicate_reads, proper_pairs = None, None, None, None
-    with open(bamtools_stats) as open_file:
+    with open(bamtools_stats, 'r') as open_file:
         for line in open_file:
             sp_line = line.strip().split()
             if line.startswith('Total reads:'):
-                total_reads = int(sp_line[2])
+                total_reads = sp_line[2]
             elif line.startswith('Mapped reads:'):
-                mapped_reads = int(sp_line[2])
+                mapped_reads = sp_line[2]
             elif line.startswith('Duplicates:'):
-                duplicate_reads = int(sp_line[1])
+                duplicate_reads = sp_line[1]
             elif line.startswith("'Proper-pairs':"):
-                proper_pairs = int(sp_line[1])
-    return total_reads, mapped_reads, duplicate_reads, proper_pairs
+                proper_pairs = sp_line[1]
+    return int(total_reads), int(mapped_reads), int(duplicate_reads), int(proper_pairs)
 
 
 def parse_callable_bed_file(bed_file):

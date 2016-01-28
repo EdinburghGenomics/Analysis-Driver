@@ -1,0 +1,195 @@
+{
+    "libraries": {
+        "LP6002014-DTP_A01": {
+            "run_elements": [
+                "150723_E00306_0025_BHCHK3CCXX_1_ATTACTCG",
+                "150723_E00306_0025_BHCHK3CCXX_2_ATTACTCG"
+            ],
+            "sample_id": "10015AT0001",
+            "library_id": "LP6002014-DTP_A01",
+            "project_id": "10015AT"
+        },
+        "LP6002014-DTP_A02": {
+            "run_elements": [
+                "150723_E00306_0025_BHCHK3CCXX_1_TCCGGAGA",
+                "150723_E00306_0025_BHCHK3CCXX_2_TCCGGAGA"
+            ],
+            "sample_id": "10015AT0002",
+            "library_id": "LP6002014-DTP_A02",
+            "project_id": "10015AT"
+        }
+    },
+    "unexpected_barcodes": {
+        "150723_E00306_0025_BHCHK3CCXX_1_TGAAGCTA": {
+            "passing_filter_reads": 828,
+            "run_element_id": "150723_E00306_0025_BHCHK3CCXX_1_TGAAGCTA",
+            "barcode": "TGAAGCTA",
+            "lane": "1",
+            "pc_reads_in_lane": 0.000715125950262472,
+            "run_id": "150723_E00306_0025_BHCHK3CCXX"
+        },
+        "150723_E00306_0025_BHCHK3CCXX_2_CCCCCCCC": {
+            "passing_filter_reads": 22153,
+            "run_element_id": "150723_E00306_0025_BHCHK3CCXX_2_CCCCCCCC",
+            "barcode": "CCCCCCCC",
+            "lane": "2",
+            "pc_reads_in_lane": 0.020934269625228097,
+            "run_id": "150723_E00306_0025_BHCHK3CCXX"
+        },
+        "150723_E00306_0025_BHCHK3CCXX_2_NCCCCCCC": {
+            "passing_filter_reads": 9133,
+            "run_element_id": "150723_E00306_0025_BHCHK3CCXX_2_NCCCCCCC",
+            "barcode": "NCCCCCCC",
+            "lane": "2",
+            "pc_reads_in_lane": 0.008630554980689216,
+            "run_id": "150723_E00306_0025_BHCHK3CCXX"
+        },
+        "150723_E00306_0025_BHCHK3CCXX_1_CCCCCCCC": {
+            "passing_filter_reads": 4695,
+            "run_element_id": "150723_E00306_0025_BHCHK3CCXX_1_CCCCCCCC",
+            "barcode": "CCCCCCCC",
+            "lane": "1",
+            "pc_reads_in_lane": 0.00405497142087235,
+            "run_id": "150723_E00306_0025_BHCHK3CCXX"
+        }
+    },
+    "barcodes_info": {
+        "150723_E00306_0025_BHCHK3CCXX_1_unknown": {
+            "sample_id": "Undetermined",
+            "q30_bases_r2": 7746149,
+            "barcode": "unknown",
+            "lane": "1",
+            "library_id": "Undetermined",
+            "pc_reads_in_lane": 0.06973341693742993,
+            "q30_bases_r1": 9937085,
+            "run_element_id": "150723_E00306_0025_BHCHK3CCXX_1_unknown",
+            "project_id": "default",
+            "total_reads": 1696088,
+            "run_id": "150723_E00306_0025_BHCHK3CCXX",
+            "bases_r1": 12111000,
+            "passing_filter_reads": 80740,
+            "bases_r2": 12111000
+        },
+        "150723_E00306_0025_BHCHK3CCXX_2_unknown": {
+            "sample_id": "Undetermined",
+            "q30_bases_r2": 12445247,
+            "barcode": "unknown",
+            "lane": "2",
+            "library_id": "Undetermined",
+            "pc_reads_in_lane": 0.11535819212883558,
+            "q30_bases_r1": 15157909,
+            "run_element_id": "150723_E00306_0025_BHCHK3CCXX_2_unknown",
+            "project_id": "default",
+            "total_reads": 2335276,
+            "run_id": "150723_E00306_0025_BHCHK3CCXX",
+            "bases_r1": 18311100,
+            "passing_filter_reads": 122074,
+            "bases_r2": 18311100
+        },
+        "150723_E00306_0025_BHCHK3CCXX_2_ATTACTCG": {
+            "sample_id": "10015AT0001",
+            "q30_bases_r2": 49303565,
+            "barcode": "ATTACTCG",
+            "lane": "2",
+            "library_id": "LP6002014-DTP_A01",
+            "pc_reads_in_lane": 0.4407527000605736,
+            "q30_bases_r1": 61852875,
+            "run_element_id": "150723_E00306_0025_BHCHK3CCXX_2_ATTACTCG",
+            "project_id": "10015AT",
+            "total_reads": 466412,
+            "run_id": "150723_E00306_0025_BHCHK3CCXX",
+            "bases_r1": 69961800,
+            "passing_filter_reads": 466412,
+            "bases_r2": 69961800
+        },
+        "150723_E00306_0025_BHCHK3CCXX_1_TCCGGAGA": {
+            "sample_id": "10015AT0002",
+            "q30_bases_r2": 57184580,
+            "barcode": "TCCGGAGA",
+            "lane": "1",
+            "library_id": "LP6002014-DTP_A02",
+            "pc_reads_in_lane": 0.46638562562292823,
+            "q30_bases_r1": 73257234,
+            "run_element_id": "150723_E00306_0025_BHCHK3CCXX_1_TCCGGAGA",
+            "project_id": "10015AT",
+            "total_reads": 539999,
+            "run_id": "150723_E00306_0025_BHCHK3CCXX",
+            "bases_r1": 80999850,
+            "passing_filter_reads": 539999,
+            "bases_r2": 80999850
+        },
+        "150723_E00306_0025_BHCHK3CCXX_2_TCCGGAGA": {
+            "sample_id": "10015AT0002",
+            "q30_bases_r2": 48408701,
+            "barcode": "TCCGGAGA",
+            "lane": "2",
+            "library_id": "LP6002014-DTP_A02",
+            "pc_reads_in_lane": 0.4438891078105908,
+            "q30_bases_r1": 62355216,
+            "run_element_id": "150723_E00306_0025_BHCHK3CCXX_2_TCCGGAGA",
+            "project_id": "10015AT",
+            "total_reads": 469731,
+            "run_id": "150723_E00306_0025_BHCHK3CCXX",
+            "bases_r1": 70459650,
+            "passing_filter_reads": 469731,
+            "bases_r2": 70459650
+        },
+        "150723_E00306_0025_BHCHK3CCXX_1_ATTACTCG": {
+            "sample_id": "10015AT0001",
+            "q30_bases_r2": 58579087,
+            "barcode": "ATTACTCG",
+            "lane": "1",
+            "library_id": "LP6002014-DTP_A01",
+            "pc_reads_in_lane": 0.4638809574396418,
+            "q30_bases_r1": 72789430,
+            "run_element_id": "150723_E00306_0025_BHCHK3CCXX_1_ATTACTCG",
+            "project_id": "10015AT",
+            "total_reads": 537099,
+            "run_id": "150723_E00306_0025_BHCHK3CCXX",
+            "bases_r1": 80564850,
+            "passing_filter_reads": 537099,
+            "bases_r2": 80564850
+        }
+    },
+    "projects": {
+        "10015AT": {
+            "samples": [
+                "10015AT0002",
+                "10015AT0001"
+            ],
+            "project_id": "10015AT"
+        }
+    },
+    "lanes": {
+        "150723_E00306_0025_BHCHK3CCXX_1": {
+            "run_elements": [
+                "150723_E00306_0025_BHCHK3CCXX_1_TCCGGAGA",
+                "150723_E00306_0025_BHCHK3CCXX_1_ATTACTCG",
+                "150723_E00306_0025_BHCHK3CCXX_1_unknown"
+            ],
+            "lane_id": "150723_E00306_0025_BHCHK3CCXX_1",
+            "lane_number": 1,
+            "run_id": "150723_E00306_0025_BHCHK3CCXX"
+        },
+        "150723_E00306_0025_BHCHK3CCXX_2": {
+            "run_elements": [
+                "150723_E00306_0025_BHCHK3CCXX_2_TCCGGAGA",
+                "150723_E00306_0025_BHCHK3CCXX_2_ATTACTCG",
+                "150723_E00306_0025_BHCHK3CCXX_2_unknown"
+            ],
+            "lane_id": "150723_E00306_0025_BHCHK3CCXX_2",
+            "lane_number": 2,
+            "run_id": "150723_E00306_0025_BHCHK3CCXX"
+        }
+    },
+    "run": {
+        "run_elements": [
+            "150723_E00306_0025_BHCHK3CCXX_1_TCCGGAGA",
+            "150723_E00306_0025_BHCHK3CCXX_2_TCCGGAGA",
+            "150723_E00306_0025_BHCHK3CCXX_1_ATTACTCG",
+            "150723_E00306_0025_BHCHK3CCXX_2_ATTACTCG"
+        ],
+        "number_of_lanes": 2,
+        "run_id": "150723_E00306_0025_BHCHK3CCXX"
+    }
+}

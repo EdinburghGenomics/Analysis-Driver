@@ -23,7 +23,7 @@ def pipeline(dataset):
         exit_status = demultiplexing_pipeline(dataset)
     elif isinstance(dataset, SampleDataset):
         species = clarity.get_species_from_sample(dataset.name)
-        # TODO: Assume species is Human if not specified for now change this when can garantee that all samples have species
+        # TODO: Remove human default when can guarantee that all samples have species
         if species == 'Homo sapiens' or species is None:
             exit_status = variant_calling_pipeline(dataset)
         else:
@@ -96,7 +96,7 @@ def demultiplexing_pipeline(dataset):
     # fastqc
     ntf.start_stage('fastqc')
     fastqc_executor = executor.execute(
-        [writer.bash_commands.fastqc(fq) for fq in util.fastq_handler.find_all_fastqs(fastq_dir)],
+        [writer.bash_commands.fastqc(fq) for fq in util.find_all_fastqs(fastq_dir)],
         job_name='fastqc',
         run_id=run_id,
         cpus=1,
@@ -106,7 +106,7 @@ def demultiplexing_pipeline(dataset):
     # md5sum
     ntf.start_stage('md5sum')
     md5sum_executor = executor.execute(
-        [writer.bash_commands.md5sum(fq) for fq in util.fastq_handler.find_all_fastqs(fastq_dir)],
+        [writer.bash_commands.md5sum(fq) for fq in util.find_all_fastqs(fastq_dir)],
         job_name='md5sum',
         run_id=run_id,
         cpus=1,
@@ -165,10 +165,6 @@ def variant_calling_pipeline(dataset):
     sample_dir = os.path.join(cfg['jobs_dir'], sample_id)
     app_logger.info('Job dir: ' + sample_dir)
 
-    user_sample_id = clarity.get_user_sample_name(sample_id)
-    if not user_sample_id:
-        user_sample_id = sample_id
-
     # merge fastq files
     ntf.start_stage('merge fastqs')
     fastq_pair = _bcbio_prepare_sample(sample_dir, sample_id, fastq_files)
@@ -210,46 +206,22 @@ def variant_calling_pipeline(dataset):
         return bcbio_exit_status
     exit_status += fastqc2_exit_status + bcbio_exit_status
 
-    # Create the links from the bcbio output to one directory
     dir_with_linked_files = os.path.join(sample_dir, 'linked_output_files')
-    linked_files = create_links_from_bcbio(sample_id, sample_dir, output_files_config.query('bcbio'), dir_with_linked_files)
+    os.makedirs(dir_with_linked_files, exist_ok=True)
 
-    #Run the gender detection
-    vcf_file = os.path.join(dir_with_linked_files, user_sample_id + '.vcf.gz')
-    GenderValidation(sample_id, vcf_file)
+    # Run gender detection
+    vcf_file = os.path.join(
+        dir_with_linked_files, clarity.get_user_sample_name(sample_id, lenient=True) + 'vcf.gz'
+    )
+    GenderValidation(sample_id, vcf_file).join()
 
-    # Upload the data to the rest API
-    project_id = clarity.find_project_from_sample(sample_id)
-    crawler = SampleCrawler(sample_id,  project_id,  dir_with_linked_files)
-    crawler.send_data()
-
-    ntf.start_stage('md5sum')
-    md5sum_exit_status = executor.execute(
-        [writer.bash_commands.md5sum(f) for f in linked_files],
-        job_name='md5sum',
-        run_id=sample_id,
-        cpus=1,
-        mem=2,
-        log_command=False
-    ).join()
-    ntf.end_stage('md5sum', md5sum_exit_status)
-
-    exit_status += md5sum_exit_status
-
-    # transfer output data
-    ntf.start_stage('data_transfer')
-    transfer_exit_status = output_sample_data(sample_id, dir_with_linked_files, cfg['output_dir'])
-    ntf.end_stage('data_transfer', transfer_exit_status)
-    exit_status += transfer_exit_status
-
-    if exit_status == 0:
-        ntf.start_stage('cleanup')
-        exit_status += _cleanup(sample_id)
-        ntf.end_stage('cleanup', exit_status)
+    exit_status += _output_data(sample_dir, sample_id, 'bcbio', dir_with_linked_files)
     return exit_status
 
 
 def qc_pipeline(dataset, species):
+    exit_status = 0
+
     dataset.start()
     fastq_files = prepare_sample_data(dataset)
 
@@ -276,11 +248,11 @@ def qc_pipeline(dataset, species):
     # bwa mem
     expected_output_bam = os.path.join(sample_dir, sample_id + '.bam')
     reference = cfg.query('references', species.replace(' ', '_'), 'fasta')
-    app_logger.info("align %s to %s genome found at %s"%(sample_id, species, reference))
+    app_logger.info('align %s to %s genome found at %s' % (sample_id, species, reference))
     ntf.start_stage('sample_bwa')
     bwa_mem_executor = executor.execute(
-            [writer.bash_commands.bwa_mem_samblaster(fastq_pair, reference, expected_output_bam, thread=16)],
-            job_name='bwa_mem',
+        [writer.bash_commands.bwa_mem_samblaster(fastq_pair, reference, expected_output_bam, thread=16)],
+        job_name='bwa_mem',
         run_id=sample_id,
         cpus=12,
         mem=32
@@ -294,8 +266,8 @@ def qc_pipeline(dataset, species):
     ntf.start_stage('bamtools_stat')
     bamtools_stat_file = os.path.join(sample_dir, 'bamtools_stats.txt')
     bamtools_exit_status = executor.execute(
-            [writer.bash_commands.bamtools_stats(expected_output_bam, bamtools_stat_file)],
-            job_name='bamtools',
+        [writer.bash_commands.bamtools_stats(expected_output_bam, bamtools_stat_file)],
+        job_name='bamtools',
         run_id=sample_id,
         cpus=2,
         mem=4,
@@ -303,19 +275,31 @@ def qc_pipeline(dataset, species):
     ).join()
     ntf.end_stage('bamtools_stat', bamtools_exit_status)
 
-    exit_status = sum([fastqc_exit_status, bwa_exit_status, bamtools_exit_status])
+    exit_status += fastqc_exit_status + bwa_exit_status + bamtools_exit_status
 
-    #TODO: this part is very similar with variant calling pipeline so we should be able to refactor it to use the same code
-    # Create the links from the bcbio output to one directory
     dir_with_linked_files = os.path.join(sample_dir, 'linked_output_files')
-    linked_files = create_links_from_bcbio(sample_id, sample_dir, output_files_config.query('non_human_qc'), dir_with_linked_files)
+    exit_status += _output_data(sample_dir, sample_id, 'non_human_qc', dir_with_linked_files)
+
+    return exit_status
+
+
+def _output_data(sample_dir, sample_id, output_fileset, link_dir):
+    exit_status = 0
+
+    # Create the links from the bcbio output to one directory
+    linked_files = create_links_from_bcbio(
+        sample_id,
+        sample_dir,
+        output_files_config.query(output_fileset),
+        link_dir
+    )
 
     # Upload the data to the rest API
     project_id = clarity.find_project_from_sample(sample_id)
-    crawler = SampleCrawler(sample_id,  project_id,  dir_with_linked_files)
+    crawler = SampleCrawler(sample_id, project_id, link_dir)
     crawler.send_data()
 
-    #md5sum
+    # md5sum
     ntf.start_stage('md5sum')
     md5sum_exit_status = executor.execute(
         [writer.bash_commands.md5sum(f) for f in linked_files],
@@ -332,7 +316,7 @@ def qc_pipeline(dataset, species):
 
     # transfer output data
     ntf.start_stage('data_transfer')
-    transfer_exit_status = output_sample_data(sample_id, dir_with_linked_files, cfg['output_dir'])
+    transfer_exit_status = output_sample_data(sample_id, link_dir, cfg['output_dir'])
     ntf.end_stage('data_transfer', transfer_exit_status)
     exit_status += transfer_exit_status
 
@@ -347,9 +331,7 @@ def _bcbio_prepare_sample(job_dir, sample_id, fastq_files):
     """
     Merge the fastq files per sample using bcbio prepare sample
     """
-    user_sample_id = clarity.get_user_sample_name(sample_id)
-    if not user_sample_id:
-        user_sample_id = sample_id
+    user_sample_id = clarity.get_user_sample_name(sample_id, lenient=True)
     cmd = util.bcbio_prepare_samples_cmd(job_dir, sample_id, fastq_files, user_sample_id=user_sample_id)
 
     exit_status = executor.execute([cmd], job_name='bcbio_prepare_samples', run_id=sample_id).join()

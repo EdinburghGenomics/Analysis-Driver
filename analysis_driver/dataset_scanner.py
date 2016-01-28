@@ -241,8 +241,8 @@ class SampleDataset(Dataset):
 
 
 class DatasetScanner:
-    def __init__(self, cfg):
-        self.input_dir = cfg.get('input_dir')
+    def __init__(self, config):
+        self.input_dir = config.get('input_dir')
 
     def scan_datasets(self):
         triggerignore = os.path.join(self.input_dir, '.triggerignore')
@@ -297,9 +297,9 @@ class DatasetScanner:
 
 
 class RunScanner(DatasetScanner):
-    def __init__(self, cfg):
-        super().__init__(cfg)
-        self.use_int_dir = 'intermediate_dir' in cfg
+    def __init__(self, config):
+        super().__init__(config)
+        self.use_int_dir = 'intermediate_dir' in config
 
     def _list_datasets(self):
         return os.listdir(self.input_dir)
@@ -315,9 +315,9 @@ class RunScanner(DatasetScanner):
 
 
 class SampleScanner(DatasetScanner):
-    def __init__(self, cfg):
-        super().__init__(cfg)
-        self.data_threshold = cfg.get('data_threshold')
+    def __init__(self, config):
+        super().__init__(config)
+        self.data_threshold = config.get('data_threshold')
 
     def _list_datasets(self, query=None):  # TODO: add depagination to rest_communication
         datasets = []

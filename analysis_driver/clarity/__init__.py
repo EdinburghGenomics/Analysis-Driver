@@ -62,6 +62,7 @@ def find_run_elements_from_sample(sample_name):
                 if not artifact.udf.get('Lane Failed?', False):
                     yield run_id, lane
 
+
 def get_species_information_from_ncbi(species):
     """Query NCBI taxomomy database to get the taxomoy id scientific name and common name
     Documentation available at http://www.ncbi.nlm.nih.gov/books/NBK25499/"""
@@ -69,7 +70,7 @@ def get_species_information_from_ncbi(species):
     payload = {'db': 'Taxonomy', 'term': species, 'retmode': 'JSON'}
     r = requests.get(esearch_url, params=payload)
     results = r.json()
-    taxid_list = taxid = results.get('esearchresult').get('idlist')
+    taxid_list = results.get('esearchresult').get('idlist')
     all_species_names = []
     for taxid in taxid_list:
         efetch_url = 'http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi'
@@ -99,6 +100,7 @@ def get_species_information_from_ncbi(species):
 
     return all_species_names[0]
 
+
 def get_species_from_sample(sample_name):
     lims = _get_lims_connection()
     samples = get_lims_samples(sample_name, lims)
@@ -114,6 +116,7 @@ def get_species_from_sample(sample_name):
         if taxid:
             return scientific_name
     return None
+
 
 def sanitize_user_id(user_id):
     if isinstance(user_id, str):
@@ -142,16 +145,19 @@ def get_lims_sample(sample_name, lims):
     return samples[0]
 
 
-def get_user_sample_name(sample_name):
+def get_user_sample_name(sample_name, lenient=False):
     """
     Query the LIMS and return the name the user gave to the sample
-    :param sample_name: the sample name from the Samplesheet.csv
+    :param str sample_name: the sample name from the Samplesheet.csv
+    :param bool lenient: If True, return the sample name if no user sample name found
     :return: the user's sample name or None
     """
     lims = _get_lims_connection()
     sample = get_lims_sample(sample_name, lims)
     if sample:
         return sanitize_user_id(sample.udf.get('User Sample Name'))
+    elif lenient:
+        return sample_name
 
 
 def get_sex_from_lims(sample_name):
@@ -160,6 +166,7 @@ def get_sex_from_lims(sample_name):
     if len(samples) == 1:
         gender = samples[0].udf.get('Gender')
         return gender
+
 
 def get_expected_yield_for_sample(sample_name):
     """
