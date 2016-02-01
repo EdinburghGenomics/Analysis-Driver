@@ -161,6 +161,21 @@ def get_sex_from_lims(sample_name):
         gender = samples[0].udf.get('Gender')
         return gender
 
+
+def get_genotype_information_from_lims(sample_name, output_file_name):
+    lims = _get_lims_connection()
+    sample = get_lims_sample(sample_name, lims)
+    if sample:
+        file_id = sample.udf('genotype_results')
+        if file_id:
+            file_content = lims.get_file_contents(id=file_id)
+            with open(file_content, 'w') as open_file:
+                open_file.write(file_content)
+        return output_file_name
+    return None
+
+
+
 def get_expected_yield_for_sample(sample_name):
     """
     Query the LIMS and return the number of bases expected for a sample

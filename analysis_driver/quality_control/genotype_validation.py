@@ -2,6 +2,7 @@ import os
 from threading import Thread
 from analysis_driver.app_logging import AppLogger
 from analysis_driver import executor
+from analysis_driver.clarity import get_genotype_information_from_lims
 from analysis_driver.exceptions import AnalysisDriverError
 from analysis_driver.notification import default as ntf
 from analysis_driver.config import default as cfg
@@ -19,6 +20,7 @@ class GenotypeValidation(AppLogger, Thread):
         """
         self.fastqs_files = fastqs_files
         self.sample_id = sample_id
+        self.work_directory = os.path.join(cfg['jobs_dir'], self.sample_id)
         self.validation_cfg = cfg.get('genotype-validation')
         self.validation_results = None
         self.exception = None
@@ -65,8 +67,7 @@ class GenotypeValidation(AppLogger, Thread):
         :rtype: list
         :return list of bam file containing the reads aligned.
         """
-        work_dir = os.path.join(cfg['jobs_dir'], self.sample_id)
-        expected_bam = os.path.join(work_dir, self.sample_id + 'geno_val.bam')
+        expected_bam = os.path.join(self.work_directory, self.sample_id + '_geno_val.bam')
 
         command = self._bwa_aln(
             self.fastqs_files,
@@ -74,7 +75,6 @@ class GenotypeValidation(AppLogger, Thread):
             expected_bam,
             self.validation_cfg.get('reference')
         )
-
         
         ntf.start_stage('genotype_validation_bwa')
         bwa_executor = executor.execute(
@@ -96,16 +96,18 @@ class GenotypeValidation(AppLogger, Thread):
         :rtype: str
         :return a vcf file that contains the variant for all samples.
         """
-        output_vcf = os.path.join(cfg['jobs_dir'], self.sample_id, self.sample_id + '_genotype_validation.vcf.gz')
-        gatk_command = ['java -Xmx4G -jar %s' % self.validation_cfg.get('gatk'),
-                        '-T UnifiedGenotyper',
-                        '-nt 4',
-                        '-R %s' % self.validation_cfg.get('reference'),
-                        ' --standard_min_confidence_threshold_for_calling 30.0',
-                        '--standard_min_confidence_threshold_for_emitting 0',
-                        '-out_mode EMIT_ALL_SITES']
-        gatk_command.append('-I %s' % bam_file)
-        gatk_command.append('-o %s' % output_vcf)
+        output_vcf = os.path.join(self.work_directory, self.sample_id + '_genotype_validation.vcf.gz')
+        gatk_command = [
+            'java -Xmx4G -jar %s' % self.validation_cfg.get('gatk'),
+            '-T UnifiedGenotyper',
+            '-nt 4',
+            '-R %s' % self.validation_cfg.get('reference'),
+            ' --standard_min_confidence_threshold_for_calling 30.0',
+            '--standard_min_confidence_threshold_for_emitting 0',
+            '-out_mode EMIT_ALL_SITES',
+            '-I %s' % bam_file,
+            '-o %s' % output_vcf
+        ]
 
         ntf.start_stage('genotype_validation_gatk')
         gatk_executor = executor.execute(
@@ -119,24 +121,20 @@ class GenotypeValidation(AppLogger, Thread):
         ntf.end_stage('genotype_validation_gatk', exit_status)
         return output_vcf
 
-    def _vcf_validation(self, vcf_file):
+    def _vcf_validation(self, vcf_file, genotype_vcf):
         """
         Validate SNPs against genotype data found in the genotypes_repository
         :param vcf_file: The vcf file containing the SNPs to validate.
         :rtype: list
         :return list of files containing the results of the validation.
         """
-        #TODO fetch from the LIMS the vcf file for that sample and store it in the sample folder
-        #genotype_file = os.path.join(genotypes_dir, self.sample_id + '.vcf')
-        genotype_file = None
-        work_dir = os.path.join(cfg['jobs_dir'], self.sample_id)
         list_commands = []
 
-        validation_result = os.path.join(work_dir, self.sample_id + 'validation.txt')
+        validation_result = os.path.join(self.work_directory, self.sample_id + 'validation.txt')
         gatk_command = ['java -Xmx4G -jar %s' % self.validation_cfg.get('gatk'),
                         '-T GenotypeConcordance',
                         '-eval:VCF %s ' % vcf_file,
-                        '-comp:VCF %s ' % genotype_file,
+                        '-comp:VCF %s ' % genotype_vcf,
                         '-R %s' % self.validation_cfg.get('reference'),
                         ' > %s' % validation_result]
         list_commands.append(' '.join(gatk_command))
@@ -161,10 +159,14 @@ class GenotypeValidation(AppLogger, Thread):
         :rtype: list
         :return list of file containing the results of the validation.
         """
-        bam_file = self._bwa_alignment()
-        vcf_file = self._snp_calling(bam_file)
-        validation_results = self._vcf_validation(vcf_file)
-        return validation_results
+        genotype_vcf = os.path.join(self.work_directory, self.sample_id + '_expected_genotype.vcf')
+        genotype_vcf = get_genotype_information_from_lims(self.sample_id, genotype_vcf)
+        if genotype_vcf:
+            bam_file = self._bwa_alignment()
+            vcf_file = self._snp_calling(bam_file)
+            validation_results = self._vcf_validation(vcf_file)
+            return validation_results
+        return None
 
     def run(self):
         try:
