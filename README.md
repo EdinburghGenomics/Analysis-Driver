@@ -18,7 +18,7 @@ The Analysis Driver consists of several modules, each in turn consisting of seve
 
 ### executor
 Classes and functions involved in running Bash commands externally. Executor classes that run locally include
-a non-threaded SimpleExecutor, a threaded StreamExecutor that streams its stdout/stderr as it runs, and an
+a non-threaded Executor, a threaded StreamExecutor that streams its stdout/stderr as it runs, and an
 ArrayExecutor that combines multiple Executors into a job array. ClusterExecutor calls
 `analysis_driver.writer` to write out a PBS, SGE, etc. Bash script and submit it to a queue. All Executor
 classes have a `join` method which returns an exit status.
@@ -28,7 +28,7 @@ classes have a `join` method which returns an exit status.
   `env` is 'local', in which case a local executor will be used.
 - ClusterExecutor - Converts a Bash command into a `subprocess.Popen` object, which is executed when
   `self.join` is called.
-- StreamExecutor - Subclasses SimpleExecutor and `threading.Thread`, making its Popen run in a sub-thread. To
+- StreamExecutor - Subclasses Executor and `threading.Thread`, making its Popen run in a sub-thread. To
   use, generate the object then either call `self.run` or call `self.start` and then ideally `self.join`
   later.
 - ArrayExecutor - Takes a list of Bash commands and generates an Executor object for each. In `self.run`, it

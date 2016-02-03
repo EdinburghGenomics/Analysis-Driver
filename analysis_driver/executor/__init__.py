@@ -1,4 +1,4 @@
-from .executor import SimpleExecutor, StreamExecutor, ClusterExecutor, ArrayExecutor
+from .executor import Executor, StreamExecutor, ClusterExecutor, ArrayExecutor
 from analysis_driver.config import default as cfg
 from analysis_driver.app_logging import get_logger
 
@@ -7,7 +7,7 @@ app_logger = get_logger('executor')
 
 def execute(cmds, env=None, **kwargs):
     """
-    :param list[str] cmds: A list where each item is a list of strings to be passed to SimpleExecutor
+    :param list[str] cmds: A list where each item is a list of strings to be passed to Executor
     :param bool cluster:
     :param kwargs:
     :return: Executor
@@ -18,7 +18,7 @@ def execute(cmds, env=None, **kwargs):
     if env == 'local':
         e = ArrayExecutor(cmds, stream=kwargs.get('stream', False))
     else:
-        e = ClusterExecutor(cmds, **kwargs)
+        e = ClusterExecutor(cmds, qsub=cfg.get('qsub', 'qsub'), **kwargs)
 
     e.start()
     return e
