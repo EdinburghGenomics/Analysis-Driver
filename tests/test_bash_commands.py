@@ -16,7 +16,7 @@ def test_bcl2fastq():
     helper.compare_lists(
         observed=bash_commands.bcl2fastq(helper.assets_path, helper.fastq_path, sample_sheet_csv, mask),
         expected=(
-            cfg['bcl2fastq'] +
+            cfg['tools']['bcl2fastq'] +
             ' -l INFO'
             ' --runfolder-dir ' + helper.assets_path +
             ' --output-dir ' + helper.fastq_path +

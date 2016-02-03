@@ -18,7 +18,7 @@ def execute(cmds, env=None, **kwargs):
     if env == 'local':
         e = ArrayExecutor(cmds, stream=kwargs.get('stream', False))
     else:
-        e = ClusterExecutor(cmds, qsub=cfg.get('qsub', 'qsub'), **kwargs)
+        e = ClusterExecutor(cmds, qsub=cfg.query('tools', 'qsub', ret_default='qsub'), **kwargs)
 
     e.start()
     return e

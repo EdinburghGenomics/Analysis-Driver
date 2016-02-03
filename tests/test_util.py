@@ -45,10 +45,8 @@ class TestTransferData(TestAnalysisDriver):
     def setUp(self):
         self.param_remappings = (
             {'name': 'output_dir', 'new': self._to_dir},
-            {'name': 'jobs_dir', 'new': os.path.join(self.data_output, 'jobs')},
-            {'name': 'qsub', 'new': '/bin/sh'}
+            {'name': 'jobs_dir', 'new': os.path.join(self.data_output, 'jobs')}
         )
-
         for p in self.param_remappings:
             p['original'] = cfg.get(p['name'])
             cfg.content[p['name']] = p['new']

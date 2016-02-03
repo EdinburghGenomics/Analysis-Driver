@@ -15,7 +15,7 @@ def bcl2fastq(input_dir, fastq_path, sample_sheet=None, mask=None):
     :rtype: str
     """
     cmd = '%s -l INFO --runfolder-dir %s --output-dir %s -r 8 -d 8 -p 8 -w 8' % (
-        cfg['bcl2fastq'], input_dir, fastq_path
+        cfg['tools']['bcl2fastq'], input_dir, fastq_path
     )
     if sample_sheet:
         cmd += ' --sample-sheet ' + sample_sheet
@@ -26,7 +26,7 @@ def bcl2fastq(input_dir, fastq_path, sample_sheet=None, mask=None):
 
 
 def fastqc(fastq, threads=1):
-    cmd = cfg['fastqc'] + ' --nogroup -t %s -q %s' % (threads, fastq)
+    cmd = cfg['tools']['fastqc'] + ' --nogroup -t %s -q %s' % (threads, fastq)
     app_logger.debug('Writing: ' + cmd)
     return cmd
 
@@ -62,12 +62,12 @@ def export_env_vars():
     """Write export statements for environment variables required by BCBio"""
     app_logger.debug('Writing Java paths')
     return (
-        _export('PATH', os.path.join(cfg['bcbio'], 'bin'), prepend=True),
-        _export('LD_LIBRARY_PATH', os.path.join(cfg['bcbio'], 'lib'), prepend=True),
-        _export('PERL5LIB', os.path.join(cfg['bcbio'], 'lib', 'perl5'), prepend=True),
-        _export('JAVA_HOME', cfg['jdk']),
-        _export('JAVA_BINDIR', os.path.join(cfg['jdk'], 'bin')),
-        _export('JAVA_ROOT', cfg['jdk']),
+        _export('PATH', os.path.join(cfg['tools']['bcbio'], 'bin'), prepend=True),
+        _export('LD_LIBRARY_PATH', os.path.join(cfg['tools']['bcbio'], 'lib'), prepend=True),
+        _export('PERL5LIB', os.path.join(cfg['tools']['bcbio'], 'lib', 'perl5'), prepend=True),
+        _export('JAVA_HOME', cfg['tools']['jdk']),
+        _export('JAVA_BINDIR', os.path.join(cfg['tools']['jdk'], 'bin')),
+        _export('JAVA_ROOT', cfg['tools']['jdk']),
         ''
     )
 
@@ -77,7 +77,7 @@ def bcbio(run_yaml, workdir, threads=10):
     :param run_yaml: The generated yaml config file to be run for the pipeline
     """
     cmd = '%s %s -n %s --workdir %s' % (
-        os.path.join(cfg['bcbio'], 'bin', 'bcbio_nextgen.py'), run_yaml, threads, workdir
+        os.path.join(cfg['tools']['bcbio'], 'bin', 'bcbio_nextgen.py'), run_yaml, threads, workdir
     )
     app_logger.debug('Writing: ' + cmd)
     return cmd

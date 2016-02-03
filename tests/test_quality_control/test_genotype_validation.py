@@ -25,7 +25,7 @@ class TestGenotypeValidation(TestAnalysisDriver):
         self.validator = GenotypeValidation(self.mapping, 'test_run')
 
     def test_bwa_aln(self):
-        vc = self.validator.validation_cfg
+        reference = self.validator.validation_cfg['reference']
         for sample_id in ['10015AT0001', '10015AT0002']:
             cmd = self.validator._bwa_aln(
                 self.mapping[sample_id],
@@ -34,18 +34,18 @@ class TestGenotypeValidation(TestAnalysisDriver):
                 cfg.query('genotype-validation', 'reference')
             )
             expected = (
-                vc['bwa'],
+                cfg['tools']['bwa'],
                 'sampe -r \'@RG\\tID:1\\tSM:%s\'' % sample_id,
-                vc['reference'],
-                '<(' + vc['bwa'], 'aln', vc['reference'], self.mapping[sample_id][0] + ')',
-                '<(' + vc['bwa'], 'aln', vc['reference'], self.mapping[sample_id][1] + ')',
+                reference,
+                '<(' + cfg['tools']['bwa'], 'aln', reference, self.mapping[sample_id][0] + ')',
+                '<(' + cfg['tools']['bwa'], 'aln', reference, self.mapping[sample_id][1] + ')',
                 self.mapping[sample_id][0],
                 self.mapping[sample_id][1],
                 '|',
-                vc['samblaster'], '--removeDups',
+                cfg['tools']['samblaster'], '--removeDups',
                 '|',
-                vc['samtools'], 'view -F 4 -Sb -',
+                cfg['tools']['samtools'], 'view -F 4 -Sb -',
                 '|',
-                vc['sambamba'], 'sort -t 16 -o ', sample_id + '.bam', '/dev/stdin'
+                cfg['tools']['sambamba'], 'sort -t 16 -o ', sample_id + '.bam', '/dev/stdin'
             )
-            assert cmd == ' '.join(expected)
+            self.compare_lists(cmd, ' '.join(expected))

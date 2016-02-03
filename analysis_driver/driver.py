@@ -359,7 +359,7 @@ def _run_bcbio(sample_id, sample_dir, sample_fastqs):
     bcbio_dir = os.path.join(sample_dir, 'samples_' + sample_id + '-merged')
 
     sample_prep = [
-        os.path.join(cfg['bcbio'], 'bin', 'bcbio_nextgen.py'),
+        os.path.join(cfg['tools']['bcbio'], 'bin', 'bcbio_nextgen.py'),
         '-w template',
         run_template,
         bcbio_dir,

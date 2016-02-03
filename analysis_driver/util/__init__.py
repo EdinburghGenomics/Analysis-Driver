@@ -23,7 +23,7 @@ def bcbio_prepare_samples_cmd(job_dir, sample_id, fastqs, user_sample_id=None):
     merged_dir = os.path.join(job_dir, 'merged')
     return ' '.join(
         (
-            os.path.join(cfg['bcbio'], 'bin', 'bcbio_prepare_samples.py'),
+            os.path.join(cfg['tools']['bcbio'], 'bin', 'bcbio_prepare_samples.py'),
             '--out',
             merged_dir,
             '--csv',

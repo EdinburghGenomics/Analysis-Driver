@@ -34,7 +34,7 @@ class GenotypeValidation(AppLogger, Thread):
         :rtype: str
         :return: A pipe-separated bash command
         """
-        bwa_bin = self.validation_cfg.get('bwa', 'bwa')
+        bwa_bin = cfg.query('tools', 'bwa', ret_default='bwa')
         if len(fastq_files) == 2:
             command_aln1 = '%s aln %s %s' % (bwa_bin, reference, fastq_files[0])
             command_aln2 = '%s aln %s %s' % (bwa_bin, reference, fastq_files[1])
@@ -51,10 +51,10 @@ class GenotypeValidation(AppLogger, Thread):
         else:
             raise AnalysisDriverError('Bad number of fastqs: ' + str(fastq_files))
 
-        command_samblaster = '%s --removeDups' % (self.validation_cfg.get('samblaster', 'samblaster'))
-        command_samtools = '%s view -F 4 -Sb -' % (self.validation_cfg.get('samtools', 'samtools'))
+        command_samblaster = '%s --removeDups' % (cfg.query('tools', 'samblaster', ret_default='samblaster'))
+        command_samtools = '%s view -F 4 -Sb -' % (cfg.query('tools', 'samtools', ret_default='samtools'))
         command_sambamba = '%s sort -t 16 -o  %s /dev/stdin' % (
-            self.validation_cfg.get('sambamba', 'sambamba'), expected_output_bam
+            cfg.query('tools', 'sambamba', ret_default='sambamba'), expected_output_bam
         )
 
         return ' | '.join([command_bwa, command_samblaster, command_samtools, command_sambamba])
@@ -102,7 +102,7 @@ class GenotypeValidation(AppLogger, Thread):
         :return a vcf file that contains the variant for all samples.
         """
         output_vcf = os.path.join(cfg['jobs_dir'], self.run_id, self.run_id + '_genotype_validation.vcf.gz')
-        gatk_command = ['java -Xmx4G -jar %s' % self.validation_cfg.get('gatk'),
+        gatk_command = ['java -Xmx4G -jar %s' % cfg['tools']['gatk'],
                         '-T UnifiedGenotyper',
                         '-nt 4',
                         '-R %s' % self.validation_cfg.get('reference'),
@@ -139,7 +139,7 @@ class GenotypeValidation(AppLogger, Thread):
         for sample_name in self.sample_to_fastqs:
             genotype_file = os.path.join(genotypes_dir, sample_name + '.vcf')
             validation_result = os.path.join(work_dir, sample_name + 'validation.txt')
-            gatk_command = ['java -Xmx4G -jar %s' % self.validation_cfg.get('gatk'),
+            gatk_command = ['java -Xmx4G -jar %s' % cfg['tools']['gatk'],
                             '-T GenotypeConcordance',
                             '-eval:VCF %s ' % vcf_file,
                             '-comp:VCF %s ' % genotype_file,
