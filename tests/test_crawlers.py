@@ -79,7 +79,7 @@ class TestSampleCrawler(TestCrawler):
         'sample_id': 'test_sample',
         'median_coverage': 30.156,
         'user_sample_id': 'test_sample',
-        'pc_callable': 0.9073362748507501,
+        'pc_callable': 0.24392084973311048,
         'project_id': 'test_project',
         'bam_file_reads': 988805087,
         'mapped_reads': 975587288,

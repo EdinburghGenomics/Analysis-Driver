@@ -34,12 +34,12 @@ class TestProcessTrigger(TestAnalysisDriver):
             )
         self.old_job_dir = cfg['jobs_dir']
         cfg.content['jobs_dir'] = self.data_transfer
-        os.makedirs(os.path.join(self.data_transfer, 'test_dataset'), exist_ok=True)
+        os.makedirs(os.path.join(self.data_transfer, self.dataset.name), exist_ok=True)
 
     def tearDown(self):
         for f in os.listdir(os.path.join(self.to_dir, self.dataset.name)):
             os.remove(os.path.join(self.to_dir, self.dataset.name, f))
-        shutil.rmtree(os.path.join(self.data_transfer, 'test_dataset'))
+        shutil.rmtree(os.path.join(self.data_transfer, self.dataset.name))
         cfg.content['jobs_dir'] = self.old_job_dir
 
     def test_transfer(self):
@@ -55,11 +55,3 @@ class TestProcessTrigger(TestAnalysisDriver):
             observed=os.listdir(new_dataset),
             expected=['RTAComplete.txt', 'thang', 'thing']
         )
-
-    def test_exclude(self):
-        cmd = rsync_from_to(
-            os.path.join(self.from_dir, self.dataset.name, ''),
-            self.to_dir,
-            exclude='thing'
-        )
-        assert '--exclude=thing' in cmd
