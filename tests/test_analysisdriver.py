@@ -15,7 +15,8 @@ class TestAnalysisDriver(TestCase):
     def exec_path(cls, executable):
         return os.path.join(cls.execs, executable)
 
-    def compare_lists(self, observed, expected):
+    @staticmethod
+    def compare_lists(observed, expected):
         print()
         print('observed', '\n', observed, '\n', 'expected', '\n', expected)
-        assert observed == expected
+        assert sorted(observed) == sorted(expected)

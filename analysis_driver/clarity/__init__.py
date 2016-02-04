@@ -190,6 +190,14 @@ def get_expected_yield_for_sample(sample_name):
             return nb_gb * 1000000000
 
 
+def get_run(run_id):
+    lims = _get_lims_connection()
+    runs = lims.get_processes(type='AUTOMATED - Sequence', udf={'RunID': run_id})
+    if len(runs) != 1:
+        app_logger.error('%s runs found for %s' % (len(runs), run_id))
+    if runs:
+        return runs[0]
+
 
 def run_tests():
     assert get_valid_lanes('HCH25CCXX') == [1, 2, 3, 4, 5, 6, 7]
