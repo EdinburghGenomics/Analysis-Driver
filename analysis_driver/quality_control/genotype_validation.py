@@ -164,7 +164,7 @@ class GenotypeValidation(AppLogger, Thread):
         if genotype_vcf:
             bam_file = self._bwa_alignment()
             vcf_file = self._snp_calling(bam_file)
-            validation_results = self._vcf_validation(vcf_file)
+            validation_results = self._vcf_validation(vcf_file, genotype_vcf)
             return validation_results
         return None
 
