@@ -1,3 +1,9 @@
+import glob
+
+from analysis_driver import executor
+from analysis_driver.exceptions import AnalysisDriverError
+from analysis_driver.writer.bash_commands import rsync_from_to, is_remote_path
+from analysis_driver.config import default as cfg
 __author__ = 'tcezard'
 import sys
 import os
@@ -19,16 +25,39 @@ def _parse_args():
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers()
 
-    run_parser = subparsers.add_parser('genotype')
-    run_parser.add_argument('--fastqs_files', nargs='+')
-    run_parser.add_argument('--sample_id', required = True)
-    run_parser.set_defaults(func=run_genotype_validation)
+    geno_val_parser = subparsers.add_parser('genotype_validation')
+    geno_val_parser.add_argument('--project_id', required=True)
+    geno_val_parser.add_argument('--sample_id', required = True)
+    geno_val_parser.set_defaults(func=run_genotype_validation)
 
     return parser.parse_args()
 
 
 def run_genotype_validation(args):
-    geno_val = GenotypeValidation(sorted(args.fastqs_files), args.sample_id)
+    #Get the sample specific config
+    cfg.merge(cfg['sample'])
+    projects_source = cfg.query('output_dir')
+    #Hack to retrive the fastq file from the CIFS share
+    if is_remote_path(projects_source):
+        # Need to retrieve the data localy
+        fastq_files = os.path.join(projects_source, args.project_id, args.sample_id, '*_R?.fastq.gz')
+        work_dir = os.path.join(cfg['jobs_dir'], args.sample_id)
+        cmd = rsync_from_to(fastq_files, work_dir)
+        exit_status = executor.execute(
+                [cmd],
+                job_name='fastqc2',
+                run_id=args.sample_id,
+                cpus=1,
+                mem=2
+        ).join()
+        if exit_status != 0:
+            raise AnalysisDriverError("Copy of the fastq files from remote has failed")
+
+        fastq_files = glob.glob(os.path.join(work_dir, '*_R?.fastq.gz'))
+    else:
+        fastq_files = glob.glob(os.path.join(projects_source, args.project_id, args.sample_id, '*_R?.fastq.gz'))
+
+    geno_val = GenotypeValidation(sorted(fastq_files), args.sample_id)
     geno_val.start()
     validation_results = geno_val.join()
 
