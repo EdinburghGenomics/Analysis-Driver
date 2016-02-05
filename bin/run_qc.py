@@ -1,10 +1,4 @@
 import glob
-
-from analysis_driver import executor
-from analysis_driver.exceptions import AnalysisDriverError
-from analysis_driver.writer.bash_commands import rsync_from_to, is_remote_path
-from analysis_driver.config import default as cfg
-__author__ = 'tcezard'
 import sys
 import os
 import argparse
@@ -13,6 +7,11 @@ import logging
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from analysis_driver.quality_control.genotype_validation import GenotypeValidation
 from analysis_driver.config import logging_default as log_cfg
+from analysis_driver import executor
+from analysis_driver.exceptions import AnalysisDriverError
+from analysis_driver.writer.bash_commands import rsync_from_to, is_remote_path
+from analysis_driver.config import default as cfg
+
 log_cfg.default_level = logging.DEBUG
 log_cfg.add_handler('stdout', logging.StreamHandler(stream=sys.stdout), logging.DEBUG)
 
@@ -37,15 +36,16 @@ def run_genotype_validation(args):
     #Get the sample specific config
     cfg.merge(cfg['sample'])
     projects_source = cfg.query('output_dir')
+    work_dir = os.path.join(cfg['jobs_dir'], args.sample_id)
+    os.makedirs(work_dir,exist_ok=True)
     #Hack to retrive the fastq file from the CIFS share
     if is_remote_path(projects_source):
         # Need to retrieve the data localy
         fastq_files = os.path.join(projects_source, args.project_id, args.sample_id, '*_R?.fastq.gz')
-        work_dir = os.path.join(cfg['jobs_dir'], args.sample_id)
         cmd = rsync_from_to(fastq_files, work_dir)
         exit_status = executor.execute(
                 [cmd],
-                job_name='fastqc2',
+                job_name='getfastq',
                 run_id=args.sample_id,
                 cpus=1,
                 mem=2

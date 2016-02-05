@@ -130,7 +130,7 @@ class GenotypeValidation(AppLogger, Thread):
         """
         list_commands = []
 
-        validation_result = os.path.join(self.work_directory, self.sample_id + 'validation.txt')
+        validation_result = os.path.join(self.work_directory, self.sample_id + '_genotype_validation.txt')
         gatk_command = ['java -Xmx4G -jar %s' % self.validation_cfg.get('gatk'),
                         '-T GenotypeConcordance',
                         '-eval:VCF %s ' % vcf_file,
@@ -153,17 +153,34 @@ class GenotypeValidation(AppLogger, Thread):
         ntf.end_stage('validation_genotype_concordance', exit_status)
         return validation_result
 
+    def _rename_expected_genotype(self, genotype_vcf, sample_name):
+        self.validation_cfg.get('bcftools')
+        tmp_genotype = genotype_vcf + '.tmp'
+        cmd = "%s reheader -s <(echo %s) %s > %s; mv %s %s"
+        cmd = cmd%(self.validation_cfg.get('bcftools'), sample_name, tmp_genotype, tmp_genotype, genotype_vcf)
+        exit_status = executor.execute(
+            cmd,
+            job_name='genotype_concordance',
+            run_id=self.sample_id,
+            cpus=4,
+            mem=8,
+            log_command=False
+        ).join()
+
+        return exit_status
+
     def _genotype_validation(self):
         """
         Perform validation for each of the samples from a run
         :rtype: list
         :return list of file containing the results of the validation.
         """
+        bam_file = self._bwa_alignment()
+        vcf_file = self._snp_calling(bam_file)
         genotype_vcf = os.path.join(self.work_directory, self.sample_id + '_expected_genotype.vcf')
         genotype_vcf = get_genotype_information_from_lims(self.sample_id, genotype_vcf)
         if genotype_vcf:
-            bam_file = self._bwa_alignment()
-            vcf_file = self._snp_calling(bam_file)
+            self._rename_expected_genotype(genotype_vcf, self.sample_id)
             validation_results = self._vcf_validation(vcf_file, genotype_vcf)
             return validation_results
         return None
