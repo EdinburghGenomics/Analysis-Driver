@@ -169,7 +169,6 @@ class RunCrawler(Crawler):
             )
         )
 
-
 class SampleCrawler(Crawler):
 
     def __init__(self, sample_id,  project_id,  sample_dir):
@@ -229,10 +228,10 @@ class SampleCrawler(Crawler):
                 gender_from_lims = get_sex_from_lims(self.sample_id)
                 sample[ELEMENT_PROVIDED_GENDER] = gender_alias(gender_from_lims)
                 sample[ELEMENT_CALLED_GENDER] = gender_alias(gender)
+
         return sample
 
     def send_data(self):
-
         if not cfg.get('rest_api'):
             self.warn('rest_api is not set in the config: Cancel upload')
             return
