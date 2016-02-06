@@ -26,7 +26,7 @@ class GenotypeValidation(AppLogger, Thread):
             self.seq_vcf_file = vcf_file
         else:
             self.seq_vcf_file = os.path.join(self.work_directory, self.sample_id + '_genotype_validation.vcf.gz')
-        self.validation_result = os.path.join(self.work_directory, self.sample_id + '_genotype_validation.txt')
+        self.validation_results = os.path.join(self.work_directory, self.sample_id + '_genotype_validation.txt')
         self.exception = None
         Thread.__init__(self)
 
@@ -138,7 +138,7 @@ class GenotypeValidation(AppLogger, Thread):
                         '-eval:VCF %s ' % vcf_file,
                         '-comp:VCF %s ' % genotype_vcf,
                         '-R %s' % self.validation_cfg.get('reference'),
-                        ' > %s' % self.validation_result]
+                        ' > %s' % self.validation_results]
         list_commands.append(' '.join(gatk_command))
 
 
@@ -189,7 +189,7 @@ class GenotypeValidation(AppLogger, Thread):
 
     def run(self):
         try:
-            self.validation_results = self._genotype_validation()
+            self._genotype_validation()
         except Exception as e:
             self.exception = e
 
@@ -197,4 +197,4 @@ class GenotypeValidation(AppLogger, Thread):
         super().join(timeout=timeout)
         if self.exception:
             raise self.exception
-        return self.validation_results
+        return self.seq_vcf_file, self.validation_results
