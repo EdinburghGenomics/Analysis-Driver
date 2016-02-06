@@ -11,6 +11,7 @@ from analysis_driver import executor
 from analysis_driver.exceptions import AnalysisDriverError
 from analysis_driver.writer.bash_commands import rsync_from_to, is_remote_path
 from analysis_driver.config import default as cfg
+from analysis_driver.clarity import get_user_sample_name
 
 log_cfg.default_level = logging.DEBUG
 log_cfg.add_handler('stdout', logging.StreamHandler(stream=sys.stdout), logging.DEBUG)
@@ -59,7 +60,22 @@ def run_genotype_validation(args):
 
     geno_val = GenotypeValidation(sorted(fastq_files), args.sample_id)
     geno_val.start()
-    validation_results = geno_val.join()
+    seq_vcf_file, validation_results = geno_val.join()
+    user_sample_id = get_user_sample_name(sample_name=args.sample_id)
+    output_commands = []
+    for f in [seq_vcf_file, validation_results]:
+        out_file = os.path.join(projects_source, args.project_id, args.sample_id, f.replace(args.sample_id, user_sample_id))
+        output_commands.append(rsync_from_to(f, out_file))
+
+    exit_status = executor.execute(
+            output_commands,
+            job_name='output_results',
+            run_id=args.sample_id,
+            cpus=1,mem=2).join()
+
+    if exit_status != 0:
+        raise AnalysisDriverError("Copy of the results files to remote has failed")
+
 
 if __name__ == '__main__':
     sys.exit(main())
