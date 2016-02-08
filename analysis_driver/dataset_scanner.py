@@ -218,7 +218,7 @@ class SampleDataset(Dataset):
         )
 
     def _runs(self):
-        return set([r.get(ELEMENT_RUN_NAME) for r in self.run_elements])
+        return sorted(set([r.get(ELEMENT_RUN_NAME) for r in self.run_elements]))
 
     @property
     def data_threshold(self):

@@ -65,6 +65,7 @@ class StreamExecutor(threading.Thread, Executor):
         super().join(timeout=timeout)
         if self.exception:
             self._stop()
+            self.error(self.exception.__class__.__name__ + ': ' + str(self.exception))
             raise AnalysisDriverError('self.proc command failed: ' + self.cmd)
         return self.proc.wait()
 
@@ -146,6 +147,7 @@ class ArrayExecutor(StreamExecutor):
         threading.Thread.join(self, timeout)
         if self.exception:
             self._stop()
+            self.error(self.exception.__class__.__name__ + ': ' + str(self.exception))
             raise AnalysisDriverError('Commands failed: ' + str(self.exit_statuses))
         self.info('Exit statuses: ' + str(self.exit_statuses))
         return sum(self.exit_statuses)

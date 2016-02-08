@@ -197,12 +197,12 @@ class TestStreamExecutor(TestExecutor):
         return executor.StreamExecutor(cmd)
 
     def test_cmd(self):
-        e = self._get_executor(os.path.join(os.path.dirname(__file__), 'assets', 'countdown.sh'))
+        e = self._get_executor(os.path.join(self.assets_path, 'countdown.sh'))
         e.start()
         assert e.join() == 0
 
     def test_dodgy_command(self):
-        e = self._get_executor(os.path.join(os.path.dirname(__file__), 'assets', 'countdown.sh') + ' dodgy')
+        e = self._get_executor(os.path.join(self.assets_path, 'countdown.sh') + ' dodgy')
         e.start()
         assert e.join() == 13  # same exit status as the running script
 
@@ -212,3 +212,57 @@ class TestStreamExecutor(TestExecutor):
             e.start()
             e.join()
             assert 'self.proc command failed: \'dodgy_cmd\'' in str(err)
+
+
+class TestArrayExecutor(TestExecutor):
+    def _get_executor(self, cmds):
+        return executor.ArrayExecutor(cmds, stream=True)
+
+    def test_cmd(self):
+        e = self._get_executor(['ls', 'ls -lh', 'pwd'])
+        e.start()
+        assert e.join() == 0
+        assert e.exit_statuses == [0, 0, 0]
+
+    def test_dodgy_cmd(self):
+        e = self._get_executor(['ls', 'non_existent_cmd', 'pwd'])
+        e.start()
+        with pytest.raises(AnalysisDriverError) as err:
+            e.join()
+            assert 'Commands failed' in str(err)
+
+
+class TestClusterExecutor(TestExecutor):
+    def setUp(self):
+        os.makedirs(os.path.join(self.assets_path, 'a_run_id'), exist_ok=True)
+        self.old_jobs_dir = cfg['jobs_dir']
+        cfg.content['jobs_dir'] = self.assets_path
+
+    def tearDown(self):
+        cfg.content['jobs_dir'] = self.old_jobs_dir
+        shutil.rmtree(os.path.join(self.assets_path, 'a_run_id'))
+
+    def _get_executor(self, cmd):
+        return executor.ClusterExecutor(
+            [cmd],
+            qsub=cfg.query('tools', 'qsub'),
+            job_name='test_job',
+            run_id='a_run_id'
+        )
+
+    def test_cmd(self):
+        e = self._get_executor(os.path.join(self.assets_path, 'countdown.sh'))
+        e.start()
+        assert e.join() == 0
+
+    def test_dodgy_cmd(self):
+        e = self._get_executor(os.path.join(self.assets_path, 'non_existent_script.sh'))
+        e.start()
+        assert e.join() == 127
+
+    def test_process(self):
+        e = self._get_executor(os.path.join(self.assets_path, 'countdown.sh'))
+        proc = e._process()
+        assert type(proc) is subprocess.Popen
+        assert proc.args == [cfg['tools']['qsub'], os.path.join(self.assets_path, 'a_run_id', 'test_job.pbs')]
+

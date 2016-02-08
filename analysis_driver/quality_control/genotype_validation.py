@@ -24,7 +24,8 @@ class GenotypeValidation(AppLogger, Thread):
         self.exception = None
         Thread.__init__(self)
 
-    def _bwa_aln(self, fastq_files, sample_name, expected_output_bam,  reference):
+    @staticmethod
+    def _bwa_aln(fastq_files, sample_name, expected_output_bam,  reference):
         """
         Contruct a command that will perform the alignment and duplicate removal using bwa aln.
         :param list fastq_files: 1 or 2 fastq files

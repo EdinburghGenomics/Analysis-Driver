@@ -126,7 +126,8 @@ def _process_dataset(d):
         exit_status = driver.pipeline(d)
         app_logger.info('Done')
 
-    except Exception:
+    except Exception as e:
+        app_logger.critical('Encountered a %s exception: %s' % (e.__class__.__name__, str(e)))
         d.fail()
         import traceback
         log_cfg.switch_formatter(log_cfg.blank_formatter)  # blank formatting for stacktrace
