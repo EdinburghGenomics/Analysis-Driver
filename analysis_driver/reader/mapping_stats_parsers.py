@@ -1,3 +1,6 @@
+from analysis_driver.report_generation import ELEMENT_NO_CALL_CHIP, ELEMENT_NO_CALL_SEQ, ELEMENT_MISMATCHING, \
+    ELEMENT_MATCHING
+
 __author__ = 'tcezard'
 from collections import Counter
 import csv
@@ -73,6 +76,45 @@ def parse_validate_csv(csv_file):
             elif row.get('variant.type') == 'indel' and row.get('category') == 'discordant-missing-total':
                 indel_disc += int(row.get('value'))
     return snp_conc, indel_conc, snp_disc, indel_disc
+
+
+def parse_genotype_concordance(genotype_concordance_file):
+    lines = []
+    with open(genotype_concordance_file) as open_file:
+        inside = False
+        for line in open_file:
+            if not line.strip():
+                inside = False
+            if inside:
+                lines.append(line)
+            if line.startswith('#'):
+                #header
+                if 'GenotypeConcordance_Counts' in  line:
+                    inside = True
+    headers = lines[0].split()
+    header_mapping = {}
+    ignore_keys = []
+    for key in headers:
+        if key.endswith('UNAVAILABLE'):
+            ignore_keys.append(key)
+        elif key.endswith('NO_CALL') or key.endswith('MIXED'):
+            header_mapping[key] = ELEMENT_NO_CALL_CHIP
+        elif key.startswith('NO_CALL') or key.startswith('UNAVAILABLE') or key.startswith('MIXED'):
+            header_mapping[key] = ELEMENT_NO_CALL_SEQ
+        elif key[:int((len(key)-1)/2)] == key[int((len(key)+1)/2):]:
+            header_mapping[key] = ELEMENT_MATCHING
+        else:
+            header_mapping[key] = ELEMENT_MISMATCHING
+
+    samples = {}
+    for sample_line in lines[1:]:
+        sp_line = sample_line.split()
+        sample_dict = Counter()
+        for i in range(1, len(headers)):
+            if headers[i] in header_mapping:
+                sample_dict[header_mapping[headers[i]]] += int(sp_line[i])
+        samples[sp_line[0]] = sample_dict
+    return samples
 
 
 def get_nb_sequence_from_fastqc_html(html_file):

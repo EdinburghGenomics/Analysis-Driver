@@ -139,7 +139,8 @@ def create_links_from_bcbio(sample_id, intput_dir, output_config, link_dir, quer
             links.append(link_file)
         else:
             app_logger.warning('No files found for pattern ' + src_pattern)
-            exit_status += 1
+            if output_record.get('required', True):
+                exit_status += 1
     if exit_status == 0:
         return links
 

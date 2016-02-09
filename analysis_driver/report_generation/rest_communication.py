@@ -80,5 +80,6 @@ def post_or_patch(endpoint, input_json, elem_key=None, update_lists=None):
             elem_query = {}
             if elem_key:
                 elem_query = {elem_key: payload.pop(elem_key)}
-            success = success and patch_entry(url, payload, update_lists, **elem_query)
+            success_tmp = patch_entry(url, payload, update_lists, **elem_query)
+            success = success and success_tmp
     return success
