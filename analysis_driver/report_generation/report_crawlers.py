@@ -4,9 +4,12 @@ import json
 import os
 from analysis_driver.clarity import get_sex_from_lims
 from analysis_driver.app_logging import AppLogger
+from analysis_driver.exceptions import AnalysisDriverError
 from analysis_driver.reader import demultiplexing_parsers, mapping_stats_parsers
+from analysis_driver.reader.demultiplexing_parsers import parse_seqtk_fqchk_file
 from analysis_driver.reader.mapping_stats_parsers import parse_genotype_concordance
-from analysis_driver.report_generation import rest_communication
+from analysis_driver.report_generation import rest_communication, ELEMENT_NB_READS_CLEANED, ELEMENT_NB_Q30_R1_CLEANED, \
+    ELEMENT_NB_BASE_R2_CLEANED, ELEMENT_NB_Q30_R2_CLEANED, ELEMENT_NB_BASE_R1_CLEANED
 from analysis_driver.config import default as cfg
 from analysis_driver.report_generation import ELEMENT_RUN_NAME, ELEMENT_NUMBER_LANE, ELEMENT_RUN_ELEMENTS, \
     ELEMENT_BARCODE, ELEMENT_RUN_ELEMENT_ID, ELEMENT_SAMPLE_INTERNAL_ID, ELEMENT_LIBRARY_INTERNAL_ID, \
@@ -33,11 +36,13 @@ class Crawler(AppLogger):
 
 
 class RunCrawler(Crawler):
-    def __init__(self, run_id, samplesheet, conversion_xml_file=None):
+    def __init__(self, run_id, samplesheet, conversion_xml_file=None, run_dir=None):
         self.run_id = run_id
         self._populate_barcode_info_from_sample_sheet(samplesheet)
         if conversion_xml_file:
             self._populate_barcode_info_from_conversion_file(conversion_xml_file)
+        if run_dir:
+            self._populate_barcode_info_from_seqtk_fqchk_files(run_dir)
 
     def _populate_barcode_info_from_sample_sheet(self, samplesheet):
         self.barcodes_info = {}
@@ -111,6 +116,33 @@ class RunCrawler(Crawler):
             self.lanes[lane_id][ELEMENT_RUN_ELEMENTS].append(unknown)
 
         self.run[ELEMENT_NUMBER_LANE] = len(self.lanes)
+
+    def _populate_barcode_info_from_seqtk_fqchk_files(self, run_dir ):
+        for run_element_id in self.barcodes_info:
+            barcode_info = self.barcodes_info.get(run_element_id)
+            self.barcodes_info[run_element_id][ELEMENT_RUN_NAME]
+            fq_chk_template = os.path.join(
+                    run_dir,
+                    'fastq',
+                    barcode_info[ELEMENT_PROJECT_ID],
+                    barcode_info[ELEMENT_SAMPLE_INTERNAL_ID],
+                    '*_S1_L00%s_R*_001.fastq.gz.fqchk'%barcode_info[ELEMENT_LANE]
+            )
+            fq_chk_files = glob.glob(fq_chk_template)
+            if len(fq_chk_files) == 2:
+                fq_chk_files.sort()
+                nb_read, nb_base, lo_q, hi_q = parse_seqtk_fqchk_file(fq_chk_files[0], q_threshold=30)
+                barcode_info[ELEMENT_NB_READS_CLEANED] = int(nb_read)
+                barcode_info[ELEMENT_NB_BASE_R1_CLEANED] = int(nb_base)
+                barcode_info[ELEMENT_NB_Q30_R1_CLEANED] = int(hi_q)
+                nb_read, nb_base, lo_q, hi_q = parse_seqtk_fqchk_file(fq_chk_files[1], q_threshold=30)
+                barcode_info[ELEMENT_NB_BASE_R2_CLEANED] = int(nb_base)
+                barcode_info[ELEMENT_NB_Q30_R2_CLEANED] = int(hi_q)
+            elif len(fq_chk_files) == 1:
+                raise AnalysisDriverError('Only one fqchk file found in %s for %s'%(run_dir, run_element_id))
+            elif len(fq_chk_files) != 0:
+                raise AnalysisDriverError('%s fqchk files found in %s for %s'%(len(fq_chk_files), run_dir, run_element_id))
+
 
     def _populate_barcode_info_from_conversion_file(self, conversion_xml_file):
         all_barcodes_per_lanes, top_unknown_barcodes_per_lanes = demultiplexing_parsers.parse_conversion_stats(conversion_xml_file)
