@@ -72,8 +72,21 @@ class TestGenotypeValidation(TestAnalysisDriver):
         assert mocked_execute.call_count == 1
         mocked_execute.assert_called_once_with([command], job_name='snpcall_gatk', run_id=self.sample_id, cpus=4, mem=4)
 
-    def test__vcf_validation(self):
-        pass
+    @patch('analysis_driver.executor.execute')
+    def test__vcf_validation(self, mocked_execute):
+        vcf_file = os.path.join('path/to/jobs', self.sample_id, self.sample_id + '_expected_genotype.vcf')
+        genotype_vcf = os.path.join('path/to/jobs', self.sample_id, self.sample_id + '_genotype_validation.vcf.gz')
+        vc = self.validator.validation_cfg
+        self.validator._vcf_validation(vcf_file, genotype_vcf)
+        command = ' '.join(
+                ['java -Xmx4G -jar %s' % vc.get('gatk'),
+                 '-T GenotypeConcordance',
+                 '-eval:VCF %s ' % vcf_file,
+                 '-comp:VCF %s ' % genotype_vcf,
+                 '-R %s' % vc.get('reference'),
+                 ' > %s' % self.validator.validation_results])
+        assert mocked_execute.call_count == 1
+        mocked_execute.assert_called_once_with([command], job_name='genotype_concordance', run_id=self.sample_id, cpus=4, mem=8, log_command=False)
 
     def test__genotype_validation(self):
         pass

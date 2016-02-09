@@ -5,6 +5,7 @@ import os
 from analysis_driver.clarity import get_sex_from_lims
 from analysis_driver.app_logging import AppLogger
 from analysis_driver.reader import demultiplexing_parsers, mapping_stats_parsers
+from analysis_driver.reader.mapping_stats_parsers import parse_genotype_concordance
 from analysis_driver.report_generation import rest_communication
 from analysis_driver.config import default as cfg
 from analysis_driver.report_generation import ELEMENT_RUN_NAME, ELEMENT_NUMBER_LANE, ELEMENT_RUN_ELEMENTS, \
@@ -228,6 +229,15 @@ class SampleCrawler(Crawler):
                 gender_from_lims = get_sex_from_lims(self.sample_id)
                 sample[ELEMENT_PROVIDED_GENDER] = gender_alias(gender_from_lims)
                 sample[ELEMENT_CALLED_GENDER] = gender_alias(gender)
+
+        genotype_validation_paths = glob.glob(os.path.join(sample_dir, '%s_genotype_validation.txt'%external_sample_name))
+        if genotype_validation_paths:
+            genotyping_results = parse_genotype_concordance(genotype_validation_paths[0])
+            genotyping_result = genotyping_results.get(self.sample_id)
+            if genotyping_result:
+                sample.update(genotyping_result)
+            else:
+                self.critical('Sample %s not found in file %s'%(self.sample_id, genotype_validation_paths[0]))
 
         return sample
 

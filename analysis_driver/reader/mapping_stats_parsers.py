@@ -1,3 +1,6 @@
+from analysis_driver.report_generation import ELEMENT_NO_CALL_CHIP, ELEMENT_NO_CALL_SEQ, ELEMENT_MISMATCHING, \
+    ELEMENT_MATCHING
+
 __author__ = 'tcezard'
 from collections import Counter
 import csv
@@ -95,13 +98,13 @@ def parse_genotype_concordance(genotype_concordance_file):
         if key.endswith('UNAVAILABLE'):
             ignore_keys.append(key)
         elif key.endswith('NO_CALL') or key.endswith('MIXED'):
-            header_mapping[key] = 'no_call_chip'
+            header_mapping[key] = ELEMENT_NO_CALL_CHIP
         elif key.startswith('NO_CALL') or key.startswith('UNAVAILABLE') or key.startswith('MIXED'):
-            header_mapping[key] = 'no_call_seq'
+            header_mapping[key] = ELEMENT_NO_CALL_SEQ
         elif key[:int((len(key)-1)/2)] == key[int((len(key)+1)/2):]:
-            header_mapping[key] = 'matching_snps'
+            header_mapping[key] = ELEMENT_MATCHING
         else:
-            header_mapping[key] = 'mismatching_snps'
+            header_mapping[key] = ELEMENT_MISMATCHING
 
     samples = {}
     for sample_line in lines[1:]:

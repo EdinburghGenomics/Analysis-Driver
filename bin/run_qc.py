@@ -64,7 +64,8 @@ def run_genotype_validation(args):
     user_sample_id = get_user_sample_name(sample_name=args.sample_id)
     output_commands = []
     for f in [seq_vcf_file, validation_results]:
-        out_file = os.path.join(projects_source, args.project_id, args.sample_id, f.replace(args.sample_id, user_sample_id))
+        bf = os.path.basename(f)
+        out_file = os.path.join(projects_source, args.project_id, args.sample_id, bf.replace(args.sample_id, user_sample_id))
         output_commands.append(rsync_from_to(f, out_file))
 
     exit_status = executor.execute(
