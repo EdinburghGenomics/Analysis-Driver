@@ -37,3 +37,9 @@ def test_bcbio():
     run_yaml = os.path.join(helper.assets_path, 'run.yaml')
     expected = '%s -n 16 --workdir %s' % (run_yaml, helper.assets_path)
     assert bash_commands.bcbio(run_yaml, helper.assets_path, threads=16).endswith(expected)
+
+
+def test_seqtk_fqchk():
+    fastq_file = 'path/to/fastq_R1.fastq.gz'
+    expected = '%s fqchk -q 0 %s > %s.fqchk' % (cfg['seqtk'], fastq_file, fastq_file)
+    assert bash_commands.seqtk_fqchk(fastq_file) == expected

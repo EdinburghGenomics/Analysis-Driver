@@ -15,6 +15,7 @@ default:
     bcl2fastq: path/to/bcl2fastq
     fastqc:    path/to/fastqc
     bcbio:     path/to/bcbio
+    seqtk:     path/to/seqtk
     jdk:       path/to/jdk
     logging:
         format: '[%(asctime)s][%(name)s][%(levelname)s] %(message)s'
