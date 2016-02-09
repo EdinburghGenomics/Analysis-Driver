@@ -101,8 +101,7 @@ def demultiplexing_pipeline(dataset):
         job_name='fastqc',
         run_id=run_id,
         cpus=1,
-        mem=2,
-        log_command=False
+        mem=2
     )
 
     #seqtk fqchk
@@ -112,7 +111,8 @@ def demultiplexing_pipeline(dataset):
         job_name='fqchk',
         run_id=run_id,
         cpus=1,
-        mem=2
+        mem=2,
+        log_command=False
     )
 
     # md5sum
