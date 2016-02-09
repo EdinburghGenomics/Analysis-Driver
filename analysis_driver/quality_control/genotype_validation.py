@@ -185,7 +185,7 @@ class GenotypeValidation(AppLogger, Thread):
         if genotype_vcf:
             self._rename_expected_genotype(genotype_vcf, self.sample_id)
             self._vcf_validation(self.seq_vcf_file, genotype_vcf)
-        return self.seq_vcf_file, self.validation_results
+
 
     def run(self):
         try:
