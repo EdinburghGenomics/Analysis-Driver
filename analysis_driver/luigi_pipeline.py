@@ -1,9 +1,12 @@
 __author__ = 'mwham'
 import luigi
 import os.path
+import shutil
+import yaml
 from glob import glob
 from analysis_driver import executor, writer, reader, util, clarity
-from analysis_driver.quality_control import genotype_validation
+from analysis_driver.report_generation import report_crawlers
+from analysis_driver.transfer_data import prepare_run_data, prepare_sample_data
 from analysis_driver.exceptions import AnalysisDriverError
 from analysis_driver.app_logging import get_logger
 from analysis_driver.config import default as cfg
@@ -13,108 +16,173 @@ app_logger = get_logger('luigi')
 
 
 class Stage(luigi.Task):
-
-    input_run_folder = luigi.Parameter()
-    job_dir = luigi.Parameter()
-
-    lf_name = None
-
-    @property
-    def sample_sheet_path(self):
-        return os.path.join(self.input_run_folder, 'SampleSheet_analysis_driver.csv')
-
-    @property
-    def run_id(self):
-        return os.path.basename(self.input_run_folder)
+    dataset = luigi.Parameter()
 
     @property
     def job_dir(self):
-        return os.path.join(cfg['jobs_dir'], self.run_id)
+        return os.path.join(cfg['jobs_dir'], self.dataset.name)
 
     @property
-    def fastq_dir(self):
-        return os.path.join(
-            self.job_dir, 'fastq'
-        )
-
-    @staticmethod
-    def touch(f):
-        open(f, 'w').close()
-
-    @property
-    def lf(self):
-        return os.path.join(self.job_dir, self.lf_name)
+    def input_dir(self):
+        return os.path.join(cfg['input_dir'], self.dataset.name)
 
     def output(self):
-        return luigi.LocalTarget(self.lf)
+        return luigi.LocalTarget(self._stage_lock_file())
+
+    def run(self):
+        exit_status = self._run()
+        if exit_status == 0:
+            self._touch(self._stage_lock_file())
+        else:
+            raise AnalysisDriverError('Exit status was %s. Stopping' % exit_status)
+
+    def _run(self):
+        raise NotImplementedError
+
+    @staticmethod
+    def _touch(f):
+        open(f, 'w').close()
+
+    def _stage_lock_file(self):
+        return os.path.join(self.job_dir, '.' + self.__class__.__name__.lower() + '.done')
+
+
+class TransferRun(Stage):
+    def _run(self):
+        dataset_dir = prepare_run_data(dataset=self.dataset)
+        if os.path.isdir(dataset_dir):
+            return 0
+        else:
+            return 1  # TODO: return an exit status from prepare_run_data instead
 
 
 class Bcl2Fastq(Stage):
-    lf_name = '.bcl2fastq.done'
+    def _run(self):
+        fastq_dir = os.path.join(self.job_dir, 'fastq')
 
-    def run(self):
-        sample_sheet = reader.SampleSheet(self.input_run_folder)
-        run_info = reader.RunInfo(self.input_run_folder)
+        sample_sheet = reader.SampleSheet(os.path.join(self.input_dir, 'SampleSheet_analysis_driver.csv'))
+        run_info = reader.RunInfo(self.input_dir)
         mask = sample_sheet.generate_mask(run_info.mask)
+        bcl2fastq = writer.bash_commands.bcl2fastq(
+            self.input_dir,
+            fastq_dir,
+            sample_sheet.filename,
+            mask
+        )
 
-        exit_status = executor.execute(
-            [
-                writer.bash_commands.bcl2fastq(
-                    self.input_run_folder,
-                    self.fastq_dir,
-                    sample_sheet.filename,
-                    mask
-                )
-            ],
+        return executor.execute(
+            [bcl2fastq],
             job_name='bcl2fastq',
-            run_id=self.run_id,
-            walltime=32,
+            run_id=self.dataset.name,
             cpus=8,
             mem=32
         ).join()
-        print(exit_status)
-        self.touch(self.lf)
-        return exit_status
-
-
-class Fastqc(Stage):
-    lf_name = '.fastqc.done'
 
     @staticmethod
     def requires():
-        return Bcl2Fastq()
+        return TransferRun()
 
-    def run(self):
-        exit_status = executor.execute(
-            [writer.bash_commands.fastqc(fq) for fq in util.fastq_handler.find_all_fastqs(self.fastq_dir)],
+
+class DemultiplexingFastqc(Stage):
+    def _run(self):
+        fastq_dir = os.path.join(self.job_dir, 'fastq')
+        return executor.execute(
+            [writer.bash_commands.fastqc(fq) for fq in util.fastq_handler.find_all_fastqs(fastq_dir)],
             job_name='fastqc',
-            run_id=self.run_id,
-            walltime=6,
+            run_id=self.dataset.name,
             cpus=1,
             mem=2
         ).join()
-        print(exit_status)
-        self.touch(self.lf)
-        return exit_status
-
-
-'''class GenotypeValidation(Stage):
-
-    lf_name = '.genotype_validation.done'
 
     @staticmethod
     def requires():
         return Bcl2Fastq()
 
-    def run(self):
-        fqs = {}
-        for sample_project in data['sample_id_fastqs']:
-            for sample_id in data['sample_id_fastqs'][sample_project]:
-                fqs[sample_id] = data['sample_id_fastqs'][sample_project][sample_id]
-        gen_val = genotype_validation.GenotypeValidation(fqs, self.run_id)
-        gen_val.start()
-        self.touch(self.lf)
-        return gen_val.join()'''
+
+class DemultiplexingMD5Sum(Stage):
+    def _run(self):
+        fastq_dir = os.path.join(self.job_dir, 'fastq')
+
+        return executor.execute(
+            [writer.bash_commands.md5sum(fq) for fq in util.fastq_handler.find_all_fastqs(fastq_dir)],
+            job_name='md5sum',
+            run_id=self.dataset.name,
+            cpus=1,
+            mem=2,
+            log_command=False
+        ).join()
+
+    @staticmethod
+    def requires():
+        return Bcl2Fastq()
+
+
+class DemultiplexingOutput(Stage):
+    def _run(self):
+        exit_status = 0
+        fastq_dir = os.path.join(self.job_dir, 'fastq')
+
+        transfer_files = (
+            'SampleSheet.csv', 'SampleSheet_analysis_driver.csv', 'runParameters.xml', 'RunInfo.xml',
+            'RTAConfiguration.xml'
+        )
+        for f in transfer_files:
+            shutil.copy2(os.path.join(self.input_dir, f), os.path.join(fastq_dir, f))
+        if not os.path.exists(os.path.join(fastq_dir, 'InterOp')):
+            shutil.copytree(os.path.join(self.input_dir, 'InterOp'), os.path.join(fastq_dir, 'InterOp'))
+
+        conversion_xml = os.path.join(fastq_dir, 'Stats', 'ConversionStats.xml')
+        if os.path.exists(conversion_xml):
+            app_logger.info('Found ConversionStats. Sending data.')
+            crawler = report_crawlers.RunCrawler(
+                self.dataset.name,
+                reader.SampleSheet(os.path.join(self.input_dir, 'SampleSheet_analysis_driver.csv')),
+                conversion_xml
+            )
+            # TODO: review whether we need this
+            json_file = os.path.join(fastq_dir, 'demultiplexing_results.json')
+            crawler.write_json(json_file)
+            crawler.send_data()
+        else:
+            app_logger.error('File not found: %s' % conversion_xml)
+            exit_status += 1
+
+        return exit_status
+
+    @staticmethod
+    def requires():
+        return DemultiplexingFastqc(), DemultiplexingMD5Sum()
+
+
+class BCBioPrepareSamples(Stage):
+    def _run(self):
+        fastqs = prepare_sample_data(self.dataset.name)
+        user_sample_id = clarity.get_user_sample_name(self.dataset.name, lenient=True)
+        cmd = util.bcbio_prepare_samples_cmd(
+            self.job_dir,
+            self.dataset.name,
+            fastqs,
+            user_sample_id
+        )
+        return executor.execute([cmd], job_name='bcbio_prepare_samples', run_id=self.dataset.name).join()
+
+
+class MergedFastqc(Stage):
+    def _run(self):
+        user_sample_id = clarity.get_user_sample_name(self.dataset.name, lenient=True)
+        fastq_pair = glob(os.path.join(self.job_dir, 'merged', user_sample_id + '_R?.fastq.gz'))
+        return executor.execute(
+            [writer.bash_commands.fastqc(fastq_file) for fastq_file in fastq_pair],
+            job_name='fastqc2',
+            run_id=self.dataset.name,
+            cpus=1,
+            mem=2
+        )
+
+    @staticmethod
+    def requires():
+        return BCBioPrepareSamples()
+
 
 
 class BCBio(Stage):
@@ -122,27 +190,9 @@ class BCBio(Stage):
     sample_id = luigi.Parameter()
     fastqs = luigi.Parameter()
 
-    lf_name = '.bcbio.done'
-
-    @property
-    def user_sample_id(self):
-        u = clarity.get_user_sample_name(self.sample_id)
-        if not u:
-            u = self.sample_id
-        return u
-
     @staticmethod
     def requires():
-        return Bcl2Fastq()
-
-    def prepare_samples(self):
-        cmd = util.bcbio_prepare_samples_cmd(
-            self.job_dir,
-            self.sample_id,
-            self.fastqs,
-            user_sample_id=self.user_sample_id
-        )
-        return executor.execute([' '.join(cmd)], env='local').join()
+        return BCBioPrepareSamples()
 
     def prepare_template(self):
         run_template = os.path.join(
@@ -172,6 +222,21 @@ class BCBio(Stage):
         os.chdir(original_dir)
         return exit_status
 
+    def modify_run_yaml(self):
+        bcbio_dir = os.path.join(self.job_dir, 'samples_' + self.dataset.name + '-merged')
+        run_yaml = os.path.join(bcbio_dir, 'config', 'samples_' + self.dataset.name + '-merged.yaml')
+
+        user_sample_id = clarity.get_user_sample_name(self.dataset.name)
+        if user_sample_id:
+            app_logger.debug('Found user sample: ' + user_sample_id)
+
+            with open(run_yaml, 'r') as i:
+                run_config = yaml.load(i)
+            run_config['fc_name'] = user_sample_id
+            with open(run_yaml, 'w') as o:
+                o.write(yaml.safe_dump(run_config, default_flow_style=False))
+        return 0
+
     def run_bcbio(self):
 
         cmd = writer.bash_commands.bcbio(
@@ -190,66 +255,42 @@ class BCBio(Stage):
         )
         return executor.execute(
             [cmd],
-            prelim_cmds=writer.bash_commands.bcbio_env_vars(),
+            prelim_cmds=writer.bash_commands.export_env_vars(),
             job_name='bcbio',
             run_id=self.run_id,
-            walltime=96,
             cpus=10,
             mem=64
         ).join()
 
-    def run(self):
-        exit_status = 0
-        for stage in (self.prepare_samples, self.prepare_template, self.run_bcbio):
+    def _run(self):
+        for stage in (self.prepare_template, self.modify_run_yaml, self.run_bcbio):
             ex = stage()
-            exit_status += ex
-            if exit_status:
-                break
-        self.touch(self.lf)
-        return exit_status
+            if ex != 0:
+                return ex
+        return 0
 
 
-class DivergeSamples(Stage):
-
-    lf_name = '.diverge_samples.done'
+class BCBioOutput(Stage):
 
     @staticmethod
     def requires():
-        for sample_project in data['sample_projects']:
-            for sample_id in data['sample_projects'][sample_project]:
-                yield BCBio(sample_project=sample_project, sample_id=sample_id)
+        return BCBio(), MergedFastqc()
 
-    def output(self):
-        return self.input()
+    def _run(self):
 
-    def run(self):
-        self.touch(self.lf)
-
-
-class DataOutput(Stage):
-
-    @staticmethod
-    def requires():
-        return DivergeSamples()
-
-    def run(self):
-        for req in self.requires().requires():
-            yield req
-
-            exit_status = self.execute(req)
-            app_logger.info('Finished transfer of %s with exit status %s' % (req.sample_id, exit_status))
-
-    def execute(self, req):
-
-        output_dir = os.path.join(cfg['output_dir'], req.sample_project, req.sample_id)
+        output_dir = os.path.join(
+            cfg['output_dir'],
+            clarity.find_project_from_sample(self.dataset.name),
+            self.dataset.name
+        )
         if not os.path.isdir(output_dir):
             os.makedirs(output_dir)
 
         bcbio_source_dir = os.path.join(
             self.job_dir,
-            'samples_' + req.sample_id + '-merged',
+            'samples_' + self.dataset.name + '-merged',
             'final',
-            req.sample_id
+            self.dataset.name
         )
         merged_fastq_dir = os.path.join(
             self.job_dir,
@@ -261,7 +302,7 @@ class DataOutput(Stage):
             'fastq': merged_fastq_dir
         }
         app_logger.info('Beginning output transfer')
-        return util.transfer_output_files(req.sample_id, output_dir, source_path_mapping)
+        return util.transfer_output_files(self.dataset.name, output_dir, source_path_mapping)
 
 
 def pipeline(input_run_folder):
