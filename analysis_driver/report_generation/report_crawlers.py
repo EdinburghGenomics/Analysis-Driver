@@ -1,47 +1,36 @@
-__author__ = 'tcezard'
 from collections import Counter, defaultdict
 import glob
 import json
-import csv
 import os
+from analysis_driver.clarity import get_sex_from_lims
 from re import sub
 from analysis_driver.app_logging import AppLogger
 from analysis_driver.reader import demultiplexing_parsers, mapping_stats_parsers
+from analysis_driver.reader.mapping_stats_parsers import parse_genotype_concordance
 from analysis_driver.report_generation import rest_communication
 from analysis_driver.config import default as cfg
 from analysis_driver.report_generation import ELEMENT_RUN_NAME, ELEMENT_NUMBER_LANE, ELEMENT_RUN_ELEMENTS, \
-    ELEMENT_BARCODE, ELEMENT_RUN_ELEMENT_ID, ELEMENT_PROJECT, ELEMENT_SAMPLE_INTERNAL_ID, ELEMENT_LIBRARY_INTERNAL_ID, \
+    ELEMENT_BARCODE, ELEMENT_RUN_ELEMENT_ID, ELEMENT_SAMPLE_INTERNAL_ID, ELEMENT_LIBRARY_INTERNAL_ID, \
     ELEMENT_LANE, ELEMENT_SAMPLES, ELEMENT_NB_READS_SEQUENCED, ELEMENT_NB_READS_PASS_FILTER, ELEMENT_NB_BASE_R1, \
     ELEMENT_NB_BASE_R2, ELEMENT_NB_Q30_R1, ELEMENT_NB_Q30_R2, ELEMENT_PC_READ_IN_LANE, ELEMENT_LANE_ID, \
     ELEMENT_PROJECT_ID, ELEMENT_SAMPLE_EXTERNAL_ID, ELEMENT_NB_READS_IN_BAM, ELEMENT_NB_MAPPED_READS, \
     ELEMENT_NB_DUPLICATE_READS, ELEMENT_NB_PROPERLY_MAPPED, ELEMENT_MEDIAN_COVERAGE, ELEMENT_PC_BASES_CALLABLE, \
-    ELEMENT_LANE_NUMBER, ELEMENT_FREEMIX
+    ELEMENT_LANE_NUMBER, ELEMENT_CALLED_GENDER, ELEMENT_PROVIDED_GENDER, ELEMENT_FREEMIX
+
+gender_aliases = {'female': ['f', 'female', 'girl', 'women'],
+                  'male': ['m', 'male', 'boy', 'man']}
+
+
+def gender_alias(gender):
+    g = str(gender).lower()
+    for key in gender_aliases:
+        if g in gender_aliases[key]:
+            return key
+    return 'unknown'
 
 
 class Crawler(AppLogger):
-    @staticmethod
-    def _post_or_patch(endpoint, input_json, elem_key=None):
-        """
-        :param str endpoint:
-        :param list input_json:
-        :param str elem_key:
-        """
-        url = '/'.join((cfg.query('rest_api', 'url').rstrip('/'), endpoint, ''))
-        for payload in input_json:
-            if not rest_communication.post_entry(url, payload):
-                elem_query = {}
-                if elem_key:
-                    elem_query = {elem_key: payload.pop(elem_key)}
-                rest_communication.patch_entry(url, payload, **elem_query)
-
-    def send_data(self):
-        if not cfg.get('rest_api'):
-            self.warn('rest_api is not set in the config: Cancel upload')
-            return
-        self._send_data()
-
-    def _send_data(self):
-        raise NotImplementedError
+    pass
 
 
 class RunCrawler(Crawler):
@@ -67,7 +56,7 @@ class RunCrawler(Crawler):
                             ELEMENT_BARCODE: sample.barcode,
                             ELEMENT_RUN_ELEMENT_ID: '%s_%s_%s' % (self.run_id, lane, sample.barcode),
                             ELEMENT_RUN_NAME: self.run_id,
-                            ELEMENT_PROJECT: project_id,
+                            ELEMENT_PROJECT_ID: project_id,
                             ELEMENT_SAMPLE_INTERNAL_ID: sample.sample_id,
                             ELEMENT_LIBRARY_INTERNAL_ID: sample.sample_name,
                             ELEMENT_LANE: lane
@@ -77,7 +66,7 @@ class RunCrawler(Crawler):
                         # Populate the libraries
                         lib = self.libraries[sample.sample_name]
                         lib[ELEMENT_SAMPLE_INTERNAL_ID] = sample.sample_id
-                        lib[ELEMENT_PROJECT] = project_id
+                        lib[ELEMENT_PROJECT_ID] = project_id
                         lib[ELEMENT_LIBRARY_INTERNAL_ID] = sample.sample_name
                         if ELEMENT_RUN_ELEMENTS not in lib:
                             lib[ELEMENT_RUN_ELEMENTS] = []
@@ -86,8 +75,8 @@ class RunCrawler(Crawler):
                         # Populate the projects
                         self.projects[project_id][ELEMENT_PROJECT_ID] = project_id
                         if ELEMENT_SAMPLES not in self.projects[project_id]:
-                            self.projects[project_id][ELEMENT_SAMPLES] = []
-                        self.projects[project_id][ELEMENT_SAMPLES].append(sample.sample_id)
+                            self.projects[project_id][ELEMENT_SAMPLES] = set()
+                        self.projects[project_id][ELEMENT_SAMPLES].add(sample.sample_id)
 
                         # Populate the lanes
                         lane_id = '%s_%s' % (self.run_id, lane)
@@ -106,14 +95,17 @@ class RunCrawler(Crawler):
                             ELEMENT_BARCODE: 'unknown',
                             ELEMENT_RUN_ELEMENT_ID: '%s_%s_%s' % (self.run_id, lane, 'unknown'),
                             ELEMENT_RUN_NAME: self.run_id,
-                            ELEMENT_PROJECT: 'default',
+                            ELEMENT_PROJECT_ID: 'default',
                             ELEMENT_SAMPLE_INTERNAL_ID: 'Undetermined',
                             ELEMENT_LIBRARY_INTERNAL_ID: 'Undetermined',
                             ELEMENT_LANE: lane
                         }
                         self.barcodes_info[barcode_info[ELEMENT_RUN_ELEMENT_ID]] = barcode_info
 
-        #Add the unknown to the lane
+        for project_id in self.projects:
+            self.projects[project_id][ELEMENT_SAMPLES] = list(self.projects[project_id][ELEMENT_SAMPLES])
+
+        # Add the unknown to the lane
         for lane_id in self.lanes:
             lane = self.lanes[lane_id][ELEMENT_LANE_NUMBER]
             unknown = '%s_%s_%s' % (self.run_id, lane, 'unknown')
@@ -139,8 +131,6 @@ class RunCrawler(Crawler):
             run_element = self.barcodes_info[run_element_id]
             if nb_read_per_lane.get(run_element[ELEMENT_LANE]) > 0:
                 run_element[ELEMENT_PC_READ_IN_LANE] = run_element[ELEMENT_NB_READS_PASS_FILTER] / nb_read_per_lane.get(run_element[ELEMENT_LANE])
-            else:
-                run_element[ELEMENT_PC_READ_IN_LANE] = ''
 
         for lane, barcode, clust_count in top_unknown_barcodes_per_lanes:
             barcode_info = {
@@ -165,28 +155,21 @@ class RunCrawler(Crawler):
         with open(json_file, 'w') as open_file:
             json.dump(payload, open_file, indent=4)
 
-    def update_json_per_sample(self, sample_dir):
-        self.libraries.values()
-        for library in self.libraries:
-            file_name = os.path.join(sample_dir, self.libraries[library][ELEMENT_SAMPLE_INTERNAL_ID])
-            if os.path.exists(file_name):
-                with open(file_name) as open_file:
-                    payload = json.load(open_file)
-            else:
-                payload = {}
-            for run_element_id in self.libraries[library][ELEMENT_RUN_ELEMENTS]:
-                payload[run_element_id] = self.barcodes_info[run_element_id]
-            with open(file_name, 'w') as open_file:
-                json.dump(payload, open_file, indent=4)
-
-    def _send_data(self):
-        self._post_or_patch('run_elements', self.barcodes_info.values(), ELEMENT_RUN_ELEMENT_ID)
-        self._post_or_patch('unexpected_barcodes', self.unexpected_barcodes.values(), ELEMENT_RUN_ELEMENT_ID)
-        self._post_or_patch('lanes', self.lanes.values(), ELEMENT_LANE_ID)
-        self._post_or_patch('runs', [self.run])
-        self._post_or_patch('samples', self.libraries.values(), ELEMENT_LIBRARY_INTERNAL_ID)
-        self._post_or_patch('projects', self.projects.values(), ELEMENT_PROJECT_ID)
-
+    def send_data(self):
+        if not cfg.get('rest_api'):
+            self.warn('rest_api is not set in the config: Cancel upload')
+            return None
+        
+        return all(
+            (
+                rest_communication.post_or_patch('run_elements', self.barcodes_info.values(), ELEMENT_RUN_ELEMENT_ID),
+                rest_communication.post_or_patch('unexpected_barcodes', self.unexpected_barcodes.values(), ELEMENT_RUN_ELEMENT_ID),
+                rest_communication.post_or_patch('lanes', self.lanes.values(), ELEMENT_LANE_ID),
+                rest_communication.post_or_patch('runs', [self.run], ELEMENT_RUN_NAME),
+                rest_communication.post_or_patch('samples', self.libraries.values(), ELEMENT_SAMPLE_INTERNAL_ID, update_lists=['run_elements']),
+                rest_communication.post_or_patch('projects', self.projects.values(), ELEMENT_PROJECT_ID, update_lists=['samples'])
+            )
+        )
 
 class SampleCrawler(Crawler):
     def __init__(self, sample_id,  project_id, sample_dir):
@@ -201,7 +184,7 @@ class SampleCrawler(Crawler):
 
         sample = {
             ELEMENT_SAMPLE_INTERNAL_ID: self.sample_id,
-            ELEMENT_PROJECT: self.project_id,
+            ELEMENT_PROJECT_ID: self.project_id,
             ELEMENT_SAMPLE_EXTERNAL_ID: external_sample_name
         }
 
@@ -237,6 +220,15 @@ class SampleCrawler(Crawler):
             sample[ELEMENT_PC_BASES_CALLABLE] = callable_bases/total
         else:
             self.critical('Missing *%s-sort-callable.bed' % external_sample_name)
+        sex_file_paths = glob.glob(os.path.join(sample_dir, '%s.sex' % external_sample_name))
+        if not sex_file_paths:
+            sex_file_paths = glob.glob(os.path.join(sample_dir, '.qc', '%s.sex' % external_sample_name))
+        if sex_file_paths:
+            with open(sex_file_paths[0]) as open_file:
+                gender = open_file.read().strip()
+                gender_from_lims = get_sex_from_lims(self.sample_id)
+                sample[ELEMENT_PROVIDED_GENDER] = gender_alias(gender_from_lims)
+                sample[ELEMENT_CALLED_GENDER] = gender_alias(gender)
 
         self_sm_file = glob.glob(os.path.join(sample_dir, external_sample_name + '.selfSM'))
         if self_sm_file:
@@ -250,12 +242,20 @@ class SampleCrawler(Crawler):
         else:
             self.error('Missing selfSM file')
 
+        genotype_validation_paths = glob.glob(os.path.join(sample_dir, '%s_genotype_validation.txt' % external_sample_name))
+        if genotype_validation_paths:
+            genotyping_results = parse_genotype_concordance(genotype_validation_paths[0])
+            genotyping_result = genotyping_results.get(self.sample_id)
+            if genotyping_result:
+                sample.update(genotyping_result)
+            else:
+                self.critical('Sample %s not found in file %s' % (self.sample_id, genotype_validation_paths[0]))
+
         return sample
 
-    def write_json(self, json_file):
-        payload = {'samples': list(self.sample)}
-        with open(json_file, 'w') as open_file:
-            json.dump(payload, open_file, indent=4)
+    def send_data(self):
+        if not cfg.get('rest_api'):
+            self.warn('rest_api is not set in the config: Cancel upload')
+            return
 
-    def _send_data(self):
-        self._post_or_patch('samples', [self.sample], ELEMENT_SAMPLE_INTERNAL_ID)
+        return rest_communication.post_or_patch('samples', [self.sample], ELEMENT_SAMPLE_INTERNAL_ID)

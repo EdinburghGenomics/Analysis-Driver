@@ -7,7 +7,7 @@ import os.path
 
 helper = TestAnalysisDriver()
 sample_sheet_csv = os.path.join(helper.assets_path, 'SampleSheet_analysis_driver.csv')
-sample_sheet = SampleSheet(helper.assets_path)
+sample_sheet = SampleSheet(helper.sample_sheet_path)
 run_info = RunInfo(helper.assets_path)
 
 

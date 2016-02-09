@@ -36,4 +36,11 @@ ELEMENT_PC_BASES_CALLABLE = 'pc_callable'
 ELEMENT_MEAN_COVERAGE = 'Mean coverage'
 ELEMENT_RUN_ELEMENTS = 'run_elements'
 
+ELEMENT_CALLED_GENDER = 'called_gender'
+ELEMENT_PROVIDED_GENDER = 'provided_gender'
+ELEMENT_NO_CALL_CHIP = 'no_call_chip'
+ELEMENT_NO_CALL_SEQ = 'no_call_seq'
+ELEMENT_MATCHING = 'matching_snps'
+ELEMENT_MISMATCHING = 'mismatching_snps'
+
 ELEMENT_FREEMIX = 'freemix'

@@ -4,6 +4,7 @@ from tests.test_analysisdriver import TestAnalysisDriver
 from analysis_driver import transfer_data, executor
 from analysis_driver.dataset_scanner import RunDataset
 from analysis_driver.writer.bash_commands import rsync_from_to
+from tests.test_dataset_scanner import patched_request
 
 
 class TestProcessTrigger(TestAnalysisDriver):
@@ -17,18 +18,16 @@ class TestProcessTrigger(TestAnalysisDriver):
         return os.path.join(self.data_transfer, 'to')
 
     def setUp(self):
-        self.dataset = RunDataset(
-            name='test_dataset',
-            path=os.path.join(self.from_dir, 'test_dataset'),
-            lock_file_dir=self.from_dir,
-            use_int_dir=False
-        )
-        self.dataset.reset()
+        with patched_request:
+            self.dataset = RunDataset(
+                name='test_dataset',
+                path=os.path.join(self.from_dir, 'test_dataset'),
+                use_int_dir=False
+            )
 
     def tearDown(self):
         for f in os.listdir(os.path.join(self.to_dir, self.dataset.name)):
             os.remove(os.path.join(self.to_dir, self.dataset.name, f))
-        self.dataset.reset()
 
     def test_transfer(self):
         transfer_data._transfer_run_to_int_dir(

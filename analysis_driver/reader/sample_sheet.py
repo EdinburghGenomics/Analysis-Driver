@@ -50,9 +50,9 @@ def _read_sample_sheet(sample_sheet):
 
 
 class SampleSheet(AppLogger):
-    def __init__(self, data_dir):
+    def __init__(self, filename):
         self.sample_projects = {}  # {name: samples} {str: Sample}
-        self.filename = os.path.join(data_dir, 'SampleSheet_analysis_driver.csv')
+        self.filename = filename
         self._populate()
         self.debug('Sample project entries: ' + str(self.sample_projects))
 

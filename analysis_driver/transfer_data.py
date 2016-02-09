@@ -7,7 +7,7 @@ from analysis_driver.exceptions import AnalysisDriverError
 from analysis_driver.writer.bash_commands import rsync_from_to, is_remote_path
 from analysis_driver.app_logging import get_logger
 from analysis_driver.config import default as cfg
-from analysis_driver.report_generation.report_crawlers import ELEMENT_RUN_NAME, ELEMENT_LANE, ELEMENT_PROJECT
+from analysis_driver.report_generation import ELEMENT_RUN_NAME, ELEMENT_LANE, ELEMENT_PROJECT, ELEMENT_PROJECT_ID, ELEMENT_NB_READS_PASS_FILTER
 from analysis_driver.util import fastq_handler
 
 app_logger = get_logger(__name__)
@@ -41,14 +41,15 @@ def prepare_sample_data(dataset):
     app_logger.debug('Preparing dataset %s (%s)' % (dataset.name, dataset.dataset_status))
     fastqs = []
 
-    for run_element in dataset.run_elements.values():
-        fastqs.extend(_find_fastqs_for_sample(dataset.name, run_element))
+    for run_element in dataset.run_elements:
+        if int(run_element.get(ELEMENT_NB_READS_PASS_FILTER, 0)) > 0:
+            fastqs.extend(_find_fastqs_for_sample(dataset.name, run_element))
     return fastqs
 
 
 def _find_fastqs_for_sample(sample_id, run_element):
     run_id = run_element.get(ELEMENT_RUN_NAME)
-    project_id = run_element.get(ELEMENT_PROJECT)
+    project_id = run_element.get(ELEMENT_PROJECT_ID)
     lane = run_element.get(ELEMENT_LANE)
 
     local_fastq_dir = os.path.join(cfg['jobs_dir'], run_id, 'fastq')
@@ -142,7 +143,8 @@ def create_links_from_bcbio(sample_id, input_dir, output_config, link_dir, query
             links.append(create_link(source, link_file))
         else:
             app_logger.warning('No files found for pattern ' + src_pattern)
-            exit_status += 1
+            if output_record.get('required', True):
+                exit_status += 1
     if exit_status == 0:
         return links
 
