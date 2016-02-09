@@ -30,11 +30,31 @@ def fastqc(fastq, threads=1):
     app_logger.debug('Writing: ' + cmd)
     return cmd
 
+def bwa_mem_samblaster(fastq_pair, reference, expected_output_bam, thread=16):
+    bwa_bin = cfg.query('tools', 'bwa')
+    tmp_dir = os.path.dirname(expected_output_bam)
+    command_bwa = '%s mem -M -t %s %s %s' % (bwa_bin, thread, reference, ' '.join(fastq_pair))
+    command_samblaster = '%s ' % (cfg.query('tools', 'samblaster'))
+    command_samtools = '%s view -b -' % (cfg.query('tools', 'samtools'))
+    command_sambamba = '%s sort  -m 5G --tmpdir %s -t %s -o  %s /dev/stdin' % ( cfg.query('tools', 'sambamba'), tmp_dir, thread,  expected_output_bam)
+    cmd = ' | '.join([command_bwa, command_samblaster, command_samtools, command_sambamba])
+    app_logger.debug('Writing: ' + cmd)
+    return cmd
 
-def bcbio_env_vars():
-    """
-    Write export statements for environment variables required by BCBio
-    """
+def bamtools_stats(bam_file, output_file):
+    bamtools_bin = cfg.query('tools', 'bamtools')
+    cmd = '%s stats -in %s -insert > %s'%(bamtools_bin, bam_file, output_file)
+    app_logger.debug('Writing: ' + cmd)
+    return cmd
+
+def md5sum(input_file):
+    cmd = cfg.get('md5sum', 'md5sum') + ' %s > %s.md5' % (input_file, input_file)
+    app_logger.debug('Writing: ' + cmd)
+    return cmd
+
+
+def export_env_vars():
+    """Write export statements for environment variables required by BCBio"""
     app_logger.debug('Writing Java paths')
     return (
         _export('PATH', os.path.join(cfg['bcbio'], 'bin'), prepend=True),
@@ -63,3 +83,22 @@ def _export(env_var, value, prepend=False):
     if prepend:
         statement += ':$' + env_var
     return statement
+
+
+def is_remote_path(fp):
+    return (':' in fp) and ('@' in fp)
+
+
+def rsync_from_to(source, dest, append_verify=True, exclude=None):
+    """rsync command that will transfer the file to the desired destination"""
+    command = 'rsync -rLD --size-only '
+    if exclude:
+        command += '--exclude=%s ' % exclude
+    if append_verify:
+        command += '--append-verify '
+    if is_remote_path(source) or is_remote_path(dest):
+        command += '-e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -c arcfour" '
+
+    command += '%s %s' % (source, dest)
+
+    return command

@@ -48,8 +48,8 @@ class NotificationCenter(AppLogger):
 
 
 class Notification(AppLogger):
-    def __init__(self, run_id):
-        self.run_id = run_id
+    def __init__(self, dataset):
+        self.dataset = dataset
 
     def start_pipeline(self):
         pass

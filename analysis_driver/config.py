@@ -5,30 +5,29 @@ from .exceptions import AnalysisDriverError
 
 
 class Configuration:
-    def __init__(self, config_file=None):
-        self.environment = os.getenv('ANALYSISDRIVERENV', 'default')
-        if not config_file:
-            config_file = self._find_config_file()
-        self.config_file = config_file
+    def __init__(self, cfg_search_path):
+        self.cfg_search_path = cfg_search_path
+        self.config_file = self._find_config_file()
+        self.content = yaml.safe_load(open(self.config_file, 'r'))
 
-        full_config = yaml.safe_load(open(self.config_file, 'r'))
-        if not full_config.get('default'):
-            raise AnalysisDriverError('Could not find \'default\' environment in ' + self.config_file)
+    def _find_config_file(self):
+        for p in self.cfg_search_path:
+            if p and os.path.isfile(p):
+                return p
+        raise AnalysisDriverError('Could not find config file in self.cfg_search_path')
 
-        self.content = dict(self._merge_dicts(full_config['default'], full_config[self.environment]))
-
-    def get(self, item, return_default=None):
+    def get(self, item, ret_default=None):
         """
         Dict-style item retrieval with default
         :param item: The key to search for
-        :param return_default: What to return if the key is not present
+        :param ret_default: What to return if the key is not present
         """
         try:
             return self[item]
         except KeyError:
-            return return_default
+            return ret_default
 
-    def query(self, *parts, top_level=None):
+    def query(self, *parts, top_level=None, ret_default=None):
         """
         Drill down into a config, e.g. cfg.query('logging', 'handlers', 'a_handler', 'level')
         :return: The relevant item if it exists in the config, else None.
@@ -42,43 +41,33 @@ class Configuration:
             if item:
                 top_level = item
             else:
-                return None
+                return ret_default
 
         return item
 
     def report(self):
         return yaml.safe_dump(self.content, default_flow_style=False)
 
-    @classmethod
-    def validate_file_paths(cls, content=None):
+    def __getitem__(self, item):
         """
-        Recursively search through the values of self.content and if the value is an absolute file path,
-        assert that it exists.
-        :param content: a dict, list or str (i.e. potential file path) to validate
+        Allow dict-style access, e.g. config['this'] or config['this']['that']
         """
-        invalid_file_paths = []
-        if type(content) is dict:
-            for v in content.values():
-                invalid_file_paths.extend(cls.validate_file_paths(v))
-        elif type(content) is list:
-            for v in content:
-                invalid_file_paths.extend(cls.validate_file_paths(v))
-        elif type(content) is str:
-            if content.startswith('/') and not os.path.exists(content):
-                invalid_file_paths.append(content)
-        return invalid_file_paths
+        return self.content[item]
 
-    @staticmethod
-    def _find_config_file():
+    def __contains__(self, item):
         """
-        Find $ANALYSISDRIVERCONFIG, ~/.analysisdriver.yaml or Analysis-Driver/etc/analysisdriver.yaml, in
-        that order
-        :return: Path to the config
+        Allow search in the first layer of the config with "in" operator
         """
-        for config in [os.getenv('ANALYSISDRIVERCONFIG'), os.path.expanduser('~/.analysisdriver.yaml')]:
-            if config and os.path.isfile(config):
-                return config
-        raise AnalysisDriverError('Could not find config file in env variable, home or etc')
+        return self.content.__contains__(item)
+
+
+class EnvConfiguration(Configuration):
+    def __init__(self, cfg_search_path):
+        super().__init__(cfg_search_path)
+        env = os.getenv('ANALYSISDRIVERENV', 'default')
+        if not self.content.get('default'):
+            raise AnalysisDriverError('Could not find \'default\' environment in ' + self.config_file)
+        self.content = dict(self._merge_dicts(self.content['default'], self.content[env]))
 
     @classmethod
     def _merge_dicts(cls, default_dict, override_dict):
@@ -96,11 +85,11 @@ class Configuration:
             else:
                 yield k, override_dict[k]
 
-    def __getitem__(self, item):
+    def merge(self, override_dict):
         """
-        Allow dict-style access, e.g. config['this'] or config['this']['that']
+        Merge the provided dict with the config content potententially overiding existing parameters
         """
-        return self.content[item]
+        self.content = dict(self._merge_dicts(self.content, override_dict))
 
 
 class LoggingConfiguration:
@@ -109,21 +98,27 @@ class LoggingConfiguration:
     """
     def __init__(self):
         self.default_formatter = logging.Formatter(
-            fmt=default['logging']['format'],
-            datefmt=default['logging']['datefmt']
+            fmt=default.query(
+                'logging',
+                'format',
+                ret_default='[%(asctime)s][%(name)s][%(levelname)s] %(message)s'
+            ),
+            datefmt=default.query('logging', 'datefmt', ret_default='%Y-%b-%d %H:%M:%S')
         )
         self.blank_formatter = logging.Formatter()
         self.formatter = self.default_formatter
         self.handlers = {}
-        self.log_level = logging.INFO
+        self.default_level = logging.INFO
 
-    def add_handler(self, name, handler):
+    def add_handler(self, name, handler, level=None):
         """
         :param str name: A name or id to assign the Handler
         :param logging.FileHandler handler:
         """
+        if level is None:
+            level = self.default_level
         handler.setFormatter(self.formatter)
-        handler.setLevel(self.log_level)
+        handler.setLevel(level)
         self.handlers[name] = handler
 
     def switch_formatter(self, formatter):
@@ -135,6 +130,22 @@ class LoggingConfiguration:
             self.handlers[name].setFormatter(self.formatter)
 
 
+def _dir_path():
+    """Find the absolute path of 2 dirs above this file (should be Analysis-Driver)"""
+    return os.path.dirname(os.path.abspath(os.path.dirname(__file__)))
+
+
+def _etc_config(config_file):
+    return os.path.join(_dir_path(), 'etc', config_file)
+
+
 # singletons for access by other modules
-default = Configuration()
+default = EnvConfiguration(
+    [
+        os.getenv('ANALYSISDRIVERCONFIG'),
+        os.path.expanduser('~/.analysisdriver.yaml')
+    ]
+)
+output_files_config = Configuration([_etc_config('output_files.yaml')])
+sample_sheet_config = Configuration([_etc_config('sample_sheet_cfg.yaml')])
 logging_default = LoggingConfiguration()

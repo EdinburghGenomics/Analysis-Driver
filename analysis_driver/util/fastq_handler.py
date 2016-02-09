@@ -12,7 +12,7 @@ def find_fastqs(location, sample_project, sample_id, lane=None):
     'location/sample_project'
     :param location: The overall directory to search
     :param sample_project: The sample_project directory to search
-    :return: A dict mapping sample ids to full paths to *.fastq.gz files in the sample_project dir.
+    :return: A list of full paths to *.fastq.gz files in the sample_project dir.
     :rtype: list[str]
     """
     if lane:

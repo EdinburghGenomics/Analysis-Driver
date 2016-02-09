@@ -1,12 +1,15 @@
 __author__ = 'tcezard'
+import os
 import pytest
 import sys
 from smtplib import SMTPException
+from analysis_driver.dataset_scanner import RunDataset
 from analysis_driver.notification.notification_center import NotificationCenter
 from analysis_driver.notification import EmailNotification, LogNotification
 from analysis_driver.config import default as cfg
 from analysis_driver.exceptions import AnalysisDriverError
 from tests.test_analysisdriver import TestAnalysisDriver
+from tests.test_dataset_scanner import patched_request
 
 if not sys.argv:
     print('Usage: python test_notification_center.py <mailhost> <port> <reporter_email> <recipient_emails>')
@@ -15,10 +18,17 @@ if not sys.argv:
 
 class TestNotificationCenter(TestAnalysisDriver):
     def setUp(self):
+        base_dir = os.path.join(self.assets_path, 'dataset_scanner')
+        with patched_request:
+            dataset = RunDataset(
+                name='test_run_id',
+                path=os.path.join(base_dir, 'that'),
+                use_int_dir=False
+            )
         self.notification_center = NotificationCenter()
         self.notification_center.add_subscribers(
-            (LogNotification, 'test_run_id', cfg.query('notification', 'log_notification')),
-            (TestEmailNotification, 'test_run_id', cfg.query('notification', 'email_notification'))
+            (LogNotification, dataset, cfg.query('notification', 'log_notification')),
+            (TestEmailNotification, dataset, cfg.query('notification', 'email_notification'))
         )
 
         email_config = {
@@ -32,7 +42,7 @@ class TestNotificationCenter(TestAnalysisDriver):
             email_config = cfg.query('notification', 'email_notification')
         
         print(self.notification_center.subscribers)
-        self.email_notification = TestEmailNotification('test_run', email_config)
+        self.email_notification = TestEmailNotification(dataset, email_config)
         if cfg.query('notification', 'email_notification'):
             cfg.content['notification']['email_notification']['strict'] = True
 
@@ -46,7 +56,6 @@ class TestNotificationCenter(TestAnalysisDriver):
 
 
 class TestEmailNotification(EmailNotification):
-
     def _connect_and_send(self, msg):
         """
         Create a test situation where the server connection has failed

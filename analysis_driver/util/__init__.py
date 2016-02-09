@@ -1,9 +1,8 @@
 __author__ = 'mwham'
 import shutil
 import os.path
-import hashlib
 from . import fastq_handler
-from analysis_driver import writer, executor
+from analysis_driver import writer
 from analysis_driver.app_logging import get_logger
 from analysis_driver.config import default as cfg
 
@@ -43,17 +42,6 @@ def transfer_output_file(source, dest):
     if os.path.isfile(source):
         app_logger.debug('Found file. Transferring.')
         shutil.copyfile(source, dest)
-
-        app_logger.debug('Generating md5 checksum')
-        md5 = hashlib.md5()
-        with open(source, 'rb') as f:
-            chunk = f.read(8192)
-            while chunk:
-                md5.update(chunk)
-                chunk = f.read(8192)
-
-        with open(dest + '.md5', 'w') as md5_f:
-            md5_f.write('%s  %s'%(md5.hexdigest(), os.path.basename(dest)))
 
         app_logger.debug('Done')
         return 0

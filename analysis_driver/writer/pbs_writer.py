@@ -9,12 +9,12 @@ class PBSWriter(ScriptWriter):
     """
     suffix = '.pbs'
 
-    def __init__(self, job_name, run_id, walltime, cpus, mem, jobs=1):
+    def __init__(self, job_name, run_id, cpus, mem, walltime=None, jobs=1, **kwargs):
         """
         :param int jobs: Number of jobs to submit, in an array if needed
         """
-        super().__init__(job_name, run_id, jobs)
-        self._write_header(walltime, cpus, mem, job_name, self.queue, jobs)
+        super().__init__(job_name, run_id, jobs, **kwargs)
+        self._write_header(cpus, mem, job_name, self.queue, walltime, jobs)
         self.info(
             'Written PBS header. Walltime %s, cpus %s, memory %s, job name %s, queue %s, array %s' % (
                 walltime, cpus, mem, job_name, self.queue, jobs
@@ -28,7 +28,7 @@ class PBSWriter(ScriptWriter):
         self.write_line('*) echo "Unexpected PBS_ARRAY_INDEX: $PBS_ARRAY_INDEX"')
         self.write_line('esac')
 
-    def _write_header(self, walltime, cpus, mem, job_name, queue, jobs):
+    def _write_header(self, cpus, mem, job_name, queue, walltime=None, jobs=1):
         """
         Write a base PBS header using args from constructor. If multiple jobs, split them into a job array.
         """
@@ -36,8 +36,9 @@ class PBSWriter(ScriptWriter):
 
         wt = self.write_line
 
-        wt('#PBS -l walltime=%s:00:00' % walltime)
         wt('#PBS -l ncpus=%s,mem=%sgb' % (cpus, mem))
+        if walltime:
+            wt('#PBS -l walltime=%s:00:00' % walltime)
         if job_name:
             wt('#PBS -N ' + self._trim_field(job_name, 15))
         wt('#PBS -q ' + queue)
