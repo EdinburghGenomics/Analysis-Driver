@@ -120,7 +120,6 @@ class RunCrawler(Crawler):
     def _populate_barcode_info_from_seqtk_fqchk_files(self, run_dir ):
         for run_element_id in self.barcodes_info:
             barcode_info = self.barcodes_info.get(run_element_id)
-            self.barcodes_info[run_element_id][ELEMENT_RUN_NAME]
             fq_chk_template = os.path.join(
                     run_dir,
                     'fastq',
