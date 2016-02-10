@@ -4,8 +4,8 @@ import requests
 from datetime import datetime
 from collections import defaultdict
 from analysis_driver.config import default as cfg
-from analysis_driver.report_generation import rest_communication, ELEMENT_NB_Q30_R1, ELEMENT_NB_Q30_R2,\
-    ELEMENT_RUN_NAME
+from analysis_driver.report_generation import rest_communication,\
+    ELEMENT_RUN_NAME, ELEMENT_NB_Q30_R2_CLEANED, ELEMENT_NB_Q30_R1_CLEANED
 from analysis_driver.app_logging import get_logger
 from analysis_driver.clarity import get_expected_yield_for_sample
 
@@ -212,7 +212,7 @@ class SampleDataset(Dataset):
     def _amount_data(self):
         return sum(
             [
-                int(r.get(ELEMENT_NB_Q30_R1, 0)) + int(r.get(ELEMENT_NB_Q30_R2, 0))
+                int(r.get(ELEMENT_NB_Q30_R1_CLEANED, 0)) + int(r.get(ELEMENT_NB_Q30_R2_CLEANED, 0))
                 for r in self.run_elements
             ]
         )
