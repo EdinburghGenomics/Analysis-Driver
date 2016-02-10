@@ -88,8 +88,8 @@ def parse_seqtk_fqchk_file(fqchk_file, q_threshold):
         header = open_file.readline().split()
         all_cycles = open_file.readline().split()
         first_cycle = open_file.readline().split()
-        nb_read = first_cycle[1]
-        nb_base = all_cycles[1]
+        nb_read = int(first_cycle[1])
+        nb_base = int(all_cycles[1])
         lo_q = 0
         hi_q = 0
         for i, h in enumerate(header[9:]):

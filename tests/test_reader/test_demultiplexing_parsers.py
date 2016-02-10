@@ -7,10 +7,13 @@ __author__ = 'tcezard'
 
 class Test_demultiplexing_stats(TestAnalysisDriver):
 
-    def test_parse_genotype_concordance(self):
+    def test_parse_seqtk_fqchk(self):
         fqchk_file = os.path.join(self.assets_path, '10015ATpool01_S1_L001_R1_001.fastq.gz.fqchk')
-        results = parse_seqtk_fqchk_file(fqchk_file, q_threshold=30)
-        print(results)
+        nb_read, nb_base, lo_q, hi_q = parse_seqtk_fqchk_file(fqchk_file, q_threshold=30)
+        assert nb_read == 561151
+        assert nb_base == 83750569
+        assert lo_q == 8551190
+        assert hi_q == 75199379
 
 
 
