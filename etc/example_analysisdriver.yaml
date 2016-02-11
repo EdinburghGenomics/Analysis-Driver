@@ -45,8 +45,9 @@ default:
         sambamba: path/to/sambamba
 
     contamination-check:
-        kontaminant: path/to/kontaminant
+        kontaminant_bin: path/to/kontaminant/bin
         kontaminant_reference_directory: path/to/kontaminant/reference/databases
         kontaminant_references: ['species1','species2','species3']
+        kontaminant_running: path/to/kontaminant/working/dir
 
 
