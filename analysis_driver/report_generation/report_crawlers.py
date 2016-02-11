@@ -117,15 +117,15 @@ class RunCrawler(Crawler):
 
         self.run[ELEMENT_NUMBER_LANE] = len(self.lanes)
 
-    def _populate_barcode_info_from_seqtk_fqchk_files(self, run_dir ):
+    def _populate_barcode_info_from_seqtk_fqchk_files(self, run_dir):
         for run_element_id in self.barcodes_info:
             barcode_info = self.barcodes_info.get(run_element_id)
             fq_chk_template = os.path.join(
-                    run_dir,
-                    'fastq',
-                    barcode_info[ELEMENT_PROJECT_ID],
-                    barcode_info[ELEMENT_SAMPLE_INTERNAL_ID],
-                    '*_S1_L00%s_R*_001.fastq.gz.fqchk'%barcode_info[ELEMENT_LANE]
+                run_dir,
+                'fastq',
+                barcode_info[ELEMENT_PROJECT_ID],
+                barcode_info[ELEMENT_SAMPLE_INTERNAL_ID],
+                '*_S*_L00%s_R*_001.fastq.gz.fqchk'%barcode_info[ELEMENT_LANE]
             )
             fq_chk_files = glob.glob(fq_chk_template)
             if len(fq_chk_files) == 2:
@@ -139,9 +139,8 @@ class RunCrawler(Crawler):
                 barcode_info[ELEMENT_NB_Q30_R2_CLEANED] = int(hi_q)
             elif len(fq_chk_files) == 1:
                 raise AnalysisDriverError('Only one fqchk file found in %s for %s'%(run_dir, run_element_id))
-            elif len(fq_chk_files) != 0:
+            else:
                 raise AnalysisDriverError('%s fqchk files found in %s for %s'%(len(fq_chk_files), run_dir, run_element_id))
-
 
     def _populate_barcode_info_from_conversion_file(self, conversion_xml_file):
         all_barcodes_per_lanes, top_unknown_barcodes_per_lanes = demultiplexing_parsers.parse_conversion_stats(conversion_xml_file)
