@@ -309,16 +309,16 @@ class TestSampleDataset(TestDataset):
         assert not self.dataset._is_ready()
         self.dataset.run_elements = [
             {
-                'bases_r1': 1300000000,
-                'q30_bases_r1': 1200000000,
-                'bases_r2': 1250000000,
-                'q30_bases_r2': 1150000000
+                'clean_bases_r1': 1300000000,
+                'clean_q30_bases_r1': 1200000000,
+                'clean_bases_r2': 1250000000,
+                'clean_q30_bases_r2': 1150000000
             },
             {
-                'bases_r1': 1200000000,
-                'q30_bases_r1': 1100000000,
-                'bases_r2': 1450000000,
-                'q30_bases_r2': 1350000000
+                'clean_bases_r1': 1200000000,
+                'clean_q30_bases_r1': 1100000000,
+                'clean_bases_r2': 1450000000,
+                'clean_q30_bases_r2': 1350000000
             }
         ]
         assert self.dataset._is_ready()
@@ -339,10 +339,10 @@ class TestSampleDataset(TestDataset):
                     'total_reads': 1337,
                     'passing_filter_reads': 1000,
                     'pc_reads_in_lane': 80,
-                    'bases_r1': 130,
-                    'q30_bases_r1': 120,
-                    'bases_r2': 125,
-                    'q30_bases_r2': 115
+                    'clean_bases_r1': 130,
+                    'clean_q30_bases_r1': 120,
+                    'clean_bases_r2': 125,
+                    'clean_q30_bases_r2': 115
                 },
                 {
                     'run_element_id': 'a_run_element_id',
@@ -355,10 +355,10 @@ class TestSampleDataset(TestDataset):
                     'total_reads': 1338,
                     'passing_filter_reads': 980,
                     'pc_reads_in_lane': 79,
-                    'bases_r1': 120,
-                    'q30_bases_r1': 110,
-                    'bases_r2': 145,
-                    'q30_bases_r2': 135
+                    'clean_bases_r1': 120,
+                    'clean_q30_bases_r1': 110,
+                    'clean_bases_r2': 145,
+                    'clean_q30_bases_r2': 135
                 }
             ]
 
