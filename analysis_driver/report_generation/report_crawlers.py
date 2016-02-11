@@ -122,10 +122,10 @@ class RunCrawler(Crawler):
             barcode_info = self.barcodes_info.get(run_element_id)
             if barcode_info[ELEMENT_BARCODE] == 'unknown':
                 fq_chk_template = os.path.join(
-                        run_dir,
-                        'fastq',
-                        'Undetermined_S0_L00%s_R*_001.fastq.gz.fqchk'%barcode_info[ELEMENT_LANE]
-                    )
+                    run_dir,
+                    'fastq',
+                    'Undetermined_S0_L00%s_R*_001.fastq.gz.fqchk'%barcode_info[ELEMENT_LANE]
+                )
             else:
                 fq_chk_template = os.path.join(
                     run_dir,
@@ -146,6 +146,12 @@ class RunCrawler(Crawler):
                 barcode_info[ELEMENT_NB_Q30_R2_CLEANED] = int(hi_q)
             elif len(fq_chk_files) == 1:
                 raise AnalysisDriverError('Only one fqchk file found in %s for %s'%(run_dir, run_element_id))
+            elif barcode_info[ELEMENT_NB_READS_PASS_FILTER] == 0:
+                barcode_info[ELEMENT_NB_READS_CLEANED] = 0
+                barcode_info[ELEMENT_NB_BASE_R1_CLEANED] = 0
+                barcode_info[ELEMENT_NB_Q30_R1_CLEANED] = 0
+                barcode_info[ELEMENT_NB_BASE_R2_CLEANED] = 0
+                barcode_info[ELEMENT_NB_Q30_R2_CLEANED] = 0
             else:
                 raise AnalysisDriverError('%s fqchk files found in %s for %s'%(len(fq_chk_files), run_dir, run_element_id))
 
