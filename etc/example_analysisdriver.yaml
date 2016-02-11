@@ -1,6 +1,10 @@
 
 ---
 default:
+
+    rest_api:
+        url: 'http://localhost:4999/api/0.1'
+
     input_dir: tests/assets/data_transfer/from/
     intermediate_dir: tests/assets/data_transfer/to/
     lock_file_dir: tests/assets/data_transfer/from/

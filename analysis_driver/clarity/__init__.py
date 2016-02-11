@@ -154,6 +154,13 @@ def get_user_sample_name(sample_name):
         return sanitize_user_id(sample.udf.get('User Sample Name'))
 
 
+def get_sex_from_lims(sample_name):
+    lims = _get_lims_connection()
+    samples = get_lims_samples(sample_name, lims)
+    if len(samples) == 1:
+        gender = samples[0].udf.get('Gender')
+        return gender
+
 def get_expected_yield_for_sample(sample_name):
     """
     Query the LIMS and return the number of bases expected for a sample
@@ -167,6 +174,14 @@ def get_expected_yield_for_sample(sample_name):
         if nb_gb:
             return nb_gb * 1000000000
 
+
+def get_run(run_id):
+    lims = _get_lims_connection()
+    runs = lims.get_processes(type='AUTOMATED - Sequence', udf={'RunID': run_id})
+    if len(runs) != 1:
+        app_logger.error('%s runs found for %s' % (len(runs), run_id))
+    if runs:
+        return runs[0]
 
 
 def run_tests():

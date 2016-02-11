@@ -9,6 +9,7 @@ from analysis_driver.exceptions import AnalysisDriverError
 from analysis_driver.app_logging import get_logger
 from analysis_driver.config import output_files_config, default as cfg  # imports the default config singleton
 from analysis_driver.notification import default as ntf
+from analysis_driver.quality_control.gender_validation import GenderValidation
 from analysis_driver.report_generation.report_crawlers import RunCrawler, SampleCrawler
 from analysis_driver.transfer_data import prepare_run_data, prepare_sample_data, output_sample_data, output_run_data, \
     create_links_from_bcbio
@@ -73,6 +74,12 @@ def demultiplexing_pipeline(dataset):
     crawler.send_data()
     ntf.end_stage('setup')
 
+    run_status = clarity.get_run(run_id).udf.get('Run Status')
+    # TODO: catch bcl2fastq error logs instead
+    if run_status != 'RunCompleted':
+        app_logger.error('Run status is \'%s\'. Stopping.' % run_status)
+        return 2
+
     # bcl2fastq
     ntf.start_stage('bcl2fastq')
     exit_status += executor.execute(
@@ -122,10 +129,11 @@ def demultiplexing_pipeline(dataset):
     # Find conversion xml file and send the results to the rest API
     conversion_xml = os.path.join(fastq_dir, 'Stats', 'ConversionStats.xml')
     if os.path.exists(conversion_xml):
+        app_logger.info('Found ConversionStats. Sending data.')
         crawler = RunCrawler(run_id, sample_sheet, conversion_xml)
+        # TODO: review whether we need this
         json_file = os.path.join(fastq_dir, 'demultiplexing_results.json')
         crawler.write_json(json_file)
-        crawler.update_json_per_sample(cfg['metadata_output_dir'])
         crawler.send_data()
     else:
         app_logger.error('File not found: %s' % conversion_xml)
@@ -156,6 +164,10 @@ def variant_calling_pipeline(dataset):
     sample_id = dataset.name
     sample_dir = os.path.join(cfg['jobs_dir'], sample_id)
     app_logger.info('Job dir: ' + sample_dir)
+
+    user_sample_id = clarity.get_user_sample_name(sample_id)
+    if not user_sample_id:
+        user_sample_id = sample_id
 
     # merge fastq files
     ntf.start_stage('merge fastqs')
@@ -201,6 +213,10 @@ def variant_calling_pipeline(dataset):
     # Create the links from the bcbio output to one directory
     dir_with_linked_files = os.path.join(sample_dir, 'linked_output_files')
     linked_files = create_links_from_bcbio(sample_id, sample_dir, output_files_config.query('bcbio'), dir_with_linked_files)
+
+    #Run the gender detection
+    vcf_file = os.path.join(dir_with_linked_files, user_sample_id + '.vcf.gz')
+    GenderValidation(sample_id, vcf_file)
 
     # Upload the data to the rest API
     project_id = clarity.find_project_from_sample(sample_id)

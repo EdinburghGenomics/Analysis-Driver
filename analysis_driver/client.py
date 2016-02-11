@@ -7,7 +7,7 @@ from analysis_driver.app_logging import get_logger
 from analysis_driver.config import default as cfg, logging_default as log_cfg
 from analysis_driver.notification import default as ntf, LogNotification, EmailNotification
 from analysis_driver.exceptions import AnalysisDriverError
-from analysis_driver.dataset_scanner import SampleScanner, DATASET_READY, DATASET_FORCE_READY, RunScanner
+from analysis_driver.dataset_scanner import RunScanner, SampleScanner, DATASET_READY, DATASET_FORCE_READY, DATASET_REPROCESS
 
 
 def main():
@@ -44,16 +44,16 @@ def main():
 
     if any([args.abort, args.skip, args.reset, args.force, args.report, args.report_all]):
         for d in args.abort:
-            scanner.get(d).abort()
+            scanner.get_dataset(d).abort()
         for d in args.skip:
-            dataset = scanner.get(d)
+            dataset = scanner.get_dataset(d)
             dataset.reset()
             dataset.start()
             dataset.succeed()
         for d in args.reset:
-            scanner.get(d).reset()
+            scanner.get_dataset(d).reset()
         for d in args.force:
-            scanner.get(d).force()
+            scanner.get_dataset(d).force()
 
         if args.report:
             scanner.report()
@@ -62,7 +62,7 @@ def main():
         return 0
 
     all_datasets = scanner.scan_datasets()
-    ready_datasets = all_datasets.get(DATASET_READY, []) + all_datasets.get(DATASET_FORCE_READY, [])
+    ready_datasets = all_datasets.get(DATASET_READY, []) + all_datasets.get(DATASET_FORCE_READY, []) + all_datasets.get(DATASET_REPROCESS, [])
 
     if not ready_datasets:
         return 0
