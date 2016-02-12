@@ -10,6 +10,7 @@ class ContaminationCheck(Thread):
         self.fastq_files = fastq_files
         self.sample_id = sample_id
         self.contamination_cfg = cfg.get('contamination-check')
+        Thread.__init__(self)
 
     def _fastqscreen_command(self):
         """
