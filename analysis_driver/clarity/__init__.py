@@ -220,7 +220,7 @@ def get_sample_names_from_plate_from_lims(plate_id):
         for key in placements:
             sample_name = placements.get(key).samples[0].name
             samples[key] = sanitize_user_id(sample_name)
-        return samples
+        return list(samples.values())
 
 
 def run_tests():
