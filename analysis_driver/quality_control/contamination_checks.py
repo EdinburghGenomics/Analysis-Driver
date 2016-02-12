@@ -1,10 +1,12 @@
 import os
+from threading import Thread
 from analysis_driver.config import default as cfg
 from analysis_driver import executor
 from analysis_driver.notification import default as ntf
-from threading import Thread
+from analysis_driver.app_logging import AppLogger
 
-class ContaminationCheck(Thread):
+
+class ContaminationCheck(AppLogger, Thread):
 
     def __init__(self, fastq_files, sample_id):
         self.fastq_files = fastq_files
