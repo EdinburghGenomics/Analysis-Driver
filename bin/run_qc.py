@@ -39,7 +39,7 @@ def run_genotype_validation(args):
         cmd = rsync_from_to(paths, work_dir)
         exit_status = executor.execute(
                 [cmd],
-                job_name='retrive data',
+                job_name='retrieve_data',
                 run_id=sample_id,
                 cpus=1,
                 mem=2
@@ -83,7 +83,7 @@ def run_genotype_validation(args):
     user_sample_id = get_user_sample_name(sample_name=args.sample_id)
     output_commands = []
     for f in [seq_vcf_file, validation_results]:
-        if f:
+        if f and os.path.exists(f):
             bf = os.path.basename(f)
             out_file = os.path.join(projects_source, args.project_id, args.sample_id, bf.replace(args.sample_id, user_sample_id))
             output_commands.append(rsync_from_to(f, out_file))
