@@ -54,13 +54,13 @@ class ContaminationCheck():
         fastqscreen_run_command = self._fastqscreen_command()
         fastqscreen_expected_outfiles = self._get_expected_outfiles()
         ntf.start_stage('fastqscreen_contamination_check')
-        kontaminant_executor = executor.execute(
+        fastqscreen_executor = executor.execute(
             fastqscreen_run_command,
             job_name='fastqscreen',
-            sample_id=self.sample_id,
+            run_id=self.sample_id,
             cpus=4,
             mem=25
         )
-        exit_status = kontaminant_executor.join()
+        exit_status = fastqscreen_executor.join()
         ntf.end_stage('fastqscreen_contamination_check', exit_status)
         return fastqscreen_expected_outfiles
