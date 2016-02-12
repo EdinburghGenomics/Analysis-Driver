@@ -4,22 +4,15 @@ import requests
 from datetime import datetime
 from collections import defaultdict
 from analysis_driver.config import default as cfg
-from analysis_driver.report_generation import rest_communication,\
-    ELEMENT_RUN_NAME, ELEMENT_NB_Q30_R2_CLEANED, ELEMENT_NB_Q30_R1_CLEANED
+from analysis_driver.report_generation import rest_communication
 from analysis_driver.app_logging import get_logger
 from analysis_driver.clarity import get_expected_yield_for_sample
+from analysis_driver.constants import DATASET_NEW, DATASET_READY, DATASET_FORCE_READY, DATASET_PROCESSING,\
+    DATASET_PROCESSED_SUCCESS, DATASET_PROCESSED_FAIL, DATASET_ABORTED, DATASET_REPROCESS, ELEMENT_RUN_NAME,\
+    ELEMENT_NB_Q30_R2_CLEANED, ELEMENT_NB_Q30_R1_CLEANED
 
 
 app_logger = get_logger('scanner')
-
-DATASET_NEW = 'new'
-DATASET_READY = 'ready'
-DATASET_FORCE_READY = 'force_ready'
-DATASET_PROCESSING = 'processing'
-DATASET_PROCESSED_SUCCESS = 'finished'
-DATASET_PROCESSED_FAIL = 'failed'
-DATASET_ABORTED = 'aborted'
-DATASET_REPROCESS = 'reprocess'
 
 STATUS_VISIBLE = [DATASET_NEW, DATASET_READY, DATASET_FORCE_READY, DATASET_PROCESSING, DATASET_REPROCESS]
 STATUS_HIDDEN = [DATASET_PROCESSED_SUCCESS, DATASET_PROCESSED_FAIL, DATASET_ABORTED]

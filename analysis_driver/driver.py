@@ -1,6 +1,5 @@
 import os
 import time
-from glob import glob
 import shutil
 import yaml
 from analysis_driver import reader, util, executor, clarity
@@ -104,10 +103,10 @@ def demultiplexing_pipeline(dataset):
         mem=2
     )
 
-    #seqtk fqchk
+    # seqtk fqchk
     ntf.start_stage('seqtk_fqchk')
     seqtk_fqchk_executor = executor.execute(
-        [writer.bash_commands.seqtk_fqchk(fq) for fq in util.fastq_handler.find_all_fastqs(fastq_dir)],
+        [util.bash_commands.seqtk_fqchk(fq) for fq in util.find_all_fastqs(fastq_dir)],
         job_name='fqchk',
         run_id=run_id,
         cpus=1,
@@ -206,7 +205,7 @@ def variant_calling_pipeline(dataset):
 
     # wait for genotype_validation fastqc and bcbio to finish
     geno_valid_vcf_file, geno_valid_results = genotype_validation.join()
-    app_logger.info('Written files: '+ str(geno_valid_vcf_file) + ' ' + str(geno_valid_results))
+    app_logger.info('Written files: ' + str(geno_valid_vcf_file) + ' ' + str(geno_valid_results))
     ntf.end_stage('genotype validation')
 
     fastqc2_exit_status = fastqc2_executor.join()
@@ -347,7 +346,7 @@ def _bcbio_prepare_sample(job_dir, sample_id, fastq_files):
     cmd = util.bcbio_prepare_samples_cmd(job_dir, sample_id, fastq_files, user_sample_id=user_sample_id)
 
     exit_status = executor.execute([cmd], job_name='bcbio_prepare_samples', run_id=sample_id).join()
-    sample_fastqs = glob(os.path.join(job_dir, 'merged', user_sample_id + '_R?.fastq.gz'))
+    sample_fastqs = util.find_files(job_dir, 'merged', user_sample_id + '_R?.fastq.gz')
 
     app_logger.info('bcbio_prepare_samples finished with exit status ' + str(exit_status))
 

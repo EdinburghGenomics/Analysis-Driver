@@ -1,11 +1,10 @@
-from analysis_driver.report_generation import ELEMENT_NO_CALL_CHIP, ELEMENT_NO_CALL_SEQ, ELEMENT_MISMATCHING, \
-    ELEMENT_MATCHING
-
 __author__ = 'tcezard'
 from collections import Counter
 import csv
 import yaml
 import re
+from analysis_driver.constants import ELEMENT_NO_CALL_CHIP, ELEMENT_NO_CALL_SEQ, ELEMENT_MISMATCHING, \
+    ELEMENT_MATCHING
 
 
 def parse_bamtools_stats(bamtools_stats):
@@ -88,8 +87,8 @@ def parse_genotype_concordance(genotype_concordance_file):
             if inside:
                 lines.append(line)
             if line.startswith('#'):
-                #header
-                if 'GenotypeConcordance_Counts' in  line:
+                # header
+                if 'GenotypeConcordance_Counts' in line:
                     inside = True
     headers = lines[0].split()
     header_mapping = {}

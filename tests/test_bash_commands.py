@@ -86,3 +86,9 @@ def test_export():
 def test_is_remote_path():
     assert not bash_commands.is_remote_path('a_file_path')
     assert bash_commands.is_remote_path('user@server:/home/user/a_file_path')
+
+
+def test_seqtk_fqchk():
+    fastq_file = 'path/to/fastq_R1.fastq.gz'
+    expected = '%s fqchk -q 0 %s > %s.fqchk' % (cfg['tools']['seqtk'], fastq_file, fastq_file)
+    assert bash_commands.seqtk_fqchk(fastq_file) == expected
