@@ -28,6 +28,7 @@ def _parse_args():
     geno_val_parser = subparsers.add_parser('genotype_validation')
     geno_val_parser.add_argument('--project_id', required=True)
     geno_val_parser.add_argument('--sample_id', required = True)
+    geno_val_parser.add_argument('--check_plate', action='store_true', default=False)
     geno_val_parser.set_defaults(func=run_genotype_validation)
 
     return parser.parse_args()
@@ -76,7 +77,7 @@ def run_genotype_validation(args):
             genotype_vcf = genotype_vcfs[0]
             fastq_files = []
 
-    geno_val = GenotypeValidation(sorted(fastq_files), args.sample_id, vcf_file=genotype_vcf)
+    geno_val = GenotypeValidation(sorted(fastq_files), args.sample_id, vcf_file=genotype_vcf, check_plate=args.check_plate)
     geno_val.start()
 
     seq_vcf_file, validation_results = geno_val.join()

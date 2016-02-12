@@ -175,11 +175,12 @@ class GenotypeValidation(AppLogger, Thread):
 
 
     def _compare_vcf_with(self, expected_genotype_vcf, sample_name=None):
-        if not sample_name:
+        if sample_name:
             validation_results = os.path.join(self.work_directory, sample_name + '_genotype_validation.txt')
             self.validation_plate_results.append(validation_results)
         else:
-            self.validation_results = os.path.join(self.work_directory, self.sample_id + '_genotype_validation.txt')
+            validation_results = os.path.join(self.work_directory, self.sample_id + '_genotype_validation.txt')
+            self.validation_results = validation_results
         self._rename_expected_genotype(expected_genotype_vcf, self.sample_id)
         self._vcf_validation(self.seq_vcf_file, expected_genotype_vcf, validation_results)
 
@@ -196,8 +197,7 @@ class GenotypeValidation(AppLogger, Thread):
         genotype_vcf = os.path.join(self.work_directory, self.sample_id + '_expected_genotype.vcf')
         genotype_vcf = get_genotype_information_from_lims(self.sample_id, genotype_vcf)
         if genotype_vcf:
-            self._rename_expected_genotype(genotype_vcf, self.sample_id)
-            self._vcf_validation(self.seq_vcf_file, genotype_vcf)
+            self._compare_vcf_with(genotype_vcf)
         if self.check_plate:
             plate_id, well_id = get_plate_id_and_well_from_lims(self.sample_id)
             samples_names = get_sample_names_from_plate_from_lims(plate_id)
@@ -206,8 +206,7 @@ class GenotypeValidation(AppLogger, Thread):
                     genotype_vcf = os.path.join(self.work_directory, sample_name + '_expected_genotype.vcf')
                     genotype_vcf = get_genotype_information_from_lims(sample_name, genotype_vcf)
                     if genotype_vcf:
-                        self._rename_expected_genotype(genotype_vcf, self.sample_id)
-                        self._vcf_validation(self.seq_vcf_file, genotype_vcf)
+                        self._compare_vcf_with(genotype_vcf, sample_name)
 
     def run(self):
         try:
