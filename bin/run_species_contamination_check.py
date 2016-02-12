@@ -3,6 +3,7 @@ import glob
 import argparse
 import sys
 
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from analysis_driver.quality_control.contamination_checks import ContaminationCheck
 from analysis_driver.config import default as cfg
 
