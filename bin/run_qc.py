@@ -34,6 +34,19 @@ def _parse_args():
 
 
 def run_genotype_validation(args):
+
+    def retrive_data(paths, work_dir, sample_id, allow_fail=False):
+        cmd = rsync_from_to(paths, work_dir)
+        exit_status = executor.execute(
+                [cmd],
+                job_name='retrive data',
+                run_id=sample_id,
+                cpus=1,
+                mem=2
+        ).join()
+        if exit_status != 0 and not allow_fail:
+            raise AnalysisDriverError("Copy of the file(s) from remote has failed")
+
     #Get the sample specific config
     cfg.merge(cfg['sample'])
     projects_source = cfg.query('output_dir')
@@ -41,25 +54,31 @@ def run_genotype_validation(args):
     os.makedirs(work_dir,exist_ok=True)
     #Hack to retrive the fastq file from the CIFS share
     if is_remote_path(projects_source):
-        # Need to retrieve the data localy
-        fastq_files = os.path.join(projects_source, args.project_id, args.sample_id, '*_R?.fastq.gz')
-        cmd = rsync_from_to(fastq_files, work_dir)
-        exit_status = executor.execute(
-                [cmd],
-                job_name='getfastq',
-                run_id=args.sample_id,
-                cpus=1,
-                mem=2
-        ).join()
-        if exit_status != 0:
-            raise AnalysisDriverError("Copy of the fastq files from remote has failed")
-
-        fastq_files = glob.glob(os.path.join(work_dir, '*_R?.fastq.gz'))
+        # First try to retrieve the genotype vcf file
+        genotype_vcfs = os.path.join(projects_source, args.project_id, args.sample_id, '*_genotype_validation.vcf.gz')
+        retrive_data(genotype_vcfs, work_dir, args.sample_id, allow_fail=True)
+        genotype_vcfs = glob.glob(os.path.join(work_dir, '*_genotype_validation.vcf.gz'))
+        if not genotype_vcfs:
+            # Need to retrieve the fastq files localy
+            fastq_files = os.path.join(projects_source, args.project_id, args.sample_id, '*_R?.fastq.gz')
+            retrive_data(fastq_files, work_dir, args.sample_id)
+            fastq_files = glob.glob(os.path.join(work_dir, '*_R?.fastq.gz'))
+            genotype_vcf = None
+        else:
+            genotype_vcf = genotype_vcfs[0]
+            fastq_files = []
     else:
-        fastq_files = glob.glob(os.path.join(projects_source, args.project_id, args.sample_id, '*_R?.fastq.gz'))
+        genotype_vcfs = glob.glob(os.path.join(work_dir, '*_genotype_validation.vcf.gz'))
+        if not genotype_vcfs:
+            fastq_files = glob.glob(os.path.join(projects_source, args.project_id, args.sample_id, '*_R?.fastq.gz'))
+            genotype_vcf = None
+        else:
+            genotype_vcf = genotype_vcfs[0]
+            fastq_files = []
 
-    geno_val = GenotypeValidation(sorted(fastq_files), args.sample_id)
+    geno_val = GenotypeValidation(sorted(fastq_files), args.sample_id, vcf_file=genotype_vcf)
     geno_val.start()
+
     seq_vcf_file, validation_results = geno_val.join()
     user_sample_id = get_user_sample_name(sample_name=args.sample_id)
     output_commands = []
