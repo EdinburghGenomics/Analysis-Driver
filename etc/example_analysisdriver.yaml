@@ -47,3 +47,4 @@ default:
         samblaster: path/to/samblaster
         samtools: path/to/samtools
         sambamba: path/to/sambamba
+        bcftools: path/to/bcftools

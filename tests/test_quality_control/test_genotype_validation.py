@@ -76,17 +76,30 @@ class TestGenotypeValidation(TestAnalysisDriver):
     def test__vcf_validation(self, mocked_execute):
         vcf_file = os.path.join('path/to/jobs', self.sample_id, self.sample_id + '_expected_genotype.vcf')
         genotype_vcf = os.path.join('path/to/jobs', self.sample_id, self.sample_id + '_genotype_validation.vcf.gz')
+        validation_results = os.path.join('path/to/jobs', self.sample_id, self.sample_id + '_genotype_validation.txt')
         vc = self.validator.validation_cfg
-        self.validator._vcf_validation(vcf_file, genotype_vcf)
+        self.validator._vcf_validation(vcf_file, genotype_vcf, validation_results)
         command = ' '.join(
                 ['java -Xmx4G -jar %s' % vc.get('gatk'),
                  '-T GenotypeConcordance',
                  '-eval:VCF %s ' % vcf_file,
                  '-comp:VCF %s ' % genotype_vcf,
                  '-R %s' % vc.get('reference'),
-                 ' > %s' % self.validator.validation_results])
+                 ' > %s' % validation_results])
         assert mocked_execute.call_count == 1
         mocked_execute.assert_called_once_with([command], job_name='genotype_concordance', run_id=self.sample_id, cpus=4, mem=8, log_command=False)
+
+
+    @patch('analysis_driver.executor.execute')
+    def test__rename_expected_genotype(self, mocked_execute):
+        genotype_vcf = os.path.join('path/to/jobs', self.sample_id, self.sample_id + '_genotype_validation.vcf.gz')
+        sample_name = 'test_sample'
+        self.validator._rename_expected_genotype(genotype_vcf, sample_name)
+        vc = self.validator.validation_cfg
+        command = "{bcftools} reheader -s <(echo {sample_name}) {genotype_vcf} > {genotype_vcf}.tmp; mv {genotype_vcf}.tmp {genotype_vcf}"
+        command = command.format(bcftools=vc.get('bcftools'), sample_name=sample_name, genotype_vcf=genotype_vcf)
+        assert mocked_execute.call_count == 1
+        mocked_execute.assert_called_once_with([command], job_name='genotype_rename', run_id=self.sample_id, cpus=4, mem=8, log_command=False)
 
     def test__genotype_validation(self):
         pass
