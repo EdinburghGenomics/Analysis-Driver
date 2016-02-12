@@ -201,6 +201,28 @@ def get_run(run_id):
         return runs[0]
 
 
+def get_plate_id_and_well_from_lims(sample_name):
+    lims = _get_lims_connection()
+    samples = get_lims_samples(sample_name, lims)
+    if len(samples) == 1:
+        plate, well = samples[0].artifact.location
+        return plate.name, well
+    else:
+        return None, None
+
+
+def get_sample_names_from_plate_from_lims(plate_id):
+    lims = _get_lims_connection()
+    containers = lims.get_containers(type='96 well plate', name=plate_id)
+    if containers:
+        samples = {}
+        placements = containers[0].get_placements()
+        for key in placements:
+            sample_name = placements.get(key).samples[0].name
+            samples[key] = sanitize_user_id(sample_name)
+        return samples
+
+
 def run_tests():
     assert get_valid_lanes('HCH25CCXX') == [1, 2, 3, 4, 5, 6, 7]
     assert get_valid_lanes('HCH25CCX') is None
