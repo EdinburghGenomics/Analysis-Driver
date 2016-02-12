@@ -10,6 +10,7 @@ from analysis_driver.app_logging import get_logger
 from analysis_driver.config import output_files_config, default as cfg  # imports the default config singleton
 from analysis_driver.notification import default as ntf
 from analysis_driver.quality_control.gender_validation import GenderValidation
+from analysis_driver.quality_control.genotype_validation import GenotypeValidation
 from analysis_driver.report_generation.report_crawlers import RunCrawler, SampleCrawler
 from analysis_driver.transfer_data import prepare_run_data, prepare_sample_data, output_sample_data, output_run_data, \
     create_links_from_bcbio
@@ -103,6 +104,17 @@ def demultiplexing_pipeline(dataset):
         mem=2
     )
 
+    #seqtk fqchk
+    ntf.start_stage('seqtk_fqchk')
+    seqtk_fqchk_executor = executor.execute(
+        [writer.bash_commands.seqtk_fqchk(fq) for fq in util.fastq_handler.find_all_fastqs(fastq_dir)],
+        job_name='fqchk',
+        run_id=run_id,
+        cpus=1,
+        mem=2,
+        log_command=False
+    )
+
     # md5sum
     ntf.start_stage('md5sum')
     md5sum_executor = executor.execute(
@@ -116,6 +128,8 @@ def demultiplexing_pipeline(dataset):
 
     fastqc_exit_status = fastqc_executor.join()
     ntf.end_stage('fastqc', fastqc_exit_status)
+    seqtk_fqchk_exit_status = seqtk_fqchk_executor.join()
+    ntf.end_stage('seqtk_fqchk', seqtk_fqchk_exit_status)
     md5_exit_status = md5sum_executor.join()
     ntf.end_stage('md5sum', md5_exit_status)
 
@@ -130,7 +144,7 @@ def demultiplexing_pipeline(dataset):
     conversion_xml = os.path.join(fastq_dir, 'Stats', 'ConversionStats.xml')
     if os.path.exists(conversion_xml):
         app_logger.info('Found ConversionStats. Sending data.')
-        crawler = RunCrawler(run_id, sample_sheet, conversion_xml)
+        crawler = RunCrawler(run_id, sample_sheet, conversion_xml, job_dir)
         # TODO: review whether we need this
         json_file = os.path.join(fastq_dir, 'demultiplexing_results.json')
         crawler.write_json(json_file)
@@ -182,18 +196,18 @@ def variant_calling_pipeline(dataset):
     )
 
     # genotype validation
-    # ntf.start_stage('genotype validation')
-    # genotype_validation = GenotypeValidation(sample_to_fastq_files, run_id)
-    # genotype_validation.start()
+    ntf.start_stage('genotype validation')
+    genotype_validation = GenotypeValidation(fastq_pair, sample_id)
+    genotype_validation.start()
 
     # bcbio
     ntf.start_stage('bcbio')
     bcbio_executor = _run_bcbio(sample_id, sample_dir, fastq_pair)
 
     # wait for genotype_validation fastqc and bcbio to finish
-    # genotype_results = genotype_validation.join()
-    # app_logger.info('Written files: ' + str(genotype_results))
-    # ntf.end_stage('genotype validation')
+    geno_valid_vcf_file, geno_valid_results = genotype_validation.join()
+    app_logger.info('Written files: '+ str(geno_valid_vcf_file) + ' ' + str(geno_valid_results))
+    ntf.end_stage('genotype validation')
 
     fastqc2_exit_status = fastqc2_executor.join()
     ntf.end_stage('sample_fastqc', fastqc2_exit_status)

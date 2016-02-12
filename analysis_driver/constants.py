@@ -1,5 +1,4 @@
-__author__ = 'tcezard'
-
+__author__ = 'mwham'
 
 ELEMENT_RUN_ELEMENT_ID = 'run_element_id'
 ELEMENT_RUN_NAME = 'run_id'
@@ -46,3 +45,12 @@ ELEMENT_NO_CALL_CHIP = 'no_call_chip'
 ELEMENT_NO_CALL_SEQ = 'no_call_seq'
 ELEMENT_MATCHING = 'matching_snps'
 ELEMENT_MISMATCHING = 'mismatching_snps'
+
+DATASET_NEW = 'new'
+DATASET_READY = 'ready'
+DATASET_FORCE_READY = 'force_ready'
+DATASET_PROCESSING = 'processing'
+DATASET_PROCESSED_SUCCESS = 'finished'
+DATASET_PROCESSED_FAIL = 'failed'
+DATASET_ABORTED = 'aborted'
+DATASET_REPROCESS = 'reprocess'

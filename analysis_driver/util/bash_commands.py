@@ -15,7 +15,7 @@ def bcl2fastq(input_dir, fastq_path, sample_sheet=None, mask=None):
     :rtype: str
     """
     cmd = '%s -l INFO --runfolder-dir %s --output-dir %s -r 8 -d 8 -p 8 -w 8' % (
-        cfg['tools']['bcl2fastq'], input_dir, fastq_path
+        cfg['bcl2fastq'], input_dir, fastq_path
     )
     if sample_sheet:
         cmd += ' --sample-sheet ' + sample_sheet
@@ -26,31 +26,31 @@ def bcl2fastq(input_dir, fastq_path, sample_sheet=None, mask=None):
 
 
 def fastqc(fastq, threads=1):
-    cmd = cfg['tools']['fastqc'] + ' --nogroup -t %s -q %s' % (threads, fastq)
+    cmd = cfg['fastqc'] + ' --nogroup -t %s -q %s' % (threads, fastq)
     app_logger.debug('Writing: ' + cmd)
     return cmd
 
+def seqtk_fqchk(fastq_file):
+    cmd = cfg['seqtk'] + ' fqchk -q 0 %s > %s.fqchk' %(fastq_file,fastq_file)
+    app_logger.debug('Writing: ' + cmd)
+    return cmd
 
 def bwa_mem_samblaster(fastq_pair, reference, expected_output_bam, thread=16):
     bwa_bin = cfg.query('tools', 'bwa')
     tmp_dir = os.path.dirname(expected_output_bam)
     command_bwa = '%s mem -M -t %s %s %s' % (bwa_bin, thread, reference, ' '.join(fastq_pair))
-    command_samblaster = cfg.query('tools', 'samblaster')
+    command_samblaster = '%s ' % (cfg.query('tools', 'samblaster'))
     command_samtools = '%s view -b -' % (cfg.query('tools', 'samtools'))
-    command_sambamba = '%s sort -m 5G --tmpdir %s -t %s -o %s /dev/stdin' % (
-        cfg.query('tools', 'sambamba'), tmp_dir, thread, expected_output_bam
-    )
+    command_sambamba = '%s sort  -m 5G --tmpdir %s -t %s -o  %s /dev/stdin' % ( cfg.query('tools', 'sambamba'), tmp_dir, thread,  expected_output_bam)
     cmd = ' | '.join([command_bwa, command_samblaster, command_samtools, command_sambamba])
     app_logger.debug('Writing: ' + cmd)
     return cmd
 
-
 def bamtools_stats(bam_file, output_file):
     bamtools_bin = cfg.query('tools', 'bamtools')
-    cmd = '%s stats -in %s -insert > %s' % (bamtools_bin, bam_file, output_file)
+    cmd = '%s stats -in %s -insert > %s'%(bamtools_bin, bam_file, output_file)
     app_logger.debug('Writing: ' + cmd)
     return cmd
-
 
 def md5sum(input_file):
     cmd = cfg.get('md5sum', 'md5sum') + ' %s > %s.md5' % (input_file, input_file)
@@ -62,12 +62,12 @@ def export_env_vars():
     """Write export statements for environment variables required by BCBio"""
     app_logger.debug('Writing Java paths')
     return (
-        _export('PATH', os.path.join(cfg['tools']['bcbio'], 'bin'), prepend=True),
-        _export('LD_LIBRARY_PATH', os.path.join(cfg['tools']['bcbio'], 'lib'), prepend=True),
-        _export('PERL5LIB', os.path.join(cfg['tools']['bcbio'], 'lib', 'perl5'), prepend=True),
-        _export('JAVA_HOME', cfg['tools']['jdk']),
-        _export('JAVA_BINDIR', os.path.join(cfg['tools']['jdk'], 'bin')),
-        _export('JAVA_ROOT', cfg['tools']['jdk']),
+        _export('PATH', os.path.join(cfg['bcbio'], 'bin'), prepend=True),
+        _export('LD_LIBRARY_PATH', os.path.join(cfg['bcbio'], 'lib'), prepend=True),
+        _export('PERL5LIB', os.path.join(cfg['bcbio'], 'lib', 'perl5'), prepend=True),
+        _export('JAVA_HOME', cfg['jdk']),
+        _export('JAVA_BINDIR', os.path.join(cfg['jdk'], 'bin')),
+        _export('JAVA_ROOT', cfg['jdk']),
         ''
     )
 
@@ -77,7 +77,7 @@ def bcbio(run_yaml, workdir, threads=10):
     :param run_yaml: The generated yaml config file to be run for the pipeline
     """
     cmd = '%s %s -n %s --workdir %s' % (
-        os.path.join(cfg['tools']['bcbio'], 'bin', 'bcbio_nextgen.py'), run_yaml, threads, workdir
+        os.path.join(cfg['bcbio'], 'bin', 'bcbio_nextgen.py'), run_yaml, threads, workdir
     )
     app_logger.debug('Writing: ' + cmd)
     return cmd
@@ -94,11 +94,13 @@ def is_remote_path(fp):
     return (':' in fp) and ('@' in fp)
 
 
-def rsync_from_to(source, dest, exclude=None):
+def rsync_from_to(source, dest, append_verify=True, exclude=None):
     """rsync command that will transfer the file to the desired destination"""
-    command = 'rsync -rLD --size-only --append-verify '
+    command = 'rsync -rLD --size-only '
     if exclude:
         command += '--exclude=%s ' % exclude
+    if append_verify:
+        command += '--append-verify '
     if is_remote_path(source) or is_remote_path(dest):
         command += '-e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -c arcfour" '
 
