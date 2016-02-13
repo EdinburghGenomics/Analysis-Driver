@@ -230,7 +230,9 @@ def variant_calling_pipeline(dataset):
 
     #Run the gender detection
     vcf_file = os.path.join(dir_with_linked_files, user_sample_id + '.vcf.gz')
-    GenderValidation(sample_id, vcf_file)
+    gender_validation = GenderValidation(sample_id, vcf_file)
+    gender_validation.start()
+    gender_validation.join()
 
     # Upload the data to the rest API
     project_id = clarity.find_project_from_sample(sample_id)
