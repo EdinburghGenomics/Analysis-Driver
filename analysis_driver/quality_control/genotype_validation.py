@@ -28,9 +28,7 @@ class GenotypeValidation(AppLogger, Thread):
         else:
             self.seq_vcf_file = os.path.join(self.work_directory, self.sample_id + '_genotype_validation.vcf.gz')
         self.check_plate = check_plate
-        self.validation_results = os.path.join(self.work_directory, self.sample_id + '_genotype_validation.txt')
-        self.validation_results = None
-        self.validation_plate_results = []
+        self.sample2genotype_validation
         self.exception = None
         Thread.__init__(self)
 
@@ -128,7 +126,7 @@ class GenotypeValidation(AppLogger, Thread):
         ntf.end_stage('genotype_validation_gatk', exit_status)
         return self.seq_vcf_file
 
-    def _vcf_validation(self, vcf_file, genotype_vcf, validation_results):
+    def _vcf_validation(self, sample2genotype):
         """
         Validate SNPs against genotype data found in the genotypes_repository
         :param vcf_file: The vcf file containing the SNPs to validate.
@@ -136,13 +134,17 @@ class GenotypeValidation(AppLogger, Thread):
         :return list of files containing the results of the validation.
         """
         list_commands = []
-        gatk_command = ['java -Xmx4G -jar %s' % self.validation_cfg.get('gatk'),
-                        '-T GenotypeConcordance',
-                        '-eval:VCF %s ' % vcf_file,
-                        '-comp:VCF %s ' % genotype_vcf,
-                        '-R %s' % self.validation_cfg.get('reference'),
-                        ' > %s' % validation_results]
-        list_commands.append(' '.join(gatk_command))
+        sample2genotype_validation = {}
+        for sample_name in sample2genotype:
+            validation_results = os.path.join(self.work_directory, sample_name + '_genotype_validation.txt')
+            sample2genotype_validation[sample_name] = validation_results
+            gatk_command = ['java -Xmx4G -jar %s' % self.validation_cfg.get('gatk'),
+                            '-T GenotypeConcordance',
+                            '-eval:VCF %s ' % self.seq_vcf_file,
+                            '-comp:VCF %s ' % sample2genotype.get(sample_name),
+                            '-R %s' % self.validation_cfg.get('reference'),
+                            ' > %s' % validation_results]
+            list_commands.append(' '.join(gatk_command))
 
 
         ntf.start_stage('validation_genotype_concordance')
@@ -156,15 +158,19 @@ class GenotypeValidation(AppLogger, Thread):
         )
         exit_status = genotype_concordance_executor.join()
         ntf.end_stage('validation_genotype_concordance', exit_status)
+        return sample2genotype_validation
 
-    def _rename_expected_genotype(self, genotype_vcf, sample_name):
+    def _rename_expected_genotype(self, sample2genotype):
         """This function assume only one sample in the header"""
-        self.validation_cfg.get('bcftools')
-        tmp_genotype = genotype_vcf + '.tmp'
-        cmd = "%s reheader -s <(echo %s) %s > %s; mv %s %s"
-        cmd = cmd%(self.validation_cfg.get('bcftools'), sample_name, genotype_vcf, tmp_genotype, tmp_genotype, genotype_vcf)
+        list_commands = []
+        for sample_name in sample2genotype:
+            genotype_vcf = sample2genotype.get(sample_name)
+            tmp_genotype = sample2genotype.get(sample_name) + '.tmp'
+            cmd = "{bcftools} reheader -s <(echo {sn}) {genovcf} > {genovcf}.tmp; mv {genovcf}.tmp {genovcf}"
+            list_commands.append(cmd.format(bcftools=self.validation_cfg.get('bcftools'), sn=sample_name, genovcf=genotype_vcf))
+
         exit_status = executor.execute(
-            [cmd],
+            list_commands,
             job_name='genotype_rename',
             run_id=self.sample_id,
             cpus=4,
@@ -174,17 +180,6 @@ class GenotypeValidation(AppLogger, Thread):
         return exit_status
 
 
-    def _compare_vcf_with(self, expected_genotype_vcf, sample_name=None):
-        if sample_name:
-            validation_results = os.path.join(self.work_directory, sample_name + '_genotype_validation.txt')
-            self.validation_plate_results.append(validation_results)
-        else:
-            validation_results = os.path.join(self.work_directory, self.sample_id + '_genotype_validation.txt')
-            self.validation_results = validation_results
-        self._rename_expected_genotype(expected_genotype_vcf, self.sample_id)
-        self._vcf_validation(self.seq_vcf_file, expected_genotype_vcf, validation_results)
-
-
     def _genotype_validation(self):
         """
         Perform validation for each of the samples from a run
@@ -192,21 +187,28 @@ class GenotypeValidation(AppLogger, Thread):
         :return list of file containing the results of the validation.
         """
         if not os.path.isfile(self.seq_vcf_file):
+            #Generate self.seq_vcf_file
             bam_file = self._bwa_alignment()
             self._snp_calling(bam_file)
-        genotype_vcf = os.path.join(self.work_directory, self.sample_id + '_expected_genotype.vcf')
-        genotype_vcf = get_genotype_information_from_lims(self.sample_id, genotype_vcf)
-        if genotype_vcf:
-            self._compare_vcf_with(genotype_vcf)
+
+        # Compare against the sample or the plate
         if self.check_plate:
             plate_id, well_id = get_plate_id_and_well_from_lims(self.sample_id)
             samples_names = get_sample_names_from_plate_from_lims(plate_id)
-            for sample_name in samples_names:
-                if sample_name != self.sample_id:
-                    genotype_vcf = os.path.join(self.work_directory, sample_name + '_expected_genotype.vcf')
-                    genotype_vcf = get_genotype_information_from_lims(sample_name, genotype_vcf)
-                    if genotype_vcf:
-                        self._compare_vcf_with(genotype_vcf, sample_name)
+        else:
+            samples_names = [self.sample_id]
+        # Get the expected genotype from the LIMS
+        sample2genotype = {}
+        # TODO: Change to use batch calls which should be much faster
+        for sample_name in samples_names:
+            genotype_vcf = os.path.join(self.work_directory, sample_name + '_expected_genotype.vcf')
+            genotype_vcf = get_genotype_information_from_lims(sample_name, genotype_vcf)
+            if genotype_vcf:
+                sample2genotype[sample_name] = genotype_vcf
+
+        if sample2genotype:
+            self._rename_expected_genotype(sample2genotype)
+            self.sample2genotype_validation = self._vcf_validation(sample2genotype)
 
     def run(self):
         try:
@@ -218,4 +220,4 @@ class GenotypeValidation(AppLogger, Thread):
         super().join(timeout=timeout)
         if self.exception:
             raise self.exception
-        return self.seq_vcf_file, self.validation_results
+        return self.seq_vcf_file, self.sample2genotype_validation
