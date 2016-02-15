@@ -23,7 +23,7 @@ def pipeline(dataset):
         exit_status = demultiplexing_pipeline(dataset)
     elif isinstance(dataset, SampleDataset):
         species = clarity.get_species_from_sample(dataset.name)
-        # TODO: Remove human default when can guarantee that all samples have species
+        # TODO: Remove human default when we can guarantee that all samples have species
         if species == 'Homo sapiens' or species is None:
             exit_status = variant_calling_pipeline(dataset)
         else:
@@ -299,16 +299,18 @@ def _output_data(sample_dir, sample_id, output_fileset):
     )
 
     if output_fileset == 'bcbio':
-        # Run gender detection
-        vcf_file = os.path.join(
-            dir_with_linked_files, clarity.get_user_sample_name(sample_id, lenient=True) + 'vcf.gz'
-        )
-        GenderValidation(sample_id, vcf_file).join()
+        user_sample_id = clarity.get_user_sample_name(sample_id, lenient=True)
+    
+        # gender detection
+        vcf_file = os.path.join(dir_with_linked_files, user_sample_id + '.vcf.gz')
+        g = GenderValidation(sample_id, vcf_file)
+        g.start()
+        g.join()
 
-    # Upload the data to the rest API
-    project_id = clarity.find_project_from_sample(sample_id)
-    crawler = SampleCrawler(sample_id, project_id, dir_with_linked_files)
-    crawler.send_data()
+        # upload the data to the rest API
+        project_id = clarity.find_project_from_sample(sample_id)
+        c = SampleCrawler(sample_id, project_id, dir_with_linked_files)
+        c.send_data()
 
     # md5sum
     ntf.start_stage('md5sum')
@@ -316,7 +318,6 @@ def _output_data(sample_dir, sample_id, output_fileset):
         [util.bash_commands.md5sum(f) for f in linked_files],
         job_name='md5sum',
         run_id=sample_id,
-        # walltime=6,
         cpus=1,
         mem=2,
         log_command=False
