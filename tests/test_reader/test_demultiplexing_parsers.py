@@ -1,5 +1,6 @@
 import os
 from analysis_driver.reader.demultiplexing_parsers import parse_seqtk_fqchk_file
+from analysis_driver.reader.demultiplexing_parsers import parse_fastqscreen_file
 from tests.test_analysisdriver import TestAnalysisDriver
 
 __author__ = 'tcezard'
@@ -14,6 +15,11 @@ class Test_demultiplexing_stats(TestAnalysisDriver):
         assert nb_base == 83750569
         assert lo_q == 8551190
         assert hi_q == 75199379
+
+
+    def test_parse_fastqscreen_file(self):
+        testFile = os.path.join(self.assets_path, "fastqscreenTestOutput.txt")
+
 
 
 
