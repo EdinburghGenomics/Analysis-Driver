@@ -13,13 +13,11 @@ class ContaminationCheck(AppLogger, Thread):
         self.sample_id = sample_id
         self.contamination_cfg = cfg.get('contamination-check')
         Thread.__init__(self)
-        print('starting fastqscreen analsysis')
 
     def _fastqscreen_command(self):
         """
         :return list: the command used to run fastq screen
         """
-        print('getting the fastqscreen command')
         if len(self.fastq_files) == 1:
 
             fastqscreen_bin = (self.contamination_cfg.get('fastq_screen_bin').rstrip('/') + '/')
@@ -56,8 +54,10 @@ class ContaminationCheck(AppLogger, Thread):
             raise ValueError('Bad number of fastqs: ' + str(self.fastq_files))
 
     def _run_fastqscreen(self):
-        print('beginning to run fastqscreen')
         fastqscreen_run_command = self._fastqscreen_command()
+        print('printing fastqscreen run command')
+        print(fastqscreen_run_command)
+        print('\n')
         fastqscreen_expected_outfiles = self._get_expected_outfiles()
         ntf.start_stage('fastqscreen_contamination_check')
         fastqscreen_executor = executor.execute(
@@ -82,4 +82,3 @@ class ContaminationCheck(AppLogger, Thread):
         super().join(timeout=timeout)
         if self.exception:
             raise self.exception
-        
