@@ -20,8 +20,8 @@ class ContaminationCheck(AppLogger, Thread):
         """
         if len(self.fastq_files) == 1:
 
-            fastqscreen_bin = (self.contamination_cfg.get('fastq_screen_bin').rstrip('/') + '/')
-            confPath = (self.contamination_cfg.get('fastq_screen_conf').rstrip('/') + '/')
+            fastqscreen_bin = (self.contamination_cfg.get('fastq_screen_bin'))
+            confPath = (self.contamination_cfg.get('fastq_screen_conf'))
             fastq1 = self.fastq_files[0]
 
             fastqscreen_command = ["{} --aligner bowtie2 {} --conf {}".format(fastqscreen_bin,
