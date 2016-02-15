@@ -27,12 +27,10 @@ def _parse_args():
 
 def run_species_contamiantion_check(args):
     logger.info("Run contamination check for {}".format(str(args.fastq_files)))
-    print('I am running a contamination check for {}'.format(str(args.fastq_files)))
     species_contamination_check = ContaminationCheck(sorted(args.fastq_files),args.run_id)
     species_contamination_check.start()
     species_contamination_check.join()
     logger.info('All done')
-    print('All done now')
 
 
 
