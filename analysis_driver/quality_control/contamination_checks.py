@@ -13,6 +13,7 @@ class ContaminationCheck(AppLogger, Thread):
         self.sample_id = sample_id
         self.contamination_cfg = cfg.get('contamination-check')
         Thread.__init__(self)
+        self.exception = None
 
     def _fastqscreen_command(self):
         """
