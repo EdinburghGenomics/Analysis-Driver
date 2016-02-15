@@ -27,6 +27,8 @@ def _parse_args():
 
 def run_species_contamiantion_check(args):
     logger.info("Run contamination check for {}".format(str(args.fastq_files)))
+    work_dir = os.path.join(cfg['jobs_dir'], args.run_id)
+    os.makedirs(work_dir,exist_ok=True)
     species_contamination_check = ContaminationCheck(sorted(args.fastq_files),args.run_id)
     species_contamination_check.start()
     species_contamination_check.join()
