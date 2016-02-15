@@ -206,7 +206,8 @@ class SampleDataset(Dataset):
     def _read_data(self):
         return rest_communication.get_documents(
             cfg['rest_api']['url'].rstrip('/') + '/run_elements',
-            sample_id=self.name
+            sample_id=self.name,
+            useable='yes'
         )
 
     def _amount_data(self):
