@@ -38,7 +38,7 @@ def _parse_args():
     return parser.parse_args()
 
 
-#def run_genotype_validation(args):
+def run_genotype_validation(args):
     #Get the sample specific config
     cfg.merge(cfg['sample'])
     projects_source = cfg.query('output_dir')
