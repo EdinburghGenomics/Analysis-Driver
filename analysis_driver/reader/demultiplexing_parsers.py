@@ -1,5 +1,6 @@
 __author__ = 'tcezard'
 from xml.etree import ElementTree
+from analysis_driver.clarity import get_species_from_sample
 
 
 def parse_demultiplexing_stats(xml_file):
@@ -99,3 +100,28 @@ def parse_seqtk_fqchk_file(fqchk_file, q_threshold):
             else:
                 hi_q += int(all_cycles[9+i])
         return  nb_read, nb_base, lo_q, hi_q
+
+def parse_fastqscreen_file(filename, sample_id):
+    myFocalSpecies = get_species_from_sample(sample_id)
+    contaminantsUniquelyMapped = {}
+    focalSpeciesPercentUnmapped = ''
+    file = open(filename)
+    lines = file.readlines()
+    Hit_no_genomes = (lines[-1]).split(': ')[1]
+    speciesResults = (lines[2:-2])
+    for result in speciesResults:
+        speciesName = result.split('\t')[0]
+        speciesResults = result.split('\t')[1:12]
+        if speciesName != myFocalSpecies:
+            numberUniquelyMapped = int(result.split('\t')[4]) + int(result.split('\t')[6])
+            contaminantsUniquelyMapped[speciesName] = numberUniquelyMapped
+        elif speciesName == myFocalSpecies:
+            focalSpeciesPercentUnmapped = speciesResults[2]
+    # TODO need to make sure that naming convention in fastqscreen.conf is same as is returned here for species name
+
+    return contaminantsUniquelyMapped, focalSpeciesPercentUnmapped, Hit_no_genomes
+
+
+
+
+
