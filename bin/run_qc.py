@@ -12,7 +12,7 @@ from analysis_driver.exceptions import AnalysisDriverError
 from analysis_driver.writer.bash_commands import rsync_from_to, is_remote_path
 from analysis_driver.config import default as cfg
 from analysis_driver.clarity import get_user_sample_name
-
+from analysis_driver.quality_control.contamination_checks import ContaminationCheck
 log_cfg.default_level = logging.DEBUG
 log_cfg.add_handler('stdout', logging.StreamHandler(stream=sys.stdout), logging.DEBUG)
 
@@ -30,10 +30,15 @@ def _parse_args():
     geno_val_parser.add_argument('--sample_id', required = True)
     geno_val_parser.set_defaults(func=run_genotype_validation)
 
+    sp_contamination_parser = subparsers.add_parser('contamination_check')
+    sp_contamination_parser.add_argument('--fastq_files', required=True, nargs='+', help='the fastq file pairs')
+    sp_contamination_parser.add_argument('--run_id', required=True)
+    sp_contamination_parser.set_defaults(func=run_species_contamiantion_check)
+
     return parser.parse_args()
 
 
-def run_genotype_validation(args):
+#def run_genotype_validation(args):
     #Get the sample specific config
     cfg.merge(cfg['sample'])
     projects_source = cfg.query('output_dir')
@@ -76,6 +81,16 @@ def run_genotype_validation(args):
 
     if exit_status != 0:
         raise AnalysisDriverError("Copy of the results files to remote has failed")
+
+def run_species_contamiantion_check(args):
+    logger.info("Run contamination check for {}".format(str(args.fastq_files)))
+    work_dir = os.path.join(cfg['jobs_dir'], args.run_id)
+    os.makedirs(work_dir,exist_ok=True)
+    species_contamination_check = ContaminationCheck(sorted(args.fastq_files),args.run_id)
+    species_contamination_check.start()
+    species_contamination_check.join()
+    logger.info('All done')
+
 
 
 if __name__ == '__main__':
