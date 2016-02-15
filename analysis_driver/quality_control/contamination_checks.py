@@ -71,3 +71,15 @@ class ContaminationCheck(AppLogger, Thread):
         ntf.end_stage('fastqscreen_contamination_check', exit_status)
         print('finished now')
         return fastqscreen_expected_outfiles
+
+    def run(self):
+        try:
+            self._run_fastqscreen()
+        except Exception as e:
+            self.exception = e
+
+    def join(self, timeout=None):
+        super().join(timeout=timeout)
+        if self.exception:
+            raise self.exception
+        
