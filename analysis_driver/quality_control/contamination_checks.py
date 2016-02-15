@@ -30,8 +30,8 @@ class ContaminationCheck(AppLogger, Thread):
             return fastqscreen_command
 
         elif len(self.fastq_files) == 2:
-            fastqscreen_bin = (self.contamination_cfg.get('fastq_screen_bin').rstrip('/') + '/')
-            confPath = (self.contamination_cfg.get('fastq_screen_conf').rstrip('/') + '/')
+            fastqscreen_bin = (self.contamination_cfg.get('fastq_screen_bin'))
+            confPath = (self.contamination_cfg.get('fastq_screen_conf'))
             fastq1 = self.fastq_files[0]
             fastq2 = self.fastq_files[1]
 
