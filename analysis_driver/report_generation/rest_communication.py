@@ -66,6 +66,22 @@ def patch_entry(url, payload, update_lists=None, **kwargs):
             return True
     return False
 
+def patch_entries(url, payload, update_lists=None, **kwargs):
+    """Apply the same upload to all the documents retrieved from kwargs"""
+    docs = get_documents(url.rstrip('/'), **kwargs)
+    if docs:
+        result = True
+        for doc in docs:
+            url = urljoin(url, doc.get('_id'))
+            headers = {'If-Match': doc.get('_etag')}
+            if update_lists:
+                for l in update_lists:
+                    payload[l] = sorted(set(doc.get(l, []) + payload.get(l, [])))
+            r = _req('PATCH', url, headers=headers, json=payload)
+            if r.status_code != 200:
+                result = False
+        return result
+    return False
 
 def post_or_patch(endpoint, input_json, elem_key=None, update_lists=None):
     """

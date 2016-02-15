@@ -32,15 +32,15 @@ def main():
     elif args.review_fail:
         patch['reviewed'] ='fail'
     for filter_value in filter_values:
-        rest_communication.patch_entry(end_point, payload=patch, update_lists=None, **{filter_key:filter_value})
+        rest_communication.patch_entries(end_point, payload=patch, update_lists=None, **{filter_key:filter_value})
 
 
 def _parse_args():
     p = argparse.ArgumentParser()
     p.add_argument('--debug', action='store_true', help='override pipeline log level to debug')
     group = p.add_mutually_exclusive_group(required=True)
-    group.add_argument('--run', nargs='+', default=[], help='Mark provided run as useable')
-    group.add_argument('--sample', nargs='+', default=[], help='Mark provided run as useable')
+    group.add_argument('--run', nargs='+', default=[], help='Mark provided run with specific annotation')
+    group.add_argument('--sample', nargs='+', default=[], help='Mark provided sample with specific annotation')
     group = p.add_mutually_exclusive_group(required=False)
     group.add_argument('--useable', action='store_true', default=False)
     group.add_argument('--notuseable', action='store_true', default=False)
