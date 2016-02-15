@@ -65,8 +65,8 @@ class ContaminationCheck(AppLogger, Thread):
             fastqscreen_run_command,
             job_name='fastqscreen',
             run_id=self.sample_id,
-            cpus=4,
-            mem=25
+            cpus=2,
+            mem=10
         )
         exit_status = fastqscreen_executor.join()
         ntf.end_stage('fastqscreen_contamination_check', exit_status)
