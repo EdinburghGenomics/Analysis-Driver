@@ -15,11 +15,11 @@ from analysis_driver.report_generation import rest_communication
 def main():
     args = _parse_args()
     if args.run:
-        end_point = cfg['rest_api']['url'].rstrip('/') + '/run_elements'
+        end_point = cfg['rest_api']['url'].rstrip('/') + '/run_elements/'
         filter_key = "run_id"
         filter_values = args.run
     elif args.sample:
-        end_point = cfg['rest_api']['url'].rstrip('/') + '/samples'
+        end_point = cfg['rest_api']['url'].rstrip('/') + '/samples/'
         filter_key = "sample_id"
         filter_values = args.sample
     patch = {}
