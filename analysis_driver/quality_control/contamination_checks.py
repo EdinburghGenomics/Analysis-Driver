@@ -54,6 +54,7 @@ class ContaminationCheck(AppLogger, Thread):
             raise ValueError('Bad number of fastqs: ' + str(self.fastq_files))
 
     def _run_fastqscreen(self):
+        print('beginning to run fastqscreen')
         fastqscreen_run_command = self._fastqscreen_command()
         fastqscreen_expected_outfiles = self._get_expected_outfiles()
         ntf.start_stage('fastqscreen_contamination_check')
@@ -66,4 +67,5 @@ class ContaminationCheck(AppLogger, Thread):
         )
         exit_status = fastqscreen_executor.join()
         ntf.end_stage('fastqscreen_contamination_check', exit_status)
+        print('finished now')
         return fastqscreen_expected_outfiles
