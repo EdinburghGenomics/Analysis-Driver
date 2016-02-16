@@ -77,7 +77,7 @@ class Dataset:
     def dataset_status(self):
         most_recent_proc = self._most_recent_proc()
         db_proc_status = most_recent_proc.get('status')
-        if not db_proc_status:
+        if db_proc_status in (DATASET_REPROCESS, None):
             if self._is_ready():
                 return DATASET_READY
             else:
