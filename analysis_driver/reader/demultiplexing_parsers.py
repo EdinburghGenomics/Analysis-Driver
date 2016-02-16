@@ -1,8 +1,11 @@
 __author__ = 'tcezard'
+
+import os
+import sys
 from xml.etree import ElementTree
-
-
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from analysis_driver.clarity import get_species_from_sample
+
 
 
 def parse_demultiplexing_stats(xml_file):
