@@ -9,7 +9,7 @@ from analysis_driver.reader import demultiplexing_parsers, mapping_stats_parsers
 from analysis_driver.reader.demultiplexing_parsers import parse_seqtk_fqchk_file
 from analysis_driver.reader.mapping_stats_parsers import parse_genotype_concordance
 from analysis_driver.report_generation import rest_communication, ELEMENT_NB_READS_CLEANED, ELEMENT_NB_Q30_R1_CLEANED, \
-    ELEMENT_NB_BASE_R2_CLEANED, ELEMENT_NB_Q30_R2_CLEANED, ELEMENT_NB_BASE_R1_CLEANED
+    ELEMENT_NB_BASE_R2_CLEANED, ELEMENT_NB_Q30_R2_CLEANED, ELEMENT_NB_BASE_R1_CLEANED, ELEMENT_GENOTYPE_VALIDATION
 from analysis_driver.config import default as cfg
 from analysis_driver.report_generation import ELEMENT_RUN_NAME, ELEMENT_NUMBER_LANE, ELEMENT_RUN_ELEMENTS, \
     ELEMENT_BARCODE, ELEMENT_RUN_ELEMENT_ID, ELEMENT_SAMPLE_INTERNAL_ID, ELEMENT_LIBRARY_INTERNAL_ID, \
@@ -278,7 +278,7 @@ class SampleCrawler(Crawler):
             genotyping_results = parse_genotype_concordance(genotype_validation_paths[0])
             genotyping_result = genotyping_results.get(self.sample_id)
             if genotyping_result:
-                sample.update(genotyping_result)
+                sample[ELEMENT_GENOTYPE_VALIDATION](genotyping_result)
             else:
                 self.critical('Sample %s not found in file %s'%(self.sample_id, genotype_validation_paths[0]))
 
