@@ -102,6 +102,9 @@ def parse_seqtk_fqchk_file(fqchk_file, q_threshold):
         return  nb_read, nb_base, lo_q, hi_q
 
 def parse_fastqscreen_file(filename, sample_id):
+    """parse the fastq screen outfile, returning the maximum number of reads mapped uniquely
+    (singly or multiple times) to a contaminant species, % reads unmapped to focal Species,
+    and % reads with no hits to any of the genomes provided"""
     myFocalSpecies = get_species_from_sample(sample_id)
     contaminantsUniquelyMapped = {}
     focalSpeciesPercentUnmapped = ''
@@ -118,9 +121,7 @@ def parse_fastqscreen_file(filename, sample_id):
         elif speciesName == myFocalSpecies:
             focalSpeciesPercentUnmapped = speciesResults[2]
     # TODO need to make sure that naming convention in fastqscreen.conf is same as is returned here for species name
-
-    return contaminantsUniquelyMapped, focalSpeciesPercentUnmapped, Hit_no_genomes
-
+    return [max(contaminantsUniquelyMapped.values()), focalSpeciesPercentUnmapped, Hit_no_genomes]
 
 
 
