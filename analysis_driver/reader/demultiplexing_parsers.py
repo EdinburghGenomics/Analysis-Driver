@@ -4,9 +4,7 @@ import os
 import sys
 from xml.etree import ElementTree
 
-#sys.path.append('../..')
-sys.path.append('..')
-
+sys.path.append('../..')
 from analysis_driver.clarity import get_species_from_sample
 
 
