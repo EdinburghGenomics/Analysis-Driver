@@ -114,13 +114,15 @@ def parse_fastqscreen_file(filename, sample_id):
     :return str: % reads unmapped to focal Species
     :return str: % reads with no hits to any of the genomes provided
     """
-    myFocalSpecies = get_species_from_sample(sample_id)
-    contaminantsUniquelyMapped = {}
-    focalSpeciesPercentUnmapped = ''
     file = open(filename)
     lines = file.readlines()
+
+    contaminantsUniquelyMapped = {}
+    focalSpeciesPercentUnmapped = ''
+    myFocalSpecies = get_species_from_sample(sample_id)
     Hit_no_genomes = (lines[-1]).split(': ')[1]
     speciesResults = (lines[2:-2])
+
     for result in speciesResults:
         speciesName = result.split('\t')[0]
         speciesResults = result.split('\t')[1:12]
@@ -129,6 +131,7 @@ def parse_fastqscreen_file(filename, sample_id):
             contaminantsUniquelyMapped[speciesName] = numberUniquelyMapped
         elif speciesName == myFocalSpecies:
             focalSpeciesPercentUnmapped = speciesResults[2]
+
     # TODO need to make sure that naming convention in fastqscreen.conf is same as is returned here for species name
     return [max(contaminantsUniquelyMapped.values()), float(focalSpeciesPercentUnmapped), float(Hit_no_genomes)]
 
