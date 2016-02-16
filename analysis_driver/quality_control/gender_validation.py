@@ -3,7 +3,7 @@ import os
 from threading import Thread
 import sys
 from analysis_driver.app_logging import AppLogger
-from analysis_driver import executor
+from analysis_driver import executor, util
 from analysis_driver.config import default as cfg
 
 
@@ -35,9 +35,15 @@ class GenderValidation(AppLogger, Thread):
 
         gender_call_file = name + '.sex'
 
-        command = '''%s %s | grep '^chrX' | awk '{split($10,a,":"); count[a[1]]++; total++} END{for (g in count){print g" "count[g]/total}}' | grep '0/1' | awk '{if ($2>.35){gender="FEMALE"}else{if ($2<.15){gender="MALE"}else{gender="UNKNOWN"}} print gender}' > %s'''
+        command = util.str_join(
+            '%s %s' % (file_opener, self.vcf_file),
+            "grep '^chrX'",
+            "awk '{split($10,a,\":\"); count[a[1]]++; total++} END{for (g in count){print g\" \"count[g]/total}}'",
+            "grep '0/1'",
+            "awk '{if ($2>.35){gender=\"FEMALE\"}else{if ($2<.15){gender=\"MALE\"}else{gender=\"UNKNOWN\"}} print gender}'",
+            separator=' | '
+        ) + ' > ' + gender_call_file
         self.info(command)
-        command = command % (file_opener, self.vcf_file, gender_call_file)
 
         return executor.execute(
             [command],
