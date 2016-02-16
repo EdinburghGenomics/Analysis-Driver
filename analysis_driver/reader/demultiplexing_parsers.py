@@ -104,9 +104,12 @@ def parse_seqtk_fqchk_file(fqchk_file, q_threshold):
         return  nb_read, nb_base, lo_q, hi_q
 
 def parse_fastqscreen_file(filename, sample_id):
-    """parse the fastq screen outfile, returning the maximum number of reads mapped uniquely
-    (singly or multiple times) to a contaminant species, % reads unmapped to focal Species,
-    and % reads with no hits to any of the genomes provided"""
+    """
+    parse the fastq screen outfile
+    :return int: the maximum number of reads mapped uniquely (singly or multiple times) to a contaminant species
+    :return str: % reads unmapped to focal Species
+    :return str: % reads with no hits to any of the genomes provided
+    """
     myFocalSpecies = get_species_from_sample(sample_id)
     contaminantsUniquelyMapped = {}
     focalSpeciesPercentUnmapped = ''
