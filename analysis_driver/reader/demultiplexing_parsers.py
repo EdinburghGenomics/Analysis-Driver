@@ -1,6 +1,7 @@
 __author__ = 'tcezard'
 from xml.etree import ElementTree
 import sys
+import os
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from analysis_driver.clarity import get_species_from_sample
