@@ -1,6 +1,7 @@
 __author__ = 'tcezard'
 from xml.etree import ElementTree
 
+
 from analysis_driver.clarity import get_species_from_sample
 
 
