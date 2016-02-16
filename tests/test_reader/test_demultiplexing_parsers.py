@@ -16,14 +16,13 @@ class Test_demultiplexing_stats(TestAnalysisDriver):
         assert lo_q == 8551190
         assert hi_q == 75199379
 
-    @patch('get_species_from_sample', autospec=True)
+    @patch('analysis_driver.reader.demultiplexing_parsers.get_species_from_sample', autospec=True)
     def test_parse_fastqscreen_file(self, mocked_species):
         testFile = os.path.join(self.assets_path, "fastqscreenTestOutput.txt")
         sample_id = 'testSampleID'
         mocked_species.return_value = 'Homo_sapiens'
         result = parse_fastqscreen_file(testFile, sample_id)
-        assert result == [1,1,1]
-
+        assert result == [4,'1.09','1.06']
 
 
 
