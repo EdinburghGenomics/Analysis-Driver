@@ -130,7 +130,7 @@ def parse_fastqscreen_file(filename, sample_id):
         elif speciesName == myFocalSpecies:
             focalSpeciesPercentUnmapped = speciesResults[2]
     # TODO need to make sure that naming convention in fastqscreen.conf is same as is returned here for species name
-    return [max(contaminantsUniquelyMapped.values()), focalSpeciesPercentUnmapped, Hit_no_genomes]
+    return [max(contaminantsUniquelyMapped.values()), float(focalSpeciesPercentUnmapped), float(Hit_no_genomes)]
 
 
 

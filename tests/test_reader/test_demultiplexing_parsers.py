@@ -22,7 +22,7 @@ class Test_demultiplexing_stats(TestAnalysisDriver):
         sample_id = 'testSampleID'
         mocked_species.return_value = 'Homo_sapiens'
         result = parse_fastqscreen_file(testFile, sample_id)
-        assert result == [4,'1.09','1.06']
+        assert result == [4, 1.09, 1.06]
 
 
 
