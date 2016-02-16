@@ -14,7 +14,7 @@ from analysis_driver.constants import ELEMENT_RUN_NAME, ELEMENT_NUMBER_LANE, ELE
     ELEMENT_PROJECT_ID, ELEMENT_SAMPLE_EXTERNAL_ID, ELEMENT_NB_READS_IN_BAM, ELEMENT_NB_MAPPED_READS, \
     ELEMENT_NB_DUPLICATE_READS, ELEMENT_NB_PROPERLY_MAPPED, ELEMENT_MEDIAN_COVERAGE, ELEMENT_PC_BASES_CALLABLE, \
     ELEMENT_LANE_NUMBER, ELEMENT_CALLED_GENDER, ELEMENT_PROVIDED_GENDER, ELEMENT_NB_READS_CLEANED, ELEMENT_NB_Q30_R1_CLEANED, \
-    ELEMENT_NB_BASE_R2_CLEANED, ELEMENT_NB_Q30_R2_CLEANED, ELEMENT_NB_BASE_R1_CLEANED
+    ELEMENT_NB_BASE_R2_CLEANED, ELEMENT_NB_Q30_R2_CLEANED, ELEMENT_NB_BASE_R1_CLEANED, ELEMENT_GENOTYPE_VALIDATION
 
 
 class Crawler(AppLogger):
@@ -283,7 +283,7 @@ class SampleCrawler(Crawler):
             genotyping_results = mapping_stats_parsers.parse_genotype_concordance(genotype_validation_paths[0])
             genotyping_result = genotyping_results.get(self.sample_id)
             if genotyping_result:
-                sample.update(genotyping_result)
+                sample[ELEMENT_GENOTYPE_VALIDATION].update(genotyping_result)
             else:
                 self.critical('Sample %s not found in file %s' % (self.sample_id, genotype_validation_paths[0]))
 

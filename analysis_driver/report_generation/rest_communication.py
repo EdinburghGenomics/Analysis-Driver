@@ -22,14 +22,15 @@ def _req(method, url, **kwargs):
             app_logger.debug(pformat(json))
     return r
 
-
-def get_documents(endpoint, **kwargs):
+    
+def get_documents(endpoint, limit=10000, **kwargs):
     url = api_url(endpoint)
     param = []
     for key in kwargs:
         param.append('"%s":"%s"' % (key, kwargs.get(key)))
     if param:
         url += '?where={%s}' % ','.join(param)
+    url += '&max_results=%s' % limit
     r = _req('GET', url)
     return r.json().get('data')
 
@@ -72,6 +73,26 @@ def patch_entry(endpoint, payload, update_lists=None, **kwargs):
             return True
     return False
 
+def patch_entries(url, payload, update_lists=None, **kwargs):
+    """Apply the same upload to all the documents retrieved using  **kwargs"""
+    docs = get_documents(url.rstrip('/'), **kwargs)
+    if docs:
+        result = True
+        nb_docs = 0
+        for doc in docs:
+            url = urljoin(url, doc.get('_id'))
+            headers = {'If-Match': doc.get('_etag')}
+            if update_lists:
+                for l in update_lists:
+                    payload[l] = sorted(set(doc.get(l, []) + payload.get(l, [])))
+            r = _req('PATCH', url, headers=headers, json=payload)
+            if r.status_code != 200:
+                result = False
+            else:
+                nb_docs += 1
+        app_logger.info("Updated %s documents matching %s"%(nb_docs, kwargs))
+        return result
+    return False
 
 def post_or_patch(endpoint, input_json, elem_key=None, update_lists=None):
     """
