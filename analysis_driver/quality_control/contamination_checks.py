@@ -6,6 +6,7 @@ from analysis_driver.notification import default as ntf
 from analysis_driver.app_logging import AppLogger
 
 
+
 class ContaminationCheck(AppLogger, Thread):
 
     def __init__(self, fastq_files, sample_id):
