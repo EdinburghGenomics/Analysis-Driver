@@ -278,7 +278,7 @@ class SampleCrawler(Crawler):
             genotyping_results = parse_genotype_concordance(genotype_validation_paths[0])
             genotyping_result = genotyping_results.get(self.sample_id)
             if genotyping_result:
-                sample[ELEMENT_GENOTYPE_VALIDATION](genotyping_result)
+                sample[ELEMENT_GENOTYPE_VALIDATION]=genotyping_result
             else:
                 self.critical('Sample %s not found in file %s'%(self.sample_id, genotype_validation_paths[0]))
 
