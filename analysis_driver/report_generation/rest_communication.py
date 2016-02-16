@@ -73,6 +73,7 @@ def patch_entry(endpoint, payload, update_lists=None, **kwargs):
             return True
     return False
 
+
 def patch_entries(url, payload, update_lists=None, **kwargs):
     """Apply the same upload to all the documents retrieved using  **kwargs"""
     docs = get_documents(url.rstrip('/'), **kwargs)
@@ -90,9 +91,10 @@ def patch_entries(url, payload, update_lists=None, **kwargs):
                 result = False
             else:
                 nb_docs += 1
-        app_logger.info("Updated %s documents matching %s"%(nb_docs, kwargs))
+        app_logger.info('Updated %s documents matching %s' % (nb_docs, kwargs))
         return result
     return False
+
 
 def post_or_patch(endpoint, input_json, elem_key=None, update_lists=None):
     """

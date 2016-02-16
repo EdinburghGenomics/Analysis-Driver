@@ -265,4 +265,3 @@ class TestClusterExecutor(TestExecutor):
         proc = e._process()
         assert type(proc) is subprocess.Popen
         assert proc.args == [cfg['tools']['qsub'], os.path.join(self.assets_path, 'a_run_id', 'test_job.pbs')]
-

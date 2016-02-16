@@ -32,7 +32,7 @@ def fastqc(fastq, threads=1):
 
 
 def seqtk_fqchk(fastq_file):
-    cmd = cfg['tools']['seqtk'] + ' fqchk -q 0 %s > %s.fqchk' %(fastq_file,fastq_file)
+    cmd = cfg['tools']['seqtk'] + ' fqchk -q 0 %s > %s.fqchk' % (fastq_file, fastq_file)
     app_logger.debug('Writing: ' + cmd)
     return cmd
 

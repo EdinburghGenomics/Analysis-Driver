@@ -22,17 +22,20 @@ def main():
         end_point = cfg['rest_api']['url'].rstrip('/') + '/samples/'
         filter_key = "sample_id"
         filter_values = args.sample
+    else:
+        return 1
+
     patch = {}
     if args.useable:
-        patch['useable'] ='yes'
+        patch['useable'] = 'yes'
     elif args.notuseable:
-        patch['useable'] ='no'
+        patch['useable'] = 'no'
     if args.review_pass:
-        patch['reviewed'] ='pass'
+        patch['reviewed'] = 'pass'
     elif args.review_fail:
-        patch['reviewed'] ='fail'
+        patch['reviewed'] = 'fail'
     for filter_value in filter_values:
-        rest_communication.patch_entries(end_point, payload=patch, update_lists=None, **{filter_key:filter_value})
+        rest_communication.patch_entries(end_point, payload=patch, update_lists=None, **{filter_key: filter_value})
 
 
 def _parse_args():
@@ -49,7 +52,6 @@ def _parse_args():
     group.add_argument('--review_fail', action='store_true', default=False)
 
     return p.parse_args()
-
 
 
 if __name__ == '__main__':

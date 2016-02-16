@@ -6,7 +6,6 @@ from analysis_driver.config import default as cfg
 from analysis_driver.quality_control import GenotypeValidation
 
 
-
 class TestGenotypeValidation(TestAnalysisDriver):
 
     def setUp(self):
@@ -39,7 +38,7 @@ class TestGenotypeValidation(TestAnalysisDriver):
         )
         assert cmd == ' '.join(expected)
 
-    @patch('analysis_driver.quality_control.GenotypeValidation._bwa_aln', return_value = 'long_bwa_command')
+    @patch('analysis_driver.quality_control.GenotypeValidation._bwa_aln', return_value='long_bwa_command')
     @patch('analysis_driver.executor.execute')
     def test__bwa_alignment(self, mocked_execute, mocked_bwa_aln):
         instance = mocked_execute.return_value
@@ -55,15 +54,15 @@ class TestGenotypeValidation(TestAnalysisDriver):
         bam_file = os.path.join('path/to/bam', self.sample_id, self.sample_id + '_geno_val.bam')
         expected_vcf = os.path.join('path/to/jobs', self.sample_id, self.sample_id + '_genotype_validation.vcf.gz')
         command = ' '.join(
-                ['java -Xmx4G -jar %s' % cfg.query('tools', 'gatk'),
-                 '-T UnifiedGenotyper',
-                 '-nt 4',
-                 '-R %s' % cfg.query('genotype-validation', 'reference'),
-                 ' --standard_min_confidence_threshold_for_calling 30.0',
-                 '--standard_min_confidence_threshold_for_emitting 0',
-                 '-out_mode EMIT_ALL_SITES',
-                 '-I %s' % bam_file,
-                 '-o %s' % expected_vcf]
+            ['java -Xmx4G -jar %s' % cfg.query('tools', 'gatk'),
+             '-T UnifiedGenotyper',
+             '-nt 4',
+             '-R %s' % cfg.query('genotype-validation', 'reference'),
+             ' --standard_min_confidence_threshold_for_calling 30.0',
+             '--standard_min_confidence_threshold_for_emitting 0',
+             '-out_mode EMIT_ALL_SITES',
+             '-I %s' % bam_file,
+             '-o %s' % expected_vcf]
         )
         output_vcf = self.validator._snp_calling(bam_file)
         assert output_vcf == expected_vcf
@@ -76,14 +75,14 @@ class TestGenotypeValidation(TestAnalysisDriver):
         genotype_vcf = os.path.join('path/to/jobs', self.sample_id, self.sample_id + '_genotype_validation.vcf.gz')
         self.validator._vcf_validation(vcf_file, genotype_vcf)
         command = ' '.join(
-                ['java -Xmx4G -jar %s' % cfg.query('tools', 'gatk'),
-                 '-T GenotypeConcordance',
-                 '-eval:VCF %s ' % vcf_file,
-                 '-comp:VCF %s ' % genotype_vcf,
-                 '-R %s' % cfg.query('genotype-validation', 'reference'),
-                 ' > %s' % self.validator.validation_results])
+            ['java -Xmx4G -jar %s' % cfg.query('tools', 'gatk'),
+             '-T GenotypeConcordance',
+             '-eval:VCF %s ' % vcf_file,
+             '-comp:VCF %s ' % genotype_vcf,
+             '-R %s' % cfg.query('genotype-validation', 'reference'),
+             ' > %s' % self.validator.validation_results])
         assert mocked_execute.call_count == 1
         mocked_execute.assert_called_once_with([command], job_name='genotype_concordance', run_id=self.sample_id, cpus=4, mem=8, log_command=False)
 
-    def test__genotype_validation(self):
+    def test_genotype_validation(self):
         pass

@@ -45,7 +45,7 @@ def test_get_documents(mocked_instance):
 def test_get_document(mocked_instance):
     where = {'a_field': 'thing'}
 
-    assert rest_communication.get_document(test_endpoint, **where) == test_request_content['data'][0]
+    assert rest_communication.get_document(test_endpoint, limit=100, **where) == test_request_content['data'][0]
     mocked_instance.assert_called_with('GET', rest_url(test_endpoint) + '?where={"a_field":"thing"}&max_results=100')
 
 

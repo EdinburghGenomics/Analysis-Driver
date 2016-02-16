@@ -140,7 +140,7 @@ class RunCrawler(Crawler):
                 barcode_info[ELEMENT_NB_Q30_R2_CLEANED] = hi_q
 
             elif len(fq_chk_files) == 1:
-                raise AnalysisDriverError('Only one fqchk file found in %s for %s'%(run_dir, run_element_id))
+                raise AnalysisDriverError('Only one fqchk file found in %s for %s' % (run_dir, run_element_id))
 
             elif barcode_info[ELEMENT_NB_READS_PASS_FILTER] == 0:
                 barcode_info[ELEMENT_NB_READS_CLEANED] = 0
