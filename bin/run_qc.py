@@ -90,7 +90,7 @@ def run_species_contamiantion_check(args):
     species_contamination_check = ContaminationCheck(sorted(args.fastq_files),args.run_id)
     species_contamination_check.start()
     expected_output_files = species_contamination_check.join()
-    print(str(expected_output_files))
+    print(''.join(expected_output_files))
 
 
 
