@@ -240,7 +240,7 @@ def qc_pipeline(dataset, species):
 
     # fastqc2
     ntf.start_stage('sample_fastqc')
-    fastqc2_executor = executor.execute(
+    fastqc_executor = executor.execute(
         [util.bash_commands.fastqc(fastq_file) for fastq_file in fastq_pair],
         job_name='fastqc2',
         run_id=sample_id,
@@ -261,7 +261,7 @@ def qc_pipeline(dataset, species):
         mem=32
     )
 
-    fastqc_exit_status = fastqc2_executor.join()
+    fastqc_exit_status = fastqc_executor.join()
     ntf.end_stage('sample_fastqc', fastqc_exit_status)
     bwa_exit_status = bwa_mem_executor.join()
     ntf.end_stage('sample_bwa', bwa_exit_status)
