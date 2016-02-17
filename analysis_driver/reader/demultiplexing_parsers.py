@@ -120,20 +120,31 @@ def parse_fastqscreen_file(filename, sample_id):
     contaminantsUniquelyMapped = {}
     focalSpeciesPercentUnmapped = ''
     myFocalSpecies = get_species_from_sample(sample_id)
-    Hit_no_genomes = (lines[-1]).split(': ')[1]
+    Hit_no_genomes = float((lines[-1]).split(': ')[1])
     speciesResults = (lines[2:-2])
+    speciesList = []
 
     for result in speciesResults:
         speciesName = result.split('\t')[0]
-        speciesResults = result.split('\t')[1:12]
-        if speciesName != myFocalSpecies:
-            numberUniquelyMapped = int(result.split('\t')[4]) + int(result.split('\t')[6])
-            contaminantsUniquelyMapped[speciesName] = numberUniquelyMapped
-        elif speciesName == myFocalSpecies:
-            focalSpeciesPercentUnmapped = speciesResults[2]
+        speciesName = speciesName.replace('_',' ')
+        speciesList.append(speciesName)
+    if myFocalSpecies in speciesList:
+        for result in speciesResults:
+            speciesName = result.split('\t')[0]
+            speciesName = speciesName.replace('_',' ')
+            speciesResults = result.split('\t')[1:12]
+            if speciesName != myFocalSpecies:
+                numberUniquelyMapped = int(result.split('\t')[4]) + int(result.split('\t')[6])
+                contaminantsUniquelyMapped[speciesName] = numberUniquelyMapped
+            elif speciesName == myFocalSpecies:
+                focalSpeciesPercentUnmapped = float(speciesResults[2])
+        return [max(contaminantsUniquelyMapped.values()), (focalSpeciesPercentUnmapped), (Hit_no_genomes)]
+    else:
+        return [100, 100, 100]
+
 
     # TODO need to make sure that naming convention in fastqscreen.conf is same as is returned here for species name
-    return [max(contaminantsUniquelyMapped.values()), float(focalSpeciesPercentUnmapped), float(Hit_no_genomes)]
+
 
 
 
