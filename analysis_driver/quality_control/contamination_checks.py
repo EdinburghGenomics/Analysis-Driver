@@ -26,7 +26,7 @@ class ContaminationCheck(AppLogger, Thread):
             confPath = (self.contamination_cfg.get('fastq_screen_conf'))
             fastq1 = self.fastq_files[0]
 
-            fastqscreen_command = ["{} --aligner bowtie2 {} --conf {}".format(fastqscreen_bin,
+            fastqscreen_command = ["{} --aligner bowtie2 {} --conf {} --force".format(fastqscreen_bin,
                                                                                fastq1,
                                                                                confPath)]
             return fastqscreen_command
@@ -37,7 +37,7 @@ class ContaminationCheck(AppLogger, Thread):
             fastq1 = self.fastq_files[0]
             fastq2 = self.fastq_files[1]
 
-            fastqscreen_command = ["{} --aligner bowtie2 {} {} --conf {}".format(fastqscreen_bin,
+            fastqscreen_command = ["{} --aligner bowtie2 {} {} --conf {} --force".format(fastqscreen_bin,
                                                                                 fastq1,
                                                                                 fastq2,
                                                                                 confPath)]
@@ -55,11 +55,6 @@ class ContaminationCheck(AppLogger, Thread):
         else:
             raise ValueError('Bad number of fastqs: ' + str(self.fastq_files))
 
-    def _check_outfile_doesnot_exist(self, expected_outfile):
-        if os.path.exists(expected_outfile) == True:
-            os.remove(expected_outfile)
-        else:
-            pass
 
     def _run_fastqscreen(self):
         fastqscreen_run_command = self._fastqscreen_command()
