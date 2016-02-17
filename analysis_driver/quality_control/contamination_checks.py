@@ -55,12 +55,19 @@ class ContaminationCheck(AppLogger, Thread):
         else:
             raise ValueError('Bad number of fastqs: ' + str(self.fastq_files))
 
+    def _check_outfile_doesnot_exist(self, expected_outfile):
+        if os.path.exists(expected_outfile) == True:
+            os.remove(expected_outfile)
+        else:
+            pass
+
     def _run_fastqscreen(self):
         fastqscreen_run_command = self._fastqscreen_command()
         print('printing fastqscreen run command')
         print(fastqscreen_run_command)
         print('\n')
         fastqscreen_expected_outfiles = self._get_expected_outfiles()
+        self._check_outfile_doesnot_exist(fastqscreen_expected_outfiles)
         ntf.start_stage('fastqscreen_contamination_check')
         fastqscreen_executor = executor.execute(
             fastqscreen_run_command,
