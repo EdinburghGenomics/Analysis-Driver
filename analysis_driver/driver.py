@@ -307,10 +307,10 @@ def _output_data(sample_dir, sample_id, output_fileset):
         g.start()
         g.join()
 
-        # upload the data to the rest API
-        project_id = clarity.find_project_from_sample(sample_id)
-        c = SampleCrawler(sample_id, project_id, dir_with_linked_files)
-        c.send_data()
+    # upload the data to the rest API
+    project_id = clarity.find_project_from_sample(sample_id)
+    c = SampleCrawler(sample_id, project_id, dir_with_linked_files)
+    c.send_data()
 
     # md5sum
     ntf.start_stage('md5sum')

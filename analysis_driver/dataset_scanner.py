@@ -14,7 +14,7 @@ from analysis_driver.constants import DATASET_NEW, DATASET_READY, DATASET_FORCE_
 
 app_logger = get_logger('scanner')
 
-STATUS_VISIBLE = [DATASET_NEW, DATASET_READY, DATASET_FORCE_READY, DATASET_PROCESSING, DATASET_REPROCESS]
+STATUS_VISIBLE = [DATASET_NEW, DATASET_READY, DATASET_FORCE_READY, DATASET_PROCESSING]
 STATUS_HIDDEN = [DATASET_PROCESSED_SUCCESS, DATASET_PROCESSED_FAIL, DATASET_ABORTED]
 
 
@@ -87,7 +87,7 @@ class Dataset:
         return datetime.utcnow().strftime('%d_%m_%Y_%H:%M:%S')
 
     def start(self):
-        assert self.dataset_status in (DATASET_READY, DATASET_FORCE_READY, DATASET_NEW, DATASET_REPROCESS)
+        assert self.dataset_status in (DATASET_READY, DATASET_FORCE_READY, DATASET_NEW)
         self.pid = os.getpid()
         # sleep(1.1)
         start_time = self._now()
