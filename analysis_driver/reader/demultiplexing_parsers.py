@@ -149,6 +149,6 @@ def parse_fastqscreen_file(filename, sample_id):
 
 
 test_parse = parse_fastqscreen_file('/home/U008/kemelia/Analysis-Driver-Testenv/150723_E00306_0025_BHCHK3CCXX/fastq/10015AT/10015AT0001/LP6002014-DTP_A01_S1_L001_R1_001_screen.txt',
-                       'X0001ML')
+                       'X0006ML001_A:01')
 print(test_parse)
 
