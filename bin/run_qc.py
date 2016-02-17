@@ -88,6 +88,9 @@ def run_species_contamiantion_check(args):
     species_contamination_check = ContaminationCheck(sorted(args.fastq_files),args.run_id)
     species_contamination_check.start()
     species_contamination_check.join()
+    print(species_contamination_check)
+
+
 
 
 
