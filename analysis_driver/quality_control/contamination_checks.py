@@ -47,10 +47,10 @@ class ContaminationCheck(AppLogger, Thread):
 
     def _get_expected_outfiles(self):
         if len(self.fastq_files) == 1:
-            expected_outfiles = [((self.fastq_files[0]).rstrip('.fastq') + '_screen.txt')]
+            expected_outfiles = [((self.fastq_files[0]).rstrip('.fastq.gz') + '_screen.txt')]
             return expected_outfiles
         elif len(self.fastq_files) == 2:
-            expected_outfiles = [((self.fastq_files[0]).rstrip('.fastq') + '_screen.txt'), ((self.fastq_files[1]).rstrip('.fastq') + '_screen.txt')]
+            expected_outfiles = [((self.fastq_files[0]).rstrip('.fastq.gz') + '_screen.txt'), ((self.fastq_files[1]).rstrip('.fastq.gz') + '_screen.txt')]
             return expected_outfiles
         else:
             raise ValueError('Bad number of fastqs: ' + str(self.fastq_files))
