@@ -4,6 +4,7 @@ import os
 import argparse
 import logging
 
+
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from analysis_driver.quality_control.genotype_validation import GenotypeValidation
 from analysis_driver.config import logging_default as log_cfg
@@ -82,13 +83,14 @@ def run_genotype_validation(args):
     if exit_status != 0:
         raise AnalysisDriverError("Copy of the results files to remote has failed")
 
+
 def run_species_contamiantion_check(args):
     work_dir = os.path.join(cfg['jobs_dir'], args.run_id)
     os.makedirs(work_dir,exist_ok=True)
     species_contamination_check = ContaminationCheck(sorted(args.fastq_files),args.run_id)
     species_contamination_check.start()
-    species_contamination_check.join()
-    print(species_contamination_check)
+    expected_output_files = species_contamination_check.join()
+    print(expected_output_files)
 
 
 
