@@ -62,7 +62,6 @@ class ContaminationCheck(AppLogger, Thread):
         print(fastqscreen_run_command)
         print('\n')
         fastqscreen_expected_outfiles = self._get_expected_outfiles()
-        self._check_outfile_doesnot_exist(fastqscreen_expected_outfiles)
         ntf.start_stage('fastqscreen_contamination_check')
         fastqscreen_executor = executor.execute(
             fastqscreen_run_command,
