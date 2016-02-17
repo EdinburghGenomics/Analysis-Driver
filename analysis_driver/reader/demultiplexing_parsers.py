@@ -120,6 +120,7 @@ def parse_fastqscreen_file(filename, sample_id):
     contaminantsUniquelyMapped = {}
     focalSpeciesPercentUnmapped = ''
     myFocalSpecies = get_species_from_sample(sample_id)
+    print(myFocalSpecies)
     Hit_no_genomes = float((lines[-1]).split(': ')[1])
     speciesResults = (lines[2:-2])
     speciesList = []
