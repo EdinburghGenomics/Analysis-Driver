@@ -76,7 +76,7 @@ class ContaminationCheck(AppLogger, Thread):
 
     def run(self):
         try:
-            self._run_fastqscreen()
+            self.fastqscreen_expected_outfiles = self._run_fastqscreen()
         except Exception as e:
             self.exception = e
 
@@ -84,3 +84,5 @@ class ContaminationCheck(AppLogger, Thread):
         super().join(timeout=timeout)
         if self.exception:
             raise self.exception
+        return self.fastqscreen_expected_outfiles
+
