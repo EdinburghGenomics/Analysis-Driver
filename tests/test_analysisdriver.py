@@ -17,6 +17,10 @@ class TestAnalysisDriver(TestCase):
 
     @staticmethod
     def compare_lists(observed, expected):
-        print()
-        print('observed', '\n', observed, '\n', 'expected', '\n', expected)
-        assert sorted(observed) == sorted(expected)
+        if sorted(observed) != sorted(expected):
+            print('')
+            print('observed')
+            print(observed)
+            print('expected')
+            print(expected)
+            raise AssertionError

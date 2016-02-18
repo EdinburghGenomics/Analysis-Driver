@@ -13,15 +13,15 @@ class GenotypeValidation(AppLogger, Thread):
     This class will perform the Genotype validation steps. It subclasses Thread, allowing it to run in the
     background.
     """
-    def __init__(self, fastqs_files, sample_id, vcf_file=None):
+    def __init__(self, fastq_files, sample_id, vcf_file=None):
         """
-        :param dict[str, list[str]] sample_to_fastqs: a dict linking sample ids to their fastq files
-        :param str run_id: the id of the run these sample were sequenced on.
+        :param list[str] fastq_files: fastq files to run genotype validation on
+        :param str sample_id: the id of the run these sample were sequenced on
+        :param str vcf_file:
         """
-        self.fastqs_files = fastqs_files
+        self.fastq_files = fastq_files
         self.sample_id = sample_id
         self.work_directory = os.path.join(cfg['jobs_dir'], self.sample_id)
-        self.validation_cfg = cfg.get('genotype-validation')
         if vcf_file:
             self.seq_vcf_file = vcf_file
         else:
@@ -30,7 +30,8 @@ class GenotypeValidation(AppLogger, Thread):
         self.exception = None
         Thread.__init__(self)
 
-    def _bwa_aln(self, fastq_files, sample_name, expected_output_bam,  reference):
+    @staticmethod
+    def _bwa_aln(fastq_files, sample_name, expected_output_bam, reference):
         """
         Contruct a command that will perform the alignment and duplicate removal using bwa aln.
         :param list fastq_files: 1 or 2 fastq files
@@ -40,7 +41,7 @@ class GenotypeValidation(AppLogger, Thread):
         :rtype: str
         :return: A pipe-separated bash command
         """
-        bwa_bin = self.validation_cfg.get('bwa', 'bwa')
+        bwa_bin = cfg.query('tools', 'bwa', ret_default='bwa')
         if len(fastq_files) == 2:
             command_aln1 = '%s aln %s %s' % (bwa_bin, reference, fastq_files[0])
             command_aln2 = '%s aln %s %s' % (bwa_bin, reference, fastq_files[1])
@@ -57,10 +58,10 @@ class GenotypeValidation(AppLogger, Thread):
         else:
             raise AnalysisDriverError('Bad number of fastqs: ' + str(fastq_files))
 
-        command_samblaster = '%s --removeDups' % (self.validation_cfg.get('samblaster', 'samblaster'))
-        command_samtools = '%s view -F 4 -Sb -' % (self.validation_cfg.get('samtools', 'samtools'))
+        command_samblaster = '%s --removeDups' % (cfg.query('tools', 'samblaster', ret_default='samblaster'))
+        command_samtools = '%s view -F 4 -Sb -' % (cfg.query('tools', 'samtools', ret_default='samtools'))
         command_sambamba = '%s sort -t 16 -o  %s /dev/stdin' % (
-            self.validation_cfg.get('sambamba', 'sambamba'), expected_output_bam
+            cfg.query('tools', 'sambamba', ret_default='sambamba'), expected_output_bam
         )
 
         return ' | '.join([command_bwa, command_samblaster, command_samtools, command_sambamba])
@@ -74,10 +75,10 @@ class GenotypeValidation(AppLogger, Thread):
         expected_bam = os.path.join(self.work_directory, self.sample_id + '_geno_val.bam')
 
         command = self._bwa_aln(
-            self.fastqs_files,
+            self.fastq_files,
             self.sample_id,
             expected_bam,
-            self.validation_cfg.get('reference')
+            cfg.query('genotype-validation', 'reference')
         )
         
         ntf.start_stage('genotype_validation_bwa')
@@ -96,15 +97,15 @@ class GenotypeValidation(AppLogger, Thread):
     def _snp_calling(self, bam_file):
         """
         Call SNPs using GATK as defined in the config file.
-        :param bam_files: The file containing all the read aligned to the synthetic genome.
+        :param bam_file: The file containing all reads aligned to the synthetic genome.
         :rtype: str
         :return a vcf file that contains the variant for all samples.
         """
         gatk_command = [
-            'java -Xmx4G -jar %s' % self.validation_cfg.get('gatk'),
+            'java -Xmx4G -jar %s' % cfg.query('tools', 'gatk'),
             '-T UnifiedGenotyper',
             '-nt 4',
-            '-R %s' % self.validation_cfg.get('reference'),
+            '-R %s' % cfg.query('genotype-validation', 'reference'),
             ' --standard_min_confidence_threshold_for_calling 30.0',
             '--standard_min_confidence_threshold_for_emitting 0',
             '-out_mode EMIT_ALL_SITES',
@@ -133,14 +134,13 @@ class GenotypeValidation(AppLogger, Thread):
         """
         list_commands = []
 
-        gatk_command = ['java -Xmx4G -jar %s' % self.validation_cfg.get('gatk'),
+        gatk_command = ['java -Xmx4G -jar %s' % cfg.query('tools', 'gatk'),
                         '-T GenotypeConcordance',
                         '-eval:VCF %s ' % vcf_file,
                         '-comp:VCF %s ' % genotype_vcf,
-                        '-R %s' % self.validation_cfg.get('reference'),
+                        '-R %s' % cfg.query('genotype-validation', 'reference'),
                         ' > %s' % self.validation_results]
         list_commands.append(' '.join(gatk_command))
-
 
         ntf.start_stage('validation_genotype_concordance')
         genotype_concordance_executor = executor.execute(
@@ -149,23 +149,23 @@ class GenotypeValidation(AppLogger, Thread):
             run_id=self.sample_id,
             cpus=4,
             mem=8,
-            log_command=False
+            log_commands=False
         )
         exit_status = genotype_concordance_executor.join()
         ntf.end_stage('validation_genotype_concordance', exit_status)
 
     def _rename_expected_genotype(self, genotype_vcf, sample_name):
-        self.validation_cfg.get('bcftools')
+        cfg.query('tools', 'bcftools')
         tmp_genotype = genotype_vcf + '.tmp'
         cmd = "%s reheader -s <(echo %s) %s > %s; mv %s %s"
-        cmd = cmd%(self.validation_cfg.get('bcftools'), sample_name, genotype_vcf, tmp_genotype, tmp_genotype, genotype_vcf)
+        cmd = cmd % (cfg.query('tools', 'bcftools'), sample_name, genotype_vcf, tmp_genotype, tmp_genotype, genotype_vcf)
         exit_status = executor.execute(
             [cmd],
             job_name='genotype_rename',
             run_id=self.sample_id,
             cpus=4,
             mem=8,
-            log_command=False
+            log_commands=False
         ).join()
 
         return exit_status
@@ -185,7 +185,6 @@ class GenotypeValidation(AppLogger, Thread):
         if genotype_vcf:
             self._rename_expected_genotype(genotype_vcf, self.sample_id)
             self._vcf_validation(self.seq_vcf_file, genotype_vcf)
-
 
     def run(self):
         try:
