@@ -131,6 +131,7 @@ def _process_dataset(d):
         import traceback
         log_cfg.switch_formatter(log_cfg.blank_formatter)  # blank formatting for stacktrace
         stacktrace = traceback.format_exc()
+        # app_logger.info(stacktrace)
         log_cfg.switch_formatter(log_cfg.default_formatter)
 
     finally:

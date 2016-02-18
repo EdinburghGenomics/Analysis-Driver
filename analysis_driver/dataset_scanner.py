@@ -56,7 +56,7 @@ class Dataset:
         }
         if end_date:
             proc['end_date'] = end_date
-        rest_communication.post_entry(cfg.query('rest_api', 'url').rstrip('/') + '/analysis_driver_procs', [proc])
+        rest_communication.post_entry('analysis_driver_procs', [proc])
         dataset = {self.id_field: self.name, 'analysis_driver_procs': [self.proc_id]}
         rest_communication.post_or_patch(
             self.endpoint,
@@ -124,7 +124,7 @@ class Dataset:
             end_date = None
 
         patch_success = rest_communication.patch_entry(
-            cfg.query('rest_api', 'url').rstrip('/') + '/analysis_driver_procs/',
+            'analysis_driver_procs',
             new_content,
             proc_id=self.proc_id
         )
@@ -198,7 +198,7 @@ class SampleDataset(Dataset):
 
     def _read_data(self):
         return rest_communication.get_documents(
-            cfg['rest_api']['url'].rstrip('/') + '/run_elements',
+            'run_elements',
             sample_id=self.name,
             useable='yes'
         )

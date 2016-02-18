@@ -149,7 +149,7 @@ class GenotypeValidation(AppLogger, Thread):
             run_id=self.sample_id,
             cpus=4,
             mem=8,
-            log_command=False
+            log_commands=False
         )
         exit_status = genotype_concordance_executor.join()
         ntf.end_stage('validation_genotype_concordance', exit_status)
@@ -165,7 +165,7 @@ class GenotypeValidation(AppLogger, Thread):
             run_id=self.sample_id,
             cpus=4,
             mem=8,
-            log_command=False
+            log_commands=False
         ).join()
 
         return exit_status

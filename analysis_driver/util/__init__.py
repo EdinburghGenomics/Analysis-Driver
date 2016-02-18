@@ -33,9 +33,7 @@ def bcbio_prepare_samples_cmd(job_dir, sample_id, fastqs, user_sample_id=None):
 
 
 def find_files(*path_parts):
-    files = glob(os.path.join(*path_parts))
-    if files:
-        return files
+    return glob(os.path.join(*path_parts))
 
 
 def find_file(*path_parts):

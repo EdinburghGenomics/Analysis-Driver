@@ -111,7 +111,7 @@ def demultiplexing_pipeline(dataset):
         run_id=run_id,
         cpus=1,
         mem=2,
-        log_command=False
+        log_commands=False
     )
 
     # md5sum
@@ -122,7 +122,7 @@ def demultiplexing_pipeline(dataset):
         run_id=run_id,
         cpus=1,
         mem=2,
-        log_command=False
+        log_commands=False
     )
 
     fastqc_exit_status = fastqc_executor.join()
@@ -274,7 +274,7 @@ def qc_pipeline(dataset, species):
         run_id=sample_id,
         cpus=2,
         mem=4,
-        log_command=False
+        log_commands=False
     ).join()
     ntf.end_stage('bamtools_stat', bamtools_exit_status)
 
@@ -320,7 +320,7 @@ def _output_data(sample_dir, sample_id, output_fileset):
         run_id=sample_id,
         cpus=1,
         mem=2,
-        log_command=False
+        log_commands=False
     ).join()
     ntf.end_stage('md5sum', md5sum_exit_status)
 

@@ -82,7 +82,14 @@ class TestGenotypeValidation(TestAnalysisDriver):
              '-R %s' % cfg.query('genotype-validation', 'reference'),
              ' > %s' % self.validator.validation_results])
         assert mocked_execute.call_count == 1
-        mocked_execute.assert_called_once_with([command], job_name='genotype_concordance', run_id=self.sample_id, cpus=4, mem=8, log_command=False)
+        mocked_execute.assert_called_once_with(
+            [command],
+            job_name='genotype_concordance',
+            run_id=self.sample_id,
+            cpus=4,
+            mem=8,
+            log_commands=False
+        )
 
     def test_genotype_validation(self):
         pass

@@ -52,7 +52,7 @@ class GenderValidation(AppLogger, Thread):
             walltime=6,
             cpus=1,
             mem=2,
-            log_command=False
+            log_commands=False
         ).join()
 
     def run(self):
