@@ -222,6 +222,11 @@ def get_sample_names_from_plate_from_lims(plate_id):
             samples[key] = sanitize_user_id(sample_name)
         return list(samples.values())
 
+def get_sample_names_from_project_from_lims(project_id):
+    lims = _get_lims_connection()
+    samples = lims.get_samples(projectname=project_id)
+    sample_names = [sample.name for sample in samples]
+    return sample_names
 
 def run_tests():
     assert get_valid_lanes('HCH25CCXX') == [1, 2, 3, 4, 5, 6, 7]
