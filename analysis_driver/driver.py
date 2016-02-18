@@ -104,6 +104,17 @@ def demultiplexing_pipeline(dataset):
         mem=2
     )
 
+    #seqtk fqchk
+    ntf.start_stage('seqtk_fqchk')
+    seqtk_fqchk_executor = executor.execute(
+        [writer.bash_commands.seqtk_fqchk(fq) for fq in util.fastq_handler.find_all_fastqs(fastq_dir)],
+        job_name='fqchk',
+        run_id=run_id,
+        cpus=1,
+        mem=2,
+        log_command=False
+    )
+
     # md5sum
     ntf.start_stage('md5sum')
     md5sum_executor = executor.execute(
@@ -117,6 +128,8 @@ def demultiplexing_pipeline(dataset):
 
     fastqc_exit_status = fastqc_executor.join()
     ntf.end_stage('fastqc', fastqc_exit_status)
+    seqtk_fqchk_exit_status = seqtk_fqchk_executor.join()
+    ntf.end_stage('seqtk_fqchk', seqtk_fqchk_exit_status)
     md5_exit_status = md5sum_executor.join()
     ntf.end_stage('md5sum', md5_exit_status)
 
@@ -131,7 +144,7 @@ def demultiplexing_pipeline(dataset):
     conversion_xml = os.path.join(fastq_dir, 'Stats', 'ConversionStats.xml')
     if os.path.exists(conversion_xml):
         app_logger.info('Found ConversionStats. Sending data.')
-        crawler = RunCrawler(run_id, sample_sheet, conversion_xml)
+        crawler = RunCrawler(run_id, sample_sheet, conversion_xml, job_dir)
         # TODO: review whether we need this
         json_file = os.path.join(fastq_dir, 'demultiplexing_results.json')
         crawler.write_json(json_file)
@@ -217,7 +230,9 @@ def variant_calling_pipeline(dataset):
 
     #Run the gender detection
     vcf_file = os.path.join(dir_with_linked_files, user_sample_id + '.vcf.gz')
-    GenderValidation(sample_id, vcf_file)
+    gender_validation = GenderValidation(sample_id, vcf_file)
+    gender_validation.start()
+    gender_validation.join()
 
     # Upload the data to the rest API
     project_id = clarity.find_project_from_sample(sample_id)

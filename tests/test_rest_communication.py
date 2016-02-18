@@ -41,9 +41,9 @@ def test_req(mocked_instance):
 def test_get_documents(mocked_instance):
     where = {'a_field': 'thing'}
 
-    data = rest_communication.get_documents(test_url, **where)
+    data = rest_communication.get_documents(test_url, limit=100, **where)
     assert data == test_request_content['data']
-    mocked_instance.assert_called_with('GET', test_url + '?where={"a_field":"thing"}')
+    mocked_instance.assert_called_with('GET', test_url + '?where={"a_field":"thing"}&max_results=100')
 
 
 @patched_response()
@@ -51,7 +51,7 @@ def test_get_document(mocked_instance):
     where = {'a_field': 'thing'}
 
     assert rest_communication.get_document(test_url, **where) == test_request_content['data'][0]
-    mocked_instance.assert_called_with('GET', test_url + '?where={"a_field":"thing"}')
+    mocked_instance.assert_called_with('GET', test_url + '?where={"a_field":"thing"}&max_results=10000')
 
 
 @patched_response()

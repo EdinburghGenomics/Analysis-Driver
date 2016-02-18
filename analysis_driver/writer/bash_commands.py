@@ -30,6 +30,11 @@ def fastqc(fastq, threads=1):
     app_logger.debug('Writing: ' + cmd)
     return cmd
 
+def seqtk_fqchk(fastq_file):
+    cmd = cfg['seqtk'] + ' fqchk -q 0 %s > %s.fqchk' %(fastq_file,fastq_file)
+    app_logger.debug('Writing: ' + cmd)
+    return cmd
+
 def bwa_mem_samblaster(fastq_pair, reference, expected_output_bam, thread=16):
     bwa_bin = cfg.query('tools', 'bwa')
     tmp_dir = os.path.dirname(expected_output_bam)
