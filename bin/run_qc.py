@@ -80,10 +80,10 @@ def run_genotype_validation(args):
     geno_val = GenotypeValidation(sorted(fastq_files), args.sample_id, vcf_file=genotype_vcf, check_plate=args.check_plate)
     geno_val.start()
 
-    seq_vcf_file, validation_results = geno_val.join()
+    seq_vcf_file, sample2validation_results = geno_val.join()
     user_sample_id = get_user_sample_name(sample_name=args.sample_id)
     output_commands = []
-    for f in [seq_vcf_file, validation_results]:
+    for f in [seq_vcf_file, sample2validation_results.get(args.sample_id)]:
         if f and os.path.exists(f):
             bf = os.path.basename(f)
             out_file = os.path.join(projects_source, args.project_id, args.sample_id, bf.replace(args.sample_id, user_sample_id))
