@@ -158,7 +158,7 @@ class RunCrawler(Crawler):
         if not cfg.get('rest_api'):
             self.warn('rest_api is not set in the config: Cancel upload')
             return None
-        
+
         return all(
             (
                 rest_communication.post_or_patch('run_elements', self.barcodes_info.values(), ELEMENT_RUN_ELEMENT_ID),
@@ -178,6 +178,15 @@ class SampleCrawler(Crawler):
         self.all_info = []
         self.sample = self._populate_lib_info(sample_dir)
 
+    def search_file(self, sample_dir, file_name):
+        path_to_search = [os.path.join(sample_dir, file_name),
+                          os.path.join(sample_dir, '.qc', file_name),
+                          ]
+        for path in path_to_search:
+            files = glob.glob(path)
+            if files:
+               return files[0]
+
     def _populate_lib_info(self, sample_dir):
         fastq_file = glob.glob(os.path.join(sample_dir, '*_R1.fastq.gz'))[0]
         external_sample_name = os.path.basename(fastq_file)[:-len('_R1.fastq.gz')]
@@ -188,9 +197,9 @@ class SampleCrawler(Crawler):
             ELEMENT_SAMPLE_EXTERNAL_ID: external_sample_name
         }
 
-        bamtools_path = glob.glob(os.path.join(sample_dir, 'bamtools_stats.txt'))
+        bamtools_path = self.search_file(sample_dir, 'bamtools_stats.txt')
         if bamtools_path:
-            total_reads, mapped_reads, duplicate_reads, proper_pairs = mapping_stats_parsers.parse_bamtools_stats(bamtools_path[0])
+            total_reads, mapped_reads, duplicate_reads, proper_pairs = mapping_stats_parsers.parse_bamtools_stats(bamtools_path)
             sample[ELEMENT_NB_READS_IN_BAM] = int(total_reads)
             sample[ELEMENT_NB_MAPPED_READS] = int(mapped_reads)
             sample[ELEMENT_NB_DUPLICATE_READS] = int(duplicate_reads)
@@ -198,46 +207,38 @@ class SampleCrawler(Crawler):
         else:
             self.critical('Missing bamtools_stats.txt')
 
-        yaml_metric_paths = glob.glob(
-            os.path.join(
-                sample_dir,
-                '*%s-sort-highdepth-stats.yaml' % external_sample_name
-            )
-        )
-        if yaml_metric_paths:
-            yaml_metric_path = yaml_metric_paths[0]
+        yaml_metric_path = self.search_file(sample_dir, '*%s-sort-highdepth-stats.yaml' % external_sample_name)
+        if yaml_metric_path:
             median_coverage = mapping_stats_parsers.parse_highdepth_yaml_file(yaml_metric_path)
             sample[ELEMENT_MEDIAN_COVERAGE] = median_coverage
         else:
             self.critical('Missing %s-sort-highdepth-stats.yaml' % external_sample_name)
 
-        bed_file_paths = glob.glob(os.path.join(sample_dir, '*%s-sort-callable.bed' % external_sample_name))
-        if bed_file_paths:
-            bed_file_path = bed_file_paths[0]
+        bed_file_path = self.search_file(sample_dir, '*%s-sort-callable.bed' % external_sample_name)
+        if bed_file_path:
             coverage_per_type = mapping_stats_parsers.parse_callable_bed_file(bed_file_path)
             callable_bases = coverage_per_type.get('CALLABLE')
             total = sum(coverage_per_type.values())
             sample[ELEMENT_PC_BASES_CALLABLE] = callable_bases/total
         else:
             self.critical('Missing *%s-sort-callable.bed' % external_sample_name)
-        sex_file_paths = glob.glob(os.path.join(sample_dir, '%s.sex'%external_sample_name))
-        if not sex_file_paths:
-            sex_file_paths = glob.glob(os.path.join(sample_dir, '.qc','%s.sex'%external_sample_name))
-        if sex_file_paths:
-            with open(sex_file_paths[0]) as open_file:
+
+        sex_file_path = self.search_file(sample_dir, '%s.sex'%external_sample_name)
+        if sex_file_path:
+            with open(sex_file_path) as open_file:
                 gender = open_file.read().strip()
                 gender_from_lims = get_sex_from_lims(self.sample_id)
                 sample[ELEMENT_PROVIDED_GENDER] = gender_alias(gender_from_lims)
                 sample[ELEMENT_CALLED_GENDER] = gender_alias(gender)
 
-        genotype_validation_paths = glob.glob(os.path.join(sample_dir, '%s_genotype_validation.txt'%external_sample_name))
-        if genotype_validation_paths:
-            genotyping_results = parse_genotype_concordance(genotype_validation_paths[0])
+        genotype_validation_path = self.search_file(sample_dir, '%s_genotype_validation.txt'%external_sample_name)
+        if genotype_validation_path:
+            genotyping_results = parse_genotype_concordance(genotype_validation_path)
             genotyping_result = genotyping_results.get(self.sample_id)
             if genotyping_result:
                 sample.update(genotyping_result)
             else:
-                self.critical('Sample %s not found in file %s'%(self.sample_id, genotype_validation_paths[0]))
+                self.critical('Sample %s not found in file %s'%(self.sample_id, genotype_validation_path))
 
         return sample
 
