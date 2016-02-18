@@ -14,7 +14,7 @@ class GenotypeValidation(AppLogger, Thread):
     This class will perform the Genotype validation steps. It subclasses Thread, allowing it to run in the
     background.
     """
-    def __init__(self, fastqs_files, sample_id, vcf_file=None, check_plate=False, check_project=False):
+    def __init__(self, fastqs_files, sample_id, vcf_file=None, check_plate=False, check_project=False, list_samples=None):
         """
         :param dict[str, list[str]] sample_to_fastqs: a dict linking sample ids to their fastq files
         :param str run_id: the id of the run these sample were sequenced on.
@@ -29,6 +29,7 @@ class GenotypeValidation(AppLogger, Thread):
             self.seq_vcf_file = os.path.join(self.work_directory, self.sample_id + '_genotype_validation.vcf.gz')
         self.check_plate = check_plate
         self.check_project = check_project
+        self.list_samples = list_samples
         self.sample2genotype_validation = {}
         self.exception = None
         Thread.__init__(self)
@@ -170,7 +171,7 @@ class GenotypeValidation(AppLogger, Thread):
             genotype_vcf = sample2genotype.get(sample_name)
             tmp_genotype = sample2genotype.get(sample_name) + '.tmp'
             cmd = "{bcftools} reheader -s <(echo {sn}) {genovcf} > {genovcf}.tmp; mv {genovcf}.tmp {genovcf}"
-            list_commands.append(cmd.format(bcftools=self.validation_cfg.get('bcftools'), sn=sample_name, genovcf=genotype_vcf))
+            list_commands.append(cmd.format(bcftools=self.validation_cfg.get('bcftools'), sn=self.sample_id, genovcf=genotype_vcf))
 
         exit_status = executor.execute(
             list_commands,
@@ -212,6 +213,8 @@ class GenotypeValidation(AppLogger, Thread):
         if self.check_project:
             project_id = find_project_from_sample(self.sample_id)
             samples_names.update(get_sample_names_from_project_from_lims(project_id))
+        if self.list_samples:
+            samples_names.update(self.list_samples)
         # Get the expected genotype from the LIMS
         sample2genotype = {}
         # TODO: Change to use batch calls which should be much faster
