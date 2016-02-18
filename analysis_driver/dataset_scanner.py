@@ -131,9 +131,10 @@ class Dataset:
             self._create_process(status=status, end_date=end_date)
 
     def add_stage(self, stage_name):
+        now = self._now()
         stages = self._most_recent_proc().get('stages', [])
         new_stage = {
-            'date_started': self._now(),
+            'date_started': now,
             'stage_name': stage_name
         }
         stages.append(new_stage)

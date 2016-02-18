@@ -136,9 +136,7 @@ class TestDataset(TestAnalysisDriver):
                     'status': 'a_status',
                     'end_date': 'an_end_date'
                 }
-                mocked_patch.assert_called_with(
-                    api('analysis_driver_procs'), [proc]
-                )
+                mocked_patch.assert_called_with('analysis_driver_procs', [proc])
                 mocked_post_or_patch.assert_called_with(
                     self.dataset.endpoint,
                     [{self.dataset.id_field: 'test_dataset', 'analysis_driver_procs': ['a_type_a_name']}],
@@ -162,7 +160,7 @@ class TestDataset(TestAnalysisDriver):
         with patch('analysis_driver.rest_communication.patch_entry', return_value=False) as mocked_patch:
             self.dataset._change_status('a_status', finish=True)
             mocked_patch.assert_called_with(
-                api('analysis_driver_procs/'),
+                'analysis_driver_procs',
                 {
                     'status': 'a_status',
                     'dataset_type': self.dataset.type,
@@ -220,13 +218,14 @@ class TestDataset(TestAnalysisDriver):
     @patched_most_recent_proc()
     @patched_post_or_patch
     def test_add_stage(self, mocked_post_or_patch, mocked_most_recent_proc):
+        now = self.dataset._now()
         self.dataset.add_stage('a_stage')
         mocked_post_or_patch.assert_called_with(
             'analysis_driver_procs',
             [
                 {
                     'proc_id': 'a_type_a_name',
-                    'stages': [{'date_started': self.dataset._now(), 'stage_name': 'a_stage'}]
+                    'stages': [{'date_started': now, 'stage_name': 'a_stage'}]
                 }
             ],
             elem_key='proc_id'
