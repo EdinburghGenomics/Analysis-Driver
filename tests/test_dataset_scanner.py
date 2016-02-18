@@ -68,7 +68,7 @@ patched_request_no_data = patch(
     return_value=FakeRestResponse(content={'_links': {}, 'data': []})
 )
 
-patched_post_or_patch = patch('analysis_driver.report_generation.rest_communication.post_or_patch')
+patched_post_or_patch = patch('analysis_driver.rest_communication.post_or_patch')
 patched_change_status = patch('analysis_driver.dataset_scanner.Dataset._change_status')
 patched_stages = patch('analysis_driver.dataset_scanner.Dataset.stages', new_callable=PropertyMock(return_value=['this', 'that', 'other']))
 patched_expected_yield = patch(
@@ -95,7 +95,7 @@ def patched_most_recent_proc(proc=fake_analysis_driver_proc):
 
 
 def patched_get_docs(content):
-    return patch('analysis_driver.report_generation.rest_communication.get_documents', return_value=content)
+    return patch('analysis_driver.rest_communication.get_documents', return_value=content)
 
 
 class TestDataset(TestAnalysisDriver):
@@ -125,7 +125,7 @@ class TestDataset(TestAnalysisDriver):
             mocked_instance.assert_called_with('GET', expected_api_call)
 
     def test_create_process(self):
-        with patch('analysis_driver.report_generation.rest_communication.post_entry', return_value=True) as mocked_patch:
+        with patch('analysis_driver.rest_communication.post_entry', return_value=True) as mocked_patch:
             with patched_post_or_patch as mocked_post_or_patch:
                 proc = self.dataset._create_process('a_status', end_date='an_end_date')
 
@@ -159,7 +159,7 @@ class TestDataset(TestAnalysisDriver):
 
     @patch('analysis_driver.dataset_scanner.Dataset._create_process')
     def test_change_status(self, mocked_instance):
-        with patch('analysis_driver.report_generation.rest_communication.patch_entry', return_value=False) as mocked_patch:
+        with patch('analysis_driver.rest_communication.patch_entry', return_value=False) as mocked_patch:
             self.dataset._change_status('a_status', finish=True)
             mocked_patch.assert_called_with(
                 api('analysis_driver_procs/'),
@@ -427,7 +427,7 @@ class TestScanner(TestAnalysisDriver):
             self.scanner.scan_datasets()
 
     def test_report(self):
-        dsets = {'new': ['this'], 'ready': ['that', 'other'], 'failed': ['another'], 'reprocess': ['more']}
+        dsets = {'new': ['this'], 'ready': ['that', 'other'], 'failed': ['another']}
         captured_stdout = []
         with patch('analysis_driver.dataset_scanner.DatasetScanner.scan_datasets', return_value=dsets):
             with patch('builtins.print', new=captured_stdout.append):
@@ -441,14 +441,15 @@ class TestScanner(TestAnalysisDriver):
             '=== ready ===',
             'that',
             'other',
-            '=== reprocess ===',
-            'more',
             '=== failed ===',
             'another',
             '__________________________________________'
         ]
 
-        assert captured_stdout[0].split('\n') == expected
+        observed = captured_stdout[0].split('\n')
+        print(observed)
+        print(expected)
+        assert observed == expected
 
     def _fake_get_dataset(self, name):
         with patched_most_recent_proc():

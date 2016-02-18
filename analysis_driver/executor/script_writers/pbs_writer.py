@@ -1,5 +1,5 @@
 __author__ = 'mwham'
-from analysis_driver.executor.script_writers.script_writer import ScriptWriter
+from .script_writer import ScriptWriter
 
 
 class PBSWriter(ScriptWriter):

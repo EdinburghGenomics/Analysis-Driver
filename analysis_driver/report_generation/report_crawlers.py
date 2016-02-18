@@ -5,7 +5,7 @@ from analysis_driver.clarity import get_sex_from_lims, get_user_sample_name
 from analysis_driver.app_logging import AppLogger
 from analysis_driver.exceptions import AnalysisDriverError
 from analysis_driver.reader import demultiplexing_parsers, mapping_stats_parsers
-from analysis_driver.report_generation.rest_communication import post_or_patch
+from analysis_driver.rest_communication import post_or_patch as pp
 from analysis_driver.config import default as cfg
 from analysis_driver.constants import ELEMENT_RUN_NAME, ELEMENT_NUMBER_LANE, ELEMENT_RUN_ELEMENTS, \
     ELEMENT_BARCODE, ELEMENT_RUN_ELEMENT_ID, ELEMENT_SAMPLE_INTERNAL_ID, ELEMENT_LIBRARY_INTERNAL_ID, \
@@ -18,7 +18,12 @@ from analysis_driver.constants import ELEMENT_RUN_NAME, ELEMENT_NUMBER_LANE, ELE
 
 
 class Crawler(AppLogger):
-    pass
+    def _check_config(self):
+        if cfg.get('rest_api') and cfg.query('rest_api', 'url'):
+            return True
+        else:
+            self.warn('rest_api is not configured. Cancel upload')
+            return False
 
 
 class RunCrawler(Crawler):
@@ -199,20 +204,17 @@ class RunCrawler(Crawler):
             json.dump(payload, open_file, indent=4)
 
     def send_data(self):
-        if not cfg.get('rest_api'):
-            self.warn('rest_api is not set in the config: Cancel upload')
-            return None
-        
-        return all(
-            (
-                post_or_patch('run_elements', self.barcodes_info.values(), ELEMENT_RUN_ELEMENT_ID),
-                post_or_patch('unexpected_barcodes', self.unexpected_barcodes.values(), ELEMENT_RUN_ELEMENT_ID),
-                post_or_patch('lanes', self.lanes.values(), ELEMENT_LANE_ID),
-                post_or_patch('runs', [self.run], ELEMENT_RUN_NAME),
-                post_or_patch('samples', self.libraries.values(), ELEMENT_SAMPLE_INTERNAL_ID, ['run_elements']),
-                post_or_patch('projects', self.projects.values(), ELEMENT_PROJECT_ID, ['samples'])
+        if self._check_config():
+            return all(
+                (
+                    pp('run_elements', self.barcodes_info.values(), ELEMENT_RUN_ELEMENT_ID),
+                    pp('unexpected_barcodes', self.unexpected_barcodes.values(), ELEMENT_RUN_ELEMENT_ID),
+                    pp('lanes', self.lanes.values(), ELEMENT_LANE_ID),
+                    pp('runs', [self.run], ELEMENT_RUN_NAME),
+                    pp('samples', self.libraries.values(), ELEMENT_SAMPLE_INTERNAL_ID, ['run_elements']),
+                    pp('projects', self.projects.values(), ELEMENT_PROJECT_ID, ['samples'])
+                )
             )
-        )
 
 
 class SampleCrawler(Crawler):
@@ -283,15 +285,12 @@ class SampleCrawler(Crawler):
             genotyping_results = mapping_stats_parsers.parse_genotype_concordance(genotype_validation_paths[0])
             genotyping_result = genotyping_results.get(self.sample_id)
             if genotyping_result:
-                sample[ELEMENT_GENOTYPE_VALIDATION].update(genotyping_result)
+                sample[ELEMENT_GENOTYPE_VALIDATION] = genotyping_result
             else:
                 self.critical('Sample %s not found in file %s' % (self.sample_id, genotype_validation_paths[0]))
 
         return sample
 
     def send_data(self):
-        if not cfg.get('rest_api'):
-            self.warn('rest_api is not set in the config: Cancel upload')
-            return
-
-        return post_or_patch('samples', [self.sample], ELEMENT_SAMPLE_INTERNAL_ID)
+        if self._check_config():
+            return pp('samples', [self.sample], ELEMENT_SAMPLE_INTERNAL_ID)

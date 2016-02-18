@@ -14,7 +14,7 @@ def parse_bamtools_stats(bamtools_stats):
     :return a tuple of 4 integers: total_reads, mapped_reads, duplicate_reads, proper_pairs
     """
     total_reads, mapped_reads, duplicate_reads, proper_pairs = None, None, None, None
-    with open(bamtools_stats, 'r') as open_file:
+    with open(bamtools_stats) as open_file:
         for line in open_file:
             sp_line = line.strip().split()
             if line.startswith('Total reads:'):

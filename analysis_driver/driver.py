@@ -240,7 +240,7 @@ def qc_pipeline(dataset, species):
 
     # fastqc2
     ntf.start_stage('sample_fastqc')
-    fastqc2_executor = executor.execute(
+    fastqc_executor = executor.execute(
         [util.bash_commands.fastqc(fastq_file) for fastq_file in fastq_pair],
         job_name='fastqc2',
         run_id=sample_id,
@@ -261,7 +261,7 @@ def qc_pipeline(dataset, species):
         mem=32
     )
 
-    fastqc_exit_status = fastqc2_executor.join()
+    fastqc_exit_status = fastqc_executor.join()
     ntf.end_stage('sample_fastqc', fastqc_exit_status)
     bwa_exit_status = bwa_mem_executor.join()
     ntf.end_stage('sample_bwa', bwa_exit_status)
@@ -307,10 +307,10 @@ def _output_data(sample_dir, sample_id, output_fileset):
         g.start()
         g.join()
 
-        # upload the data to the rest API
-        project_id = clarity.find_project_from_sample(sample_id)
-        c = SampleCrawler(sample_id, project_id, dir_with_linked_files)
-        c.send_data()
+    # upload the data to the rest API
+    project_id = clarity.find_project_from_sample(sample_id)
+    c = SampleCrawler(sample_id, project_id, dir_with_linked_files)
+    c.send_data()
 
     # md5sum
     ntf.start_stage('md5sum')

@@ -1,6 +1,6 @@
 __author__ = 'mwham'
 from unittest.mock import patch, Mock
-from analysis_driver.report_generation import rest_communication
+from analysis_driver import rest_communication
 
 
 class FakeRestReponse(Mock):
@@ -64,7 +64,7 @@ def test_put_entry(mocked_instance):
 test_patch_document = {'_id': '1337', '_etag': 1234567, 'list_to_update': ['this', 'that', 'other']}
 
 
-@patch('analysis_driver.report_generation.rest_communication.get_document', return_value=test_patch_document)
+@patch('analysis_driver.rest_communication.get_document', return_value=test_patch_document)
 @patched_response()
 def test_patch_entry(mocked_request, mocked_get_doc):
     patching_payload = {'_id': 1337, 'list_to_update': ['another']}
@@ -85,11 +85,11 @@ test_post_or_patch_payload = [
 
 
 def patched_post(success):
-    return patch('analysis_driver.report_generation.rest_communication.post_entry', return_value=success)
+    return patch('analysis_driver.rest_communication.post_entry', return_value=success)
 
 
 def patched_patch(success):
-    return patch('analysis_driver.report_generation.rest_communication.patch_entry', return_value=success)
+    return patch('analysis_driver.rest_communication.patch_entry', return_value=success)
 
 
 def test_post_or_patch():
