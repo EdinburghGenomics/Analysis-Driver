@@ -28,7 +28,7 @@ class GenotypeValidation(AppLogger, Thread):
         else:
             self.seq_vcf_file = os.path.join(self.work_directory, self.sample_id + '_genotype_validation.vcf.gz')
         self.check_plate = check_plate
-        self.sample2genotype_validation
+        self.sample2genotype_validation = {}
         self.exception = None
         Thread.__init__(self)
 
@@ -135,6 +135,8 @@ class GenotypeValidation(AppLogger, Thread):
         """
         list_commands = []
         sample2genotype_validation = {}
+        if not os.path.isfile(self.seq_vcf_file+'.tbi'):
+            self._index_vcf_gz(self.seq_vcf_file)
         for sample_name in sample2genotype:
             validation_results = os.path.join(self.work_directory, sample_name + '_genotype_validation.txt')
             sample2genotype_validation[sample_name] = validation_results
@@ -179,6 +181,16 @@ class GenotypeValidation(AppLogger, Thread):
         ).join()
         return exit_status
 
+    def _index_vcf_gz(self, vcf_file):
+        command = '{tabix} -p vcf {vcf}'.format(tabix=self.validation_cfg.get('tabix'), vcf=vcf_file)
+        exit_status = executor.execute(
+            [command],
+            job_name='index_vcf',
+            run_id=self.sample_id,
+            cpus=1,
+            mem=4
+        ).join()
+        return exit_status
 
     def _genotype_validation(self):
         """
