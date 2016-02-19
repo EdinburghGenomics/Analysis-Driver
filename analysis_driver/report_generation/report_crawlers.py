@@ -5,6 +5,7 @@ from analysis_driver.clarity import get_sex_from_lims, get_user_sample_name
 from analysis_driver.app_logging import AppLogger
 from analysis_driver.exceptions import AnalysisDriverError
 from analysis_driver.reader import demultiplexing_parsers, mapping_stats_parsers
+from analysis_driver.reader.demultiplexing_parsers import get_fastqscreen_results
 from analysis_driver.rest_communication import post_or_patch as pp
 from analysis_driver.config import default as cfg
 from analysis_driver.constants import ELEMENT_RUN_NAME, ELEMENT_NUMBER_LANE, ELEMENT_RUN_ELEMENTS, \
@@ -14,7 +15,9 @@ from analysis_driver.constants import ELEMENT_RUN_NAME, ELEMENT_NUMBER_LANE, ELE
     ELEMENT_PROJECT_ID, ELEMENT_SAMPLE_EXTERNAL_ID, ELEMENT_NB_READS_IN_BAM, ELEMENT_NB_MAPPED_READS, \
     ELEMENT_NB_DUPLICATE_READS, ELEMENT_NB_PROPERLY_MAPPED, ELEMENT_MEDIAN_COVERAGE, ELEMENT_PC_BASES_CALLABLE, \
     ELEMENT_LANE_NUMBER, ELEMENT_CALLED_GENDER, ELEMENT_PROVIDED_GENDER, ELEMENT_NB_READS_CLEANED, ELEMENT_NB_Q30_R1_CLEANED, \
-    ELEMENT_NB_BASE_R2_CLEANED, ELEMENT_NB_Q30_R2_CLEANED, ELEMENT_NB_BASE_R1_CLEANED, ELEMENT_GENOTYPE_VALIDATION
+    ELEMENT_NB_BASE_R2_CLEANED, ELEMENT_NB_Q30_R2_CLEANED, ELEMENT_NB_BASE_R1_CLEANED, ELEMENT_GENOTYPE_VALIDATION, \
+    ELEMENT_SPECIES_CONTAMINATION, ELEMENT_CONTAMINANT_UNIQUE_MAP, ELEMENT_PCNT_UNMAPPED_FOCAL, ELEMENT_PCNT_UNMAPPED
+
 
 
 class Crawler(AppLogger):
@@ -288,6 +291,15 @@ class SampleCrawler(Crawler):
                 sample[ELEMENT_GENOTYPE_VALIDATION] = genotyping_result
             else:
                 self.critical('Sample %s not found in file %s' % (self.sample_id, genotype_validation_paths[0]))
+
+
+        species_contamination_paths = util.find_files(sample_dir, 'fastqscreenTestOutput.txt')
+        if species_contamination_paths:
+            species_contamination_result = get_fastqscreen_results(species_contamination_paths[0], self.sample_id)
+            if species_contamination_result:
+                sample[ELEMENT_SPECIES_CONTAMINATION] = species_contamination_result
+            else:
+                self.critical('Contamination check unavailable for %s' % (self.sample_id))
 
         return sample
 
