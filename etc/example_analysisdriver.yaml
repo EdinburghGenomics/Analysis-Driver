@@ -12,15 +12,23 @@ default:
     output_dir: path/to/output_data
 
     tt_agent_delay: 20
-    job_execution: local  # pbs or None
+    job_execution: pbs  # pbs or None
     job_queue: uv2000
 
-    qsub:      path/to/qsub
-    bcl2fastq: path/to/bcl2fastq
-    fastqc:    path/to/fastqc
-    bcbio:     path/to/bcbio
-    seqtk:     path/to/seqtk
-    jdk:       path/to/jdk
+    tools:
+        qsub:      /bin/sh
+        bcl2fastq: path/to/bcl2fastq
+        fastqc:    path/to/fastqc
+        bcbio:     path/to/bcbio
+        seqtk:     path/to/seqtk
+        jdk:       path/to/jdk
+        bwa: path/to/bwa
+        gatk: path/to/GenomeAnalysisTK.jar
+        samblaster: path/to/samblaster
+        samtools: path/to/samtools
+        bamtools: path/to/bamtools
+        sambamba: path/to/sambamba
+
     logging:
         format: '[%(asctime)s][%(name)s][%(levelname)s] %(message)s'
         datefmt: '%Y-%b-%d %H:%M:%S'
@@ -43,15 +51,3 @@ default:
     genotype-validation:
         reference: path/to/genotype_validation/genotype_32_SNPS_genome_600bp.fa
         genotypes_repository: path/to/genotype_validation/genotypes
-        bwa: path/to/bwa
-        gatk: path/to/GenomeAnalysisTK.jar
-        samblaster: path/to/samblaster
-        samtools: path/to/samtools
-        sambamba: path/to/sambamba
-
-    contamination-check:
-        fastq_screen_bin: path/to/fastq-screen/bin
-        fastq_screen_conf: path/to/fastq-screen/conf/file
-        fastq-screen_references: ['Homo_sapiens','species1','species2','species3']
-
-

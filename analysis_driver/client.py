@@ -7,7 +7,7 @@ from analysis_driver.app_logging import get_logger
 from analysis_driver.config import default as cfg, logging_default as log_cfg
 from analysis_driver.notification import default as ntf, LogNotification, EmailNotification
 from analysis_driver.exceptions import AnalysisDriverError
-from analysis_driver.dataset_scanner import RunScanner, SampleScanner, DATASET_READY, DATASET_FORCE_READY, DATASET_REPROCESS
+from analysis_driver.dataset_scanner import RunScanner, SampleScanner, DATASET_READY, DATASET_FORCE_READY
 
 
 def main():
@@ -62,7 +62,9 @@ def main():
         return 0
 
     all_datasets = scanner.scan_datasets()
-    ready_datasets = all_datasets.get(DATASET_READY, []) + all_datasets.get(DATASET_FORCE_READY, []) + all_datasets.get(DATASET_REPROCESS, [])
+    ready_datasets = []
+    for status in (DATASET_FORCE_READY, DATASET_READY):
+        ready_datasets += all_datasets.get(status, [])
 
     if not ready_datasets:
         return 0
@@ -123,11 +125,13 @@ def _process_dataset(d):
         exit_status = driver.pipeline(d)
         app_logger.info('Done')
 
-    except Exception:
+    except Exception as e:
+        app_logger.critical('Encountered a %s exception: %s' % (e.__class__.__name__, str(e)))
         d.fail()
         import traceback
         log_cfg.switch_formatter(log_cfg.blank_formatter)  # blank formatting for stacktrace
         stacktrace = traceback.format_exc()
+        # app_logger.info(stacktrace)
         log_cfg.switch_formatter(log_cfg.default_formatter)
 
     finally:

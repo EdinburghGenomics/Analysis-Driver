@@ -1,15 +1,5 @@
 __author__ = 'tcezard'
-
-import os
-import sys
 from xml.etree import ElementTree
-
-sys.path.append('../..')
-from analysis_driver.clarity import get_species_from_sample
-from analysis_driver.report_generation import ELEMENT_SPECIES_CONTAMINATION, ELEMENT_CONTAMINANT_UNIQUE_MAP, ELEMENT_PCNT_UNMAPPED_FOCAL, ELEMENT_PCNT_UNMAPPED
-from analysis_driver.app_logging import get_logger
-app_logger = get_logger(__name__)
-
 
 
 def parse_demultiplexing_stats(xml_file):
@@ -103,62 +93,9 @@ def parse_seqtk_fqchk_file(fqchk_file, q_threshold):
         lo_q = 0
         hi_q = 0
         for i, h in enumerate(header[9:]):
-            #header are %Q2
+            # header are %Q2
             if int(h[2:]) < q_threshold:
                 lo_q += int(all_cycles[9+i])
             else:
                 hi_q += int(all_cycles[9+i])
-        return  nb_read, nb_base, lo_q, hi_q
-
-
-def get_focal_species(sample_id):
-    myFocalSpecies = get_species_from_sample(sample_id)
-    return myFocalSpecies
-
-def parse_fastqscreen_file(filename, myFocalSpecies):
-    """
-    parse the fastq screen outfile
-    :return int: the maximum number of reads mapped uniquely (singly or multiple times) to a contaminant species
-    :return str: % reads unmapped to focal Species
-    :return str: % reads with no hits to any of the genomes provided
-    """
-    file = open(filename)
-    lines = file.readlines()
-
-    contaminantsUniquelyMapped = {}
-    focalSpeciesPercentUnmapped = ''
-    Hit_no_genomes = float((lines[-1]).split(': ')[1])
-    speciesResults = (lines[2:-2])
-    speciesList = []
-    for result in speciesResults:
-        speciesName = result.split('\t')[0]
-        speciesName = speciesName.replace('_',' ')
-        speciesList.append(speciesName)
-
-    if myFocalSpecies in speciesList:
-        for result in speciesResults:
-            speciesName = result.split('\t')[0]
-            speciesName = speciesName.replace('_',' ')
-            speciesResults = result.split('\t')[1:12]
-
-            if speciesName != myFocalSpecies:
-                numberUniquelyMapped = int(result.split('\t')[4]) + int(result.split('\t')[6])
-                contaminantsUniquelyMapped[speciesName] = numberUniquelyMapped
-            elif speciesName == myFocalSpecies:
-                focalSpeciesPercentUnmapped = float(speciesResults[2])
-        contaminantsUniquelyMapped = {k:v for k,v in contaminantsUniquelyMapped.items() if v != 0}
-        ELEMENT_SPECIES_CONTAMINATION = {ELEMENT_CONTAMINANT_UNIQUE_MAP:contaminantsUniquelyMapped, ELEMENT_PCNT_UNMAPPED_FOCAL:focalSpeciesPercentUnmapped, ELEMENT_PCNT_UNMAPPED:Hit_no_genomes}
-        return ELEMENT_SPECIES_CONTAMINATION
-    else:
-        app_logger.warning('The focal species is not included in the contaminant database')
-        return [100, 100, 100]
-
-
-def get_fastqscreen_results(filename, sample_id):
-    myFocalSpecies = get_focal_species(sample_id)
-    if myFocalSpecies == None:
-        app_logger.warning('No species name available')
-        return [100, 100, 100]
-    else:
-        fastqscreen_results = parse_fastqscreen_file(filename, myFocalSpecies)
-        return fastqscreen_results
+        return nb_read, nb_base, lo_q, hi_q
