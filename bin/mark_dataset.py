@@ -5,7 +5,6 @@ import argparse
 import logging
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from analysis_driver.config import default as cfg
 from analysis_driver.config import logging_default as log_cfg
 log_cfg.default_level = logging.DEBUG
 log_cfg.add_handler('stdout', logging.StreamHandler(stream=sys.stdout), logging.DEBUG)
@@ -15,11 +14,11 @@ from analysis_driver import rest_communication
 def main():
     args = _parse_args()
     if args.run:
-        end_point = cfg['rest_api']['url'].rstrip('/') + '/run_elements/'
+        end_point = 'run_elements'
         filter_key = "run_id"
         filter_values = args.run
     elif args.sample:
-        end_point = cfg['rest_api']['url'].rstrip('/') + '/samples/'
+        end_point = 'samples'
         filter_key = "sample_id"
         filter_values = args.sample
     else:
