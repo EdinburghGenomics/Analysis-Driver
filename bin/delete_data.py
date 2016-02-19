@@ -4,6 +4,7 @@ import os
 from os.path import join
 import argparse
 import logging
+import requests
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from analysis_driver.exceptions import AnalysisDriverError
@@ -18,48 +19,79 @@ log_cfg.add_handler('stdout', logging.StreamHandler(stream=sys.stdout), logging.
 app_logger = get_logger('delete_data')
 
 
-def delete_raw(run_id, dry_run):
-    raw_data = join(cfg['input_dir'], run_id)
-    dir_for_deletion = join(os.path.dirname(raw_data), '.' + run_id + '.deleting')
-    app_logger.debug('Creating deletion dir: ' + dir_for_deletion)
-    os.mkdir(dir_for_deletion)
+def delete_raw(args):
+    non_deleted_runs = query_api(
+        'runs',
+        'embedded={"run_elements":1,"analysis_driver_procs":1}',
+        'aggregate=True'
+    )
 
-    deletable_sub_dirs = ('Data', 'Logs', 'Thumbnail_Images')
-    for d in deletable_sub_dirs:
-        from_d = join(raw_data, d)
-        to_d = join(dir_for_deletion, d)
+    deletable_runs = []
+    for r in non_deleted_runs:
+        if 'not reviewed' not in r.get('review_statuses', ['not reviewed']):
+            if r.get('analysis_driver_procs', [{}])[-1].get('status') in ('finished', 'aborted'):
+                deletable_runs.append(r)
 
-        _execute('mv %s %s' % (from_d, to_d), dry_run)
+    app_logger.debug('Found %s runs for deletion' % len(deletable_runs))
 
-    observed = sorted(os.listdir(dir_for_deletion))
-    expected = sorted(deletable_sub_dirs)
-    assert observed == expected, 'Unexpected deletable sub dirs: ' + str(observed)
-    app_logger.debug('Removing deletion dir')
-    _execute('rm -rf ' + dir_for_deletion, dry_run)
+    for run in deletable_runs:
+        run_id = run['run_id']
+        raw_data = join(cfg['input_dir'], run_id)
+        deletable_data = join(os.path.dirname(raw_data), '.' + run_id + '.deleting')
+        archived_data = join(cfg['achive_dir'], run_id)
+        app_logger.debug('Creating deletion dir: ' + deletable_data)
 
-    app_logger.debug('Updating dataset status')
-    rest_communication.patch_entry('runs', {'status': 'deleted'}, run_id=run_id)
-    app_logger.debug('Done')
+        _execute('mkdir -p ' + deletable_data, args.dry_run)
+
+        deletable_sub_dirs = ('Data', 'Logs', 'Thumbnail_Images')
+        for d in deletable_sub_dirs:
+            from_d = join(raw_data, d)
+            to_d = join(deletable_data, d)
+
+            _execute('mv %s %s' % (from_d, to_d), args.dry_run)
+
+        if not args.dry_run:
+            observed = sorted(os.listdir(deletable_data))
+            expected = sorted(deletable_sub_dirs)
+            assert observed == expected, 'Unexpected deletable sub dirs: ' + str(observed)
+
+        app_logger.debug('Removing deletion dir')
+        _execute('rm -rf ' + deletable_data, args.dry_run)
+
+        app_logger.debug('Updating dataset status')
+        rest_communication.patch_entry(
+            'analysis_driver_procs',
+            {'status': 'deleted'},
+            proc_id=run['analysis_driver_procs'][-1]['proc_id']
+        )
+
+        _execute('mv %s %s' % (raw_data, archived_data), args.dry_run)
+        app_logger.debug('Done')
 
 
 def main():
     p = argparse.ArgumentParser()
-    p.add_argument('run_id')
     p.add_argument('--dry_run', action='store_true')
     args = p.parse_args()
 
-    deletable_runs = rest_communication.get_documents('runs', status='complete', reviewed='yes')
-    if deletable_runs:
-        delete_raw(deletable_runs[0]['run_id'], dry_run=args.dry_run)
+    cfg.merge(cfg['run'])
+    delete_raw(args)
 
 
 def _execute(cmd, dry_run):
     if dry_run:
-        print(cmd)
+        app_logger.info('Running: ' + cmd)
     else:
         status = executor.execute([cmd]).join()
         if status:
             raise AnalysisDriverError('Command failed: ' + cmd)
+
+
+def query_api(endpoint, *queries):  # TODO: this should go through rest_communication
+    query = cfg['rest_api']['url'].rstrip('/') + '/' + endpoint
+    if queries:
+        query += '?' + '&'.join(queries)
+    return requests.get(query).json()['data']
 
 
 if __name__ == '__main__':
