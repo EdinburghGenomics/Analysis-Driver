@@ -84,7 +84,10 @@ class TestSampleCrawler(TestCrawler):
         'bam_file_reads': 988805087,
         'mapped_reads': 975587288,
         'called_gender': 'male',
-        'provided_gender': 'female'
+        'provided_gender': 'female',
+        "species_contamination": {"contaminant_unique_mapped": {"Bos taurus": 1, "Felis catus": 4, "Gallus gallus": 1, "Mus musculus": 4, "Ovis aries": 2},
+                                  "percent_unmapped": 1.06,
+                                  "percent_unmapped_focal": 1.09}
     }
 
     def setUp(self):
@@ -92,7 +95,9 @@ class TestSampleCrawler(TestCrawler):
                    return_value='test_sample'):
             with patch('analysis_driver.report_generation.report_crawlers.get_sex_from_lims',
                        return_value='female'):
-                self.crawler = report_generation.SampleCrawler('test_sample', 'test_project', self.test_data)
+                with patch('analysis_driver.reader.demultiplexing_parsers.get_species_from_sample',
+                           return_value='Homo sapiens'):
+                    self.crawler = report_generation.SampleCrawler('test_sample', 'test_project', self.test_data)
 
     def test_sample(self):
         self.compare_jsons(self.crawler.sample, self.expected_sample)
