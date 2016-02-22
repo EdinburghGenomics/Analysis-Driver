@@ -9,7 +9,7 @@ class TestGenderValidation(TestAnalysisDriver):
 
     @patch('analysis_driver.executor.execute')
     def test__gender_call(self, mocked_execute):
-        validator = GenderValidation(sample_id='test_sample', vcf_file='path/to/test/vcf')
+        validator = GenderValidation(working_dir='test_sample', vcf_file='path/to/test/vcf')
         instance = mocked_execute.return_value
 
         instance.join.return_value = 0
@@ -23,6 +23,6 @@ class TestGenderValidation(TestAnalysisDriver):
         return_code = validator._gender_call()
         assert return_code == 1
 
-        validator = GenderValidation(sample_id='test_sample', vcf_file='path/to/test/vcf.gz')
+        validator = GenderValidation(working_dir='test_sample', vcf_file='path/to/test/vcf.gz')
         validator._gender_call()
         assert mocked_execute.call_args[0][0][0].startswith('zcat')

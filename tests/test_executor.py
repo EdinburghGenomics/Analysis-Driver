@@ -34,9 +34,15 @@ class TestScriptWriter(TestAnalysisDriver):
 
     def test_get_script_writer(self):
         old_job_execution = cfg['job_execution']
-        assert isinstance(script_writers.get_script_writer('a_job', 'a_run_id'), script_writers.PBSWriter)
+        assert isinstance(
+            script_writers.get_script_writer('a_job', os.path.join(cfg['jobs_dir'], 'a_run_id')),
+            script_writers.PBSWriter
+        )
         cfg.content['job_execution'] = 'local'
-        assert isinstance(script_writers.get_script_writer('a_job', 'a_run_id'), script_writers.ScriptWriter)
+        assert isinstance(
+            script_writers.get_script_writer('a_job', os.path.join(cfg['jobs_dir'], 'a_run_id')),
+            script_writers.ScriptWriter
+        )
         cfg.content['job_execution'] = old_job_execution
 
     def test_write_line(self):

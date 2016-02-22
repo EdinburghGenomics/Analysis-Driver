@@ -68,7 +68,11 @@ def _find_fastqs_for_sample(sample_id, run_element):
         # rsync the remote fastqs to a unique jobs dir
         rsync_cmd = rsync_from_to(pattern, os.path.join(cfg['jobs_dir'], sample_id, run_id))
         # TODO: try and parallelise this (although this avoids spamming the rdf server)
-        exit_status = executor.execute([rsync_cmd], job_name='transfer_sample', run_id=sample_id).join()
+        exit_status = executor.execute(
+            [rsync_cmd],
+            job_name='transfer_sample',
+            working_dir=os.path.join(cfg['jobs_dir'], sample_id)
+        ).join()
         app_logger.info('Transfer complete with exit status ' + str(exit_status))
         app_logger.info('Searching again for fastqs in ' + local_fastq_dir)
         fastqs = util.find_files(cfg['jobs_dir'], sample_id, run_id, '*L00%s*.fastq.gz' % lane)
@@ -96,13 +100,17 @@ def _transfer_run_to_int_dir(dataset, from_dir, to_dir, repeat_delay):
         exit_status += executor.execute(
             [rsync_cmd],
             job_name='transfer_run',
-            run_id=dataset.name
+            working_dir=os.path.join(cfg['jobs_dir'], dataset.name)
         ).join()
         sleep(repeat_delay)
 
     # one more rsync after the RTAComplete is created. After this, everything should be synced
     sleep(repeat_delay)
-    exit_status += executor.execute([rsync_cmd], job_name='rsync', run_id=dataset.name).join()
+    exit_status += executor.execute(
+        [rsync_cmd],
+        job_name='rsync',
+        working_dir=os.path.join(cfg['jobs_dir'], dataset.name)
+    ).join()
     assert os.path.isfile(os.path.join(dataset.path, 'RTAComplete.txt'))
     app_logger.info('Transfer complete with exit status ' + str(exit_status))
     return exit_status
@@ -156,7 +164,7 @@ def _output_data(source_dir, output_dir, run_id):
     return executor.execute(
         [command],
         job_name='data_output',
-        run_id=run_id
+        working_dir=os.path.join(cfg['jobs_dir'], run_id)
     ).join()
 
 

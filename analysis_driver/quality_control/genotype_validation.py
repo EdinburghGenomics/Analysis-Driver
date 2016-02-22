@@ -85,7 +85,7 @@ class GenotypeValidation(AppLogger, Thread):
         bwa_executor = executor.execute(
             [command],
             job_name='alignment_bwa',
-            run_id=self.sample_id,
+            working_dir=self.work_directory,
             cpus=4,
             mem=8
         )
@@ -117,7 +117,7 @@ class GenotypeValidation(AppLogger, Thread):
         gatk_executor = executor.execute(
             [' '.join(gatk_command)],
             job_name='snpcall_gatk',
-            run_id=self.sample_id,
+            working_dir=self.work_directory,
             cpus=4,
             mem=4
         )
@@ -146,7 +146,7 @@ class GenotypeValidation(AppLogger, Thread):
         genotype_concordance_executor = executor.execute(
             list_commands,
             job_name='genotype_concordance',
-            run_id=self.sample_id,
+            working_dir=self.work_directory,
             cpus=4,
             mem=8,
             log_commands=False
@@ -162,7 +162,7 @@ class GenotypeValidation(AppLogger, Thread):
         exit_status = executor.execute(
             [cmd],
             job_name='genotype_rename',
-            run_id=self.sample_id,
+            working_dir=self.work_directory,
             cpus=4,
             mem=8,
             log_commands=False

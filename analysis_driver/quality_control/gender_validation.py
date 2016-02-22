@@ -12,9 +12,9 @@ class GenderValidation(AppLogger, Thread):
     This class will perform the Gender validation steps. It subclasses Thread, allowing it to run in the
     background.
     """
-    def __init__(self, sample_id, vcf_file):
+    def __init__(self, working_dir, vcf_file):
         self.vcf_file = vcf_file
-        self.sample_id = sample_id
+        self.working_dir = working_dir
         self.exception = None
         self.return_value = None
         Thread.__init__(self)
@@ -48,7 +48,7 @@ class GenderValidation(AppLogger, Thread):
         return executor.execute(
             [command],
             job_name='sex_detection',
-            run_id=self.sample_id,
+            working_dir=self.working_dir,
             walltime=6,
             cpus=1,
             mem=2,
@@ -70,8 +70,8 @@ class GenderValidation(AppLogger, Thread):
 
 def main():
     args = _parse_args()
-    os.makedirs(os.path.join(cfg['jobs_dir'], args.sample_id), exist_ok=True)
-    s = GenderValidation(args.sample_id, args.vcf_file)
+    os.makedirs(args.working_dir, exist_ok=True)
+    s = GenderValidation(args.working_dir, args.vcf_file)
     s.start()
     return s.join()
 
@@ -79,8 +79,7 @@ def main():
 def _parse_args():
     p = argparse.ArgumentParser()
     p.add_argument('-v', '--vcf_file', dest="vcf_file", type=str, help='the vcf file used to detect the gender')
-    p.add_argument('-s', '--sample_id', dest="sample_id", type=str, help='the sample id to be used as job directory')
-
+    p.add_argument('-s', '--working_dir', dest="working_dir", type=str, help='the working dir for execution')
     return p.parse_args()
 
 if __name__ == "__main__":
