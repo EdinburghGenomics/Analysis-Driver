@@ -3,7 +3,7 @@ from analysis_driver.reader.demultiplexing_parsers import parse_seqtk_fqchk_file
 from analysis_driver.reader.demultiplexing_parsers import parse_fastqscreen_file
 from analysis_driver.reader.demultiplexing_parsers import get_fastqscreen_results
 from tests.test_analysisdriver import TestAnalysisDriver
-from analysis_driver.report_generation import ELEMENT_CONTAMINANT_UNIQUE_MAP, ELEMENT_PCNT_UNMAPPED_FOCAL, ELEMENT_PCNT_UNMAPPED
+from analysis_driver.constants import ELEMENT_CONTAMINANT_UNIQUE_MAP, ELEMENT_PCNT_UNMAPPED_FOCAL, ELEMENT_PCNT_UNMAPPED
 from unittest.mock import patch
 __author__ = 'tcezard'
 

@@ -6,7 +6,7 @@ from xml.etree import ElementTree
 
 sys.path.append('../..')
 from analysis_driver.clarity import get_species_from_sample
-from analysis_driver.report_generation import ELEMENT_SPECIES_CONTAMINATION, ELEMENT_CONTAMINANT_UNIQUE_MAP, ELEMENT_PCNT_UNMAPPED_FOCAL, ELEMENT_PCNT_UNMAPPED
+from analysis_driver.constants import ELEMENT_SPECIES_CONTAMINATION, ELEMENT_CONTAMINANT_UNIQUE_MAP, ELEMENT_PCNT_UNMAPPED_FOCAL, ELEMENT_PCNT_UNMAPPED
 from analysis_driver.app_logging import get_logger
 app_logger = get_logger(__name__)
 
