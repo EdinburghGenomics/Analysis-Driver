@@ -154,6 +154,8 @@ class TestRawDataDeleter(TestDeleter):
 
         with patch(patch_target, return_value=fake_run_elements_procs_complete) as p:
             runs = self.deleter.deletable_runs()
+            print(runs)
+            print(fake_run_elements_procs_complete)
             p.assert_called_with(*self.expected_rest_query)
             assert runs == fake_run_elements_procs_complete[1:]
 
@@ -168,13 +170,13 @@ class TestRawDataDeleter(TestDeleter):
 
     def test_setup_runs_for_deletion(self):
         with patched_deletable_runs:
-            deletion_dir = self.deleter.setup_runs_for_deletion()
+            deletion_dir = self.deleter.setup_runs_for_deletion(self.deleter.deletable_runs())
             assert os.listdir(deletion_dir) == ['deletable_run']
         shutil.rmtree(deletion_dir)
 
     def test_delete_runs(self):
         with patched_deletable_runs:
-            deletion_dir = self.deleter.setup_runs_for_deletion()
+            deletion_dir = self.deleter.setup_runs_for_deletion(self.deleter.deletable_runs())
             self.deleter.delete_runs(deletion_dir)
             assert not os.path.isdir(deletion_dir)
 
@@ -203,7 +205,10 @@ class TestRawDataDeleter(TestDeleter):
         assert not os.path.isdir(raw_dir)
         archived_run = join(self.assets_deletion, 'archive', run_id)
         assert os.path.isdir(archived_run)
-        assert os.listdir(archived_run) == ['InterOp', 'RTAComplete.txt', 'Stats']
+        self.compare_lists(
+            os.listdir(archived_run),
+            ['InterOp', 'RTAComplete.txt', 'Stats']
+        )
         shutil.rmtree(archived_run)
 
     @patched_patch_entry
@@ -236,4 +241,4 @@ class TestRawDataDeleter(TestDeleter):
             {'status': 'deleted'},
             proc_id='most_recent_proc'
         )
-        assert mocked_deletable_runs.call_count == 2
+        assert mocked_deletable_runs.call_count == 1

@@ -37,8 +37,8 @@ class Deleter(AppLogger):
         expected = sorted(expected)
         if observed != expected:
             self.error(error_message)
-            self.error('observed: ' + observed)
-            self.error('expected: ' + expected)
+            self.error('observed: ' + str(observed))
+            self.error('expected: ' + str(expected))
 
             if not self.dry_run:
                 raise AssertionError
@@ -57,8 +57,12 @@ class RawDataDeleter(Deleter):
 
         deletable_runs = []
         for r in non_deleted_runs:
-            if 'not reviewed' not in r.get('review_statuses', ['not reviewed']):
-                if r.get('analysis_driver_procs', [{}])[-1].get('status') in ('finished', 'aborted'):
+            review_statuses = r.get('review_statuses')
+            most_recent_proc = r.get('analysis_driver_procs', [{}])[-1]
+            if type(review_statuses) is list:
+                review_statuses = [s for s in review_statuses if s]
+            if review_statuses and 'not reviewed' not in review_statuses:
+                if most_recent_proc.get('status') in ('finished', 'aborted'):
                     deletable_runs.append(r)
 
         return deletable_runs
@@ -76,14 +80,13 @@ class RawDataDeleter(Deleter):
 
         return os.listdir(deletable_data)
 
-    def setup_runs_for_deletion(self):
+    def setup_runs_for_deletion(self, runs):
         deletion_dir = join(
             cfg['input_dir'],
             '.data_deletion_' + datetime.utcnow().strftime('%d_%m_%Y_%H:%M:%S')
         )
-        deletable_runs = [run['run_id'] for run in self.deletable_runs()]
-
-        for run in deletable_runs:
+        run_ids = [r['run_id'] for r in runs]
+        for run in run_ids:
             deletable_dirs = self._setup_run_for_deletion(run, deletion_dir)
             self._compare_lists(
                 deletable_dirs,
@@ -91,16 +94,13 @@ class RawDataDeleter(Deleter):
                 'Unexpected deletable sub dirs:'
             )
 
-        self._compare_lists(
-            os.listdir(deletion_dir),
-            deletable_runs
-        )
+        self._compare_lists(os.listdir(deletion_dir), run_ids)
         return deletion_dir
 
     def delete_runs(self, deletion_dir):
         runs_to_delete = os.listdir(deletion_dir)
         self.debug('Removing deletion dir with %s runs' % len(runs_to_delete))
-        self._execute('rm -rf ' + deletion_dir, cluster_execution=True)
+        self._execute('rm -rfv ' + deletion_dir, cluster_execution=True)
 
     def mark_run_as_deleted(self, run):
         self.debug('Updating dataset status for ' + run['run_id'])
@@ -121,10 +121,10 @@ class RawDataDeleter(Deleter):
     def run_deletion(self):
         deletable_runs = self.deletable_runs()
         self.debug('Found %s runs for deletion' % len(deletable_runs))
-        if not deletable_runs:
+        if self.dry_run or not deletable_runs:
             return 0
 
-        deletion_dir = self.setup_runs_for_deletion()
+        deletion_dir = self.setup_runs_for_deletion(deletable_runs)
         runs_to_delete = os.listdir(deletion_dir)
         self._compare_lists(
             runs_to_delete,
