@@ -7,6 +7,7 @@ from analysis_driver.clarity import get_genotype_information_from_lims, get_plat
 from analysis_driver.exceptions import AnalysisDriverError
 from analysis_driver.notification import default as ntf
 from analysis_driver.config import default as cfg
+from analysis_driver.reader.mapping_stats_parsers import parse_genotype_concordance
 
 
 class GenotypeValidation(AppLogger, Thread):
@@ -137,6 +138,9 @@ class GenotypeValidation(AppLogger, Thread):
         """
         list_commands = []
         sample2genotype_validation = {}
+        #Make sure the file exists
+        assert os.path.isfile(self.seq_vcf_file)
+
         if not os.path.isfile(self.seq_vcf_file+'.tbi'):
             self._index_vcf_gz(self.seq_vcf_file)
         for sample_name in sample2genotype:
@@ -144,8 +148,8 @@ class GenotypeValidation(AppLogger, Thread):
             sample2genotype_validation[sample_name] = validation_results
             gatk_command = ['java -Xmx4G -jar %s' % self.validation_cfg.get('gatk'),
                             '-T GenotypeConcordance',
-                            '-eval:VCF %s ' % self.seq_vcf_file,
-                            '-comp:VCF %s ' % sample2genotype.get(sample_name),
+                            '-eval:VCF %s ' % sample2genotype.get(sample_name),
+                            '-comp:VCF %s ' % self.seq_vcf_file,
                             '-R %s' % self.validation_cfg.get('reference'),
                             ' > %s' % validation_results]
             list_commands.append(' '.join(gatk_command))
@@ -194,6 +198,31 @@ class GenotypeValidation(AppLogger, Thread):
         ).join()
         return exit_status
 
+    def _merge_validation_results(self, sample2genotype_validation):
+        all_sample_lines = {}
+        headers = None
+        table_type = None
+        for sample in sample2genotype_validation:
+            if sample is self.sample_id:
+                genotype_validation = sample2genotype_validation.get(sample)
+                table_type, headers, lines = parse_genotype_concordance(genotype_validation)
+                for line in lines:
+                    sp_line = line.split()
+                    all_sample_lines[sp_line[0]]=line
+            else:
+                genotype_validation = sample2genotype_validation.get(sample)
+                table_type, headers, lines = parse_genotype_concordance(genotype_validation)
+                sp_line = lines[1].split()
+                sp_line[0] = sample
+                all_sample_lines[sample]='\t'.join(sp_line)
+        with open(os.path.join(self.work_directory, self.sample_id + '_genotype_validation.txt'), 'w'   ) as open_file:
+            open_file.write(table_type + '\n')
+            open_file.write('\t'.join(headers.split()) + '\n')
+            for sample in all_sample_lines:
+                open_file.write(all_sample_lines.get(sample) + '\n')
+
+
+
     def _genotype_validation(self):
         """
         Perform validation for each of the samples from a run
@@ -227,6 +256,9 @@ class GenotypeValidation(AppLogger, Thread):
         if sample2genotype:
             self._rename_expected_genotype(sample2genotype)
             self.sample2genotype_validation = self._vcf_validation(sample2genotype)
+        if len(samples_names)>1:
+            self._merge_validation_results(self.sample2genotype_validation)
+
 
     def run(self):
         try:
@@ -238,4 +270,4 @@ class GenotypeValidation(AppLogger, Thread):
         super().join(timeout=timeout)
         if self.exception:
             raise self.exception
-        return self.seq_vcf_file, self.sample2genotype_validation
+        return self.seq_vcf_file, self.sample2genotype_validation.get()

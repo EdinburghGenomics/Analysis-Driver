@@ -78,22 +78,33 @@ def parse_validate_csv(csv_file):
     return snp_conc, indel_conc, snp_disc, indel_disc
 
 
+
+def parse_and_aggregate_genotype_concordance(genotype_concordance_file):
+    table_type, header,lines = parse_genotype_concordance(genotype_concordance_file)
+    return aggregate_genotype_concordance(header,lines)
+
 def parse_genotype_concordance(genotype_concordance_file):
     lines = []
+    table_type = None
     with open(genotype_concordance_file) as open_file:
         inside = False
         for line in open_file:
             if not line.strip():
                 inside = False
             if inside:
-                lines.append(line)
+                lines.append(line.strip())
             if line.startswith('#'):
                 #header
                 if 'GenotypeConcordance_Counts' in  line:
+                    table_type = line.strip()
                     inside = True
-    headers = lines[0].split()
+    return table_type, lines[0], lines[1:]
+
+
+def aggregate_genotype_concordance(headers, lines):
     header_mapping = {}
     ignore_keys = []
+    headers = headers.split()
     for key in headers:
         if key.endswith('UNAVAILABLE'):
             ignore_keys.append(key)
@@ -107,7 +118,7 @@ def parse_genotype_concordance(genotype_concordance_file):
             header_mapping[key] = ELEMENT_MISMATCHING
 
     samples = {}
-    for sample_line in lines[1:]:
+    for sample_line in lines:
         sp_line = sample_line.split()
         sample_dict = Counter()
         for i in range(1, len(headers)):
@@ -115,6 +126,7 @@ def parse_genotype_concordance(genotype_concordance_file):
                 sample_dict[header_mapping[headers[i]]] += int(sp_line[i])
         samples[sp_line[0]] = sample_dict
     return samples
+
 
 
 def get_nb_sequence_from_fastqc_html(html_file):

@@ -7,7 +7,7 @@ from analysis_driver.app_logging import AppLogger
 from analysis_driver.exceptions import AnalysisDriverError
 from analysis_driver.reader import demultiplexing_parsers, mapping_stats_parsers
 from analysis_driver.reader.demultiplexing_parsers import parse_seqtk_fqchk_file
-from analysis_driver.reader.mapping_stats_parsers import parse_genotype_concordance
+from analysis_driver.reader.mapping_stats_parsers import parse_and_aggregate_genotype_concordance
 from analysis_driver.report_generation import rest_communication, ELEMENT_NB_READS_CLEANED, ELEMENT_NB_Q30_R1_CLEANED, \
     ELEMENT_NB_BASE_R2_CLEANED, ELEMENT_NB_Q30_R2_CLEANED, ELEMENT_NB_BASE_R1_CLEANED, ELEMENT_GENOTYPE_VALIDATION
 from analysis_driver.config import default as cfg
@@ -276,7 +276,7 @@ class SampleCrawler(Crawler):
 
         genotype_validation_path = self.search_file(sample_dir, '%s_genotype_validation.txt'%external_sample_name)
         if genotype_validation_path:
-            genotyping_results = parse_genotype_concordance(genotype_validation_path)
+            genotyping_results = parse_and_aggregate_genotype_concordance(genotype_validation_path)
             genotyping_result = genotyping_results.get(self.sample_id)
             if genotyping_result:
                 sample[ELEMENT_GENOTYPE_VALIDATION]=genotyping_result

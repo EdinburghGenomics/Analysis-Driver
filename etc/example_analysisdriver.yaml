@@ -49,3 +49,4 @@ default:
         samtools: path/to/samtools
         sambamba: path/to/sambamba
         bcftools: path/to/bcftools
+        tabix: path/to/tabix
