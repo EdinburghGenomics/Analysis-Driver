@@ -104,11 +104,12 @@ class RawDataDeleter(Deleter):
 
     def mark_run_as_deleted(self, run):
         self.debug('Updating dataset status for ' + run['run_id'])
-        rest_communication.patch_entry(
-            'analysis_driver_procs',
-            {'status': 'deleted'},
-            proc_id=run['analysis_driver_procs'][-1]['proc_id']
-        )
+        if not self.dry_run:
+            rest_communication.patch_entry(
+                'analysis_driver_procs',
+                {'status': 'deleted'},
+                proc_id=run['analysis_driver_procs'][-1]['proc_id']
+            )
 
     def archive_run(self, run_id):
         run_to_be_archived = join(cfg['input_dir'], run_id)
@@ -120,6 +121,8 @@ class RawDataDeleter(Deleter):
     def run_deletion(self):
         deletable_runs = self.deletable_runs()
         self.debug('Found %s runs for deletion' % len(deletable_runs))
+        if not deletable_runs:
+            return 0
 
         deletion_dir = self.setup_runs_for_deletion()
         runs_to_delete = os.listdir(deletion_dir)
@@ -141,7 +144,7 @@ def main():
     p = argparse.ArgumentParser()
     p.add_argument('--dry_run', action='store_true')
     p.add_argument('--debug', action='store_true')
-    p.add_argument('--work_dir', type=str)
+    p.add_argument('--work_dir', type=str, required=True)
     p.add_argument('--deletion_limit', type=int, default=50)
     args = p.parse_args()
 
