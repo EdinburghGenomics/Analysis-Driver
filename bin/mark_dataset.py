@@ -5,36 +5,39 @@ import argparse
 import logging
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from analysis_driver.config import default as cfg
 from analysis_driver.config import logging_default as log_cfg
 log_cfg.default_level = logging.DEBUG
 log_cfg.add_handler('stdout', logging.StreamHandler(stream=sys.stdout), logging.DEBUG)
-from analysis_driver import rest_communication
+from analysis_driver.report_generation import rest_communication
 
 
 def main():
     args = _parse_args()
     if args.run:
-        end_point = 'run_elements'
-        filter_key = "run_id"
-        filter_values = args.run
+        end_point = cfg['rest_api']['url'].rstrip('/') + '/run_elements/'
+        filters = [{'run_id':r} for r in args.run]
+    elif args.lane:
+        end_point = cfg['rest_api']['url'].rstrip('/') + '/run_elements/'
+        filters = [{'run_id':'_'.join(l.split('_')[:-1]), 'lane':l.split('_')[-1]} for l in args.lane]
+    elif args.run_element:
+        end_point = cfg['rest_api']['url'].rstrip('/') + '/run_elements/'
+        filters = [{'run_element_id':r} for r in args.run_element]
     elif args.sample:
-        end_point = 'samples'
-        filter_key = "sample_id"
-        filter_values = args.sample
-    else:
-        return 1
-
+        end_point = cfg['rest_api']['url'].rstrip('/') + '/samples/'
+        filters = [{'sample_id':s} for s in args.sample]
     patch = {}
     if args.useable:
-        patch['useable'] = 'yes'
+        patch['useable'] ='yes'
     elif args.notuseable:
-        patch['useable'] = 'no'
+        patch['useable'] ='no'
     if args.review_pass:
-        patch['reviewed'] = 'pass'
+        patch['reviewed'] ='pass'
     elif args.review_fail:
-        patch['reviewed'] = 'fail'
-    for filter_value in filter_values:
-        rest_communication.patch_entries(end_point, payload=patch, update_lists=None, **{filter_key: filter_value})
+        patch['reviewed'] ='fail'
+
+    for filter in filters:
+        rest_communication.patch_entries(end_point, payload=patch, update_lists=None, **filter)
 
 
 def _parse_args():
@@ -42,6 +45,8 @@ def _parse_args():
     p.add_argument('--debug', action='store_true', help='override pipeline log level to debug')
     group = p.add_mutually_exclusive_group(required=True)
     group.add_argument('--run', nargs='+', default=[], help='Mark provided run with specific annotation')
+    group.add_argument('--lane', nargs='+', default=[], help='Mark provided lane with specific annotation')
+    group.add_argument('--run_element', nargs='+', default=[], help='Mark provided run element (barcode) with specific annotation')
     group.add_argument('--sample', nargs='+', default=[], help='Mark provided sample with specific annotation')
     group = p.add_mutually_exclusive_group(required=False)
     group.add_argument('--useable', action='store_true', default=False)
