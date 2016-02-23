@@ -14,12 +14,9 @@ from analysis_driver.app_logging import AppLogger
 from analysis_driver import rest_communication
 from analysis_driver import executor
 
-log_cfg.default_level = logging.DEBUG
-log_cfg.add_handler('stdout', logging.StreamHandler(stream=sys.stdout), logging.DEBUG)
-
 
 class Deleter(AppLogger):
-    def __init__(self, work_dir, dry_run=False, deletion_limit=1000):
+    def __init__(self, work_dir, dry_run=False, deletion_limit=50):
         self.work_dir = work_dir
         self.dry_run = dry_run
         self.deletion_limit = deletion_limit
@@ -143,10 +140,17 @@ class RawDataDeleter(Deleter):
 def main():
     p = argparse.ArgumentParser()
     p.add_argument('--dry_run', action='store_true')
+    p.add_argument('--debug', action='store_true')
+    p.add_argument('--work_dir', type=str)
+    p.add_argument('--deletion_limit', type=int, default=50)
     args = p.parse_args()
 
+    if args.debug:
+        log_cfg.default_level = logging.DEBUG
+        log_cfg.add_handler('stdout', logging.StreamHandler(stream=sys.stdout), logging.DEBUG)
+
     cfg.merge(cfg['run'])
-    d = RawDataDeleter(args.dry_run)
+    d = RawDataDeleter(args.work_dir, args.dry_run, args.deletion_limit)
     d.run_deletion()
 
 

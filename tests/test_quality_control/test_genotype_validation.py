@@ -10,8 +10,10 @@ class TestGenotypeValidation(TestAnalysisDriver):
 
     def setUp(self):
         self.sample_id = 'test_sample'
-        self.fastq_files = [os.path.join('samples', self.sample_id, 'fastq_R1.fastq.gz'),
-                       os.path.join('samples', self.sample_id, 'fastq_R2.fastq.gz')]
+        self.fastq_files = [
+            os.path.join('samples', self.sample_id, 'fastq_R1.fastq.gz'),
+            os.path.join('samples', self.sample_id, 'fastq_R2.fastq.gz')
+        ]
         self.validator = GenotypeValidation(fastq_files=self.fastq_files, sample_id=self.sample_id)
 
     def test_bwa_aln(self):
@@ -46,8 +48,13 @@ class TestGenotypeValidation(TestAnalysisDriver):
         expected_bam = self.validator._bwa_alignment()
         assert expected_bam == os.path.join('path/to/jobs/', self.sample_id, self.sample_id + '_geno_val.bam')
         assert mocked_execute.call_count == 1
-        mocked_execute.assert_called_once_with(['long_bwa_command'], job_name='alignment_bwa', cpus=4,
-                                               run_id='test_sample', mem=8)
+        mocked_execute.assert_called_once_with(
+            ['long_bwa_command'],
+            job_name='alignment_bwa',
+            cpus=4,
+            working_dir=os.path.join(cfg['jobs_dir'], self.sample_id),
+            mem=8
+        )
 
     @patch('analysis_driver.executor.execute')
     def test__snp_calling(self, mocked_execute):
@@ -67,7 +74,13 @@ class TestGenotypeValidation(TestAnalysisDriver):
         output_vcf = self.validator._snp_calling(bam_file)
         assert output_vcf == expected_vcf
         assert mocked_execute.call_count == 1
-        mocked_execute.assert_called_once_with([command], job_name='snpcall_gatk', run_id=self.sample_id, cpus=4, mem=4)
+        mocked_execute.assert_called_once_with(
+            [command],
+            job_name='snpcall_gatk',
+            working_dir=os.path.join(cfg['jobs_dir'], self.sample_id),
+            cpus=4,
+            mem=4
+        )
 
     @patch('analysis_driver.executor.execute')
     def test__vcf_validation(self, mocked_execute):
@@ -85,7 +98,7 @@ class TestGenotypeValidation(TestAnalysisDriver):
         mocked_execute.assert_called_once_with(
             [command],
             job_name='genotype_concordance',
-            run_id=self.sample_id,
+            working_dir=os.path.join(cfg['jobs_dir'], self.sample_id),
             cpus=4,
             mem=8,
             log_commands=False

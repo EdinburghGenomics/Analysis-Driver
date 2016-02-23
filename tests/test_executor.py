@@ -241,11 +241,8 @@ class TestArrayExecutor(TestExecutor):
 class TestClusterExecutor(TestExecutor):
     def setUp(self):
         os.makedirs(os.path.join(self.assets_path, 'a_run_id'), exist_ok=True)
-        self.old_jobs_dir = cfg['jobs_dir']
-        cfg.content['jobs_dir'] = self.assets_path
 
     def tearDown(self):
-        cfg.content['jobs_dir'] = self.old_jobs_dir
         shutil.rmtree(os.path.join(self.assets_path, 'a_run_id'))
 
     def _get_executor(self, cmd):
@@ -253,7 +250,7 @@ class TestClusterExecutor(TestExecutor):
             [cmd],
             qsub=cfg.query('tools', 'qsub'),
             job_name='test_job',
-            run_id='a_run_id'
+            working_dir=os.path.join(self.assets_path, 'a_run_id')
         )
 
     def test_cmd(self):
