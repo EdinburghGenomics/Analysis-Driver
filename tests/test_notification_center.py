@@ -1,7 +1,7 @@
 __author__ = 'tcezard'
 import os
 import pytest
-import sys
+from unittest.mock import Mock, patch
 from smtplib import SMTPException
 from analysis_driver.dataset_scanner import RunDataset
 from analysis_driver.notification.notification_center import NotificationCenter
@@ -11,9 +11,22 @@ from analysis_driver.exceptions import AnalysisDriverError
 from tests.test_analysisdriver import TestAnalysisDriver
 from tests.test_dataset_scanner import patched_request
 
-if not sys.argv:
-    print('Usage: python test_notification_center.py <mailhost> <port> <reporter_email> <recipient_emails>')
-    sys.exit(0)
+
+class FakeSMTP(Mock):
+    def __init__(self, host, port):
+        super().__init__()
+        self.mailhost, self.port = host, port
+
+    @staticmethod
+    def send_message(msg, reporter, recipients):
+        if 'dodgy' in str(msg):
+            raise SMTPException('Oh noes!')
+        else:
+            pass
+
+    @staticmethod
+    def quit():
+        pass
 
 
 class TestNotificationCenter(TestAnalysisDriver):
@@ -28,7 +41,7 @@ class TestNotificationCenter(TestAnalysisDriver):
         self.notification_center = NotificationCenter()
         self.notification_center.add_subscribers(
             (LogNotification, dataset, cfg.query('notification', 'log_notification')),
-            (TestEmailNotification, dataset, cfg.query('notification', 'email_notification'))
+            (EmailNotification, dataset, cfg.query('notification', 'email_notification'))
         )
 
         email_config = {
@@ -42,10 +55,9 @@ class TestNotificationCenter(TestAnalysisDriver):
             email_config = cfg.query('notification', 'email_notification')
         
         print(self.notification_center.subscribers)
-        self.email_notification = TestEmailNotification(dataset, email_config)
-        if cfg.query('notification', 'email_notification'):
-            cfg.content['notification']['email_notification']['strict'] = True
+        self.email_notification = EmailNotification(dataset, email_config)
 
+    @patch('smtplib.SMTP', new=FakeSMTP)
     def test_retries(self):
         assert self.email_notification._try_send('this is a test', diagnostics=False) is True
         assert self.email_notification._try_send('dodgy', diagnostics=False) is False
@@ -53,16 +65,3 @@ class TestNotificationCenter(TestAnalysisDriver):
         with pytest.raises(AnalysisDriverError) as e:
             self.email_notification._send_mail('dodgy')
             assert 'Failed to send message: dodgy' in str(e)
-
-
-class TestEmailNotification(EmailNotification):
-    def _connect_and_send(self, msg):
-        """
-        Create a test situation where the server connection has failed
-        :param email.mime.text.MIMEText msg:
-        """
-        print('[TestNotificationCenter] Don\'t worry, I\'m not sending any emails.')
-        if 'dodgy' in str(msg):
-            raise SMTPException('Oh noes!')
-        else:
-            pass

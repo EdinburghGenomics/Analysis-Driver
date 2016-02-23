@@ -93,9 +93,9 @@ def parse_seqtk_fqchk_file(fqchk_file, q_threshold):
         lo_q = 0
         hi_q = 0
         for i, h in enumerate(header[9:]):
-            #header are %Q2
+            # header are %Q2
             if int(h[2:]) < q_threshold:
                 lo_q += int(all_cycles[9+i])
             else:
                 hi_q += int(all_cycles[9+i])
-        return  nb_read, nb_base, lo_q, hi_q
+        return nb_read, nb_base, lo_q, hi_q
