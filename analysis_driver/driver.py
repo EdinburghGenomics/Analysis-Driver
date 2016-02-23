@@ -388,13 +388,16 @@ def _run_bcbio(sample_id, sample_dir, sample_fastqs):
 
     user_sample_id = clarity.get_user_sample_name(sample_id)
     if user_sample_id:
+        new_name = user_sample_id
         app_logger.debug('Found user sample: ' + user_sample_id)
+    else:
+        new_name = sample_id
 
-        with open(run_yaml, 'r') as i:
-            run_config = yaml.load(i)
-        run_config['fc_name'] = user_sample_id
-        with open(run_yaml, 'w') as o:
-            o.write(yaml.safe_dump(run_config, default_flow_style=False))
+    with open(run_yaml, 'r') as i:
+        run_config = yaml.load(i)
+    run_config['fc_name'] = new_name
+    with open(run_yaml, 'w') as o:
+        o.write(yaml.safe_dump(run_config, default_flow_style=False))
 
     bcbio_executor = executor.execute(
         [bcbio_cmd],
