@@ -85,7 +85,7 @@ def demultiplexing_pipeline(dataset):
     exit_status += executor.execute(
         [util.bash_commands.bcl2fastq(input_run_folder, fastq_dir, sample_sheet.filename, mask)],
         job_name='bcl2fastq',
-        run_id=run_id,
+        working_dir=job_dir,
         cpus=8,
         mem=32
     ).join()
@@ -98,7 +98,7 @@ def demultiplexing_pipeline(dataset):
     fastqc_executor = executor.execute(
         [util.bash_commands.fastqc(fq) for fq in util.find_all_fastqs(fastq_dir)],
         job_name='fastqc',
-        run_id=run_id,
+        working_dir=job_dir,
         cpus=1,
         mem=2
     )
@@ -108,7 +108,7 @@ def demultiplexing_pipeline(dataset):
     seqtk_fqchk_executor = executor.execute(
         [util.bash_commands.seqtk_fqchk(fq) for fq in util.find_all_fastqs(fastq_dir)],
         job_name='fqchk',
-        run_id=run_id,
+        working_dir=job_dir,
         cpus=1,
         mem=2,
         log_commands=False
@@ -119,7 +119,7 @@ def demultiplexing_pipeline(dataset):
     md5sum_executor = executor.execute(
         [util.bash_commands.md5sum(fq) for fq in util.find_all_fastqs(fastq_dir)],
         job_name='md5sum',
-        run_id=run_id,
+        working_dir=job_dir,
         cpus=1,
         mem=2,
         log_commands=False
@@ -189,7 +189,7 @@ def variant_calling_pipeline(dataset):
     fastqc2_executor = executor.execute(
         [util.bash_commands.fastqc(fastq_file) for fastq_file in fastq_pair],
         job_name='fastqc2',
-        run_id=sample_id,
+        working_dir=sample_dir,
         cpus=1,
         mem=2
     )
@@ -243,7 +243,7 @@ def qc_pipeline(dataset, species):
     fastqc_executor = executor.execute(
         [util.bash_commands.fastqc(fastq_file) for fastq_file in fastq_pair],
         job_name='fastqc2',
-        run_id=sample_id,
+        working_dir=sample_dir,
         cpus=1,
         mem=2
     )
@@ -256,7 +256,7 @@ def qc_pipeline(dataset, species):
     bwa_mem_executor = executor.execute(
         [util.bash_commands.bwa_mem_samblaster(fastq_pair, reference, expected_output_bam, thread=16)],
         job_name='bwa_mem',
-        run_id=sample_id,
+        working_dir=sample_dir,
         cpus=12,
         mem=32
     )
@@ -271,7 +271,7 @@ def qc_pipeline(dataset, species):
     bamtools_exit_status = executor.execute(
         [util.bash_commands.bamtools_stats(expected_output_bam, bamtools_stat_file)],
         job_name='bamtools',
-        run_id=sample_id,
+        working_dir=sample_dir,
         cpus=2,
         mem=4,
         log_commands=False
@@ -303,7 +303,7 @@ def _output_data(sample_dir, sample_id, output_fileset):
     
         # gender detection
         vcf_file = os.path.join(dir_with_linked_files, user_sample_id + '.vcf.gz')
-        g = GenderValidation(sample_id, vcf_file)
+        g = GenderValidation(sample_dir, vcf_file)
         g.start()
         g.join()
 
@@ -317,7 +317,7 @@ def _output_data(sample_dir, sample_id, output_fileset):
     md5sum_exit_status = executor.execute(
         [util.bash_commands.md5sum(f) for f in linked_files],
         job_name='md5sum',
-        run_id=sample_id,
+        working_dir=sample_dir,
         cpus=1,
         mem=2,
         log_commands=False
@@ -346,7 +346,7 @@ def _bcbio_prepare_sample(job_dir, sample_id, fastq_files):
     user_sample_id = clarity.get_user_sample_name(sample_id, lenient=True)
     cmd = util.bcbio_prepare_samples_cmd(job_dir, sample_id, fastq_files, user_sample_id=user_sample_id)
 
-    exit_status = executor.execute([cmd], job_name='bcbio_prepare_samples', run_id=sample_id).join()
+    exit_status = executor.execute([cmd], job_name='bcbio_prepare_samples', working_dir=job_dir,).join()
     sample_fastqs = util.find_files(job_dir, 'merged', user_sample_id + '_R?.fastq.gz')
 
     app_logger.info('bcbio_prepare_samples finished with exit status ' + str(exit_status))
@@ -403,7 +403,7 @@ def _run_bcbio(sample_id, sample_dir, sample_fastqs):
         [bcbio_cmd],
         prelim_cmds=util.bash_commands.export_env_vars(),
         job_name='bcb%s' % sample_id,
-        run_id=sample_id,
+        working_dir=sample_dir,
         cpus=12,
         mem=64
     )

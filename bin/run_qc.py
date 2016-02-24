@@ -27,6 +27,7 @@ def _parse_args():
     subparsers = parser.add_subparsers()
 
     geno_val_parser = subparsers.add_parser('genotype_validation')
+    geno_val_parser.add_argument('--work_dir', required=True)
     geno_val_parser.add_argument('--project_id', required=True)
     geno_val_parser.add_argument('--sample_id', required=True)
     geno_val_parser.set_defaults(func=run_genotype_validation)
@@ -48,7 +49,7 @@ def run_genotype_validation(args):
         exit_status = executor.execute(
             [cmd],
             job_name='getfastq',
-            run_id=args.sample_id,
+            working_dir=args.work_dir,
             cpus=1,
             mem=2
         ).join()
@@ -72,7 +73,7 @@ def run_genotype_validation(args):
     exit_status = executor.execute(
         output_commands,
         job_name='output_results',
-        run_id=args.sample_id,
+        working_dir=args.work_dir,
         cpus=1,
         mem=2
     ).join()

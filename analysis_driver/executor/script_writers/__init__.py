@@ -1,12 +1,10 @@
 __author__ = 'mwham'
-import os.path
 from analysis_driver.config import default as cfg
 from .script_writer import ScriptWriter
 from .pbs_writer import PBSWriter
 
 
-def get_script_writer(job_name, run_id, walltime=None, cpus=1, mem=2, jobs=1, **kwargs):
-    working_dir = os.path.join(cfg['jobs_dir'], run_id)
+def get_script_writer(job_name, working_dir, walltime=None, cpus=1, mem=2, jobs=1, **kwargs):
     if cfg['job_execution'] == 'pbs':
         return PBSWriter(job_name, working_dir, cfg['job_queue'], cpus, mem, walltime, jobs, **kwargs)
     # elif cfg['job_execution'] == 'sge':
