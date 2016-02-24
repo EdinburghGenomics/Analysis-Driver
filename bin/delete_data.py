@@ -16,7 +16,7 @@ from analysis_driver import executor
 
 
 class Deleter(AppLogger):
-    def __init__(self, work_dir, dry_run=False, deletion_limit=-1):
+    def __init__(self, work_dir, dry_run=False, deletion_limit=None):
         self.work_dir = work_dir
         self.dry_run = dry_run
         self.deletion_limit = deletion_limit
