@@ -13,6 +13,7 @@ class ContaminationCheck(AppLogger, Thread):
         self.fastq_files = fastq_files
         self.sample_id = sample_id
         self.contamination_cfg = cfg.get('contamination-check')
+        self.tools = cfg.get('tools')
         Thread.__init__(self)
         self.exception = None
 
@@ -22,8 +23,8 @@ class ContaminationCheck(AppLogger, Thread):
         """
         if len(self.fastq_files) == 1:
 
-            fastqscreen_bin = (self.contamination_cfg.get('fastq_screen_bin'))
-            confPath = (self.contamination_cfg.get('fastq_screen_conf'))
+            fastqscreen_bin = (self.tools.get('fastqscreen'))
+            confPath = (self.contamination_cfg.get('fastqscreen_conf'))
             fastq1 = self.fastq_files[0]
 
             fastqscreen_command = ["{} --aligner bowtie2 {} --conf {} --force".format(fastqscreen_bin,
@@ -32,8 +33,8 @@ class ContaminationCheck(AppLogger, Thread):
             return fastqscreen_command
 
         elif len(self.fastq_files) == 2:
-            fastqscreen_bin = (self.contamination_cfg.get('fastq_screen_bin'))
-            confPath = (self.contamination_cfg.get('fastq_screen_conf'))
+            fastqscreen_bin = (self.tools.get('fastqscreen'))
+            confPath = (self.contamination_cfg.get('fastqscreen_conf'))
             fastq1 = self.fastq_files[0]
             fastq2 = self.fastq_files[1]
 
@@ -61,6 +62,7 @@ class ContaminationCheck(AppLogger, Thread):
         print('printing fastqscreen run command')
         print(fastqscreen_run_command)
         print('\n')
+        fastqscreen_bin = (self.tools.get('fastqscreen'))
         fastqscreen_expected_outfiles = self._get_expected_outfiles()
         ntf.start_stage('fastqscreen_contamination_check')
         fastqscreen_executor = executor.execute(
