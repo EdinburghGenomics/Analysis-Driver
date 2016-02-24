@@ -1,7 +1,7 @@
 __author__ = 'mwham'
 import sys
 import os
-from os.path import join
+from os.path import join as p_join
 from datetime import datetime
 import argparse
 import logging
@@ -16,16 +16,13 @@ from analysis_driver import executor
 
 
 class Deleter(AppLogger):
-    def __init__(self, work_dir, dry_run=False, deletion_limit=50):
+    def __init__(self, work_dir, dry_run=False, deletion_limit=-1):
         self.work_dir = work_dir
         self.dry_run = dry_run
         self.deletion_limit = deletion_limit
 
     def _execute(self, cmd, cluster_execution=False):
-        if self.dry_run:
-            self.info('Running: ' + cmd)
-            status = None
-        elif cluster_execution:
+        if cluster_execution:
             status = executor.execute([cmd], job_name='data_deletion', working_dir=self.work_dir).join()
         else:
             status = executor.execute([cmd], 'local').join()
@@ -39,20 +36,39 @@ class Deleter(AppLogger):
             self.error(error_message)
             self.error('observed: ' + str(observed))
             self.error('expected: ' + str(expected))
+            raise AssertionError
 
-            if not self.dry_run:
-                raise AssertionError
+    @staticmethod
+    def _api_query(endpoint, *queries):  # TODO: this should go through rest_communication
+        query = cfg['rest_api']['url'].rstrip('/') + '/' + endpoint
+        if queries:
+            query += '?' + '&'.join(queries)
+        return query
+
+    @classmethod
+    def _depaginate(cls, query):  # TODO: add depagination to rest_communication
+        elements = []
+        url = cfg.query('rest_api', 'url').rstrip('/') + '/' + query
+        content = requests.get(url).json()
+        elements.extend(content['data'])
+
+        if 'next' in content['_links']:
+            next_query = content['_links']['next']['href']
+            elements.extend(cls._depaginate(next_query))
+        return elements
 
 
 class RawDataDeleter(Deleter):
     deletable_sub_dirs = ('Data', 'Logs', 'Thumbnail_Images')
 
     def deletable_runs(self):
-        non_deleted_runs = query_api(
-            'runs',
-            'embedded={"run_elements":1,"analysis_driver_procs":1}',
-            'aggregate=True',
-            'max_results=' + str(self.deletion_limit)
+        non_deleted_runs = self._depaginate(
+            self._api_query(
+                'runs',
+                'embedded={"run_elements":1,"analysis_driver_procs":1}',
+                'aggregate=True',
+                'max_results=100'
+            )
         )
 
         deletable_runs = []
@@ -65,23 +81,23 @@ class RawDataDeleter(Deleter):
                 if most_recent_proc.get('status') in ('finished', 'aborted'):
                     deletable_runs.append(r)
 
-        return deletable_runs
+        return deletable_runs[:self.deletion_limit]
 
     def _setup_run_for_deletion(self, run_id, deletion_dir):
-        raw_data = join(cfg['input_dir'], run_id)
-        deletable_data = join(deletion_dir, run_id)
+        raw_data = p_join(cfg['input_dir'], run_id)
+        deletable_data = p_join(deletion_dir, run_id)
         self.debug('Creating deletion dir: ' + deletable_data)
         self._execute('mkdir -p ' + deletable_data)
 
         for d in self.deletable_sub_dirs:
-            from_d = join(raw_data, d)
-            to_d = join(deletable_data, d)
+            from_d = p_join(raw_data, d)
+            to_d = p_join(deletable_data, d)
             self._execute('mv %s %s' % (from_d, to_d))
 
         return os.listdir(deletable_data)
 
     def setup_runs_for_deletion(self, runs):
-        deletion_dir = join(
+        deletion_dir = p_join(
             cfg['input_dir'],
             '.data_deletion_' + datetime.utcnow().strftime('%d_%m_%Y_%H:%M:%S')
         )
@@ -112,15 +128,17 @@ class RawDataDeleter(Deleter):
             )
 
     def archive_run(self, run_id):
-        run_to_be_archived = join(cfg['input_dir'], run_id)
+        run_to_be_archived = p_join(cfg['input_dir'], run_id)
         self.debug('Archiving ' + run_id)
         assert not any([d in self.deletable_sub_dirs for d in os.listdir(run_to_be_archived)])
-        self._execute('mv %s %s' % (join(cfg['input_dir'], run_id), join(cfg['archive_dir'], run_id)))
+        self._execute('mv %s %s' % (p_join(cfg['input_dir'], run_id), p_join(cfg['archive_dir'], run_id)))
         self.debug('Archiving done')
 
     def run_deletion(self):
         deletable_runs = self.deletable_runs()
-        self.debug('Found %s runs for deletion' % len(deletable_runs))
+        self.debug(
+            'Found %s runs for deletion: %s' % (len(deletable_runs), [r['run_id'] for r in deletable_runs])
+        )
         if self.dry_run or not deletable_runs:
             return 0
 
@@ -130,15 +148,16 @@ class RawDataDeleter(Deleter):
             runs_to_delete,
             [run['run_id'] for run in deletable_runs]
         )
-        assert all([os.listdir(join(cfg['input_dir'], r)) for r in runs_to_delete])
+        assert all([os.listdir(p_join(cfg['input_dir'], r)) for r in runs_to_delete])
 
         for run in deletable_runs:
             assert run['run_id'] in runs_to_delete
             self.mark_run_as_deleted(run)
             self.archive_run(run['run_id'])
-            assert os.listdir(join(cfg['archive_dir'], run['run_id']))
+            assert os.listdir(p_join(cfg['archive_dir'], run['run_id']))
 
         self.delete_runs(deletion_dir)
+
 
 def main():
     p = argparse.ArgumentParser()
@@ -155,13 +174,6 @@ def main():
     cfg.merge(cfg['run'])
     d = RawDataDeleter(args.work_dir, args.dry_run, args.deletion_limit)
     d.run_deletion()
-
-
-def query_api(endpoint, *queries):  # TODO: this should go through rest_communication
-    query = cfg['rest_api']['url'].rstrip('/') + '/' + endpoint
-    if queries:
-        query += '?' + '&'.join(queries)
-    return requests.get(query).json()['data']
 
 
 if __name__ == '__main__':

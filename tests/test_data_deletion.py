@@ -1,6 +1,6 @@
 __author__ = 'mwham'
 import os
-from os.path import join
+from os.path import join as p_join
 import shutil
 from tests.test_analysisdriver import TestAnalysisDriver
 from unittest.mock import patch, Mock
@@ -102,7 +102,7 @@ patched_deletable_runs = patch(
 class TestDeleter(TestAnalysisDriver):
     @property
     def assets_deletion(self):
-        return join(self.assets_path, 'data_deletion')
+        return p_join(self.assets_path, 'data_deletion')
 
     def setUp(self):
         self.deleter = delete_data.Deleter(self.assets_deletion)
@@ -115,52 +115,53 @@ class TestDeleter(TestAnalysisDriver):
 
 class TestRawDataDeleter(TestDeleter):
     expected_rest_query = (
-        'runs', 'embedded={"run_elements":1,"analysis_driver_procs":1}', 'aggregate=True', 'max_results=50'
+        delete_data.cfg['rest_api']['url'] + '/runs?'
+        'embedded={"run_elements":1,"analysis_driver_procs":1}&'
+        'aggregate=True&'
+        'max_results=100'
     )
 
     def _setup_run(self, run_id, deletable_sub_dirs):
         for d in deletable_sub_dirs + ('Stats', 'InterOp', 'RTAComplete.txt'):
-            os.makedirs(join(self.assets_deletion, 'raw', run_id, d), exist_ok=True)
+            os.makedirs(p_join(self.assets_deletion, 'raw', run_id, d), exist_ok=True)
 
     def setUp(self):
         self.original_input_dir = delete_data.cfg['input_dir']
-        delete_data.cfg.content['input_dir'] = join(self.assets_deletion, 'raw')
+        delete_data.cfg.content['input_dir'] = p_join(self.assets_deletion, 'raw')
         self.deleter = delete_data.RawDataDeleter(self.assets_deletion)
         self._setup_run('deletable_run', self.deleter.deletable_sub_dirs)
-        os.makedirs(join(self.assets_deletion, 'archive'), exist_ok=True)
+        os.makedirs(p_join(self.assets_deletion, 'archive'), exist_ok=True)
 
     def tearDown(self):
         delete_data.cfg.content['input_dir'] = self.original_input_dir
-        shutil.rmtree(join(self.assets_deletion, 'raw', 'deletable_run'), ignore_errors=True)
-        for d in os.listdir(join(self.assets_deletion, 'archive')):
-            shutil.rmtree(join(join(self.assets_deletion, 'archive', d)))
+        shutil.rmtree(p_join(self.assets_deletion, 'raw', 'deletable_run'), ignore_errors=True)
+        for d in os.listdir(p_join(self.assets_deletion, 'archive')):
+            shutil.rmtree(p_join(self.assets_deletion, 'archive', d))
 
-        deletion_script = join(self.assets_deletion, 'data_deletion.pbs')
+        deletion_script = p_join(self.assets_deletion, 'data_deletion.pbs')
         if os.path.isfile(deletion_script):
             os.remove(deletion_script)
 
     def test_deletable_runs(self):
-        patch_target = 'bin.delete_data.query_api'
+        patch_target = 'bin.delete_data.Deleter._depaginate'
 
         with patch(patch_target, return_value=fake_run_elements_no_procs) as p:
             runs = self.deleter.deletable_runs()
-            p.assert_called_with(*self.expected_rest_query)
+            p.assert_called_with(self.expected_rest_query)
             assert runs == []
 
         with patch(patch_target, return_value=fake_run_elements_procs_running) as p:
             runs = self.deleter.deletable_runs()
-            p.assert_called_with(*self.expected_rest_query)
+            p.assert_called_with(self.expected_rest_query)
             assert runs == []
 
         with patch(patch_target, return_value=fake_run_elements_procs_complete) as p:
             runs = self.deleter.deletable_runs()
-            print(runs)
-            print(fake_run_elements_procs_complete)
-            p.assert_called_with(*self.expected_rest_query)
+            p.assert_called_with(self.expected_rest_query)
             assert runs == fake_run_elements_procs_complete[1:]
 
     def test_setup_run_for_deletion(self):
-        deletion_dir = join(self.assets_deletion, 'raw', '.deletion')
+        deletion_dir = p_join(self.assets_deletion, 'raw', '.deletion')
         subdirs_to_delete = self.deleter._setup_run_for_deletion(
             'deletable_run',
             deletion_dir=deletion_dir
@@ -198,12 +199,12 @@ class TestRawDataDeleter(TestDeleter):
 
     def test_archive_run(self):
         run_id = 'run_to_archive'
-        raw_dir = join(self.assets_deletion, 'raw', run_id)
+        raw_dir = p_join(self.assets_deletion, 'raw', run_id)
         self._setup_run(run_id, deletable_sub_dirs=())
 
         self.deleter.archive_run(run_id)
         assert not os.path.isdir(raw_dir)
-        archived_run = join(self.assets_deletion, 'archive', run_id)
+        archived_run = p_join(self.assets_deletion, 'archive', run_id)
         assert os.path.isdir(archived_run)
         self.compare_lists(
             os.listdir(archived_run),
@@ -215,10 +216,10 @@ class TestRawDataDeleter(TestDeleter):
     @patched_deletable_runs
     def test_run_deletion(self, mocked_deletable_runs, mocked_patch):
         self._setup_run('non_deletable_run', self.deleter.deletable_sub_dirs)
-        del_dir = join(self.assets_deletion, 'raw', 'deletable_run')
-        non_del_dir = join(self.assets_deletion, 'raw', 'non_deletable_run')
+        del_dir = p_join(self.assets_deletion, 'raw', 'deletable_run')
+        non_del_dir = p_join(self.assets_deletion, 'raw', 'non_deletable_run')
         self.compare_lists(
-            os.listdir(join(self.assets_deletion, 'raw')),
+            os.listdir(p_join(self.assets_deletion, 'raw')),
             ['deletable_run', 'non_deletable_run']
         )
         for d in (del_dir, non_del_dir):
@@ -233,7 +234,7 @@ class TestRawDataDeleter(TestDeleter):
             list(self.deleter.deletable_sub_dirs) + ['Stats', 'InterOp', 'RTAComplete.txt']
         )
         self.compare_lists(
-            os.listdir(join(self.assets_deletion, 'archive', 'deletable_run')),
+            os.listdir(p_join(self.assets_deletion, 'archive', 'deletable_run')),
             ['Stats', 'InterOp', 'RTAComplete.txt']
         )
         mocked_patch.assert_called_with(
