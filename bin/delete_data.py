@@ -52,7 +52,7 @@ class Deleter(AppLogger):
         elements.extend(content['data'])
 
         if 'next' in content['_links']:
-            next_query = content['_links']['next']['href']
+            next_query = cfg.query('rest_api', 'url').rstrip('/') + '/' + content['_links']['next']['href']
             elements.extend(cls._depaginate(next_query))
         return elements
 
@@ -163,7 +163,7 @@ def main():
     p.add_argument('--dry_run', action='store_true')
     p.add_argument('--debug', action='store_true')
     p.add_argument('--work_dir', type=str, required=True)
-    p.add_argument('--deletion_limit', type=int, default=50)
+    p.add_argument('--deletion_limit', type=int, default=None)
     args = p.parse_args()
 
     if args.debug:
