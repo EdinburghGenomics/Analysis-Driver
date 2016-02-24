@@ -9,9 +9,9 @@ from analysis_driver.app_logging import AppLogger
 
 class ContaminationCheck(AppLogger, Thread):
 
-    def __init__(self, fastq_files, sample_id):
+    def __init__(self, fastq_files, working_dir):
         self.fastq_files = fastq_files
-        self.sample_id = sample_id
+        self.working_dir = working_dir
         self.contamination_cfg = cfg.get('contamination-check')
         self.tools = cfg.get('tools')
         Thread.__init__(self)
@@ -68,7 +68,7 @@ class ContaminationCheck(AppLogger, Thread):
         fastqscreen_executor = executor.execute(
             fastqscreen_run_command,
             job_name='fastqscreen',
-            working_dir=self.sample_id,
+            working_dir=self.working_dir,
             cpus=2,
             mem=10
         )
