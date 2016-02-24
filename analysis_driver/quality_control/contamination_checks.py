@@ -59,10 +59,6 @@ class ContaminationCheck(AppLogger, Thread):
 
     def _run_fastqscreen(self):
         fastqscreen_run_command = self._fastqscreen_command()
-        print('printing fastqscreen run command')
-        print(fastqscreen_run_command)
-        print('\n')
-        fastqscreen_bin = (self.tools.get('fastqscreen'))
         fastqscreen_expected_outfiles = self._get_expected_outfiles()
         ntf.start_stage('fastqscreen_contamination_check')
         fastqscreen_executor = executor.execute(

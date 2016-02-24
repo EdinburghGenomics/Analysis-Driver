@@ -31,7 +31,21 @@ class TestContaminationCheck(TestAnalysisDriver):
         run_fastqscreen = c._run_fastqscreen()
         assert run_fastqscreen == ['fastqFile1_screen.txt', 'fastqFile2_screen.txt']
 
-
+    @patch('analysis_driver.executor.execute', autospec=True)
+    def test_run_fastqscreen(self, mocked_execute):
+        fastq_files = ['fastqFile1.fastq', 'fastqFile2.fastq']
+        working_dir = 'testSample'
+        c = ContaminationCheck(fastq_files=fastq_files, working_dir=working_dir)
+        instance = mocked_execute.return_value
+        instance.join.return_value = 0
+        run_fastqscreen = c._run_fastqscreen()
+        mocked_execute.assert_called_once_with(['path/to/fastqscreen '
+                                                '--aligner bowtie2 fastqFile1.fastq fastqFile2.fastq '
+                                                '--conf path/to/fastqscreen/conf --force'],
+                                               working_dir='testSample',
+                                               mem=10,
+                                               cpus=2,
+                                               job_name='fastqscreen')
 
 
 
