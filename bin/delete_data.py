@@ -40,20 +40,27 @@ class Deleter(AppLogger):
 
     @staticmethod
     def _api_query(endpoint, *queries):  # TODO: this should go through rest_communication
-        query = cfg['rest_api']['url'].rstrip('/') + '/' + endpoint
+        if '?' in endpoint:
+            endpoint, existent_queries = endpoint.split('?')
+            existent_queries = tuple(existent_queries.split('&'))
+        else:
+            existent_queries = ()
+        url = cfg['rest_api']['url'].rstrip('/') + '/' + endpoint
         if queries:
-            query += '?' + '&'.join(queries)
-        return query
+            url += '?' + '&'.join(existent_queries + queries)
+        return url
 
     @classmethod
-    def _depaginate(cls, url):  # TODO: add depagination to rest_communication
+    def _depaginate(cls, endpoint, *queries):  # TODO: add depagination to rest_communication
         elements = []
+        url = cls._api_query(endpoint, *queries)
+        print(url)
         content = requests.get(url).json()
         elements.extend(content['data'])
 
         if 'next' in content['_links']:
-            next_query = cfg.query('rest_api', 'url').rstrip('/') + '/' + content['_links']['next']['href']
-            elements.extend(cls._depaginate(next_query))
+            next_query = content['_links']['next']['href']
+            elements.extend(cls._depaginate(next_query, *queries))
         return elements
 
 
@@ -62,16 +69,15 @@ class RawDataDeleter(Deleter):
 
     def deletable_runs(self):
         non_deleted_runs = self._depaginate(
-            self._api_query(
-                'runs',
-                'embedded={"run_elements":1,"analysis_driver_procs":1}',
-                'aggregate=True',
-                'max_results=100'
-            )
+            'runs?max_results=100',
+            'embedded={"run_elements":1,"analysis_driver_procs":1}',
+            'aggregate=True'
         )
 
         deletable_runs = []
         for r in non_deleted_runs:
+            if r['run_id'] == '160219_E00375_0067_BHFM5WCCXX':
+                pass
             review_statuses = r.get('review_statuses')
             most_recent_proc = r.get('analysis_driver_procs', [{}])[-1]
             if type(review_statuses) is list:

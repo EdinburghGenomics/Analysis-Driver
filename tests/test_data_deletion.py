@@ -115,10 +115,9 @@ class TestDeleter(TestAnalysisDriver):
 
 class TestRawDataDeleter(TestDeleter):
     expected_rest_query = (
-        delete_data.cfg['rest_api']['url'] + '/runs?'
-        'embedded={"run_elements":1,"analysis_driver_procs":1}&'
-        'aggregate=True&'
-        'max_results=100'
+        'runs?max_results=100',
+        'embedded={"run_elements":1,"analysis_driver_procs":1}',
+        'aggregate=True'
     )
 
     def _setup_run(self, run_id, deletable_sub_dirs):
@@ -147,17 +146,17 @@ class TestRawDataDeleter(TestDeleter):
 
         with patch(patch_target, return_value=fake_run_elements_no_procs) as p:
             runs = self.deleter.deletable_runs()
-            p.assert_called_with(self.expected_rest_query)
+            p.assert_called_with(*self.expected_rest_query)
             assert runs == []
 
         with patch(patch_target, return_value=fake_run_elements_procs_running) as p:
             runs = self.deleter.deletable_runs()
-            p.assert_called_with(self.expected_rest_query)
+            p.assert_called_with(*self.expected_rest_query)
             assert runs == []
 
         with patch(patch_target, return_value=fake_run_elements_procs_complete) as p:
             runs = self.deleter.deletable_runs()
-            p.assert_called_with(self.expected_rest_query)
+            p.assert_called_with(*self.expected_rest_query)
             assert runs == fake_run_elements_procs_complete[1:]
 
     def test_setup_run_for_deletion(self):
