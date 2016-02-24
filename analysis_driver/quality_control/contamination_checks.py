@@ -68,7 +68,7 @@ class ContaminationCheck(AppLogger, Thread):
         fastqscreen_executor = executor.execute(
             fastqscreen_run_command,
             job_name='fastqscreen',
-            run_id=self.sample_id,
+            working_dir=self.sample_id,
             cpus=2,
             mem=10
         )
