@@ -3,6 +3,7 @@ import threading
 import subprocess
 import select  # asynchronous IO
 import os.path
+import shlex
 from analysis_driver.app_logging import AppLogger
 from analysis_driver.exceptions import AnalysisDriverError
 from .script_writers import get_script_writer
@@ -40,7 +41,9 @@ class Executor(AppLogger):
         :rtype: subprocess.Popen
         """
         self.info('Executing: ' + self.cmd)
-        self.proc = subprocess.Popen(self.cmd.split(' '), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        # TODO: explore how commands that contains bash specific construct can be run ie: command <(sub command)
+        # will need to add shell=True which make some of the test fail
+        self.proc = subprocess.Popen(shlex.split(self.cmd), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         return self.proc
 
     def _validate_file_paths(self):

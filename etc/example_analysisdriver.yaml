@@ -7,9 +7,9 @@ default:
 
     input_dir: tests/assets/data_transfer/from/
     intermediate_dir: tests/assets/data_transfer/to/
-    lock_file_dir: tests/assets/data_transfer/from/
     jobs_dir : path/to/jobs
     output_dir: path/to/output_data
+    archive_dir: tests/assets/data_deletion/archive
 
     tt_agent_delay: 20
     job_execution: pbs  # pbs or None

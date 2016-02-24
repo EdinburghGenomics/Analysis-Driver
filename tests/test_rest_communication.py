@@ -38,7 +38,7 @@ def test_get_documents(mocked_instance):
     where = {'a_field': 'thing'}
     data = rest_communication.get_documents(test_endpoint, limit=100, **where)
     assert data == test_request_content['data']
-    mocked_instance.assert_called_with('GET', rest_url(test_endpoint) + '?where={"a_field":"thing"}&max_results=100')
+    mocked_instance.assert_called_with('GET', rest_url(test_endpoint) + '?max_results=100&where={"a_field":"thing"}')
 
 
 @patched_response()
@@ -46,7 +46,7 @@ def test_get_document(mocked_instance):
     where = {'a_field': 'thing'}
 
     assert rest_communication.get_document(test_endpoint, limit=100, **where) == test_request_content['data'][0]
-    mocked_instance.assert_called_with('GET', rest_url(test_endpoint) + '?where={"a_field":"thing"}&max_results=100')
+    mocked_instance.assert_called_with('GET', rest_url(test_endpoint) + '?max_results=100&where={"a_field":"thing"}')
 
 
 @patched_response()
@@ -75,7 +75,7 @@ def test_patch_entry(mocked_request, mocked_get_doc):
         'PATCH',
         rest_url(test_endpoint) + '1337',
         headers={'If-Match': 1234567},
-        json={'_id': 1337, 'list_to_update': ['another', 'other', 'that', 'this']}
+        json={'_id': 1337, 'list_to_update': ['this', 'that', 'other', 'another']}
     )
 
 

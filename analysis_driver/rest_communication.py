@@ -23,14 +23,14 @@ def _req(method, url, **kwargs):
     return r
 
     
-def get_documents(endpoint, limit=10000, **kwargs):
+def get_documents(endpoint, limit=10000, **kwargs):  # TODO: support embedding, max_results, etc.
     url = api_url(endpoint)
     param = []
+    url += '?max_results=%s' % limit
     for key in kwargs:
         param.append('"%s":"%s"' % (key, kwargs.get(key)))
     if param:
-        url += '?where={%s}' % ','.join(param)
-    url += '&max_results=%s' % limit
+        url += '&where={%s}' % ','.join(param)
     r = _req('GET', url)
     return r.json().get('data')
 
@@ -67,25 +67,29 @@ def patch_entry(endpoint, payload, update_lists=None, **kwargs):
         headers = {'If-Match': doc.get('_etag')}
         if update_lists:
             for l in update_lists:
-                payload[l] = sorted(set(doc.get(l, []) + payload.get(l, [])))
+                content = doc.get(l, [])
+                new_content = [x for x in payload.get(l, []) if x not in content]
+                payload[l] = content + new_content
         r = _req('PATCH', url, headers=headers, json=payload)
         if r.status_code == 200:
             return True
     return False
 
 
-def patch_entries(url, payload, update_lists=None, **kwargs):
+def patch_entries(endpoint, payload, update_lists=None, **kwargs):
     """Apply the same upload to all the documents retrieved using  **kwargs"""
-    docs = get_documents(url.rstrip('/'), **kwargs)
+    docs = get_documents(endpoint, **kwargs)
     if docs:
         result = True
         nb_docs = 0
         for doc in docs:
-            url = urljoin(url, doc.get('_id'))
+            url = urljoin(api_url(endpoint), doc.get('_id'))
             headers = {'If-Match': doc.get('_etag')}
             if update_lists:
                 for l in update_lists:
-                    payload[l] = sorted(set(doc.get(l, []) + payload.get(l, [])))
+                    content = doc.get(l, [])
+                    new_content = [x for x in payload.get(l, []) if x not in content]
+                    payload[l] = content + new_content
             r = _req('PATCH', url, headers=headers, json=payload)
             if r.status_code != 200:
                 result = False
