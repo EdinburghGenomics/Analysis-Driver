@@ -22,6 +22,19 @@ patched_response = patch(
 )
 
 
+def test_api_url_query_strings():
+    assert rest_communication.api_url('an_endpoint') == rest_url('an_endpoint')
+    exp = '?where={"this":"that"}&embedded={"things":1}&aggregate=True&sort=-_created'
+    obs = rest_communication.api_url(
+        'an_endpoint',
+        where={'this': 'that'},
+        embedded={'things': 1},
+        aggregate=True,
+        sort='-_created'
+    ).replace(rest_url('an_endpoint'), '')
+    assert sorted(obs.lstrip('?').split('&')) == sorted(exp.lstrip('?').split('&'))
+
+
 @patched_response
 def test_req(mocked_instance):
     json = ['some', {'test': 'json'}]

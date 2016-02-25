@@ -29,18 +29,11 @@ class Dataset:
         self.proc_id = self._most_recent_proc().get('proc_id', '_'.join((self.type, self.name)))
 
     def _most_recent_proc(self):
-        # TODO: add embedding, sort, etc. support into rest_communication - see genologics.lims
-        query_url = ''.join(
-            (
-                cfg.query('rest_api', 'url').rstrip('/'),
-                '/analysis_driver_procs?where={"dataset_type":"',
-                self.type,
-                '","dataset_name":"',
-                self.name,
-                '"}&sort=-_created'
-            )
+        procs = rest_communication.get_documents(
+            'analysis_driver_procs',
+            where={'dataset_type': self.type, 'dataset_name': self.name},
+            sort='-_created'
         )
-        procs = requests.request('GET', query_url).json()['data']
         if procs:
             return procs[0]
         else:

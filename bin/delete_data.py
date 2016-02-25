@@ -128,7 +128,8 @@ class RawDataDeleter(Deleter):
             rest_communication.patch_entry(
                 'analysis_driver_procs',
                 {'status': 'deleted'},
-                proc_id=run['analysis_driver_procs'][-1]['proc_id']
+                'proc_id',
+                run['analysis_driver_procs'][-1]['proc_id']
             )
 
     def archive_run(self, run_id):

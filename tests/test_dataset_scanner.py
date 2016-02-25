@@ -70,7 +70,10 @@ patched_request_no_data = patch(
 
 patched_post_or_patch = patch('analysis_driver.rest_communication.post_or_patch')
 patched_change_status = patch('analysis_driver.dataset_scanner.Dataset._change_status')
-patched_stages = patch('analysis_driver.dataset_scanner.Dataset.stages', new_callable=PropertyMock(return_value=['this', 'that', 'other']))
+patched_stages = patch(
+    'analysis_driver.dataset_scanner.Dataset.stages',
+    new_callable=PropertyMock(return_value=['this', 'that', 'other'])
+)
 patched_expected_yield = patch(
     'analysis_driver.dataset_scanner.get_expected_yield_for_sample', return_value=1000000000
 )

@@ -7,10 +7,14 @@ from analysis_driver.app_logging import get_logger
 app_logger = get_logger(__name__)
 
 
-def api_url(endpoint):
-    return '{base_url}/{endpoint}/'.format(
+def api_url(endpoint, **query_args):
+    url = '{base_url}/{endpoint}/'.format(
         base_url=cfg.query('rest_api', 'url').rstrip('/'), endpoint=endpoint
     )
+    if query_args:
+        url += '?' + '&'.join(['%s=%s' % (k, v) for k, v in query_args.items()]).replace(' ', '').replace('\'', '"')
+
+    return url
 
 
 def _req(method, url, **kwargs):
@@ -21,6 +25,21 @@ def _req(method, url, **kwargs):
         if json:
             app_logger.debug(pformat(json))
     return r
+
+
+def depaginate_documents(endpoint, **queries):
+    elements = []
+    page_size = queries.pop('max_results', 100)
+    url = api_url(endpoint, max_results=page_size, **queries)
+    content = _req('GET', url).json()
+    elements.extend(content['data'])
+
+    if 'next' in content['_links']:
+        next_href, next_query = content['_links']['next']['href'].split('?')
+        next_query = dict([x.split('=') for x in next_query.split('&')])
+        next_query.update(queries)
+        elements.extend(depaginate_documents(next_href, **next_query))
+    return elements
 
     
 def get_documents(endpoint, limit=10000, **query_args):
