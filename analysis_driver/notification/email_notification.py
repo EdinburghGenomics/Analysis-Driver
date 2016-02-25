@@ -4,7 +4,6 @@ from email.mime.text import MIMEText
 import jinja2
 import os.path
 from time import sleep
-# from analysis_driver.config import default as cfg
 from .notification_center import Notification
 from analysis_driver.exceptions import AnalysisDriverError
 

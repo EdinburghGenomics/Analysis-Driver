@@ -7,11 +7,12 @@ from .exceptions import AnalysisDriverError
 class Configuration:
     def __init__(self, cfg_search_path):
         self.cfg_search_path = cfg_search_path
-        self.config_file = self._find_config_file()
+        self.config_file = self._find_config_file(self.cfg_search_path)
         self.content = yaml.safe_load(open(self.config_file, 'r'))
 
-    def _find_config_file(self):
-        for p in self.cfg_search_path:
+    @staticmethod
+    def _find_config_file(search_path):
+        for p in search_path:
             if p and os.path.isfile(p):
                 return p
         raise AnalysisDriverError('Could not find config file in self.cfg_search_path')
@@ -145,7 +146,6 @@ default = EnvConfiguration(
         os.getenv('ANALYSISDRIVERCONFIG'),
         os.path.expanduser('~/.analysisdriver.yaml'),
         os.path.join(os.path.dirname(os.path.dirname(__file__)), 'etc', 'example_analysisdriver.yaml')
-
     ]
 )
 output_files_config = Configuration([_etc_config('output_files.yaml')])

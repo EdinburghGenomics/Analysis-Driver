@@ -2,7 +2,7 @@ __author__ = 'mwham'
 from threading import Thread
 import os.path
 from analysis_driver.notification import default as ntf
-from analysis_driver.writer import bash_commands
+from analysis_driver.util import bash_commands
 from analysis_driver import executor
 from analysis_driver.app_logging import AppLogger
 
@@ -64,4 +64,3 @@ class ContaminationCheck(AppLogger, Thread):
         if self.exception:
             raise self.exception
         return self.exit_status
-

@@ -27,6 +27,7 @@ def main():
     run_parser.add_argument('run_id')
     run_parser.add_argument('--samplesheet')
     run_parser.add_argument('--conversion_stats', nargs='?', default=None)
+    run_parser.add_argument('--run_dir', help='e.g. jobs/<run_id>')
     run_parser.set_defaults(func=run_crawler)
 
     sample_parser = subparsers.add_parser('sample')
@@ -43,7 +44,7 @@ def main():
 def run_crawler(args):
     for f in (args.samplesheet, args.conversion_stats):
         assert os.path.isfile(f), 'Missing file: ' + f
-    c = RunCrawler(args.run_id, SampleSheet(args.samplesheet), args.conversion_stats)
+    c = RunCrawler(args.run_id, SampleSheet(args.samplesheet), args.conversion_stats, args.run_dir)
     if args.test:
         print(
             json.dumps(

@@ -80,3 +80,22 @@ def parse_conversion_stats(xml_file):
                 (lane.get('number'), unknown_barcode.get('sequence'), unknown_barcode.get('count'))
             )
     return all_barcodes_per_lanes, top_unknown_barcodes_per_lanes
+
+
+def parse_seqtk_fqchk_file(fqchk_file, q_threshold):
+    with open(fqchk_file) as open_file:
+        first_line = open_file.readline()
+        header = open_file.readline().split()
+        all_cycles = open_file.readline().split()
+        first_cycle = open_file.readline().split()
+        nb_read = int(first_cycle[1])
+        nb_base = int(all_cycles[1])
+        lo_q = 0
+        hi_q = 0
+        for i, h in enumerate(header[9:]):
+            # header are %Q2
+            if int(h[2:]) < q_threshold:
+                lo_q += int(all_cycles[9+i])
+            else:
+                hi_q += int(all_cycles[9+i])
+        return nb_read, nb_base, lo_q, hi_q

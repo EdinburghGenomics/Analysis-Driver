@@ -4,6 +4,7 @@ import pytest
 from unittest.mock import patch, Mock, PropertyMock
 import os
 from tests.test_analysisdriver import TestAnalysisDriver
+from analysis_driver import util
 from analysis_driver.dataset_scanner import DatasetScanner, RunScanner, SampleScanner, DATASET_NEW, DATASET_READY, DATASET_PROCESSING, \
     DATASET_PROCESSED_FAIL, DATASET_PROCESSED_SUCCESS, DATASET_ABORTED, DATASET_REPROCESS, DATASET_FORCE_READY,\
     Dataset, RunDataset, SampleDataset
@@ -52,18 +53,31 @@ fake_sample = {
     'user_sample_id': 'a_user_sample_id',
 }
 
+
 class FakeRestResponse(Mock):
     def json(self):
         return self.content
 
 
-patched_request = patch('requests.request', return_value=FakeRestResponse(content={'_links': {}, 'data': [fake_analysis_driver_proc]}))
-patched_post = patch('analysis_driver.report_generation.rest_communication.post_entry', return_value=True)
-patched_patch = patch('analysis_driver.report_generation.rest_communication.patch_entry', return_value=False)
-patched_post_or_patch = patch('analysis_driver.report_generation.rest_communication.post_or_patch')
+patched_request = patch(
+    'requests.request',
+    return_value=FakeRestResponse(content={'_links': {}, 'data': [fake_analysis_driver_proc]})
+)
+patched_request_no_data = patch(
+    'requests.request',
+    return_value=FakeRestResponse(content={'_links': {}, 'data': []})
+)
+
+patched_post_or_patch = patch('analysis_driver.rest_communication.post_or_patch')
 patched_change_status = patch('analysis_driver.dataset_scanner.Dataset._change_status')
-patched_expected_yield = patch('analysis_driver.dataset_scanner.get_expected_yield_for_sample', return_value=1000000000)
-patched_get_fake_sample = patch('analysis_driver.dataset_scanner.requests.get', return_value=FakeRestResponse(content={'_links': {}, 'data': [fake_sample]}))
+patched_stages = patch('analysis_driver.dataset_scanner.Dataset.stages', new_callable=PropertyMock(return_value=['this', 'that', 'other']))
+patched_expected_yield = patch(
+    'analysis_driver.dataset_scanner.get_expected_yield_for_sample', return_value=1000000000
+)
+patched_get_fake_sample = patch(
+    'analysis_driver.dataset_scanner.requests.get',
+    return_value=FakeRestResponse(content={'_links': {}, 'data': [fake_sample]})
+)
 
 
 def patched_dataset_status(status=DATASET_NEW):
@@ -80,6 +94,10 @@ def patched_most_recent_proc(proc=fake_analysis_driver_proc):
     )
 
 
+def patched_get_docs(content):
+    return patch('analysis_driver.rest_communication.get_documents', return_value=content)
+
+
 class TestDataset(TestAnalysisDriver):
     def setUp(self):
         self.base_dir = os.path.join(self.assets_path, 'dataset_scanner')
@@ -90,34 +108,41 @@ class TestDataset(TestAnalysisDriver):
         clean(self.base_dir)
 
     def test_most_recent_proc(self):
+        expected_api_call = util.str_join(
+            api('analysis_driver_procs'),
+            '?where={"dataset_type":"',
+            self.dataset.type,
+            '","dataset_name":"test_dataset"}&sort=-_created'
+        )
         with patched_request as mocked_instance:
             proc = self.dataset._most_recent_proc()
             assert proc == fake_analysis_driver_proc
-            mocked_instance.assert_called_with(
-                'GET',
-                api('analysis_driver_procs') + '?where={"dataset_type":"' + self.dataset.type + '","dataset_name":"test_dataset"}&sort=-_created'
-            )
+            mocked_instance.assert_called_with('GET', expected_api_call)
+
+        with patched_request_no_data as mocked_instance:
+            proc = self.dataset._most_recent_proc()
+            assert proc == {}
+            mocked_instance.assert_called_with('GET', expected_api_call)
 
     def test_create_process(self):
-        with patched_post as mocked_patch, patched_post_or_patch as mocked_post_or_patch:
-            proc = self.dataset._create_process('a_status', end_date='an_end_date')
+        with patch('analysis_driver.rest_communication.post_entry', return_value=True) as mocked_patch:
+            with patched_post_or_patch as mocked_post_or_patch:
+                proc = self.dataset._create_process('a_status', end_date='an_end_date')
 
-            assert proc == {
-                'proc_id': self.dataset.proc_id,
-                'dataset_type': self.dataset.type,
-                'dataset_name': self.dataset.name,
-                'status': 'a_status',
-                'end_date': 'an_end_date'
-            }
-            mocked_patch.assert_called_with(
-                api('analysis_driver_procs'), [proc]
-            )
-            mocked_post_or_patch.assert_called_with(
-                self.dataset.endpoint,
-                [{self.dataset.id_field: 'test_dataset', 'analysis_driver_procs': ['a_type_a_name']}],
-                elem_key=self.dataset.id_field,
-                update_lists=['analysis_driver_procs']
-            )
+                assert proc == {
+                    'proc_id': self.dataset.proc_id,
+                    'dataset_type': self.dataset.type,
+                    'dataset_name': self.dataset.name,
+                    'status': 'a_status',
+                    'end_date': 'an_end_date'
+                }
+                mocked_patch.assert_called_with('analysis_driver_procs', [proc])
+                mocked_post_or_patch.assert_called_with(
+                    self.dataset.endpoint,
+                    [{self.dataset.id_field: 'test_dataset', 'analysis_driver_procs': ['a_type_a_name']}],
+                    elem_key=self.dataset.id_field,
+                    update_lists=['analysis_driver_procs']
+                )
 
     def test_dataset_status(self):
         with patched_most_recent_proc() as mocked_instance:
@@ -132,10 +157,10 @@ class TestDataset(TestAnalysisDriver):
 
     @patch('analysis_driver.dataset_scanner.Dataset._create_process')
     def test_change_status(self, mocked_instance):
-        with patched_patch as mocked_patch:
+        with patch('analysis_driver.rest_communication.patch_entry', return_value=False) as mocked_patch:
             self.dataset._change_status('a_status', finish=True)
             mocked_patch.assert_called_with(
-                api('analysis_driver_procs/'),
+                'analysis_driver_procs',
                 {
                     'status': 'a_status',
                     'dataset_type': self.dataset.type,
@@ -154,7 +179,7 @@ class TestDataset(TestAnalysisDriver):
             assert self.dataset.proc_id == self.dataset.type + '_test_dataset_' + self.dataset._now()
             mocked_change_status.assert_called_with(DATASET_PROCESSING, finish=False)
 
-        with patched_dataset_status(DATASET_ABORTED), pytest.raises(AssertionError) as e:
+        with patched_dataset_status(DATASET_ABORTED), pytest.raises(AssertionError):
             self.dataset.start()
 
     @patched_change_status
@@ -193,13 +218,14 @@ class TestDataset(TestAnalysisDriver):
     @patched_most_recent_proc()
     @patched_post_or_patch
     def test_add_stage(self, mocked_post_or_patch, mocked_most_recent_proc):
+        now = self.dataset._now()
         self.dataset.add_stage('a_stage')
         mocked_post_or_patch.assert_called_with(
             'analysis_driver_procs',
             [
                 {
                     'proc_id': 'a_type_a_name',
-                    'stages': [{'date_started': self.dataset._now(), 'stage_name': 'a_stage'}]
+                    'stages': [{'date_started': now, 'stage_name': 'a_stage'}]
                 }
             ],
             elem_key='proc_id'
@@ -217,9 +243,9 @@ class TestDataset(TestAnalysisDriver):
                     'stages': [
                         {
                             'date_started': 'a_start_date',
-                             'stage_name': 'a_stage',
-                             'exit_status': 0,
-                             'date_finished': self.dataset._now()
+                            'stage_name': 'a_stage',
+                            'exit_status': 0,
+                            'date_finished': self.dataset._now()
                         }
                     ]
                 }
@@ -251,6 +277,10 @@ class TestDataset(TestAnalysisDriver):
         }
         with patched_most_recent_proc(fake_proc):
             assert self.dataset.stages == ['another_stage', 'yet_another_stage']
+
+    @patched_stages
+    def test_str(self, mocked_instance):
+        assert str(self.dataset) == 'test_dataset -- this, that, other'
 
     def setup_dataset(self):
         with patched_request:
@@ -297,7 +327,8 @@ class TestSampleDataset(TestDataset):
         assert self.dataset._amount_data() == 480
 
     def test_runs(self):
-        assert self.dataset._runs() == {'a_run_id', 'another_run_id'}
+        with patched_get_docs(self.dataset.run_elements):
+            assert self.dataset._runs() == ['a_run_id', 'another_run_id']
 
     @patched_expected_yield
     def test_data_threshold(self, mocked_instance):
@@ -309,20 +340,28 @@ class TestSampleDataset(TestDataset):
         assert not self.dataset._is_ready()
         self.dataset.run_elements = [
             {
-                'bases_r1': 1300000000,
-                'q30_bases_r1': 1200000000,
-                'bases_r2': 1250000000,
-                'q30_bases_r2': 1150000000
+                'clean_bases_r1': 1300000000,
+                'clean_q30_bases_r1': 1200000000,
+                'clean_bases_r2': 1250000000,
+                'clean_q30_bases_r2': 1150000000
             },
             {
-                'bases_r1': 1200000000,
-                'q30_bases_r1': 1100000000,
-                'bases_r2': 1450000000,
-                'q30_bases_r2': 1350000000
+                'clean_bases_r1': 1200000000,
+                'clean_q30_bases_r1': 1100000000,
+                'clean_bases_r2': 1450000000,
+                'clean_q30_bases_r2': 1350000000
             }
         ]
         assert self.dataset._is_ready()
         assert mocked_instance.call_count == 1  # even after 2 calls to data_threshold
+
+    @patched_stages
+    def test_str(self, mocked_instance):
+        expected_str = 'test_dataset -- this, that, other  (480 / 1000000000  from a_run_id, another_run_id) '
+        with patched_get_docs(self.dataset.run_elements), patched_expected_yield:
+            print(expected_str)
+            print(str(self.dataset))
+            assert str(self.dataset) == expected_str
 
     def setup_dataset(self):
         with patched_request:
@@ -339,10 +378,10 @@ class TestSampleDataset(TestDataset):
                     'total_reads': 1337,
                     'passing_filter_reads': 1000,
                     'pc_reads_in_lane': 80,
-                    'bases_r1': 130,
-                    'q30_bases_r1': 120,
-                    'bases_r2': 125,
-                    'q30_bases_r2': 115
+                    'clean_bases_r1': 130,
+                    'clean_q30_bases_r1': 120,
+                    'clean_bases_r2': 125,
+                    'clean_q30_bases_r2': 115
                 },
                 {
                     'run_element_id': 'a_run_element_id',
@@ -355,10 +394,10 @@ class TestSampleDataset(TestDataset):
                     'total_reads': 1338,
                     'passing_filter_reads': 980,
                     'pc_reads_in_lane': 79,
-                    'bases_r1': 120,
-                    'q30_bases_r1': 110,
-                    'bases_r2': 145,
-                    'q30_bases_r2': 135
+                    'clean_bases_r1': 120,
+                    'clean_q30_bases_r1': 110,
+                    'clean_bases_r2': 145,
+                    'clean_q30_bases_r2': 135
                 }
             ]
 
@@ -385,6 +424,31 @@ class TestScanner(TestAnalysisDriver):
     def test_scan_datasets(self, mocked_instance):
         with pytest.raises(NotImplementedError):
             self.scanner.scan_datasets()
+
+    def test_report(self):
+        dsets = {'new': ['this'], 'ready': ['that', 'other'], 'failed': ['another']}
+        captured_stdout = []
+        with patch('analysis_driver.dataset_scanner.DatasetScanner.scan_datasets', return_value=dsets):
+            with patch('builtins.print', new=captured_stdout.append):
+                self.scanner.report(all_datasets=True)
+
+        expected = [
+            '========= ' + self.scanner.__class__.__name__ + ' report =========',
+            'dataset location: ' + self.base_dir,
+            '=== new ===',
+            'this',
+            '=== ready ===',
+            'that',
+            'other',
+            '=== failed ===',
+            'another',
+            '__________________________________________'
+        ]
+
+        observed = captured_stdout[0].split('\n')
+        print(observed)
+        print(expected)
+        assert observed == expected
 
     def _fake_get_dataset(self, name):
         with patched_most_recent_proc():
@@ -473,4 +537,3 @@ class TestSampleScanner(TestScanner):
                     datasets = self.scanner.scan_datasets()
                     assert list(datasets.keys()) == [status]
                     self.compare_lists([d.name for d in datasets[status]], ['a_sample_id'])
-

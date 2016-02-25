@@ -1,4 +1,5 @@
 __author__ = 'mwham'
+from unittest.mock import patch
 from tests.test_analysisdriver import TestAnalysisDriver
 from analysis_driver import util, transfer_data
 from analysis_driver.config import default as cfg
@@ -6,14 +7,17 @@ import shutil
 import os.path
 
 
-def test_setup_bcbio_run():
-    print('Setup_bcbio_run currently untestable')
-    assert True
+def patched_get_user_sample_name(sample_id):
+    return patch('analysis_driver.clarity.get_user_sample_name', return_value=sample_id)
 
 
-class TestFastqHandler(TestAnalysisDriver):
+def patched_find_project_from_sample(sample_id):
+    return patch('analysis_driver.clarity.find_project_from_sample', return_value='proj_' + sample_id)
+
+
+class TestUtil(TestAnalysisDriver):
     def test_find_fastqs(self):
-        fastqs = util.fastq_handler.find_fastqs(self.fastq_path, '10015AT', '10015AT0001')
+        fastqs = util.find_fastqs(self.fastq_path, '10015AT', '10015AT0001')
         for file_name in ['10015AT0001_S6_L004_R1_001.fastq.gz', '10015AT0001_S6_L004_R2_001.fastq.gz',
                           '10015AT0001_S6_L005_R1_001.fastq.gz', '10015AT0001_S6_L005_R2_001.fastq.gz']:
             assert os.path.join(
@@ -21,43 +25,47 @@ class TestFastqHandler(TestAnalysisDriver):
             ) in fastqs
 
     def test_find_fastqs_with_lane(self):
-        fastqs = util.fastq_handler.find_fastqs(self.fastq_path, '10015AT', '10015AT0001', lane=4)
+        fastqs = util.find_fastqs(self.fastq_path, '10015AT', '10015AT0001', lane=4)
         for file_name in ['10015AT0001_S6_L004_R1_001.fastq.gz', '10015AT0001_S6_L004_R2_001.fastq.gz']:
             assert os.path.join(
                 self.fastq_path, '10015AT', '10015AT0001', file_name
             ) in fastqs
 
     def test_find_all_fastqs(self):
-        fastqs = util.fastq_handler.find_all_fastqs(self.fastq_path)
+        fastqs = util.find_all_fastqs(self.fastq_path)
         for file_name in ['10015AT0001_S6_L004_R1_001.fastq.gz', '10015AT0001_S6_L004_R2_001.fastq.gz']:
             assert os.path.join(
                 self.fastq_path, '10015AT', '10015AT0001', file_name
             ) in fastqs
 
 
-class TestOutputData(TestAnalysisDriver):
+class TestTransferData(TestAnalysisDriver):
+    sample_id = '10015AT0001'
+
     def setUp(self):
         self.param_remappings = (
-            {'name': 'output_dir', 'new': os.path.join(self.data_output, 'to')},
+            {'name': 'output_dir', 'new': self._to_dir},
             {'name': 'jobs_dir', 'new': os.path.join(self.data_output, 'jobs')}
         )
-
         for p in self.param_remappings:
             p['original'] = cfg.get(p['name'])
             cfg.content[p['name']] = p['new']
+
+        os.makedirs(self._to_dir, exist_ok=True)
 
     def tearDown(self):
         for p in self.param_remappings:
             cfg.content[p['name']] = p['original']
 
-    def test_create_links(self):
-        sample_id = '10015AT0001'
-        destination = os.path.join(self.data_output, 'to')
-        if not os.path.exists(os.path.join(self.data_output, 'jobs', sample_id)):
-            os.makedirs(os.path.join(self.data_output, 'jobs', sample_id))
+        shutil.rmtree(self._to_dir)
 
-        if not os.path.isdir(destination):
-            os.makedirs(destination)
+    @property
+    def _to_dir(self):
+        return os.path.join(self.data_output, 'to', '')
+
+    def test_create_links(self):
+        if not os.path.exists(os.path.join(self.data_output, 'jobs', self.sample_id)):
+            os.makedirs(os.path.join(self.data_output, 'jobs', self.sample_id))
 
         records = [
             {
@@ -99,16 +107,18 @@ class TestOutputData(TestAnalysisDriver):
             {'location': ['fastq', 'Stats'], 'basename': 'ConversionStats.xml'}
         ]
 
-        if os.path.isdir(os.path.join(self.data_output, 'linked_output_files')):
-            shutil.rmtree(os.path.join(self.data_output, 'linked_output_files'))
+        dir_with_linked_files = os.path.join(self.data_output, 'linked_output_files')
+        if os.path.isdir(dir_with_linked_files):
+            shutil.rmtree(dir_with_linked_files)
+        os.makedirs(dir_with_linked_files)
 
-        list_of_linked_files = transfer_data.create_links_from_bcbio(
-            sample_id,
-            self.data_output,
-            records,
-            os.path.join(self.data_output, 'linked_output_files'),
-            query_lims=False,
-        )
+        with patched_get_user_sample_name(self.sample_id):
+            list_of_linked_files = transfer_data.create_links_from_bcbio(
+                self.sample_id,
+                self.data_output,
+                records,
+                dir_with_linked_files
+            )
 
         output_files = os.path.join(self.data_output, 'linked_output_files')
 
@@ -131,24 +141,30 @@ class TestOutputData(TestAnalysisDriver):
         shutil.rmtree(output_files)
         assert not os.path.exists(output_files)
 
-    def test_output_sample_data(self):
-        sample_id = '10015AT0001'
-        destination = os.path.join(self.data_output, 'to')
-        if not os.path.isdir(destination):
-            os.makedirs(destination)
-        source = os.path.join(self.data_output, 'pseudo_links')
-
-        exit_status = transfer_data.output_sample_data(
-            sample_id,
-            source,
-            destination,
-            query_lims=False,
-            rsync_append=False
+    def patched_rsync(self):
+        return patch(
+            'analysis_driver.transfer_data.rsync_from_to',
+            return_value='rsync -rLD --size-only %s/ %s' % (  # the trailing slash is important...
+                self._pseudo_links,
+                os.path.join(self._to_dir, 'proj_' + self.sample_id, self.sample_id)
+            )
         )
+
+    @property
+    def _pseudo_links(self):
+        return os.path.join(self.data_output, 'pseudo_links')
+
+    def test_output_sample_data(self):
+        with patched_find_project_from_sample(self.sample_id), self.patched_rsync():
+            exit_status = transfer_data.output_sample_data(
+                sample_id=self.sample_id,
+                source_dir=self._pseudo_links,
+                output_dir=self._to_dir
+            )
         output_files = os.path.join(
-            destination,
-            'proj_' + sample_id,
-            sample_id,
+            self._to_dir,
+            'proj_' + self.sample_id,
+            self.sample_id
         )
 
         expected_outputs = [
@@ -165,11 +181,9 @@ class TestOutputData(TestAnalysisDriver):
             # 'run_config.yaml'
         ]
 
-        o = list(sorted(os.listdir(output_files)))
+        o = sorted(os.listdir(output_files))
         assert exit_status == 0
         assert o == expected_outputs
-        shutil.rmtree(output_files)
-        assert not os.path.exists(output_files)
 
     @staticmethod
     def _join(*parts):
