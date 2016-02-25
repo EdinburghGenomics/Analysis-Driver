@@ -3,13 +3,13 @@ import threading
 import subprocess
 import select  # asynchronous IO
 import os.path
+import shlex
 from analysis_driver.app_logging import AppLogger
-from analysis_driver import writer
 from analysis_driver.exceptions import AnalysisDriverError
-from analysis_driver.config import default as cfg
+from .script_writers import get_script_writer
 
 
-class SimpleExecutor(AppLogger):
+class Executor(AppLogger):
     def __init__(self, cmd):
         self.cmd = cmd
         self._validate_file_paths()
@@ -23,11 +23,11 @@ class SimpleExecutor(AppLogger):
         """
         try:
             out, err = self._process().communicate()
-            for line in out.decode('utf-8').split('\n'):
-                self.info(line)
-            for line in err.decode('utf-8').split('\n'):
-                self.error(line)
+            for stream, emit in ((out, self.info), (err, self.error)):
+                for line in stream.decode('utf-8').split('\n'):
+                    emit(line)
             return self.proc.poll()
+
         except Exception as e:
             raise AnalysisDriverError('Command failed: ' + self.cmd) from e
 
@@ -41,7 +41,9 @@ class SimpleExecutor(AppLogger):
         :rtype: subprocess.Popen
         """
         self.info('Executing: ' + self.cmd)
-        self.proc = subprocess.Popen(self.cmd.split(' '), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        # TODO: explore how commands that contains bash specific construct can be run ie: command <(sub command)
+        # will need to add shell=True which make some of the test fail
+        self.proc = subprocess.Popen(shlex.split(self.cmd), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         return self.proc
 
     def _validate_file_paths(self):
@@ -50,13 +52,13 @@ class SimpleExecutor(AppLogger):
                 self.debug('Could not find file: ' + arg + '. Will the executed command create it?')
 
 
-class StreamExecutor(threading.Thread, SimpleExecutor):
+class StreamExecutor(threading.Thread, Executor):
     def __init__(self, cmd):
         """
         :param str cmd: A shell command to be executed
         """
         self.exception = None
-        SimpleExecutor.__init__(self, cmd)
+        Executor.__init__(self, cmd)
         threading.Thread.__init__(self)
 
     def join(self, timeout=None):
@@ -66,6 +68,7 @@ class StreamExecutor(threading.Thread, SimpleExecutor):
         super().join(timeout=timeout)
         if self.exception:
             self._stop()
+            self.error(self.exception.__class__.__name__ + ': ' + str(self.exception))
             raise AnalysisDriverError('self.proc command failed: ' + self.cmd)
         return self.proc.wait()
 
@@ -99,8 +102,9 @@ class ClusterExecutor(StreamExecutor):
         """
         :param list cmds: Full path to a PBS script (for example)
         """
+        self.qsub = kwargs.pop('qsub', 'qsub')
         prelim_cmds = kwargs.pop('prelim_cmds', None)
-        w = writer.get_script_writer(jobs=len(cmds), **kwargs)
+        w = get_script_writer(jobs=len(cmds), **kwargs)
         w.write_jobs(cmds, prelim_cmds=prelim_cmds)
         super().__init__(w.script_name)
 
@@ -109,8 +113,7 @@ class ClusterExecutor(StreamExecutor):
         As the superclass, but with a qsub call to a PBS script.
         :rtype: subprocess.Popen
         """
-        cmd = cfg.get('qsub', 'qsub') + ' ' + self.cmd
-
+        cmd = self.qsub + ' ' + self.cmd
         self.info('Executing: ' + cmd)
         self.proc = subprocess.Popen(cmd.split(' '), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         return self.proc
@@ -147,6 +150,7 @@ class ArrayExecutor(StreamExecutor):
         threading.Thread.join(self, timeout)
         if self.exception:
             self._stop()
+            self.error(self.exception.__class__.__name__ + ': ' + str(self.exception))
             raise AnalysisDriverError('Commands failed: ' + str(self.exit_statuses))
         self.info('Exit statuses: ' + str(self.exit_statuses))
         return sum(self.exit_statuses)

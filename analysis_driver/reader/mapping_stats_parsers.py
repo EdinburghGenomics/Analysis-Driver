@@ -1,11 +1,10 @@
-from analysis_driver.report_generation import ELEMENT_NO_CALL_CHIP, ELEMENT_NO_CALL_SEQ, ELEMENT_MISMATCHING, \
-    ELEMENT_MATCHING
-
 __author__ = 'tcezard'
 from collections import Counter
 import csv
 import yaml
 import re
+from analysis_driver.constants import ELEMENT_NO_CALL_CHIP, ELEMENT_NO_CALL_SEQ, ELEMENT_MISMATCHING, \
+    ELEMENT_MATCHING
 
 
 def parse_bamtools_stats(bamtools_stats):
@@ -19,14 +18,14 @@ def parse_bamtools_stats(bamtools_stats):
         for line in open_file:
             sp_line = line.strip().split()
             if line.startswith('Total reads:'):
-                total_reads = int(sp_line[2])
+                total_reads = sp_line[2]
             elif line.startswith('Mapped reads:'):
-                mapped_reads = int(sp_line[2])
+                mapped_reads = sp_line[2]
             elif line.startswith('Duplicates:'):
-                duplicate_reads = int(sp_line[1])
+                duplicate_reads = sp_line[1]
             elif line.startswith("'Proper-pairs':"):
-                proper_pairs = int(sp_line[1])
-    return total_reads, mapped_reads, duplicate_reads, proper_pairs
+                proper_pairs = sp_line[1]
+    return int(total_reads), int(mapped_reads), int(duplicate_reads), int(proper_pairs)
 
 
 def parse_callable_bed_file(bed_file):

@@ -4,22 +4,14 @@ import requests
 from datetime import datetime
 from collections import defaultdict
 from analysis_driver.config import default as cfg
-from analysis_driver.report_generation import rest_communication,\
-    ELEMENT_RUN_NAME, ELEMENT_NB_Q30_R2_CLEANED, ELEMENT_NB_Q30_R1_CLEANED
+from analysis_driver import rest_communication
 from analysis_driver.app_logging import get_logger
 from analysis_driver.clarity import get_expected_yield_for_sample
-
+from analysis_driver.constants import DATASET_NEW, DATASET_READY, DATASET_FORCE_READY, DATASET_PROCESSING,\
+    DATASET_PROCESSED_SUCCESS, DATASET_PROCESSED_FAIL, DATASET_ABORTED, DATASET_REPROCESS, ELEMENT_RUN_NAME,\
+    ELEMENT_NB_Q30_R2_CLEANED, ELEMENT_NB_Q30_R1_CLEANED
 
 app_logger = get_logger('scanner')
-
-DATASET_NEW = 'new'
-DATASET_READY = 'ready'
-DATASET_FORCE_READY = 'force_ready'
-DATASET_PROCESSING = 'processing'
-DATASET_PROCESSED_SUCCESS = 'finished'
-DATASET_PROCESSED_FAIL = 'failed'
-DATASET_ABORTED = 'aborted'
-DATASET_REPROCESS = 'reprocess'
 
 STATUS_VISIBLE = [DATASET_NEW, DATASET_READY, DATASET_FORCE_READY, DATASET_PROCESSING]
 STATUS_HIDDEN = [DATASET_PROCESSED_SUCCESS, DATASET_PROCESSED_FAIL, DATASET_ABORTED]
@@ -63,7 +55,7 @@ class Dataset:
         }
         if end_date:
             proc['end_date'] = end_date
-        rest_communication.post_entry(cfg.query('rest_api', 'url').rstrip('/') + '/analysis_driver_procs', [proc])
+        rest_communication.post_entry('analysis_driver_procs', [proc])
         dataset = {self.id_field: self.name, 'analysis_driver_procs': [self.proc_id]}
         rest_communication.post_or_patch(
             self.endpoint,
@@ -94,7 +86,7 @@ class Dataset:
         return datetime.utcnow().strftime('%d_%m_%Y_%H:%M:%S')
 
     def start(self):
-        assert self.dataset_status in (DATASET_READY, DATASET_FORCE_READY, DATASET_NEW, DATASET_REPROCESS)
+        assert self.dataset_status in (DATASET_READY, DATASET_FORCE_READY, DATASET_NEW)
         self.pid = os.getpid()
         # sleep(1.1)
         start_time = self._now()
@@ -131,7 +123,7 @@ class Dataset:
             end_date = None
 
         patch_success = rest_communication.patch_entry(
-            cfg.query('rest_api', 'url').rstrip('/') + '/analysis_driver_procs/',
+            'analysis_driver_procs',
             new_content,
             proc_id=self.proc_id
         )
@@ -139,9 +131,10 @@ class Dataset:
             self._create_process(status=status, end_date=end_date)
 
     def add_stage(self, stage_name):
+        now = self._now()
         stages = self._most_recent_proc().get('stages', [])
         new_stage = {
-            'date_started': self._now(),
+            'date_started': now,
             'stage_name': stage_name
         }
         stages.append(new_stage)
@@ -205,7 +198,7 @@ class SampleDataset(Dataset):
 
     def _read_data(self):
         return rest_communication.get_documents(
-            cfg['rest_api']['url'].rstrip('/') + '/run_elements',
+            'run_elements',
             sample_id=self.name,
             useable='yes'
         )
@@ -219,7 +212,7 @@ class SampleDataset(Dataset):
         )
 
     def _runs(self):
-        return set([r.get(ELEMENT_RUN_NAME) for r in self.run_elements])
+        return sorted(set([r.get(ELEMENT_RUN_NAME) for r in self.run_elements]))
 
     @property
     def data_threshold(self):
@@ -242,8 +235,8 @@ class SampleDataset(Dataset):
 
 
 class DatasetScanner:
-    def __init__(self, cfg):
-        self.input_dir = cfg.get('input_dir')
+    def __init__(self, config):
+        self.input_dir = config.get('input_dir')
 
     def scan_datasets(self):
         triggerignore = os.path.join(self.input_dir, '.triggerignore')
@@ -298,9 +291,9 @@ class DatasetScanner:
 
 
 class RunScanner(DatasetScanner):
-    def __init__(self, cfg):
-        super().__init__(cfg)
-        self.use_int_dir = 'intermediate_dir' in cfg
+    def __init__(self, config):
+        super().__init__(config)
+        self.use_int_dir = 'intermediate_dir' in config
 
     def _list_datasets(self):
         return os.listdir(self.input_dir)
@@ -316,9 +309,9 @@ class RunScanner(DatasetScanner):
 
 
 class SampleScanner(DatasetScanner):
-    def __init__(self, cfg):
-        super().__init__(cfg)
-        self.data_threshold = cfg.get('data_threshold')
+    def __init__(self, config):
+        super().__init__(config)
+        self.data_threshold = config.get('data_threshold')
 
     def _list_datasets(self, query=None):  # TODO: add depagination to rest_communication
         datasets = []

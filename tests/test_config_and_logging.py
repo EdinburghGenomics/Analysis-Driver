@@ -3,6 +3,7 @@ import os
 from tests.test_analysisdriver import TestAnalysisDriver
 from analysis_driver.config import Configuration, EnvConfiguration, LoggingConfiguration, logging_default
 from analysis_driver import app_logging
+from analysis_driver.exceptions import AnalysisDriverError
 import pytest
 import logging
 import sys
@@ -13,7 +14,7 @@ class TestConfiguration(TestAnalysisDriver):
         self.cfg = EnvConfiguration(
             (
                 os.getenv('ANALYSISDRIVERCONFIG'),
-                os.path.expanduser('~/.analysisdriver.yaml')
+                os.path.join(self.assets_path, '..', '..', 'etc', 'example_analysisdriver.yaml')
             )
         )
         self.sample_sheet_cfg = Configuration(
@@ -26,9 +27,16 @@ class TestConfiguration(TestAnalysisDriver):
 
         assert get('nonexistent_thing') is None
         assert get('nonexistent_thing', 'a_default') == 'a_default'
-
-        # test Configuration.get's compatibility with dict.get
         assert self.cfg.get('logging').get('handlers').get('stdout').get('level') == 'INFO'
+
+    def test_find_config_file(self):
+        existing_cfg_file = os.path.join(self.assets_path, '..', '..', 'etc', 'example_analysisdriver.yaml')
+        non_existing_cfg_file = os.path.join(self.assets_path, 'a_file_that_does_not_exist.txt')
+        assert self.cfg._find_config_file((non_existing_cfg_file, existing_cfg_file)) == existing_cfg_file
+
+        with pytest.raises(AnalysisDriverError) as e:
+            self.cfg._find_config_file((non_existing_cfg_file,))
+            assert 'Could not find config file in self.cfg_search_path' in str(e)
 
     def test_query(self):
         assert self.cfg.query('logging', 'handlers', 'stdout', 'level') == 'INFO'
