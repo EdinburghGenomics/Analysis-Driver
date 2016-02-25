@@ -23,24 +23,21 @@ def _req(method, url, **kwargs):
     return r
 
     
-def get_documents(endpoint, limit=10000, **kwargs):  # TODO: support embedding, max_results, etc.
-    url = api_url(endpoint)
-    param = []
-    url += '?max_results=%s' % limit
-    for key in kwargs:
-        param.append('"%s":"%s"' % (key, kwargs.get(key)))
-    if param:
-        url += '&where={%s}' % ','.join(param)
+def get_documents(endpoint, limit=10000, **query_args):
+    url = api_url(endpoint) + '?max_results=%s' % limit
+    q_string = '&'.join(['%s=%s' % (k, v) for k, v in query_args.items()]).replace(' ', '').replace('\'', '"')
+    if q_string:
+        url += '&' + q_string
     r = _req('GET', url)
     return r.json().get('data')
 
 
-def get_document(endpoint, idx=0, **kwargs):
-    documents = get_documents(endpoint, **kwargs)
+def get_document(endpoint, idx=0, **query_args):
+    documents = get_documents(endpoint, **query_args)
     if documents:
         return documents[idx]
     else:
-        app_logger.error('No document found for ' + endpoint + '. kwargs: ' + str(kwargs))
+        app_logger.error('No document found for ' + endpoint + '. kwargs: ' + str(query_args))
 
 
 def post_entry(endpoint, payload):
@@ -59,9 +56,9 @@ def put_entry(endpoint, element_id, payload):
     return True
 
 
-def patch_entry(endpoint, payload, update_lists=None, **kwargs):
+def patch_entry(endpoint, payload, id_field, element_id, update_lists=None):
     """Upload Assuming we can get the id of this entry from kwargs"""
-    doc = get_document(endpoint, **kwargs)
+    doc = get_document(endpoint, where={id_field: element_id})
     if doc:
         url = urljoin(api_url(endpoint), doc.get('_id'))
         headers = {'If-Match': doc.get('_etag')}
@@ -100,18 +97,18 @@ def patch_entries(endpoint, payload, update_lists=None, **kwargs):
     return False
 
 
-def post_or_patch(endpoint, input_json, elem_key=None, update_lists=None):
+def post_or_patch(endpoint, input_json, id_field=None, update_lists=None):
     """
     :param str endpoint:
     :param list input_json:
-    :param str elem_key:
+    :param str id_field:
     """
     success = True
     for payload in input_json:
-        if not post_entry(endpoint, payload):
-            elem_query = {}
-            if elem_key:
-                elem_query = {elem_key: payload.pop(elem_key)}
-            s = patch_entry(endpoint, payload, update_lists, **elem_query)
-            success = success and s
+        if get_document(endpoint, where={id_field: payload[id_field]}):
+            elem_key = payload.pop(id_field)
+            s = patch_entry(endpoint, payload, id_field, elem_key, update_lists)
+        else:
+            s = post_entry(endpoint, payload)
+        success = success and s
     return success

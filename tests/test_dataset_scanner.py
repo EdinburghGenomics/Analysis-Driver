@@ -140,7 +140,7 @@ class TestDataset(TestAnalysisDriver):
                 mocked_post_or_patch.assert_called_with(
                     self.dataset.endpoint,
                     [{self.dataset.id_field: 'test_dataset', 'analysis_driver_procs': ['a_type_a_name']}],
-                    elem_key=self.dataset.id_field,
+                    id_field=self.dataset.id_field,
                     update_lists=['analysis_driver_procs']
                 )
 
@@ -167,7 +167,8 @@ class TestDataset(TestAnalysisDriver):
                     'dataset_name': 'test_dataset',
                     'end_date': self.dataset._now()
                 },
-                proc_id='a_type_a_name'
+                'proc_id',
+                'a_type_a_name'
             )
             mocked_instance.assert_called_with(status='a_status', end_date=self.dataset._now())
 
@@ -212,7 +213,7 @@ class TestDataset(TestAnalysisDriver):
         mocked_instance.assert_called_with(
             'analysis_driver_procs',
             [{'proc_id': 'a_type_a_name', 'status': DATASET_REPROCESS}],
-            elem_key='proc_id'
+            id_field='proc_id'
         )
 
     @patched_most_recent_proc()
@@ -228,7 +229,7 @@ class TestDataset(TestAnalysisDriver):
                     'stages': [{'date_started': now, 'stage_name': 'a_stage'}]
                 }
             ],
-            elem_key='proc_id'
+            id_field='proc_id'
         )
 
     @patched_most_recent_proc(fake_analysis_driver_proc_stages)
@@ -250,7 +251,7 @@ class TestDataset(TestAnalysisDriver):
                     ]
                 }
             ],
-            elem_key='proc_id'
+            id_field='proc_id'
         )
 
     def test_stages(self):

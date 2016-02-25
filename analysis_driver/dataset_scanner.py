@@ -60,7 +60,7 @@ class Dataset:
         rest_communication.post_or_patch(
             self.endpoint,
             [dataset],
-            elem_key=self.id_field,
+            id_field=self.id_field,
             update_lists=['analysis_driver_procs']
         )
         return proc
@@ -108,7 +108,7 @@ class Dataset:
 
     def reset(self):
         new_content = {'proc_id': self.proc_id, 'status': DATASET_REPROCESS}
-        rest_communication.post_or_patch('analysis_driver_procs', [new_content], elem_key='proc_id')
+        rest_communication.post_or_patch('analysis_driver_procs', [new_content], id_field='proc_id')
 
     def _change_status(self, status, finish=True):
         new_content = {
@@ -125,7 +125,8 @@ class Dataset:
         patch_success = rest_communication.patch_entry(
             'analysis_driver_procs',
             new_content,
-            proc_id=self.proc_id
+            'proc_id',
+            self.proc_id
         )
         if not patch_success:
             self._create_process(status=status, end_date=end_date)
@@ -139,7 +140,7 @@ class Dataset:
         }
         stages.append(new_stage)
         new_content = {'proc_id': self.proc_id, 'stages': stages}
-        rest_communication.post_or_patch('analysis_driver_procs', [new_content], elem_key='proc_id')
+        rest_communication.post_or_patch('analysis_driver_procs', [new_content], id_field='proc_id')
 
     def end_stage(self, stage_name, exit_status):
         stages = self._most_recent_proc().get('stages')
@@ -149,7 +150,7 @@ class Dataset:
                 s['exit_status'] = exit_status
 
         new_content = {'proc_id': self.proc_id, 'stages': stages}
-        rest_communication.post_or_patch('analysis_driver_procs', [new_content], elem_key='proc_id')
+        rest_communication.post_or_patch('analysis_driver_procs', [new_content], id_field='proc_id')
 
     @property
     def stages(self):
@@ -199,8 +200,7 @@ class SampleDataset(Dataset):
     def _read_data(self):
         return rest_communication.get_documents(
             'run_elements',
-            sample_id=self.name,
-            useable='yes'
+            where={'sample_id': self.name, 'useable': 'yes'}
         )
 
     def _amount_data(self):
