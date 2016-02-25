@@ -54,7 +54,6 @@ class Deleter(AppLogger):
     def _depaginate(cls, endpoint, *queries):  # TODO: add depagination to rest_communication
         elements = []
         url = cls._api_query(endpoint, *queries)
-        print(url)
         content = requests.get(url).json()
         elements.extend(content['data'])
 
