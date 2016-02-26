@@ -1,7 +1,10 @@
 __author__ = 'mwham'
 from unittest.mock import patch, Mock
+from tests import test_analysisdriver
 from analysis_driver import rest_communication
 
+
+helper = test_analysisdriver.TestAnalysisDriver()
 
 class FakeRestReponse(Mock):
     def json(self):
@@ -43,6 +46,28 @@ def test_req(mocked_instance):
     assert response.status_code == 200
     assert response.content == test_request_content
     mocked_instance.assert_called_with('METHOD', rest_url(test_endpoint), json=json)
+
+
+def test_depaginate_documents():
+    docs = (
+        FakeRestReponse(content={'data': ['this', 'that'], '_links': {'next': {'href': 'an_endpoint?max_results=101&page=2'}}}),
+        FakeRestReponse(content={'data': ['other', 'another'], '_links': {'next': {'href': 'an_endpoint?max_results=101&page=3'}}}),
+        FakeRestReponse(content={'data': ['more', 'things'], '_links': {}})
+    )
+    patched_req = patch(
+        'analysis_driver.rest_communication._req',
+        side_effect=docs
+    )
+    with patched_req as mocked_req:
+        assert rest_communication.depaginate_documents('an_endpoint', max_results=101) == [
+            'this', 'that', 'other', 'another', 'more', 'things'
+        ]
+        assert all([a[0][1].startswith(rest_url('an_endpoint')) for a in mocked_req.call_args_list])
+        assert [helper.query_args_from_url(a[0][1]) for a in mocked_req.call_args_list] == [
+            {'max_results': '101'},
+            {'page': '2', 'max_results': '101'},
+            {'page': '3', 'max_results': '101'}
+        ]
 
 
 @patched_response

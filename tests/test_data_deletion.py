@@ -114,12 +114,6 @@ class TestDeleter(TestAnalysisDriver):
 
 
 class TestRawDataDeleter(TestDeleter):
-    expected_rest_query = (
-        'runs?max_results=100',
-        'embedded={"run_elements":1,"analysis_driver_procs":1}',
-        'aggregate=True'
-    )
-
     def _setup_run(self, run_id, deletable_sub_dirs):
         for d in deletable_sub_dirs + ('Stats', 'InterOp', 'RTAComplete.txt'):
             os.makedirs(p_join(self.assets_deletion, 'raw', run_id, d), exist_ok=True)
@@ -142,21 +136,26 @@ class TestRawDataDeleter(TestDeleter):
             os.remove(deletion_script)
 
     def test_deletable_runs(self):
-        patch_target = 'bin.delete_data.Deleter._depaginate'
+        patch_target = 'analysis_driver.rest_communication.depaginate_documents'
+        expected_rest_query = {
+            'max_results': 100,
+            'embedded': {'run_elements': 1, 'analysis_driver_procs': 1},
+            'aggregate': True
+        }
 
         with patch(patch_target, return_value=fake_run_elements_no_procs) as p:
             runs = self.deleter.deletable_runs()
-            p.assert_called_with(*self.expected_rest_query)
+            p.assert_called_with('runs', **expected_rest_query)
             assert runs == []
 
         with patch(patch_target, return_value=fake_run_elements_procs_running) as p:
             runs = self.deleter.deletable_runs()
-            p.assert_called_with(*self.expected_rest_query)
+            p.assert_called_with('runs', **expected_rest_query)
             assert runs == []
 
         with patch(patch_target, return_value=fake_run_elements_procs_complete) as p:
             runs = self.deleter.deletable_runs()
-            p.assert_called_with(*self.expected_rest_query)
+            p.assert_called_with('runs', **expected_rest_query)
             assert runs == fake_run_elements_procs_complete[1:]
 
     def test_setup_run_for_deletion(self):
@@ -193,7 +192,8 @@ class TestRawDataDeleter(TestDeleter):
         mocked_patch.assert_called_with(
             'analysis_driver_procs',
             {'status': 'deleted'},
-            proc_id='most_recent_proc'
+            'proc_id',
+            'most_recent_proc'
         )
 
     def test_archive_run(self):
@@ -239,6 +239,7 @@ class TestRawDataDeleter(TestDeleter):
         mocked_patch.assert_called_with(
             'analysis_driver_procs',
             {'status': 'deleted'},
-            proc_id='most_recent_proc'
+            'proc_id',
+            'most_recent_proc'
         )
         assert mocked_deletable_runs.call_count == 1

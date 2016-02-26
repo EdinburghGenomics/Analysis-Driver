@@ -1,9 +1,7 @@
 __author__ = 'mwham'
 import os
-import requests
 from datetime import datetime
 from collections import defaultdict
-from analysis_driver.config import default as cfg
 from analysis_driver import rest_communication
 from analysis_driver.app_logging import get_logger
 from analysis_driver.clarity import get_expected_yield_for_sample
@@ -89,7 +87,7 @@ class Dataset:
         self._change_status(DATASET_PROCESSING, finish=False)
 
     def succeed(self):
-        assert self.dataset_status == DATASET_PROCESSING  # TODO: do we need all these asserts?
+        assert self.dataset_status == DATASET_PROCESSING
         self._change_status(DATASET_PROCESSED_SUCCESS)
 
     def fail(self):
@@ -306,18 +304,8 @@ class SampleScanner(DatasetScanner):
         super().__init__(config)
         self.data_threshold = config.get('data_threshold')
 
-    def _list_datasets(self, query=None):  # TODO: add depagination to rest_communication
-        datasets = []
-        if query is None:
-            query = 'samples'
-        url = cfg.query('rest_api', 'url').rstrip('/') + '/' + query
-        content = requests.get(url).json()
-        datasets.extend([d['sample_id'] for d in content['data']])
-
-        if 'next' in content['_links']:
-            next_query = content['_links']['next']['href']
-            datasets.extend(self._list_datasets(next_query))
-        return datasets
+    def _list_datasets(self, query=None):
+        return [s['sample_id'] for s in rest_communication.depaginate_documents('samples')]
 
     def get_dataset(self, name):
         dataset_path = os.path.join(self.input_dir, name)

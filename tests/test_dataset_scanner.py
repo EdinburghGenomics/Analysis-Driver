@@ -77,9 +77,9 @@ patched_stages = patch(
 patched_expected_yield = patch(
     'analysis_driver.dataset_scanner.get_expected_yield_for_sample', return_value=1000000000
 )
-patched_get_fake_sample = patch(
-    'analysis_driver.dataset_scanner.requests.get',
-    return_value=FakeRestResponse(content={'_links': {}, 'data': [fake_sample]})
+patched_depaginate = patch(
+    'analysis_driver.rest_communication.depaginate_documents',
+    return_value=[fake_sample]
 )
 
 
@@ -113,19 +113,24 @@ class TestDataset(TestAnalysisDriver):
     def test_most_recent_proc(self):
         expected_api_call = util.str_join(
             api('analysis_driver_procs'),
-            '?where={"dataset_type":"',
+            '?where={"dataset_name":"test_dataset","dataset_type":"',
             self.dataset.type,
-            '","dataset_name":"test_dataset"}&sort=-_created'
+            '"}&sort=-_created',
+            '&max_results=10000'
         )
         with patched_request as mocked_instance:
             proc = self.dataset._most_recent_proc()
             assert proc == fake_analysis_driver_proc
-            mocked_instance.assert_called_with('GET', expected_api_call)
+            obs = self.query_args_from_url(mocked_instance.call_args[0][1])
+            exp = self.query_args_from_url(expected_api_call)
+            assert obs == exp
 
         with patched_request_no_data as mocked_instance:
             proc = self.dataset._most_recent_proc()
             assert proc == {}
-            mocked_instance.assert_called_with('GET', expected_api_call)
+            obs = self.query_args_from_url(mocked_instance.call_args[0][1])
+            exp = self.query_args_from_url(expected_api_call)
+            assert obs == exp
 
     def test_create_process(self):
         with patch('analysis_driver.rest_communication.post_entry', return_value=True) as mocked_patch:
@@ -523,10 +528,10 @@ class TestSampleScanner(TestScanner):
             for a in ('name', 'path', 'data_threshold'):
                 assert observed.__getattribute__(a) == expected.__getattribute__(a)
 
-    @patched_get_fake_sample
-    def test_list_datasets(self, mocked_instance):
+    @patched_depaginate
+    def test_list_datasets(self, mocked_depaginate):
         assert self.scanner._list_datasets() == ['a_sample_id']
-        mocked_instance.assert_called_with(api('samples'))
+        mocked_depaginate.assert_called_with('samples')
 
     @patched_request
     def test_scan_datasets(self, mocked_instance):
@@ -537,7 +542,7 @@ class TestSampleScanner(TestScanner):
             )
             for status in statuses:
                 print(status)
-                with patched_dataset_status(status), patched_get_fake_sample:
+                with patched_dataset_status(status), patched_depaginate:
                     datasets = self.scanner.scan_datasets()
                     assert list(datasets.keys()) == [status]
                     self.compare_lists([d.name for d in datasets[status]], ['a_sample_id'])

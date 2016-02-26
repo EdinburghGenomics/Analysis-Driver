@@ -38,39 +38,16 @@ class Deleter(AppLogger):
             self.error('expected: ' + str(expected))
             raise AssertionError
 
-    @staticmethod
-    def _api_query(endpoint, *queries):  # TODO: this should go through rest_communication
-        if '?' in endpoint:
-            endpoint, existent_queries = endpoint.split('?')
-            existent_queries = tuple(existent_queries.split('&'))
-        else:
-            existent_queries = ()
-        url = cfg['rest_api']['url'].rstrip('/') + '/' + endpoint
-        if queries:
-            url += '?' + '&'.join(existent_queries + queries)
-        return url
-
-    @classmethod
-    def _depaginate(cls, endpoint, *queries):  # TODO: add depagination to rest_communication
-        elements = []
-        url = cls._api_query(endpoint, *queries)
-        content = requests.get(url).json()
-        elements.extend(content['data'])
-
-        if 'next' in content['_links']:
-            next_query = content['_links']['next']['href']
-            elements.extend(cls._depaginate(next_query, *queries))
-        return elements
-
 
 class RawDataDeleter(Deleter):
     deletable_sub_dirs = ('Data', 'Logs', 'Thumbnail_Images')
 
     def deletable_runs(self):
-        non_deleted_runs = self._depaginate(
-            'runs?max_results=100',
-            'embedded={"run_elements":1,"analysis_driver_procs":1}',
-            'aggregate=True'
+        non_deleted_runs = rest_communication.depaginate_documents(
+            'runs',
+            max_results=100,
+            embedded={'run_elements': 1, 'analysis_driver_procs': 1},
+            aggregate=True
         )
 
         deletable_runs = []

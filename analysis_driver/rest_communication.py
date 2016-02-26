@@ -37,6 +37,7 @@ def depaginate_documents(endpoint, **queries):
     if 'next' in content['_links']:
         next_href, next_query = content['_links']['next']['href'].split('?')
         next_query = dict([x.split('=') for x in next_query.split('&')])
+        queries.pop('page', None)
         next_query.update(queries)
         elements.extend(depaginate_documents(next_href, **next_query))
     return elements
