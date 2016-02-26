@@ -1,9 +1,10 @@
 __author__ = 'tcezard'
 import shutil
 import pytest
-from unittest.mock import patch, Mock, PropertyMock
+from unittest.mock import patch, PropertyMock
 import os
 from tests.test_analysisdriver import TestAnalysisDriver
+from tests.test_rest_communication import FakeRestResponse
 from analysis_driver import util
 from analysis_driver.dataset_scanner import DatasetScanner, RunScanner, SampleScanner, DATASET_NEW, DATASET_READY, DATASET_PROCESSING, \
     DATASET_PROCESSED_FAIL, DATASET_PROCESSED_SUCCESS, DATASET_ABORTED, DATASET_REPROCESS, DATASET_FORCE_READY,\
@@ -52,11 +53,6 @@ fake_sample = {
     'sample_id': 'a_sample_id',
     'user_sample_id': 'a_user_sample_id',
 }
-
-
-class FakeRestResponse(Mock):
-    def json(self):
-        return self.content
 
 
 patched_request = patch(

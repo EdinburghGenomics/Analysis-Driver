@@ -1,6 +1,5 @@
 from urllib.parse import urljoin
 import requests
-from pprint import pformat
 from analysis_driver.config import default as cfg
 from analysis_driver.app_logging import get_logger
 
@@ -19,11 +18,13 @@ def api_url(endpoint, **query_args):
 
 def _req(method, url, **kwargs):
     r = requests.request(method, url, **kwargs)
+    app_logger.debug('%s %s (%s) -> %s' % (r.request.method, r.request.path_url, kwargs, r.content.decode('utf-8')))
     if r.status_code != 200:
-        app_logger.debug('%s %s %s %s' % (r.request.method, r.request.path_url, r.status_code, r.reason))
-        json = r.json()
-        if json:
-            app_logger.debug(pformat(json))
+        app_logger.error(
+            'Request %s on %s had status code %s. Reason: %s' % (
+                r.request.method, r.request.path_url, r.status_code, r.reason
+            )
+        )
     return r
 
 
@@ -57,7 +58,7 @@ def get_document(endpoint, idx=0, **query_args):
     if documents:
         return documents[idx]
     else:
-        app_logger.error('No document found for ' + endpoint + '. kwargs: ' + str(query_args))
+        app_logger.warning('No document found in endpoint %s for %s' % (endpoint, str(query_args)))
 
 
 def post_entry(endpoint, payload):
@@ -76,20 +77,26 @@ def put_entry(endpoint, element_id, payload):
     return True
 
 
-def patch_entry(endpoint, payload, id_field, element_id, update_lists=None):
+def _patch_entry(endpoint, doc, payload, update_lists=None):
     """Upload Assuming we can get the id of this entry from kwargs"""
+    url = urljoin(api_url(endpoint), doc.get('_id'))
+    _payload = dict(payload)
+    headers = {'If-Match': doc.get('_etag')}
+    if update_lists:
+        for l in update_lists:
+            content = doc.get(l, [])
+            new_content = [x for x in _payload.get(l, []) if x not in content]
+            _payload[l] = content + new_content
+    r = _req('PATCH', url, headers=headers, json=_payload)
+    if r.status_code == 200:
+        return True
+    return False
+
+
+def patch_entry(endpoint, payload, id_field, element_id, update_lists=None):
     doc = get_document(endpoint, where={id_field: element_id})
     if doc:
-        url = urljoin(api_url(endpoint), doc.get('_id'))
-        headers = {'If-Match': doc.get('_etag')}
-        if update_lists:
-            for l in update_lists:
-                content = doc.get(l, [])
-                new_content = [x for x in payload.get(l, []) if x not in content]
-                payload[l] = content + new_content
-        r = _req('PATCH', url, headers=headers, json=payload)
-        if r.status_code == 200:
-            return True
+        return _patch_entry(endpoint, doc, payload, update_lists)
     return False
 
 
@@ -97,23 +104,15 @@ def patch_entries(endpoint, payload, update_lists=None, **kwargs):
     """Apply the same upload to all the documents retrieved using  **kwargs"""
     docs = get_documents(endpoint, **kwargs)
     if docs:
-        result = True
+        success = True
         nb_docs = 0
         for doc in docs:
-            url = urljoin(api_url(endpoint), doc.get('_id'))
-            headers = {'If-Match': doc.get('_etag')}
-            if update_lists:
-                for l in update_lists:
-                    content = doc.get(l, [])
-                    new_content = [x for x in payload.get(l, []) if x not in content]
-                    payload[l] = content + new_content
-            r = _req('PATCH', url, headers=headers, json=payload)
-            if r.status_code != 200:
-                result = False
-            else:
+            if _patch_entry(endpoint, doc, payload, update_lists):
                 nb_docs += 1
+            else:
+                success = False
         app_logger.info('Updated %s documents matching %s' % (nb_docs, kwargs))
-        return result
+        return success
     return False
 
 

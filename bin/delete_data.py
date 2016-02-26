@@ -5,7 +5,6 @@ from os.path import join as p_join
 from datetime import datetime
 import argparse
 import logging
-import requests
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from analysis_driver.exceptions import AnalysisDriverError

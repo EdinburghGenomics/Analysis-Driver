@@ -1,14 +1,20 @@
 __author__ = 'mwham'
 from unittest.mock import patch, Mock
+import json
 from tests import test_analysisdriver
 from analysis_driver import rest_communication
 
 
 helper = test_analysisdriver.TestAnalysisDriver()
 
-class FakeRestReponse(Mock):
+class FakeRestResponse(Mock):
+    def __init__(self, *args, **kwargs):
+        content = json.dumps(kwargs.pop('content', None)).encode()
+        super().__init__(*args, **kwargs)
+        self.content = content
+
     def json(self):
-        return self.content
+        return json.loads(self.content.decode('utf-8'))
 
 
 def rest_url(endpoint):
@@ -21,7 +27,7 @@ test_request_content = {'data': ['some', {'test': 'content'}]}
 
 patched_response = patch(
     'requests.request',
-    return_value=FakeRestReponse(status_code=200, content=test_request_content)
+    return_value=FakeRestResponse(status_code=200, content=test_request_content)
 )
 
 
@@ -40,19 +46,19 @@ def test_api_url_query_strings():
 
 @patched_response
 def test_req(mocked_instance):
-    json = ['some', {'test': 'json'}]
+    json_content = ['some', {'test': 'json'}]
 
-    response = rest_communication._req('METHOD', rest_url(test_endpoint), json=json)
+    response = rest_communication._req('METHOD', rest_url(test_endpoint), json=json_content)
     assert response.status_code == 200
-    assert response.content == test_request_content
-    mocked_instance.assert_called_with('METHOD', rest_url(test_endpoint), json=json)
+    assert json.loads(response.content.decode('utf-8')) == response.json() == test_request_content
+    mocked_instance.assert_called_with('METHOD', rest_url(test_endpoint), json=json_content)
 
 
 def test_depaginate_documents():
     docs = (
-        FakeRestReponse(content={'data': ['this', 'that'], '_links': {'next': {'href': 'an_endpoint?max_results=101&page=2'}}}),
-        FakeRestReponse(content={'data': ['other', 'another'], '_links': {'next': {'href': 'an_endpoint?max_results=101&page=3'}}}),
-        FakeRestReponse(content={'data': ['more', 'things'], '_links': {}})
+        FakeRestResponse(content={'data': ['this', 'that'], '_links': {'next': {'href': 'an_endpoint?max_results=101&page=2'}}}),
+        FakeRestResponse(content={'data': ['other', 'another'], '_links': {'next': {'href': 'an_endpoint?max_results=101&page=3'}}}),
+        FakeRestResponse(content={'data': ['more', 'things'], '_links': {}})
     )
     patched_req = patch(
         'analysis_driver.rest_communication._req',
