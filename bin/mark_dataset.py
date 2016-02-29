@@ -9,7 +9,7 @@ from analysis_driver.config import default as cfg
 from analysis_driver.config import logging_default as log_cfg
 log_cfg.default_level = logging.DEBUG
 log_cfg.add_handler('stdout', logging.StreamHandler(stream=sys.stdout), logging.DEBUG)
-from analysis_driver.report_generation import rest_communication
+from analysis_driver import rest_communication
 
 
 def main():

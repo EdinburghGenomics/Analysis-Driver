@@ -18,13 +18,11 @@ def api_url(endpoint, **query_args):
 
 def _req(method, url, **kwargs):
     r = requests.request(method, url, **kwargs)
-    app_logger.debug('%s %s (%s) -> %s' % (r.request.method, r.request.path_url, kwargs, r.content.decode('utf-8')))
-    if r.status_code != 200:
-        app_logger.error(
-            'Request %s on %s had status code %s. Reason: %s' % (
-                r.request.method, r.request.path_url, r.status_code, r.reason
-            )
-        )
+    req_call = ' '.join((r.request.method, r.request.path_url))
+    if r.status_code == 200:
+        app_logger.debug('%s (%s) -> %s' % (req_call, kwargs, r.content.decode('utf-8')))
+    else:
+        app_logger.error('Request %s had status code %s. Reason: %s' % (req_call, r.status_code, r.reason))
     return r
 
 
@@ -45,10 +43,9 @@ def depaginate_documents(endpoint, **queries):
 
     
 def get_documents(endpoint, limit=10000, **query_args):
-    url = api_url(endpoint) + '?max_results=%s' % limit
-    q_string = '&'.join(['%s=%s' % (k, v) for k, v in query_args.items()]).replace(' ', '').replace('\'', '"')
-    if q_string:
-        url += '&' + q_string
+    if 'max_results' not in query_args:
+        query_args['max_results'] = limit
+    url = api_url(endpoint, **query_args)
     r = _req('GET', url)
     return r.json().get('data')
 

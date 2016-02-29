@@ -12,6 +12,9 @@ class FakeRestResponse(Mock):
         content = json.dumps(kwargs.pop('content', None)).encode()
         super().__init__(*args, **kwargs)
         self.content = content
+        self.request = Mock(method='a method', path_url='a url')
+        self.status_code = 200
+        self.reason = 'a reason'
 
     def json(self):
         return json.loads(self.content.decode('utf-8'))
@@ -80,13 +83,19 @@ def test_depaginate_documents():
 def test_get_documents(mocked_instance):
     data = rest_communication.get_documents(test_endpoint, limit=100, where={'a_field': 'thing'})
     assert data == test_request_content['data']
-    mocked_instance.assert_called_with('GET', rest_url(test_endpoint) + '?max_results=100&where={"a_field":"thing"}')
+    assert mocked_instance.call_args[0][1].startswith(rest_url(test_endpoint))
+    assert helper.query_args_from_url(mocked_instance.call_args[0][1]) == {
+        'max_results': '100', 'where': {'a_field': 'thing'}
+    }
 
 
 @patched_response
 def test_get_document(mocked_instance):
     assert rest_communication.get_document(test_endpoint, limit=100, where={'a_field': 'thing'}) == test_request_content['data'][0]
-    mocked_instance.assert_called_with('GET', rest_url(test_endpoint) + '?max_results=100&where={"a_field":"thing"}')
+    assert mocked_instance.call_args[0][1].startswith(rest_url(test_endpoint))
+    assert helper.query_args_from_url(mocked_instance.call_args[0][1]) == {
+        'max_results': '100', 'where': {'a_field': 'thing'}
+    }
 
 
 @patched_response

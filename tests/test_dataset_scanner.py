@@ -1,16 +1,15 @@
 __author__ = 'tcezard'
+import os
 import shutil
 import pytest
 from unittest.mock import patch, PropertyMock
-import os
 from tests.test_analysisdriver import TestAnalysisDriver
 from tests.test_rest_communication import FakeRestResponse
 from analysis_driver import util
-from analysis_driver.dataset_scanner import DatasetScanner, RunScanner, SampleScanner, DATASET_NEW, DATASET_READY, DATASET_PROCESSING, \
-    DATASET_PROCESSED_FAIL, DATASET_PROCESSED_SUCCESS, DATASET_ABORTED, DATASET_REPROCESS, DATASET_FORCE_READY,\
-    Dataset, RunDataset, SampleDataset
 from analysis_driver.config import default as cfg
-
+from analysis_driver.dataset_scanner import DatasetScanner, RunScanner, SampleScanner, Dataset, RunDataset, SampleDataset
+from analysis_driver.constants import DATASET_NEW, DATASET_READY, DATASET_PROCESSING, DATASET_PROCESSED_FAIL,\
+    DATASET_PROCESSED_SUCCESS, DATASET_ABORTED, DATASET_REPROCESS, DATASET_FORCE_READY
 
 directories_to_create = ('dataset_ready', 'dataset_not_ready', 'ignored_dataset')
 ready_datasets = ('dataset_ready',)
@@ -36,10 +35,15 @@ def api(endpoint):
 
 
 fake_analysis_driver_proc = {
-    'dataset_type': 'a_type', 'dataset_name': 'a_name', 'proc_id': 'a_type_a_name', 'status': 'a_status'
+    'dataset_type': 'a_type',
+    'dataset_name': 'a_name',
+    'proc_id': 'a_type_a_name',
+    'status': 'a_status'
 }
 fake_analysis_driver_proc_no_status = {
-    'dataset_type': 'a_type', 'dataset_name': 'a_name', 'proc_id': 'a_type_a_name'
+    'dataset_type': 'a_type',
+    'dataset_name': 'a_name',
+    'proc_id': 'a_type_a_name'
 }
 fake_analysis_driver_proc_stages = {
     'dataset_type': 'a_type',
