@@ -93,44 +93,6 @@ class EnvConfiguration(Configuration):
         self.content = dict(self._merge_dicts(self.content, override_dict))
 
 
-class LoggingConfiguration:
-    """
-    Stores logging Formatters and Handlers.
-    """
-    def __init__(self):
-        self.default_formatter = logging.Formatter(
-            fmt=default.query(
-                'logging',
-                'format',
-                ret_default='[%(asctime)s][%(name)s][%(levelname)s] %(message)s'
-            ),
-            datefmt=default.query('logging', 'datefmt', ret_default='%Y-%b-%d %H:%M:%S')
-        )
-        self.blank_formatter = logging.Formatter()
-        self.formatter = self.default_formatter
-        self.handlers = {}
-        self.default_level = logging.INFO
-
-    def add_handler(self, name, handler, level=None):
-        """
-        :param str name: A name or id to assign the Handler
-        :param logging.FileHandler handler:
-        """
-        if level is None:
-            level = self.default_level
-        handler.setFormatter(self.formatter)
-        handler.setLevel(level)
-        self.handlers[name] = handler
-
-    def switch_formatter(self, formatter):
-        """
-        Set all handlers to formatter
-        """
-        self.formatter = formatter
-        for name in self.handlers:
-            self.handlers[name].setFormatter(self.formatter)
-
-
 def _dir_path():
     """Find the absolute path of 2 dirs above this file (should be Analysis-Driver)"""
     return os.path.dirname(os.path.abspath(os.path.dirname(__file__)))
@@ -150,4 +112,3 @@ default = EnvConfiguration(
 )
 output_files_config = Configuration([_etc_config('output_files.yaml')])
 sample_sheet_config = Configuration([_etc_config('sample_sheet_cfg.yaml')])
-logging_default = LoggingConfiguration()

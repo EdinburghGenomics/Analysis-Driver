@@ -90,7 +90,7 @@ def setup_logging(d):
         (EmailNotification, d, cfg.query('notification', 'email_notification'))
     )
 
-    log_cfg.switch_formatter(log_cfg.blank_formatter)
+    log_cfg.set_formatter(log_cfg.blank_formatter)
 
 
 def _process_dataset(d):
@@ -109,7 +109,7 @@ def _process_dataset(d):
     app_logger.info('\nEdinburgh Genomics Analysis Driver')
     with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'version.txt'), 'r') as f:
         app_logger.info('Version ' + f.read() + '\n')
-    log_cfg.switch_formatter(log_cfg.default_formatter)
+    log_cfg.set_formatter(log_cfg.default_formatter)
 
     app_logger.info('Using config file at ' + cfg.config_file)
     app_logger.info('Triggering for dataset: ' + d.name)
@@ -129,10 +129,10 @@ def _process_dataset(d):
         app_logger.critical('Encountered a %s exception: %s' % (e.__class__.__name__, str(e)))
         d.fail()
         import traceback
-        log_cfg.switch_formatter(log_cfg.blank_formatter)  # blank formatting for stacktrace
+        log_cfg.set_formatter(log_cfg.blank_formatter)  # blank formatting for stacktrace
         stacktrace = traceback.format_exc()
         # app_logger.info(stacktrace)
-        log_cfg.switch_formatter(log_cfg.default_formatter)
+        log_cfg.set_formatter(log_cfg.default_formatter)
 
     finally:
         ntf.end_pipeline(exit_status, stacktrace)

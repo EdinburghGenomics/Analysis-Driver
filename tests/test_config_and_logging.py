@@ -148,9 +148,9 @@ class TestLoggingConfiguration(TestAnalysisDriver):
         h = logging.StreamHandler(stream=sys.stdout)
         self.log_cfg.add_handler('test', h)
 
-        self.log_cfg.switch_formatter(self.log_cfg.blank_formatter)
+        self.log_cfg.set_formatter(self.log_cfg.blank_formatter)
         assert h.formatter is self.log_cfg.blank_formatter
-        self.log_cfg.switch_formatter(self.log_cfg.default_formatter)
+        self.log_cfg.set_formatter(self.log_cfg.default_formatter)
         assert h.formatter is self.log_cfg.default_formatter
 
 
