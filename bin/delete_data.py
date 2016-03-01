@@ -9,8 +9,8 @@ import requests
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from analysis_driver.exceptions import AnalysisDriverError
-from analysis_driver.config import default as cfg, logging_default as log_cfg
-from analysis_driver.app_logging import AppLogger
+from analysis_driver.config import default as cfg
+from analysis_driver.app_logging import AppLogger, logging_default as log_cfg
 from analysis_driver import rest_communication
 from analysis_driver import executor
 
@@ -173,7 +173,7 @@ def main():
 
     if args.debug:
         log_cfg.default_level = logging.DEBUG
-        log_cfg.add_handler('stdout', logging.StreamHandler(stream=sys.stdout), logging.DEBUG)
+        log_cfg.add_handler(logging.StreamHandler(stream=sys.stdout), logging.DEBUG)
 
     cfg.merge(cfg['run'])
     d = RawDataDeleter(args.work_dir, args.dry_run, args.deletion_limit)

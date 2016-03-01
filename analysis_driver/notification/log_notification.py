@@ -1,7 +1,7 @@
 __author__ = 'tcezard'
 import logging
 from .notification_center import Notification
-from analysis_driver.config import logging_default as log_cfg
+from analysis_driver.app_logging import logging_default as log_cfg
 
 
 class LogNotification(Notification):
@@ -36,10 +36,12 @@ class LogNotification(Notification):
         if stacktrace:
             self.error(self._format_error_message(stacktrace=stacktrace))
 
-    def _check_logger(self):
+    @property
+    def _logger(self):
         """
-        Set self._logger as in the superclass, but also bind it to self.handler.
+        Set self._logger as in AppLogger, but also bind it to self.handler.
         """
-        if self._logger is None:
-            super()._check_logger()  # bind self.logger to the shared handlers...
-            self._logger.addHandler(self.handler)  # ... and to the differently-formatted self.handler
+        if self.__logger is None:
+            self.__logger = super()._logger  # bind self.logger to the shared handlers...
+            self.__logger.addHandler(self.handler)  # ... and to the differently-formatted self.handler
+        return self.__logger

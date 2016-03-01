@@ -28,7 +28,7 @@ class RunInfo(AppLogger):
             self.mask.add(read)
 
         if not self.mask.index_lengths:
-            self.warn('RunInfo.xml has no barcode reads')
+            self.warning('RunInfo.xml has no barcode reads')
 
         self.flowcell_name = root.find('Run/Flowcell').text
 

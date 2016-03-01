@@ -5,61 +5,8 @@ import logging.handlers
 from analysis_driver.config import default as cfg
 
 
-class AppLogger:
-    """
-    Mixin class for logging. An object subclassing this can log directly from itself. Contains a
-    logging.Logger object, which is controlled by public methods. All methods are voids, i.e. return None.
-    """
-    _logger = None
-
-    def debug(self, msg):
-        self._check_logger()
-        self._logger.debug(msg)
-
-    def info(self, msg):
-        self._check_logger()
-        self._logger.info(msg)
-
-    def warn(self, msg):
-        self._check_logger()
-        self._logger.warning(msg)
-
-    def error(self, msg):
-        self._check_logger()
-        self._logger.error(msg)
-
-    def critical(self, msg, error_class=None):
-        """
-        Log at the level logging.CRITICAL. Can also raise an error if an error_class is given.
-        :param error_class: An Error to be raised, e.g. ValueError, AssertionError
-        """
-        self._check_logger()
-
-        if error_class:
-            raise error_class(msg)
-        else:
-            self._logger.critical(msg)
-
-    def _check_logger(self):
-        if self._logger is None:
-            self._logger = get_logger(self.__class__.__name__)
-
-
-def get_logger(name):
-    """
-    Return a logging.Logger object with formatters and handlers added.
-    :param name: A name to assign to the logger (usually __name__)
-    :rtype: logging.Logger
-    """
-    logger = logging.getLogger(name)
-    logger.setLevel(log_cfg.log_level)
-    for h in log_cfg.handlers:
-        logger.addHandler(h)
-    return logger
-
-
 class LoggingConfiguration:
-    """Stores logging Formatters and Handlers."""
+    """Stores Loggers, Formatters and Handlers"""
     def __init__(self):
         self.default_formatter = logging.Formatter(
             fmt=cfg.query('logging', 'format', ret_default='[%(asctime)s][%(name)s][%(levelname)s] %(message)s'),
@@ -71,12 +18,26 @@ class LoggingConfiguration:
         self.loggers = set()
         self.log_level = logging.INFO
 
-    def add_handler(self, handler):
+    def get_logger(self, name, level=None):
         """
-        :param logging.FileHandler handler:
+        Return a logging.Logger object with formatters and handlers added.
+        :param name: A name to assign to the logger (usually __name__)
+        :rtype: logging.Logger
         """
-        if handler.level == logging.NOTSET:
-            handler.setLevel(self.log_level)
+        logger = logging.getLogger(name)
+        if level is None:
+            level = self.log_level
+        logger.setLevel(level)
+        for h in self.handlers:
+            logger.addHandler(h)
+        self.loggers.add(logger)
+        return logger
+
+    def add_handler(self, handler, level=logging.NOTSET):
+        """Add a handler and set its format/level if needed"""
+        if level == logging.NOTSET:
+            level = self.log_level
+        handler.setLevel(level)
         handler.setFormatter(self.formatter)
         self.handlers.add(handler)
 
@@ -103,12 +64,45 @@ class LoggingConfiguration:
 
         for handler_type in handler_classes:
             for handler_cfg in cfg_logging.get(handler_type, []):
-                level = logging.getLevelName(handler_cfg.pop('level', 'WARNING'))
+                if 'level' in handler_cfg:
+                    level = logging.getLevelName(handler_cfg.pop('level'))
+                else:
+                    level = self.log_level
+
                 if 'stream' in handler_cfg:
                     handler_cfg['stream'] = configurator.convert(handler_cfg['stream'])
                 handler = handler_classes[handler_type](**handler_cfg)
-                handler.setLevel(level)
-                self.add_handler(handler)
+                self.add_handler(handler, level)
 
 
-log_cfg = LoggingConfiguration()
+logging_default = LoggingConfiguration()
+
+
+class AppLogger:
+    """
+    Mixin class for logging. An object subclassing this can log using its class name. Contains a
+    logging.Logger object and exposes its log methods.
+    """
+    log_cfg = logging_default
+    __logger = None
+
+    def debug(self, msg):
+        self._logger.debug(msg)
+
+    def info(self, msg):
+        self._logger.info(msg)
+
+    def warning(self, msg):
+        self._logger.warning(msg)
+
+    def error(self, msg):
+        self._logger.error(msg)
+
+    def critical(self, msg):
+        self._logger.critical(msg)
+
+    @property
+    def _logger(self):
+        if self.__logger is None:
+            self.__logger = self.log_cfg.get_logger(self.__class__.__name__)
+        return self.__logger

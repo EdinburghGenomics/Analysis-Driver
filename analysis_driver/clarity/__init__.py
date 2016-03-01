@@ -2,9 +2,9 @@ import re
 import requests
 from genologics.lims import Lims
 from analysis_driver.config import default as cfg
-from analysis_driver.app_logging import get_logger
+from analysis_driver.app_logging import logging_default as log_cfg
 
-app_logger = get_logger('Clarity')
+app_logger = log_cfg.get_logger('Clarity')
 
 
 def _get_lims_connection():

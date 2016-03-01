@@ -5,7 +5,7 @@ import yaml
 from analysis_driver import reader, util, executor, clarity
 from analysis_driver.dataset_scanner import RunDataset, SampleDataset
 from analysis_driver.exceptions import AnalysisDriverError
-from analysis_driver.app_logging import get_logger
+from analysis_driver.app_logging import logging_default as log_cfg
 from analysis_driver.config import output_files_config, default as cfg  # imports the default config singleton
 from analysis_driver.notification import default as ntf
 from analysis_driver.quality_control.gender_validation import GenderValidation
@@ -14,7 +14,7 @@ from analysis_driver.report_generation.report_crawlers import RunCrawler, Sample
 from analysis_driver.transfer_data import prepare_run_data, prepare_sample_data, output_sample_data, output_run_data, \
     create_links_from_bcbio
 
-app_logger = get_logger('driver')
+app_logger = log_cfg.get_logger('driver')
 
 
 def pipeline(dataset):

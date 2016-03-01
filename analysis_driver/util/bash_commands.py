@@ -1,10 +1,10 @@
 __author__ = 'mwham'
 import os.path
-from analysis_driver.app_logging import get_logger
+from analysis_driver.app_logging import logging_default as log_cfg
 from analysis_driver.config import default as cfg
 
 
-app_logger = get_logger('command_writer')
+app_logger = log_cfg.get_logger('command_writer')
 
 
 def bcl2fastq(input_dir, fastq_path, sample_sheet=None, mask=None):

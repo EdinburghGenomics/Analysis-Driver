@@ -22,7 +22,7 @@ class Crawler(AppLogger):
         if cfg.get('rest_api') and cfg.query('rest_api', 'url'):
             return True
         else:
-            self.warn('rest_api is not configured. Cancel upload')
+            self.warning('rest_api is not configured. Cancel upload')
             return False
 
 

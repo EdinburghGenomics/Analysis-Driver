@@ -49,7 +49,7 @@ class EmailNotification(Notification):
             self._connect_and_send(msg)
             return True
         except (smtplib.SMTPException, TimeoutError) as e:
-            self.warn('Encountered a ' + str(e) + ' exception. Retry number ' + str(retries))
+            self.warning('Encountered a ' + str(e) + ' exception. Retry number ' + str(retries))
             retries += 1
             if retries <= 3:
                 sleep(2)

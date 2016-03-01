@@ -6,7 +6,7 @@ import logging
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from analysis_driver.quality_control.genotype_validation import GenotypeValidation
-from analysis_driver.config import logging_default as log_cfg
+from analysis_driver.app_logging import logging_default as log_cfg
 from analysis_driver import executor
 from analysis_driver.exceptions import AnalysisDriverError
 from analysis_driver.util.bash_commands import rsync_from_to, is_remote_path
@@ -14,7 +14,7 @@ from analysis_driver.config import default as cfg
 from analysis_driver.clarity import get_user_sample_name
 
 log_cfg.default_level = logging.DEBUG
-log_cfg.add_handler('stdout', logging.StreamHandler(stream=sys.stdout), logging.DEBUG)
+log_cfg.add_handler(logging.StreamHandler(stream=sys.stdout), logging.DEBUG)
 
 
 def main():

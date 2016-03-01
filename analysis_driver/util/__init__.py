@@ -2,11 +2,11 @@ __author__ = 'mwham'
 import os
 import csv
 from glob import glob
-from analysis_driver.app_logging import get_logger
+from analysis_driver.app_logging import logging_default as log_cfg
 from analysis_driver.config import default as cfg
 from . import bash_commands
 
-app_logger = get_logger('util')
+app_logger = log_cfg.get_logger('util')
 
 
 def bcbio_prepare_samples_cmd(job_dir, sample_id, fastqs, user_sample_id=None):

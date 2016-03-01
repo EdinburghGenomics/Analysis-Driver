@@ -2,9 +2,9 @@ from urllib.parse import urljoin
 import requests
 from pprint import pformat
 from analysis_driver.config import default as cfg
-from analysis_driver.app_logging import get_logger
+from analysis_driver.app_logging import logging_default as log_cfg
 
-app_logger = get_logger(__name__)
+app_logger = log_cfg.get_logger(__name__)
 
 
 def api_url(endpoint):

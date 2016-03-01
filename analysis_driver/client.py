@@ -3,8 +3,8 @@ import argparse
 import logging
 import os
 import sys
-from analysis_driver.app_logging import get_logger
-from analysis_driver.config import default as cfg, logging_default as log_cfg
+from analysis_driver.app_logging import logging_default as log_cfg
+from analysis_driver.config import default as cfg
 from analysis_driver.notification import default as ntf, LogNotification, EmailNotification
 from analysis_driver.exceptions import AnalysisDriverError
 from analysis_driver.dataset_scanner import RunScanner, SampleScanner, DATASET_READY, DATASET_FORCE_READY
@@ -30,7 +30,7 @@ def main():
                 handler = logging.StreamHandler(stream=s)
             else:
                 raise AnalysisDriverError('Invalid logging configuration: %s %s' % name, str(config))
-            log_cfg.add_handler(name, handler, config.get('level', log_cfg.default_level))
+            log_cfg.add_handler(handler, config.get('level', log_cfg.default_level))
 
     if args.run:
         if 'run' in cfg:
@@ -78,10 +78,9 @@ def setup_logging(d):
     log_repo = cfg.query('logging', 'repo')
     if log_repo:
         handler = logging.FileHandler(filename=os.path.join(log_repo, d.name + '.log'), mode='w')
-        log_cfg.add_handler(d, handler, log_cfg.default_level)
+        log_cfg.add_handler(handler, log_cfg.default_level)
 
     log_cfg.add_handler(
-        'dataset',
         logging.FileHandler(filename=os.path.join(cfg['jobs_dir'], d.name, 'analysis_driver.log'), mode='w'),
         log_cfg.default_level
     )

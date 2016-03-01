@@ -74,10 +74,7 @@ class ScriptWriter(AppLogger):
         Save self.lines to self.script_file. Also closes it. Always close it.
         """
         if self.job_total > 1 and self.job_total != self.jobs_written:
-            self.critical(
-                'Bad number of array jobs: %s written, %s expected' % (self.jobs_written, self.job_total),
-                ValueError
-            )
+            raise ValueError('Bad number of array jobs: %s written, %s expected' % (self.jobs_written, self.job_total))
         script_file = open(self.script_name, 'w')
 
         for line in self.lines:

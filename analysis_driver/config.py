@@ -1,6 +1,5 @@
 import os
 import yaml
-import logging
 from .exceptions import AnalysisDriverError
 
 
