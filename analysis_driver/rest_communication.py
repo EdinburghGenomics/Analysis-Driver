@@ -18,11 +18,14 @@ def api_url(endpoint, **query_args):
 
 def _req(method, url, **kwargs):
     r = requests.request(method, url, **kwargs)
-    req_call = ' '.join((r.request.method, r.request.path_url))
-    if r.status_code == 200:
-        app_logger.debug('%s (%s) -> %s' % (req_call, kwargs, r.content.decode('utf-8')))
+    # e.g: 'POST <url> ({"some": "args"}) -> {"some": "content"}. Status code 201. Reason: CREATED
+    report = '%s %s (%s) -> %s. Status code %s. Reason: %s' % (
+        r.request.method, r.request.path_url, kwargs, r.content.decode('utf-8'), r.status_code, r.reason
+    )
+    if r.status_code in (200, 201):
+        app_logger.debug(report)
     else:
-        app_logger.error('Request %s had status code %s. Reason: %s' % (req_call, r.status_code, r.reason))
+        app_logger.error(report)
     return r
 
 
@@ -59,7 +62,7 @@ def get_document(endpoint, idx=0, **query_args):
 
 
 def post_entry(endpoint, payload):
-    """Upload to the collection."""
+    """Post a new entry to the endpoint."""
     r = _req('POST', api_url(endpoint), json=payload)
     if r.status_code != 200:
         return False
@@ -67,7 +70,7 @@ def post_entry(endpoint, payload):
 
 
 def put_entry(endpoint, element_id, payload):
-    """Upload Assuming we know the id of this entry"""
+    """Upload, assuming we know the id of the entry."""
     r = _req('PUT', urljoin(api_url(endpoint), element_id), json=payload)
     if r.status_code != 200:
         return False
@@ -75,7 +78,13 @@ def put_entry(endpoint, element_id, payload):
 
 
 def _patch_entry(endpoint, doc, payload, update_lists=None):
-    """Upload Assuming we can get the id of this entry from kwargs"""
+    """
+    Patch a specific database item (specified by doc) with the given data payload.
+    :param str endpoint:
+    :param dict doc: The entry in the database to patch (contains the relevant _id and _etag)
+    :param dict payload: Data with which to patch doc
+    :param list update_lists: Doc items listed here will be appended rather than replaced by the patch
+    """
     url = urljoin(api_url(endpoint), doc.get('_id'))
     _payload = dict(payload)
     headers = {'If-Match': doc.get('_etag')}
@@ -91,15 +100,27 @@ def _patch_entry(endpoint, doc, payload, update_lists=None):
 
 
 def patch_entry(endpoint, payload, id_field, element_id, update_lists=None):
+    """
+    Retrieve a document at the given endpoint with the given unique ID, and patch it with some data.
+    :param str endpoint:
+    :param str payload:
+    :param str id_field: The name of the unique identifier (e.g. 'run_element_id', 'proc_id', etc.)
+    :param str element_id: The value of id_field to retrieve (e.g. '160301_2_ATGCATGC')
+    """
     doc = get_document(endpoint, where={id_field: element_id})
     if doc:
         return _patch_entry(endpoint, doc, payload, update_lists)
     return False
 
 
-def patch_entries(endpoint, payload, update_lists=None, **kwargs):
-    """Apply the same upload to all the documents retrieved using  **kwargs"""
-    docs = get_documents(endpoint, **kwargs)
+def patch_entries(endpoint, payload, update_lists=None, **query_args):
+    """
+    Retrieve many documents and patch them all with the same data.
+    :param str endpoint:
+    :param str payload:
+    :param query_args: Database query args to pass to get_documents
+    """
+    docs = get_documents(endpoint, **query_args)
     if docs:
         success = True
         nb_docs = 0
@@ -108,16 +129,18 @@ def patch_entries(endpoint, payload, update_lists=None, **kwargs):
                 nb_docs += 1
             else:
                 success = False
-        app_logger.info('Updated %s documents matching %s' % (nb_docs, kwargs))
+        app_logger.info('Updated %s documents matching %s' % (nb_docs, query_args))
         return success
     return False
 
 
 def post_or_patch(endpoint, input_json, id_field=None, update_lists=None):
     """
+    For each document supplied, either post to the endpoint if the unique id doesn't yet exist there, or
+    patch if it does.
     :param str endpoint:
-    :param list input_json:
-    :param str id_field:
+    :param input_json: A single document or list of documents to post or patch to the endpoint.
+    :param str id_field: The field to use as the unique ID for the endpoint.
     """
     success = True
     for payload in input_json:
