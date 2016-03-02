@@ -14,7 +14,7 @@ from analysis_driver.util.bash_commands import rsync_from_to, is_remote_path
 from analysis_driver.config import default as cfg
 from analysis_driver.clarity import get_user_sample_name
 from analysis_driver.quality_control.contamination_checks import ContaminationCheck
-from analysis_driver.reader.demultiplexing_parsers import parse_fastqscreen_file
+from analysis_driver.reader.demultiplexing_parsers import get_fastqscreen_results
 log_cfg.default_level = logging.DEBUG
 log_cfg.add_handler('stdout', logging.StreamHandler(stream=sys.stdout), logging.DEBUG)
 
@@ -97,7 +97,7 @@ def run_species_contamiantion_check(args):
     species_contamination_check.start()
     expected_output_files = species_contamination_check.join()
     expected_output_files = (''.join(expected_output_files))
-    fastqscreen_result = parse_fastqscreen_file(expected_output_files, args.sample_id)
+    fastqscreen_result = get_fastqscreen_results(expected_output_files, args.sample_id)
     print(fastqscreen_result)
 
 
