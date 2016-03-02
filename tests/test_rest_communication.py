@@ -1,5 +1,4 @@
 __author__ = 'mwham'
-import pytest
 from unittest.mock import patch, Mock
 import json
 from tests import test_analysisdriver
@@ -7,6 +6,7 @@ from analysis_driver import rest_communication
 
 
 helper = test_analysisdriver.TestAnalysisDriver()
+
 
 class FakeRestResponse(Mock):
     def __init__(self, *args, **kwargs):

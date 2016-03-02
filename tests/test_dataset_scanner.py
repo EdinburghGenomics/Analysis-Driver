@@ -5,7 +5,7 @@ import pytest
 from unittest.mock import patch, PropertyMock
 from tests.test_analysisdriver import TestAnalysisDriver
 from tests.test_rest_communication import FakeRestResponse
-from analysis_driver import util
+from analysis_driver.exceptions import AnalysisDriverError
 from analysis_driver.config import default as cfg
 from analysis_driver.dataset_scanner import DatasetScanner, RunScanner, SampleScanner, Dataset, RunDataset, SampleDataset
 from analysis_driver.constants import DATASET_NEW, DATASET_READY, DATASET_PROCESSING, DATASET_PROCESSED_FAIL,\
@@ -78,7 +78,7 @@ patched_expected_yield = patch(
     'analysis_driver.dataset_scanner.get_expected_yield_for_sample', return_value=1000000000
 )
 patched_depaginate = patch(
-    'analysis_driver.rest_communication.depaginate_documents',
+    'analysis_driver.rest_communication.get_documents',
     return_value=[fake_sample]
 )
 
@@ -111,26 +111,23 @@ class TestDataset(TestAnalysisDriver):
         clean(self.base_dir)
 
     def test_most_recent_proc(self):
-        expected_api_call = util.str_join(
-            api('analysis_driver_procs'),
-            '?where={"dataset_name":"test_dataset","dataset_type":"',
-            self.dataset.type,
-            '"}&sort=-_created',
-            '&max_results=10000'
-        )
+        expected_query_args = {
+            'where': {'dataset_name': 'test_dataset', 'dataset_type': self.dataset.type},
+            'sort': '-_created',
+            'max_results': '100',
+            'page': '1'
+        }
         with patched_request as mocked_instance:
             proc = self.dataset._most_recent_proc()
             assert proc == fake_analysis_driver_proc
             obs = self.query_args_from_url(mocked_instance.call_args[0][1])
-            exp = self.query_args_from_url(expected_api_call)
-            assert obs == exp
+            assert obs == expected_query_args
 
         with patched_request_no_data as mocked_instance:
             proc = self.dataset._most_recent_proc()
             assert proc == {}
             obs = self.query_args_from_url(mocked_instance.call_args[0][1])
-            exp = self.query_args_from_url(expected_api_call)
-            assert obs == exp
+            assert obs == expected_query_args
 
     def test_create_process(self):
         with patch('analysis_driver.rest_communication.post_entry', return_value=True) as mocked_patch:
@@ -293,7 +290,7 @@ class TestDataset(TestAnalysisDriver):
 
     def setup_dataset(self):
         with patched_request:
-            self.dataset = Dataset('test_dataset', os.path.join(self.base_dir, 'test_dataset'))
+            self.dataset = Dataset('test_dataset')
 
 
 class TestRunDataset(TestDataset):
@@ -340,9 +337,16 @@ class TestSampleDataset(TestDataset):
             assert self.dataset._runs() == ['a_run_id', 'another_run_id']
 
     @patched_expected_yield
-    def test_data_threshold(self, mocked_instance):
+    def test_data_threshold(self, mocked_exp_yield):
         assert self.dataset.data_threshold == 1000000000
-        mocked_instance.assert_called_with('test_dataset')
+        mocked_exp_yield.assert_called_with('test_dataset')
+
+    @patch('analysis_driver.dataset_scanner.get_expected_yield_for_sample', return_value=None)
+    def test_no_data_threshold(self, mocked_exp_yield):
+        with pytest.raises(AnalysisDriverError) as e:
+            _ = self.dataset.data_threshold
+        assert 'Could not find data threshold in LIMS' in str(e)
+        mocked_exp_yield.assert_called_with('test_dataset')
 
     @patched_expected_yield
     def test_is_ready(self, mocked_instance):
@@ -374,7 +378,7 @@ class TestSampleDataset(TestDataset):
 
     def setup_dataset(self):
         with patched_request:
-            self.dataset = SampleDataset('test_dataset', os.path.join(self.base_dir, 'test_dataset'))
+            self.dataset = SampleDataset('test_dataset')
             self.dataset.run_elements = [
                 {
                     'run_element_id': 'a_run_element_id',
@@ -461,7 +465,7 @@ class TestScanner(TestAnalysisDriver):
 
     def _fake_get_dataset(self, name):
         with patched_most_recent_proc():
-            return Dataset(os.path.basename(name), os.path.join(self.scanner.input_dir, name))
+            return Dataset(os.path.basename(name))
 
     @staticmethod
     def _flatten(d):
@@ -524,14 +528,14 @@ class TestSampleScanner(TestScanner):
     def test_get_dataset(self, mocked_instance):
         with patched_expected_yield:
             observed = self.scanner.get_dataset(os.path.join(self.base_dir, 'test_dataset'))
-            expected = SampleDataset('test_dataset', os.path.join(self.base_dir, 'test_dataset'))
-            for a in ('name', 'path', 'data_threshold'):
-                assert observed.__getattribute__(a) == expected.__getattribute__(a)
+            expected = SampleDataset('test_dataset')
+            assert observed.name == expected.name
+            assert observed.data_threshold == expected.data_threshold
 
     @patched_depaginate
     def test_list_datasets(self, mocked_depaginate):
         assert self.scanner._list_datasets() == ['a_sample_id']
-        mocked_depaginate.assert_called_with('samples')
+        mocked_depaginate.assert_called_with('samples', depaginate=True)
 
     @patched_request
     def test_scan_datasets(self, mocked_instance):

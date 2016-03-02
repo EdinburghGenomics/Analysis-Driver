@@ -27,8 +27,8 @@ def parse_query_string(query_string, requires=None):
         raise AssertionError('Bad query string: ' + query_string)
     href, query = query_string.split('?')
     query = dict([x.split('=') for x in query.split('&')])
-    if requires:
-        assert all([r in query for r in requires]), '%s did not contain all required fields: %s' % (query_string, requires)
+    if requires and not all([r in query for r in requires]):
+        raise AssertionError('%s did not contain all required fields: %s' % (query_string, requires))
     return query
 
 

@@ -23,8 +23,9 @@ def pipeline(dataset):
         exit_status = demultiplexing_pipeline(dataset)
     elif isinstance(dataset, SampleDataset):
         species = clarity.get_species_from_sample(dataset.name)
-        # TODO: Remove human default when we can guarantee that all samples have species
-        if species == 'Homo sapiens' or species is None:
+        if species is None:
+            raise AnalysisDriverError('No species information found in the LIMS for ' + dataset.name)
+        elif species == 'Homo sapiens':
             exit_status = variant_calling_pipeline(dataset)
         else:
             exit_status = qc_pipeline(dataset, species)

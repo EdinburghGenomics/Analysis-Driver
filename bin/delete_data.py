@@ -42,8 +42,9 @@ class RawDataDeleter(Deleter):
     deletable_sub_dirs = ('Data', 'Logs', 'Thumbnail_Images')
 
     def deletable_runs(self):
-        non_deleted_runs = rest_communication.depaginate_documents(
+        non_deleted_runs = rest_communication.get_documents(
             'runs',
+            depaginate=True,
             max_results=100,
             embedded={'run_elements': 1, 'analysis_driver_procs': 1},
             aggregate=True
