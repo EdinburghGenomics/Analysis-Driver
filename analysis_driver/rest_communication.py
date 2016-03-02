@@ -5,6 +5,10 @@ from analysis_driver.app_logging import get_logger
 
 app_logger = get_logger(__name__)
 
+eve_query_args = (
+    'where', 'max_results', 'aggregate', 'page', 'sort', 'projection', 'embedded',
+)
+
 
 def api_url(endpoint, **query_args):
     url = '{base_url}/{endpoint}/'.format(
@@ -14,6 +18,18 @@ def api_url(endpoint, **query_args):
         url += '?' + '&'.join(['%s=%s' % (k, v) for k, v in query_args.items()]).replace(' ', '').replace('\'', '"')
 
     return url
+
+
+def parse_query_string(query_string, requires=None):
+    if '?' not in query_string:
+        return None
+    if query_string.count('?') != 1:
+        raise AssertionError('Bad query string: ' + query_string)
+    href, query = query_string.split('?')
+    query = dict([x.split('=') for x in query.split('&')])
+    if requires:
+        assert all([r in query for r in requires]), '%s did not contain all required fields: %s' % (query_string, requires)
+    return query
 
 
 def _req(method, url, **kwargs):
@@ -29,28 +45,19 @@ def _req(method, url, **kwargs):
     return r
 
 
-def depaginate_documents(endpoint, **queries):
-    elements = []
-    page_size = queries.pop('max_results', 100)
-    url = api_url(endpoint, max_results=page_size, **queries)
+def get_documents(endpoint, depaginate=False, **query_args):
+    page_size = query_args.pop('max_results', 100)  # default to page size of 100
+    page = query_args.pop('page', 1)
+    url = api_url(endpoint, max_results=page_size, page=page, **query_args)
     content = _req('GET', url).json()
-    elements.extend(content['data'])
+    elements = content['data']
 
-    if 'next' in content['_links']:
-        next_href, next_query = content['_links']['next']['href'].split('?')
-        next_query = dict([x.split('=') for x in next_query.split('&')])
-        queries.pop('page', None)
-        next_query.update(queries)
-        elements.extend(depaginate_documents(next_href, **next_query))
+    if depaginate and 'next' in content['_links']:
+        next_query = parse_query_string(content['_links']['next']['href'], requires=('max_results', 'page'))
+        query_args.update(next_query)
+        elements.extend(get_documents(endpoint, depaginate=True, **query_args))
+
     return elements
-
-    
-def get_documents(endpoint, limit=10000, **query_args):
-    if 'max_results' not in query_args:
-        query_args['max_results'] = limit
-    url = api_url(endpoint, **query_args)
-    r = _req('GET', url)
-    return r.json().get('data')
 
 
 def get_document(endpoint, idx=0, **query_args):
@@ -105,7 +112,7 @@ def patch_entry(endpoint, payload, id_field, element_id, update_lists=None):
     :param str endpoint:
     :param str payload:
     :param str id_field: The name of the unique identifier (e.g. 'run_element_id', 'proc_id', etc.)
-    :param str element_id: The value of id_field to retrieve (e.g. '160301_2_ATGCATGC')
+    :param element_id: The value of id_field to retrieve (e.g. '160301_2_ATGCATGC')
     """
     doc = get_document(endpoint, where={id_field: element_id})
     if doc:

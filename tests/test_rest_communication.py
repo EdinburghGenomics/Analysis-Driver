@@ -1,4 +1,5 @@
 __author__ = 'mwham'
+import pytest
 from unittest.mock import patch, Mock
 import json
 from tests import test_analysisdriver
@@ -47,6 +48,25 @@ def test_api_url_query_strings():
     assert sorted(obs.lstrip('?').split('&')) == sorted(exp.lstrip('?').split('&'))
 
 
+def test_parse_query_string():
+    query_string = 'http://a_url?this=that&other={"another":"more"}'
+    no_query_string = 'http://a_url'
+    dodgy_query_string = 'http://a_url?this=that?other=another'
+
+    assert rest_communication.parse_query_string(query_string) == {'this': 'that', 'other': '{"another":"more"}'}
+    assert rest_communication.parse_query_string(no_query_string) is None
+
+    try:
+        rest_communication.parse_query_string(dodgy_query_string)
+    except AssertionError as e:
+        assert e.args[0] == 'Bad query string: ' + dodgy_query_string
+
+    try:
+        rest_communication.parse_query_string(query_string, requires=['things'])
+    except AssertionError as e2:
+        assert e2.args[0] == query_string + ' did not contain all required fields: ' + str(['things'])
+
+
 @patched_response
 def test_req(mocked_instance):
     json_content = ['some', {'test': 'json'}]
@@ -57,7 +77,7 @@ def test_req(mocked_instance):
     mocked_instance.assert_called_with('METHOD', rest_url(test_endpoint), json=json_content)
 
 
-def test_depaginate_documents():
+def test_get_documents_depaginate():
     docs = (
         FakeRestResponse(content={'data': ['this', 'that'], '_links': {'next': {'href': 'an_endpoint?max_results=101&page=2'}}}),
         FakeRestResponse(content={'data': ['other', 'another'], '_links': {'next': {'href': 'an_endpoint?max_results=101&page=3'}}}),
@@ -68,12 +88,12 @@ def test_depaginate_documents():
         side_effect=docs
     )
     with patched_req as mocked_req:
-        assert rest_communication.depaginate_documents('an_endpoint', max_results=101) == [
+        assert rest_communication.get_documents('an_endpoint', depaginate=True, max_results=101) == [
             'this', 'that', 'other', 'another', 'more', 'things'
         ]
         assert all([a[0][1].startswith(rest_url('an_endpoint')) for a in mocked_req.call_args_list])
         assert [helper.query_args_from_url(a[0][1]) for a in mocked_req.call_args_list] == [
-            {'max_results': '101'},
+            {'page': '1', 'max_results': '101'},
             {'page': '2', 'max_results': '101'},
             {'page': '3', 'max_results': '101'}
         ]
@@ -81,20 +101,20 @@ def test_depaginate_documents():
 
 @patched_response
 def test_get_documents(mocked_instance):
-    data = rest_communication.get_documents(test_endpoint, limit=100, where={'a_field': 'thing'})
+    data = rest_communication.get_documents(test_endpoint, max_results=100, where={'a_field': 'thing'})
     assert data == test_request_content['data']
     assert mocked_instance.call_args[0][1].startswith(rest_url(test_endpoint))
     assert helper.query_args_from_url(mocked_instance.call_args[0][1]) == {
-        'max_results': '100', 'where': {'a_field': 'thing'}
+        'max_results': '100', 'where': {'a_field': 'thing'}, 'page': '1'
     }
 
 
 @patched_response
 def test_get_document(mocked_instance):
-    assert rest_communication.get_document(test_endpoint, limit=100, where={'a_field': 'thing'}) == test_request_content['data'][0]
+    assert rest_communication.get_document(test_endpoint, max_results=100, where={'a_field': 'thing'}) == test_request_content['data'][0]
     assert mocked_instance.call_args[0][1].startswith(rest_url(test_endpoint))
     assert helper.query_args_from_url(mocked_instance.call_args[0][1]) == {
-        'max_results': '100', 'where': {'a_field': 'thing'}
+        'max_results': '100', 'where': {'a_field': 'thing'}, 'page': '1'
     }
 
 
