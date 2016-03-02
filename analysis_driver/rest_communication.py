@@ -92,7 +92,7 @@ def _patch_entry(endpoint, doc, payload, update_lists=None):
     :param dict payload: Data with which to patch doc
     :param list update_lists: Doc items listed here will be appended rather than replaced by the patch
     """
-    url = urljoin(api_url(endpoint), doc.get('_id'))
+    url = urljoin(api_url(endpoint), doc['_id'])
     _payload = dict(payload)
     headers = {'If-Match': doc.get('_etag')}
     if update_lists:
@@ -151,9 +151,9 @@ def post_or_patch(endpoint, input_json, id_field=None, update_lists=None):
     """
     success = True
     for payload in input_json:
-        if get_document(endpoint, where={id_field: payload[id_field]}):
-            elem_key = payload.pop(id_field)
-            s = patch_entry(endpoint, payload, id_field, elem_key, update_lists)
+        doc = get_document(endpoint, where={id_field: payload[id_field]})
+        if doc:
+            s = _patch_entry(endpoint, doc, payload, update_lists)
         else:
             s = post_entry(endpoint, payload)
         success = success and s

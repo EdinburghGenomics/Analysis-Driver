@@ -130,7 +130,9 @@ def test_put_entry(mocked_instance):
     mocked_instance.assert_called_with('PUT', rest_url(test_endpoint) + 'an_element_id', json=test_request_content)
 
 
-test_patch_document = {'_id': '1337', '_etag': 1234567, 'list_to_update': ['this', 'that', 'other']}
+test_patch_document = {
+    '_id': '1337', '_etag': 1234567, 'uid': 'a_unique_id', 'list_to_update': ['this', 'that', 'other']
+}
 
 
 @patch('analysis_driver.rest_communication.get_document', return_value=test_patch_document)
@@ -140,12 +142,12 @@ def test_patch_entry(mocked_request, mocked_get_doc):
     rest_communication.patch_entry(
         test_endpoint,
         payload=patching_payload,
-        id_field='_id',
-        element_id=1337,
+        id_field='uid',
+        element_id='a_unique_id',
         update_lists=['list_to_update']
     )
 
-    mocked_get_doc.assert_called_with(test_endpoint, where={'_id': 1337})
+    mocked_get_doc.assert_called_with(test_endpoint, where={'uid': 'a_unique_id'})
     mocked_request.assert_called_with(
         'PATCH',
         rest_url(test_endpoint) + '1337',
@@ -155,7 +157,10 @@ def test_patch_entry(mocked_request, mocked_get_doc):
 
 
 test_post_or_patch_payload = {
-    '_id': '1337', '_etag': 1234567, 'list_to_update': ['more'], 'another_field': 'this'
+    'uid': '1337', 'list_to_update': ['more'], 'another_field': 'that'
+}
+test_post_or_patch_doc = {
+    'uid': 'a_unique_id', '_id': '1337', '_etag': 1234567, 'list_to_update': ['things'], 'another_field': 'this'
 }
 
 
@@ -164,7 +169,7 @@ def patched_post(success):
 
 
 def patched_patch(success):
-    return patch('analysis_driver.rest_communication.patch_entry', return_value=success)
+    return patch('analysis_driver.rest_communication._patch_entry', return_value=success)
 
 
 def patched_get(payload):
@@ -172,24 +177,26 @@ def patched_get(payload):
 
 
 def test_post_or_patch():
-    with patched_get(test_post_or_patch_payload) as mget, patched_patch(True) as mpatch:
+    with patched_get(test_post_or_patch_doc) as mget, patched_patch(True) as mpatch:
         success = rest_communication.post_or_patch(
-            'an_endpoint', [dict(test_post_or_patch_payload)], id_field='_id', update_lists=['list_to_update']
+            'an_endpoint',
+            [test_post_or_patch_payload],
+            id_field='uid',
+            update_lists=['list_to_update']
         )
-        mget.assert_called_with('an_endpoint', where={'_id': '1337'})
+        mget.assert_called_with('an_endpoint', where={'uid': '1337'})
         mpatch.assert_called_with(
             'an_endpoint',
-            {'_etag': 1234567, 'list_to_update': ['more'], 'another_field': 'this'},
-            '_id',
-            '1337',
+            test_post_or_patch_doc,
+            test_post_or_patch_payload,
             ['list_to_update']
         )
         assert success is True
 
     with patched_get(None) as mget, patched_post(True) as mpost:
         success = rest_communication.post_or_patch(
-            'an_endpoint', [dict(test_post_or_patch_payload)], id_field='_id', update_lists=['list_to_update']
+            'an_endpoint', [test_post_or_patch_payload], id_field='uid', update_lists=['list_to_update']
         )
-        mget.assert_called_with('an_endpoint', where={'_id': '1337'})
+        mget.assert_called_with('an_endpoint', where={'uid': '1337'})
         mpost.assert_called_with('an_endpoint', test_post_or_patch_payload)
         assert success is True
