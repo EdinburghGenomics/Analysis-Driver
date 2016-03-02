@@ -60,7 +60,7 @@ class ContaminationCheck(AppLogger, Thread):
     def _run_fastqscreen(self):
         fastqscreen_run_command = self._fastqscreen_command()
         fastqscreen_expected_outfiles = self._get_expected_outfiles()
-        ntf.start_stage('fastqscreen_contamination_check')
+        ntf.start_stage('run_fastqscreen')
         fastqscreen_executor = executor.execute(
             fastqscreen_run_command,
             job_name='fastqscreen',
@@ -69,8 +69,7 @@ class ContaminationCheck(AppLogger, Thread):
             mem=10
         )
         exit_status = fastqscreen_executor.join()
-        ntf.end_stage('fastqscreen_contamination_check', exit_status)
-        print('finished now')
+        ntf.end_stage('run_fastqscreen', exit_status)
         return fastqscreen_expected_outfiles
 
     def run(self):
