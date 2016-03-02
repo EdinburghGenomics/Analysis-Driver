@@ -4,6 +4,7 @@ import requests
 from datetime import datetime
 from collections import defaultdict
 from analysis_driver.config import default as cfg
+from analysis_driver.exceptions import AnalysisDriverError
 from analysis_driver import rest_communication
 from analysis_driver.app_logging import get_logger
 from analysis_driver.clarity import get_expected_yield_for_sample
@@ -188,10 +189,10 @@ class SampleDataset(Dataset):
     endpoint = 'samples'
     id_field = 'sample_id'
 
-    def __init__(self, name, path, data_threshold=None):
+    def __init__(self, name, path):
         super().__init__(name, path)
-        self.default_data_threshold = data_threshold
         self.run_elements = self._read_data()
+        self._data_threshold = None
 
     def force(self):
         self._change_status(DATASET_FORCE_READY, finish=False)
@@ -216,10 +217,10 @@ class SampleDataset(Dataset):
 
     @property
     def data_threshold(self):
-        if not hasattr(self, '_data_threshold'):
+        if self._data_threshold is None:
             self._data_threshold = get_expected_yield_for_sample(self.name)
         if not self._data_threshold:
-            self._data_threshold = self.default_data_threshold
+            raise AnalysisDriverError('Could not find data threshold in LIMS for ' + self.name)
         return self._data_threshold
 
     def _is_ready(self):
@@ -330,6 +331,5 @@ class SampleScanner(DatasetScanner):
         dataset_path = os.path.join(self.input_dir, name)
         return SampleDataset(
             name=os.path.basename(dataset_path),
-            path=dataset_path,
-            data_threshold=self.data_threshold
+            path=dataset_path
         )

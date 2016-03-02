@@ -5,6 +5,7 @@ from unittest.mock import patch, Mock, PropertyMock
 import os
 from tests.test_analysisdriver import TestAnalysisDriver
 from analysis_driver import util
+from analysis_driver.exceptions import AnalysisDriverError
 from analysis_driver.dataset_scanner import DatasetScanner, RunScanner, SampleScanner, DATASET_NEW, DATASET_READY, DATASET_PROCESSING, \
     DATASET_PROCESSED_FAIL, DATASET_PROCESSED_SUCCESS, DATASET_ABORTED, DATASET_REPROCESS, DATASET_FORCE_READY,\
     Dataset, RunDataset, SampleDataset
@@ -331,9 +332,16 @@ class TestSampleDataset(TestDataset):
             assert self.dataset._runs() == ['a_run_id', 'another_run_id']
 
     @patched_expected_yield
-    def test_data_threshold(self, mocked_instance):
+    def test_data_threshold(self, mocked_exp_yield):
         assert self.dataset.data_threshold == 1000000000
-        mocked_instance.assert_called_with('test_dataset')
+        mocked_exp_yield.assert_called_with('test_dataset')
+
+    @patch('analysis_driver.dataset_scanner.get_expected_yield_for_sample', return_value=None)
+    def test_no_data_threshold(self, mocked_exp_yield):
+        with pytest.raises(AnalysisDriverError) as e:
+            self.dataset.data_threshold
+        assert 'Could not find data threshold in LIMS' in str(e)
+        mocked_exp_yield.assert_called_with('test_dataset')
 
     @patched_expected_yield
     def test_is_ready(self, mocked_instance):
