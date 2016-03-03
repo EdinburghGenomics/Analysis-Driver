@@ -84,10 +84,10 @@ def run_genotype_validation(args):
                                   list_samples=args.check_samples)
     geno_val.start()
 
-    seq_vcf_file, sample2validation_results = geno_val.join()
+    seq_vcf_file, validation_results = geno_val.join()
     user_sample_id = get_user_sample_name(sample_name=args.sample_id)
     output_commands = []
-    for f in [seq_vcf_file, sample2validation_results.get(args.sample_id)]:
+    for f in [seq_vcf_file, validation_results]:
         if f and os.path.exists(f):
             bf = os.path.basename(f)
             out_file = os.path.join(projects_source, args.project_id, args.sample_id, bf.replace(args.sample_id, user_sample_id))
