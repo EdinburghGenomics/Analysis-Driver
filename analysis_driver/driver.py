@@ -416,7 +416,7 @@ def _run_bcbio(sample_id, sample_dir, sample_fastqs):
 def _cleanup(dataset_name):
     exit_status = 0
     # wait for all the previous PBS steps to be done writing to the folder before cleaning it up
-    time.sleep(20)
+    time.sleep(120)
     job_dir = os.path.join(cfg['jobs_dir'], dataset_name)
     cleanup_targets = [job_dir]
     intermediates_dir = cfg.get('intermediate_dir')
