@@ -202,7 +202,7 @@ def variant_calling_pipeline(dataset):
 
     # species contamination check
     ntf.start_stage('species contamination check')
-    species_contamination_check = ContaminationCheck(fastq_files[0], sample_dir)
+    species_contamination_check = ContaminationCheck([(fastq_pair[0])], sample_dir)
     species_contamination_check.start()
     species_contamination_check.join()
     ntf.end_stage('species contamination check')
