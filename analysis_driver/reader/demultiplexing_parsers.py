@@ -6,7 +6,7 @@ from xml.etree import ElementTree
 
 sys.path.append('../..')
 from analysis_driver.clarity import get_species_from_sample
-from analysis_driver.constants import ELEMENT_SPECIES_CONTAMINATION, ELEMENT_CONTAMINANT_UNIQUE_MAP, ELEMENT_PCNT_UNMAPPED_FOCAL, ELEMENT_PCNT_UNMAPPED
+from analysis_driver.constants import ELEMENT_SPECIES_CONTAMINATION, ELEMENT_CONTAMINANT_UNIQUE_MAP, ELEMENT_PCNT_UNMAPPED_FOCAL, ELEMENT_PCNT_UNMAPPED, ELEMENT_TOTAL_READS_MAPPED
 from analysis_driver.app_logging import get_logger
 app_logger = get_logger(__name__)
 
@@ -127,6 +127,7 @@ def parse_fastqscreen_file(filename, myFocalSpecies):
 
     contaminantsUniquelyMapped = {}
     focalSpeciesPercentUnmapped = ''
+    total_reads_mapped = int(((lines[0]).split(': ')[2]).rstrip('\n'))
     Hit_no_genomes = float((lines[-1]).split(': ')[1])
     speciesResults = (lines[2:-2])
     speciesList = []
@@ -147,7 +148,7 @@ def parse_fastqscreen_file(filename, myFocalSpecies):
             elif speciesName == myFocalSpecies:
                 focalSpeciesPercentUnmapped = float(speciesResults[2])
         contaminantsUniquelyMapped = {k:v for k,v in contaminantsUniquelyMapped.items() if v != 0}
-        ELEMENT_SPECIES_CONTAMINATION = {ELEMENT_CONTAMINANT_UNIQUE_MAP:contaminantsUniquelyMapped, ELEMENT_PCNT_UNMAPPED_FOCAL:focalSpeciesPercentUnmapped, ELEMENT_PCNT_UNMAPPED:Hit_no_genomes}
+        ELEMENT_SPECIES_CONTAMINATION = {ELEMENT_CONTAMINANT_UNIQUE_MAP:contaminantsUniquelyMapped, ELEMENT_TOTAL_READS_MAPPED:total_reads_mapped, ELEMENT_PCNT_UNMAPPED_FOCAL:focalSpeciesPercentUnmapped, ELEMENT_PCNT_UNMAPPED:Hit_no_genomes}
         return ELEMENT_SPECIES_CONTAMINATION
     else:
         app_logger.warning('The focal species is not included in the contaminant database')
