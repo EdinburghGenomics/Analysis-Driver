@@ -269,4 +269,4 @@ class GenotypeValidation(AppLogger, Thread):
         super().join(timeout=timeout)
         if self.exception:
             raise self.exception
-        return self.seq_vcf_file, self.sample2genotype_validation.get()
+        return self.seq_vcf_file, self.sample2genotype_validation.get(self.sample_id)
