@@ -23,8 +23,9 @@ def pipeline(dataset):
         exit_status = demultiplexing_pipeline(dataset)
     elif isinstance(dataset, SampleDataset):
         species = clarity.get_species_from_sample(dataset.name)
-        # TODO: Remove human default when we can guarantee that all samples have species
-        if species == 'Homo sapiens' or species is None:
+        if species is None:
+            raise AnalysisDriverError('No species information found in the LIMS for ' + dataset.name)
+        elif species == 'Homo sapiens':
             exit_status = variant_calling_pipeline(dataset)
         else:
             exit_status = qc_pipeline(dataset, species)
@@ -415,7 +416,7 @@ def _run_bcbio(sample_id, sample_dir, sample_fastqs):
 def _cleanup(dataset_name):
     exit_status = 0
     # wait for all the previous PBS steps to be done writing to the folder before cleaning it up
-    time.sleep(20)
+    time.sleep(120)
     job_dir = os.path.join(cfg['jobs_dir'], dataset_name)
     cleanup_targets = [job_dir]
     intermediates_dir = cfg.get('intermediate_dir')

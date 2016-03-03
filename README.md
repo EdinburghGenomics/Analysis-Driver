@@ -254,7 +254,7 @@ Custom exceptions raised by the pipeline:
 
 
 ### rest_communication
-Contains function for interacting with tthe external Rest API. Uses the `requests` module.
+Contains functions for interacting with the external Rest API. Uses the `requests` module.
 
 - get_documents
 - get_document
