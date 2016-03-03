@@ -293,7 +293,7 @@ class SampleCrawler(Crawler):
                 self.critical('Sample %s not found in file %s' % (self.sample_id, genotype_validation_paths[0]))
 
 
-        species_contamination_paths = util.find_files(sample_dir, '%s_screen.txt' % external_sample_name)
+        species_contamination_paths = util.find_files(sample_dir, '%s_R1_screen.txt' % external_sample_name)
         if species_contamination_paths:
             species_contamination_result = get_fastqscreen_results(species_contamination_paths[0], self.sample_id)
             if species_contamination_result:
