@@ -2,11 +2,9 @@ __author__ = 'mwham'
 import argparse
 import logging
 import os
-import sys
 from analysis_driver.app_logging import logging_default as log_cfg
 from analysis_driver.config import default as cfg
 from analysis_driver.notification import default as ntf, LogNotification, EmailNotification
-from analysis_driver.exceptions import AnalysisDriverError
 from analysis_driver.dataset_scanner import RunScanner, SampleScanner, DATASET_READY, DATASET_FORCE_READY
 
 
@@ -14,23 +12,9 @@ def main():
     args = _parse_args()
 
     if args.debug:
-        log_cfg.default_level = logging.DEBUG
+        log_cfg.log_level = logging.DEBUG
 
-    logging_handlers = cfg.query('logging', 'handlers')
-    if logging_handlers:
-        for name, config in logging_handlers.items():
-            if 'filename' in config:
-                handler = logging.FileHandler(filename=config['filename'], mode='a')
-            elif 'stream' in config:
-                s = None
-                if config['stream'] == 'ext://sys.stdout':
-                    s = sys.stdout
-                elif config['stream'] == 'ext://sys.stderr':
-                    s = sys.stderr
-                handler = logging.StreamHandler(stream=s)
-            else:
-                raise AnalysisDriverError('Invalid logging configuration: %s %s' % name, str(config))
-            log_cfg.add_handler(handler, config.get('level', log_cfg.default_level))
+    log_cfg.configure_handlers_from_config(cfg.query('logging', 'handlers'))
 
     if args.run:
         if 'run' in cfg:
@@ -74,22 +58,16 @@ def main():
         return _process_dataset(ready_datasets[0])
 
 
-def setup_logging(d):
+def setup_dataset_logging(d):
     log_repo = cfg.query('logging', 'repo')
     if log_repo:
-        handler = logging.FileHandler(filename=os.path.join(log_repo, d.name + '.log'), mode='w')
-        log_cfg.add_handler(handler, log_cfg.default_level)
+        repo_log = os.path.join(log_repo, d.name + '.log')
+        log_cfg.add_handler(logging.FileHandler(filename=repo_log, mode='a'))
 
+    job_dir_log = os.path.join(cfg['jobs_dir'], d.name, 'analysis_driver.log')
     log_cfg.add_handler(
-        logging.FileHandler(filename=os.path.join(cfg['jobs_dir'], d.name, 'analysis_driver.log'), mode='w'),
-        log_cfg.default_level
+        logging.FileHandler(filename=job_dir_log, mode='w')
     )
-    ntf.add_subscribers(
-        (LogNotification, d, cfg.query('notification', 'log_notification')),
-        (EmailNotification, d, cfg.query('notification', 'email_notification'))
-    )
-
-    log_cfg.set_formatter(log_cfg.blank_formatter)
 
 
 def _process_dataset(d):
@@ -97,14 +75,15 @@ def _process_dataset(d):
     :param d: Name of a dataset (not a full path!) to process
     :return: exit status (9 if stacktrace)
     """
-    app_logger = get_logger('client')
+    app_logger = log_cfg.get_logger('client')
 
     dataset_job_dir = os.path.join(cfg['jobs_dir'], d.name)
     if not os.path.isdir(dataset_job_dir):
         os.makedirs(dataset_job_dir)
 
-    setup_logging(d)
+    setup_dataset_logging(d)
 
+    log_cfg.set_formatter(log_cfg.blank_formatter)
     app_logger.info('\nEdinburgh Genomics Analysis Driver')
     with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'version.txt'), 'r') as f:
         app_logger.info('Version ' + f.read() + '\n')
@@ -112,6 +91,11 @@ def _process_dataset(d):
 
     app_logger.info('Using config file at ' + cfg.config_file)
     app_logger.info('Triggering for dataset: ' + d.name)
+
+    ntf.add_subscribers(
+        (LogNotification, d, cfg.query('notification', 'log_notification')),
+        (EmailNotification, d, cfg.query('notification', 'email_notification'))
+    )
 
     exit_status = 9
     stacktrace = None
@@ -127,7 +111,7 @@ def _process_dataset(d):
         import traceback
         log_cfg.set_formatter(log_cfg.blank_formatter)  # blank formatting for stacktrace
         stacktrace = traceback.format_exc()
-        # app_logger.info(stacktrace)
+        app_logger.info(stacktrace)
         log_cfg.set_formatter(log_cfg.default_formatter)
 
     finally:
