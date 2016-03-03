@@ -75,8 +75,6 @@ class RawDataDeleter(Deleter):
 
         deletable_runs = []
         for r in non_deleted_runs:
-            if r['run_id'] == '160219_E00375_0067_BHFM5WCCXX':
-                pass
             review_statuses = r.get('review_statuses')
             most_recent_proc = r.get('analysis_driver_procs', [{}])[-1]
             if type(review_statuses) is list:
