@@ -12,8 +12,6 @@ class TestMappingStats(TestAnalysisDriver):
     def test_parse_genotype_concordance(self):
         samples = parse_genotype_concordance(self.geno_val_file)
         assert set(samples.keys()) == {'ALL', 'T00001P001A01'}
-        assert dict(samples['T00001P001A01']) == {'matching_snps': 28, 'no_call_chip': 4, 'no_call_seq': 0, 'mismatching_snps': 0}
-
-
-
-
+        assert dict(samples['T00001P001A01']) == {
+            'matching_snps': 28, 'no_call_chip': 4, 'no_call_seq': 0, 'mismatching_snps': 0
+        }

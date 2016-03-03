@@ -4,7 +4,6 @@ from threading import Thread
 import sys
 from analysis_driver.app_logging import AppLogger
 from analysis_driver import executor, util
-from analysis_driver.config import default as cfg
 
 
 class GenderValidation(AppLogger, Thread):

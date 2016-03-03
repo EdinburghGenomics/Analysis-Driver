@@ -117,9 +117,6 @@ def _process_dataset(d):
     exit_status = 9
     stacktrace = None
     try:
-        # TODO: launch a pipeline directly which includes the process trigger step instead of launching the process trigger which launch the pipeline
-        # Only process the first new dataset found. Run through Cron, this will result
-        # in one new pipeline being kicked off per minute.
         from analysis_driver import driver
         ntf.start_pipeline()
         exit_status = driver.pipeline(d)

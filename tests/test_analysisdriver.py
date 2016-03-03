@@ -1,6 +1,7 @@
 __author__ = 'mwham'
 from unittest import TestCase
 import os.path
+import json
 
 
 class TestAnalysisDriver(TestCase):
@@ -24,3 +25,14 @@ class TestAnalysisDriver(TestCase):
             print('expected')
             print(expected)
             raise AssertionError
+
+    def query_args_from_url(self, url):
+        query_string = url.split('?')[1]
+        d = {}
+        for q in query_string.split('&'):
+            k, v = q.split('=')
+            if v.startswith('{') and v.endswith('}'):
+                v = json.loads(v)
+            d[k] = v
+
+        return json.loads(json.dumps(d))

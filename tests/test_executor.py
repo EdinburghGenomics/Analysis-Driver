@@ -112,7 +112,7 @@ class TestScriptWriter(TestAnalysisDriver):
         assert open(self.script_writer.script_name, 'r').readlines() == ['a_line\n']
 
     def test_trim_field(self):
-        assert self.script_writer._trim_field('a_very_long_field_name_too_long_for_pbs', 15) == 'a_very_long_fie'
+        assert self.script_writer._trim_field('a_field_name_too_long_for_pbs', 15) == 'a_field_name_to'
 
 
 class TestPBSWriter(TestScriptWriter):
