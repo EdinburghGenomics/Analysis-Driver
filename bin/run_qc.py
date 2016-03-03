@@ -96,7 +96,7 @@ def run_genotype_validation(args):
     exit_status = executor.execute(
         output_commands,
         job_name='output_results',
-        working_dir=args.work_dir,
+        working_dir=work_dir,
         cpus=1,
         mem=2
     ).join()
