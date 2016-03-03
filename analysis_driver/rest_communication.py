@@ -151,10 +151,12 @@ def post_or_patch(endpoint, input_json, id_field=None, update_lists=None):
     """
     success = True
     for payload in input_json:
-        doc = get_document(endpoint, where={id_field: payload[id_field]})
+        _payload = dict(payload)
+        doc = get_document(endpoint, where={id_field: _payload[id_field]})
         if doc:
-            s = _patch_entry(endpoint, doc, payload, update_lists)
+            _payload.pop(id_field)
+            s = _patch_entry(endpoint, doc, _payload, update_lists)
         else:
-            s = post_entry(endpoint, payload)
+            s = post_entry(endpoint, _payload)
         success = success and s
     return success

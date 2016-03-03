@@ -156,11 +156,10 @@ def test_patch_entry(mocked_request, mocked_get_doc):
     )
 
 
-test_post_or_patch_payload = {
-    'uid': '1337', 'list_to_update': ['more'], 'another_field': 'that'
-}
+test_post_or_patch_payload = {'uid': '1337', 'list_to_update': ['more'], 'another_field': 'that'}
+test_post_or_patch_payload_no_uid = {'list_to_update': ['more'], 'another_field': 'that'}
 test_post_or_patch_doc = {
-    'uid': 'a_unique_id', '_id': '1337', '_etag': 1234567, 'list_to_update': ['things'], 'another_field': 'this'
+    'uid': 'a_uid', '_id': '1337', '_etag': 1234567, 'list_to_update': ['things'], 'another_field': 'this'
 }
 
 
@@ -188,7 +187,7 @@ def test_post_or_patch():
         mpatch.assert_called_with(
             'an_endpoint',
             test_post_or_patch_doc,
-            test_post_or_patch_payload,
+            test_post_or_patch_payload_no_uid,
             ['list_to_update']
         )
         assert success is True
