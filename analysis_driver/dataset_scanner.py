@@ -1,9 +1,7 @@
 __author__ = 'mwham'
 import os
-import requests
 from datetime import datetime
 from collections import defaultdict
-from analysis_driver.config import default as cfg
 from analysis_driver.exceptions import AnalysisDriverError
 from analysis_driver import rest_communication
 from analysis_driver.app_logging import get_logger
@@ -23,25 +21,17 @@ class Dataset:
     endpoint = 'None'
     id_field = 'None'
 
-    def __init__(self, name, path):
+    def __init__(self, name):
         self.name = name
-        self.path = path
         self.pid = None
         self.proc_id = self._most_recent_proc().get('proc_id', '_'.join((self.type, self.name)))
 
     def _most_recent_proc(self):
-        # TODO: add embedding, sort, etc. support into rest_communication - see genologics.lims
-        query_url = ''.join(
-            (
-                cfg.query('rest_api', 'url').rstrip('/'),
-                '/analysis_driver_procs?where={"dataset_type":"',
-                self.type,
-                '","dataset_name":"',
-                self.name,
-                '"}&sort=-_created'
-            )
+        procs = rest_communication.get_documents(
+            'analysis_driver_procs',
+            where={'dataset_type': self.type, 'dataset_name': self.name},
+            sort='-_created'
         )
-        procs = requests.request('GET', query_url).json()['data']
         if procs:
             return procs[0]
         else:
@@ -56,12 +46,14 @@ class Dataset:
         }
         if end_date:
             proc['end_date'] = end_date
+        if self.pid:
+            proc['pid'] = self.pid
         rest_communication.post_entry('analysis_driver_procs', [proc])
         dataset = {self.id_field: self.name, 'analysis_driver_procs': [self.proc_id]}
         rest_communication.post_or_patch(
             self.endpoint,
             [dataset],
-            elem_key=self.id_field,
+            id_field=self.id_field,
             update_lists=['analysis_driver_procs']
         )
         return proc
@@ -97,7 +89,7 @@ class Dataset:
         self._change_status(DATASET_PROCESSING, finish=False)
 
     def succeed(self):
-        assert self.dataset_status == DATASET_PROCESSING  # TODO: do we need all these asserts?
+        assert self.dataset_status == DATASET_PROCESSING
         self._change_status(DATASET_PROCESSED_SUCCESS)
 
     def fail(self):
@@ -109,7 +101,7 @@ class Dataset:
 
     def reset(self):
         new_content = {'proc_id': self.proc_id, 'status': DATASET_REPROCESS}
-        rest_communication.post_or_patch('analysis_driver_procs', [new_content], elem_key='proc_id')
+        rest_communication.post_or_patch('analysis_driver_procs', [new_content], id_field='proc_id')
 
     def _change_status(self, status, finish=True):
         new_content = {
@@ -126,7 +118,8 @@ class Dataset:
         patch_success = rest_communication.patch_entry(
             'analysis_driver_procs',
             new_content,
-            proc_id=self.proc_id
+            'proc_id',
+            self.proc_id
         )
         if not patch_success:
             self._create_process(status=status, end_date=end_date)
@@ -140,7 +133,7 @@ class Dataset:
         }
         stages.append(new_stage)
         new_content = {'proc_id': self.proc_id, 'stages': stages}
-        rest_communication.post_or_patch('analysis_driver_procs', [new_content], elem_key='proc_id')
+        rest_communication.post_or_patch('analysis_driver_procs', [new_content], id_field='proc_id')
 
     def end_stage(self, stage_name, exit_status):
         stages = self._most_recent_proc().get('stages')
@@ -150,7 +143,7 @@ class Dataset:
                 s['exit_status'] = exit_status
 
         new_content = {'proc_id': self.proc_id, 'stages': stages}
-        rest_communication.post_or_patch('analysis_driver_procs', [new_content], elem_key='proc_id')
+        rest_communication.post_or_patch('analysis_driver_procs', [new_content], id_field='proc_id')
 
     @property
     def stages(self):
@@ -174,7 +167,8 @@ class RunDataset(Dataset):
     id_field = 'run_id'
 
     def __init__(self, name, path, use_int_dir):
-        super().__init__(name, path)
+        super().__init__(name)
+        self.path = path
         self.use_int_dir = use_int_dir
 
     def _is_ready(self):
@@ -189,8 +183,8 @@ class SampleDataset(Dataset):
     endpoint = 'samples'
     id_field = 'sample_id'
 
-    def __init__(self, name, path):
-        super().__init__(name, path)
+    def __init__(self, name):
+        super().__init__(name)
         self.run_elements = self._read_data()
         self._data_threshold = None
 
@@ -200,8 +194,7 @@ class SampleDataset(Dataset):
     def _read_data(self):
         return rest_communication.get_documents(
             'run_elements',
-            sample_id=self.name,
-            useable='yes'
+            where={'sample_id': self.name, 'useable': 'yes'}
         )
 
     def _amount_data(self):
@@ -314,22 +307,9 @@ class SampleScanner(DatasetScanner):
         super().__init__(config)
         self.data_threshold = config.get('data_threshold')
 
-    def _list_datasets(self, query=None):  # TODO: add depagination to rest_communication
-        datasets = []
-        if query is None:
-            query = 'samples'
-        url = cfg.query('rest_api', 'url').rstrip('/') + '/' + query
-        content = requests.get(url).json()
-        datasets.extend([d['sample_id'] for d in content['data']])
-
-        if 'next' in content['_links']:
-            next_query = content['_links']['next']['href']
-            datasets.extend(self._list_datasets(next_query))
-        return datasets
+    def _list_datasets(self, query=None):
+        return [s['sample_id'] for s in rest_communication.get_documents('samples', depaginate=True)]
 
     def get_dataset(self, name):
         dataset_path = os.path.join(self.input_dir, name)
-        return SampleDataset(
-            name=os.path.basename(dataset_path),
-            path=dataset_path
-        )
+        return SampleDataset(name=os.path.basename(dataset_path))
