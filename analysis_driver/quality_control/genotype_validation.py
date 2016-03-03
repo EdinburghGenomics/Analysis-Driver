@@ -15,7 +15,7 @@ class GenotypeValidation(AppLogger, Thread):
     This class will perform the Genotype validation steps. It subclasses Thread, allowing it to run in the
     background.
     """
-    def __init__(self, fastqs_files, sample_id, vcf_file=None, check_plate=False, check_project=False, list_samples=None):
+    def __init__(self, fastq_files, sample_id, vcf_file=None, check_plate=False, check_project=False, list_samples=None):
         """
         :param list[str] fastq_files: fastq files to run genotype validation on
         :param str sample_id: the id of the run these sample were sequenced on

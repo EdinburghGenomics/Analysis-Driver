@@ -27,7 +27,6 @@ def _parse_args():
     subparsers = parser.add_subparsers()
 
     geno_val_parser = subparsers.add_parser('genotype_validation')
-    geno_val_parser.add_argument('--work_dir', required=True)
     geno_val_parser.add_argument('--project_id', required=True)
     geno_val_parser.add_argument('--sample_id', required = True)
     geno_val_parser.add_argument('--check_plate', action='store_true', default=False)
@@ -60,12 +59,12 @@ def run_genotype_validation(args):
     if is_remote_path(projects_source):
         # First try to retrieve the genotype vcf file
         genotype_vcfs = os.path.join(projects_source, args.project_id, args.sample_id, '*_genotype_validation.vcf.gz')
-        retrive_data(genotype_vcfs, work_dir, args.sample_id, allow_fail=True)
+        retrive_data(genotype_vcfs, work_dir, allow_fail=True)
         genotype_vcfs = glob.glob(os.path.join(work_dir, '*_genotype_validation.vcf.gz'))
         if not genotype_vcfs:
             # Need to retrieve the fastq files localy
             fastq_files = os.path.join(projects_source, args.project_id, args.sample_id, '*_R?.fastq.gz')
-            retrive_data(fastq_files, work_dir, args.sample_id)
+            retrive_data(fastq_files, work_dir)
             fastq_files = glob.glob(os.path.join(work_dir, '*_R?.fastq.gz'))
             genotype_vcf = None
         else:
