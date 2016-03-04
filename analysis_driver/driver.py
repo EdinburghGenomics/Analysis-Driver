@@ -274,6 +274,13 @@ def qc_pipeline(dataset, species):
     bwa_exit_status = bwa_mem_executor.join()
     ntf.end_stage('sample_bwa', bwa_exit_status)
 
+    # species contamination check
+    ntf.start_stage('species contamination check')
+    species_contamination_check = ContaminationCheck([(fastq_pair[0])], sample_dir)
+    species_contamination_check.start()
+    species_contamination_check.join()
+    ntf.end_stage('species contamination check')
+
     ntf.start_stage('bamtools_stat')
     bamtools_stat_file = os.path.join(sample_dir, 'bamtools_stats.txt')
     bamtools_exit_status = executor.execute(
