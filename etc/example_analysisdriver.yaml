@@ -28,6 +28,8 @@ default:
         samtools: path/to/samtools
         bamtools: path/to/bamtools
         sambamba: path/to/sambamba
+        bcftools: path/to/bcftools
+        tabix: path/to/tabix
 
     logging:
         format: '[%(asctime)s][%(name)s][%(levelname)s] %(message)s'

@@ -192,7 +192,7 @@ class GenotypeValidation(AppLogger, Thread):
         exit_status = executor.execute(
             [command],
             job_name='index_vcf',
-            run_id=self.sample_id,
+            working_dir=self.work_directory,
             cpus=1,
             mem=4
         ).join()

@@ -1,9 +1,10 @@
 __author__ = 'tcezard'
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 from tests.test_analysisdriver import TestAnalysisDriver
 import os.path
 import builtins
 from analysis_driver.quality_control import GenotypeValidation
+from analysis_driver.config import default as cfg
 
 
 class TestGenotypeValidation(TestAnalysisDriver):
@@ -84,32 +85,34 @@ class TestGenotypeValidation(TestAnalysisDriver):
 
     @patch('analysis_driver.executor.execute')
     def test__vcf_validation(self, mocked_execute):
-        vcf_file = os.path.join('path/to/jobs', self.sample_id, self.sample_id + '_expected_genotype.vcf')
-        genotype_vcf = os.path.join('path/to/jobs', self.sample_id, self.sample_id + '_genotype_validation.vcf.gz')
-        validation_results = os.path.join('path/to/jobs', self.sample_id, self.sample_id + '_genotype_validation.txt')
-        vc = self.validator.validation_cfg
+        work_dir = os.path.join(cfg.query('jobs_dir'), self.sample_id)
+        vcf_file = os.path.join(work_dir, self.sample_id + '_expected_genotype.vcf')
+        genotype_vcf = os.path.join(work_dir, self.sample_id + '_genotype_validation.vcf.gz')
+        validation_results = os.path.join(work_dir, self.sample_id + '_genotype_validation.txt')
+
         sample2genotype={self.sample_id:vcf_file}
         with patch('os.path.isfile', side_effect = [True, False]):
             self.validator._vcf_validation(sample2genotype)
         command_gatk = ' '.join(
-                ['java -Xmx4G -jar %s' % vc.get('gatk'),
+                ['java -Xmx4G -jar %s' % cfg['tools']['gatk'],
                  '-T GenotypeConcordance',
-                 '-eval:VCF %s ' % vcf_file,
-                 '-comp:VCF %s ' % genotype_vcf,
+                 '-eval:VCF %s ' % genotype_vcf,
+                 '-comp:VCF %s ' % vcf_file,
                  '-R %s' % cfg.query('genotype-validation', 'reference'),
                  ' > %s' % validation_results])
         command_index = '{tabix} -p vcf {vcf}'.format(tabix=cfg.query('tools','tabix'), vcf=genotype_vcf)
         #Call the index and the actuall validation
         assert mocked_execute.call_count == 2
-        mocked_execute.assert_any_call([command_index], job_name='index_vcf', run_id=self.sample_id, cpus=1, mem=4)
-        mocked_execute.assert_called_with([command_gatk], job_name='genotype_concordance', run_id=self.sample_id, cpus=4, mem=8, log_command=False)
+        print(mocked_execute.call_args_list)
+        mocked_execute.assert_any_call([command_index], job_name='index_vcf', working_dir=work_dir, cpus=1, mem=4)
+        mocked_execute.assert_called_with([command_gatk], job_name='genotype_concordance', working_dir=work_dir, cpus=4, mem=8, log_commands=False)
 
         mocked_execute.reset_mock()
         with patch('os.path.isfile', side_effect = [True, True]):
             self.validator._vcf_validation(sample2genotype)
         #No call to the index generation and the actuall validation
         assert mocked_execute.call_count == 1
-        mocked_execute.assert_called_with([command_gatk], job_name='genotype_concordance', run_id=self.sample_id, cpus=4, mem=8, log_command=False)
+        mocked_execute.assert_called_with([command_gatk], job_name='genotype_concordance', working_dir=work_dir, cpus=4, mem=8, log_commands=False)
 
     def test__merge_validation_results(self):
         sample2genotype_validation={"T00001P001A01":os.path.join(self.assets_path, 'sample_data', "T00001P001A01-validation.txt"),
@@ -120,8 +123,8 @@ class TestGenotypeValidation(TestAnalysisDriver):
             mock_open_write = MagicMock()
             mocked_open.side_effect= [open_file1, open_file2, mock_open_write]
             self.validator._merge_validation_results(sample2genotype_validation)
-            print(mocked_open.mock_calls)
-            print(mock_open_write.mock_calls)
+            #print(mocked_open.mock_calls)
+            #print(mock_open_write.mock_calls)
 
         open_file1.close()
         open_file2.close()
@@ -130,11 +133,12 @@ class TestGenotypeValidation(TestAnalysisDriver):
     def test__rename_expected_genotype(self, mocked_execute):
         genotype_vcf = os.path.join('path/to/jobs', self.sample_id, self.sample_id + '_genotype_validation.vcf.gz')
         sample_name = 'test_sample'
+        work_dir = os.path.join(cfg.query('jobs_dir'), sample_name)
         self.validator._rename_expected_genotype({sample_name:genotype_vcf})
         command = "{bcftools} reheader -s <(echo {sample_name}) {genotype_vcf} > {genotype_vcf}.tmp; mv {genotype_vcf}.tmp {genotype_vcf}"
         command = command.format(bcftools=cfg.query('tools','bcftools'), sample_name=sample_name, genotype_vcf=genotype_vcf)
         assert mocked_execute.call_count == 1
-        mocked_execute.assert_called_once_with([command], job_name='genotype_rename', run_id=self.sample_id, cpus=4, mem=8, log_command=False)
+        mocked_execute.assert_called_once_with([command], job_name='genotype_rename', working_dir=work_dir, cpus=4, mem=8, log_commands=False)
 
     def test_genotype_validation(self):
         pass

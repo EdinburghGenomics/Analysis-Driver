@@ -1,5 +1,5 @@
 import os
-from analysis_driver.reader.mapping_stats_parsers import parse_genotype_concordance
+from analysis_driver.reader.mapping_stats_parsers import parse_genotype_concordance, aggregate_genotype_concordance
 from tests.test_analysisdriver import TestAnalysisDriver
 
 __author__ = 'tcezard'
