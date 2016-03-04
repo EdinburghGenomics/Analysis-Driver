@@ -121,7 +121,7 @@ def parse_fastqscreen_file(filename, myFocalSpecies):
     :return int: the maximum number of reads mapped uniquely (singly or multiple times) to a contaminant species
     :return float: % reads unmapped to focal Species
     :return float: % reads with no hits to any of the genomes provided
-    :return int: number of reads mapped in total
+    :return float: number of reads mapped in total
     """
     file = open(filename)
     lines = file.readlines()
