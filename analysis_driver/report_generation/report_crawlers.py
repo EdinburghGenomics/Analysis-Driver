@@ -5,10 +5,7 @@ from analysis_driver.clarity import get_sex_from_lims, get_user_sample_name
 from analysis_driver.app_logging import AppLogger
 from analysis_driver.exceptions import AnalysisDriverError
 from analysis_driver.reader import demultiplexing_parsers, mapping_stats_parsers
-from analysis_driver.reader.demultiplexing_parsers import parse_seqtk_fqchk_file
 from analysis_driver.reader.mapping_stats_parsers import parse_and_aggregate_genotype_concordance
-from analysis_driver.report_generation import rest_communication, ELEMENT_NB_READS_CLEANED, ELEMENT_NB_Q30_R1_CLEANED, \
-    ELEMENT_NB_BASE_R2_CLEANED, ELEMENT_NB_Q30_R2_CLEANED, ELEMENT_NB_BASE_R1_CLEANED, ELEMENT_GENOTYPE_VALIDATION
 from analysis_driver.config import default as cfg
 from analysis_driver.constants import ELEMENT_RUN_NAME, ELEMENT_NUMBER_LANE, ELEMENT_RUN_ELEMENTS, \
     ELEMENT_BARCODE, ELEMENT_RUN_ELEMENT_ID, ELEMENT_SAMPLE_INTERNAL_ID, ELEMENT_LIBRARY_INTERNAL_ID, \
@@ -18,6 +15,7 @@ from analysis_driver.constants import ELEMENT_RUN_NAME, ELEMENT_NUMBER_LANE, ELE
     ELEMENT_NB_DUPLICATE_READS, ELEMENT_NB_PROPERLY_MAPPED, ELEMENT_MEDIAN_COVERAGE, ELEMENT_PC_BASES_CALLABLE, \
     ELEMENT_LANE_NUMBER, ELEMENT_CALLED_GENDER, ELEMENT_PROVIDED_GENDER, ELEMENT_NB_READS_CLEANED, ELEMENT_NB_Q30_R1_CLEANED, \
     ELEMENT_NB_BASE_R2_CLEANED, ELEMENT_NB_Q30_R2_CLEANED, ELEMENT_NB_BASE_R1_CLEANED, ELEMENT_GENOTYPE_VALIDATION
+from analysis_driver.rest_communication import post_or_patch as pp
 
 
 class Crawler(AppLogger):
@@ -230,13 +228,13 @@ class SampleCrawler(Crawler):
         self.sample = self._populate_lib_info(sample_dir)
 
     def search_file(self, sample_dir, file_name):
-        path_to_search = [[sample_dir],
-                          [sample_dir, '.qc']),
-                          ]
+        path_to_search = [
+            [sample_dir],
+            [sample_dir, '.qc']
+        ]
         for path in path_to_search:
-            files = util.find_file(*path, file_name)
-            if files:
-               return files[0]
+            path.append(file_name)
+            return util.find_file(*path)
 
     @classmethod
     def _gender_alias(cls, gender):
@@ -253,8 +251,9 @@ class SampleCrawler(Crawler):
             ELEMENT_PROJECT_ID: self.project_id,
             ELEMENT_SAMPLE_EXTERNAL_ID: external_sample_name
         }
-
+        print(sample_dir)
         bamtools_path = self.search_file(sample_dir, 'bamtools_stats.txt')
+        print(bamtools_path)
         if bamtools_path:
             (total_reads, mapped_reads,
              duplicate_reads, proper_pairs) = mapping_stats_parsers.parse_bamtools_stats(bamtools_path)
@@ -297,7 +296,7 @@ class SampleCrawler(Crawler):
             if genotyping_result:
                 sample[ELEMENT_GENOTYPE_VALIDATION] = genotyping_result
             else:
-                self.critical('Sample %s not found in file %s' % (self.sample_id, genotype_validation_paths[0]))
+                self.critical('Sample %s not found in file %s' % (self.sample_id, genotype_validation_path))
 
         return sample
 
