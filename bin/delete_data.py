@@ -5,7 +5,6 @@ from os.path import join as p_join
 from datetime import datetime
 import argparse
 import logging
-import requests
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from analysis_driver.exceptions import AnalysisDriverError
@@ -38,45 +37,21 @@ class Deleter(AppLogger):
             self.error('expected: ' + str(expected))
             raise AssertionError
 
-    @staticmethod
-    def _api_query(endpoint, *queries):  # TODO: this should go through rest_communication
-        if '?' in endpoint:
-            endpoint, existent_queries = endpoint.split('?')
-            existent_queries = tuple(existent_queries.split('&'))
-        else:
-            existent_queries = ()
-        url = cfg['rest_api']['url'].rstrip('/') + '/' + endpoint
-        if queries:
-            url += '?' + '&'.join(existent_queries + queries)
-        return url
-
-    @classmethod
-    def _depaginate(cls, endpoint, *queries):  # TODO: add depagination to rest_communication
-        elements = []
-        url = cls._api_query(endpoint, *queries)
-        content = requests.get(url).json()
-        elements.extend(content['data'])
-
-        if 'next' in content['_links']:
-            next_query = content['_links']['next']['href']
-            elements.extend(cls._depaginate(next_query, *queries))
-        return elements
-
 
 class RawDataDeleter(Deleter):
     deletable_sub_dirs = ('Data', 'Logs', 'Thumbnail_Images')
 
     def deletable_runs(self):
-        non_deleted_runs = self._depaginate(
-            'runs?max_results=100',
-            'embedded={"run_elements":1,"analysis_driver_procs":1}',
-            'aggregate=True'
+        non_deleted_runs = rest_communication.get_documents(
+            'runs',
+            depaginate=True,
+            max_results=100,
+            embedded={'run_elements': 1, 'analysis_driver_procs': 1},
+            aggregate=True
         )
 
         deletable_runs = []
         for r in non_deleted_runs:
-            if r['run_id'] == '160219_E00375_0067_BHFM5WCCXX':
-                pass
             review_statuses = r.get('review_statuses')
             most_recent_proc = r.get('analysis_driver_procs', [{}])[-1]
             if type(review_statuses) is list:
@@ -128,7 +103,8 @@ class RawDataDeleter(Deleter):
             rest_communication.patch_entry(
                 'analysis_driver_procs',
                 {'status': 'deleted'},
-                proc_id=run['analysis_driver_procs'][-1]['proc_id']
+                'proc_id',
+                run['analysis_driver_procs'][-1]['proc_id']
             )
 
     def archive_run(self, run_id):

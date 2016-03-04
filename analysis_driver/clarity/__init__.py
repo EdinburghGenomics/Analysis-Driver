@@ -153,9 +153,9 @@ def get_user_sample_name(sample_name, lenient=False):
     :return: the user's sample name or None
     """
     lims = _get_lims_connection()
-    sample = get_lims_sample(sample_name, lims)
-    if sample:
-        return sanitize_user_id(sample.udf.get('User Sample Name'))
+    user_sample_name = get_lims_sample(sample_name, lims).udf.get('User Sample Name')
+    if user_sample_name:
+        return sanitize_user_id(user_sample_name)
     elif lenient:
         return sample_name
 
