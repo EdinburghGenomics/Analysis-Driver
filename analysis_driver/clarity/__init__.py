@@ -6,10 +6,13 @@ from analysis_driver.app_logging import get_logger
 
 app_logger = get_logger('Clarity')
 
+_lims = None
 
 def _get_lims_connection():
-    return Lims(**cfg.get('clarity'))
-
+    global _lims
+    if not _lims:
+        _lims = Lims(**cfg.get('clarity'))
+    return _lims
 
 def get_valid_lanes(flowcell_name):
     """
@@ -232,6 +235,53 @@ def get_sample_names_from_project_from_lims(project_id):
     samples = lims.get_samples(projectname=project_id)
     sample_names = [sample.name for sample in samples]
     return sample_names
+
+
+def get_output_containers_from_sample_and_step_name(sample_name, step_name):
+    lims = _get_lims_connection()
+    sample = get_lims_sample(sample_name,lims)
+    sample_name = sample.name
+    containers = set()
+    arts = [a.id for a in lims.get_artifacts(sample_name=sample_name)]
+    prcs = lims.get_processes(type=step_name, inputartifactlimsid=arts)
+    for prc in prcs:
+        arts = prc.input_per_sample(sample_name)
+        for art in arts:
+            containers.update([o.container for o in prc.outputs_per_input(art.id, Analyte=True)])
+    return containers
+
+def get_samples_arrived_with(sample_name):
+    lims = _get_lims_connection()
+    sample = get_lims_sample(sample_name, lims)
+    sample_name = sample.name
+    samples = set()
+    if sample:
+        container = sample.artifact.container
+        if container.name == '96 well plate':
+            samples = get_sample_names_from_plate_from_lims(container.id)
+    return samples
+
+def get_samples_genotyped_with(sample_name):
+    lims = _get_lims_connection()
+    sample = get_lims_sample(sample_name, lims)
+    sample_name = sample.name
+    containers = get_output_containers_from_sample_and_step_name(sample_name, 'Genotyping Plate Preparation EG 1.0')
+
+    samples = set()
+    for container in containers:
+        samples.update(get_sample_names_from_plate_from_lims(container.id))
+    return samples
+
+
+def get_samples_sequenced_with(sample_name):
+    lims = _get_lims_connection()
+    sample = get_lims_sample(sample_name, lims)
+    sample_name = sample.name
+    containers = get_output_containers_from_sample_and_step_name(sample_name, 'Sequencing Plate Preparation EG 1.0')
+    samples = set()
+    for container in containers:
+        samples.update(get_sample_names_from_plate_from_lims(container.id))
+    return samples
 
 def run_tests():
     assert get_valid_lanes('HCH25CCXX') == [1, 2, 3, 4, 5, 6, 7]

@@ -3,7 +3,8 @@ from threading import Thread
 from analysis_driver.app_logging import AppLogger
 from analysis_driver import executor
 from analysis_driver.clarity import get_genotype_information_from_lims, get_plate_id_and_well_from_lims, \
-    get_sample_names_from_plate_from_lims, find_project_from_sample, get_sample_names_from_project_from_lims
+    get_sample_names_from_plate_from_lims, find_project_from_sample, get_sample_names_from_project_from_lims, \
+    get_samples_arrived_with, get_samples_genotyped_with, get_samples_sequenced_with
 from analysis_driver.exceptions import AnalysisDriverError
 from analysis_driver.notification import default as ntf
 from analysis_driver.config import default as cfg
@@ -15,7 +16,7 @@ class GenotypeValidation(AppLogger, Thread):
     This class will perform the Genotype validation steps. It subclasses Thread, allowing it to run in the
     background.
     """
-    def __init__(self, fastq_files, sample_id, vcf_file=None, check_plate=False, check_project=False, list_samples=None):
+    def __init__(self, fastq_files, sample_id, vcf_file=None, check_neighbour=False, check_project=False, list_samples=None):
         """
         :param list[str] fastq_files: fastq files to run genotype validation on
         :param str sample_id: the id of the run these sample were sequenced on
@@ -28,7 +29,7 @@ class GenotypeValidation(AppLogger, Thread):
             self.seq_vcf_file = vcf_file
         else:
             self.seq_vcf_file = os.path.join(self.work_directory, self.sample_id + '_genotype_validation.vcf.gz')
-        self.check_plate = check_plate
+        self.check_neighbour = check_neighbour
         self.check_project = check_project
         self.list_samples = list_samples
         self.sample2genotype_validation = {}
@@ -236,9 +237,10 @@ class GenotypeValidation(AppLogger, Thread):
 
         # Compare against the sample or the plate
         samples_names = set([self.sample_id])
-        if self.check_plate:
-            plate_id, well_id = get_plate_id_and_well_from_lims(self.sample_id)
-            samples_names.update(get_sample_names_from_plate_from_lims(plate_id))
+        if self.check_neighbour:
+            samples_names.update(get_samples_arrived_with(self.sample_id))
+            samples_names.update(get_samples_genotyped_with(self.sample_id))
+            samples_names.update(get_samples_sequenced_with(self.sample_id))
         if self.check_project:
             project_id = find_project_from_sample(self.sample_id)
             samples_names.update(get_sample_names_from_project_from_lims(project_id))
