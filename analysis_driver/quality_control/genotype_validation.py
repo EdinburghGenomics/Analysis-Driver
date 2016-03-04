@@ -149,8 +149,8 @@ class GenotypeValidation(AppLogger, Thread):
             sample2genotype_validation[sample_name] = validation_results
             gatk_command = ['java -Xmx4G -jar %s' % cfg.query('tools', 'gatk'),
                             '-T GenotypeConcordance',
-                            '-eval:VCF %s ' % sample2genotype.get(sample_name),
-                            '-comp:VCF %s ' % self.seq_vcf_file,
+                            '-eval:VCF %s ' % self.seq_vcf_file,
+                            '-comp:VCF %s ' % sample2genotype.get(sample_name),
                             '-R %s' % cfg.query('genotype-validation', 'reference'),
                             ' > %s' % validation_results]
             list_commands.append(' '.join(gatk_command))
