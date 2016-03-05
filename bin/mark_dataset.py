@@ -33,10 +33,15 @@ def main():
         patch['useable'] = 'yes'
     elif args.notuseable:
         patch['useable'] = 'no'
+    elif args.notuseable:
+        patch['resetuseable'] = 'not marked'
     if args.review_pass:
         patch['reviewed'] = 'pass'
     elif args.review_fail:
         patch['reviewed'] = 'fail'
+    elif args.review_reset:
+        patch['reviewed'] = 'not reviewed'
+
 
     for f in filters:
         rest_communication.patch_entries(end_point, payload=patch, update_lists=None, where=f)
@@ -53,9 +58,11 @@ def _parse_args():
     group = p.add_mutually_exclusive_group(required=False)
     group.add_argument('--useable', action='store_true', default=False)
     group.add_argument('--notuseable', action='store_true', default=False)
+    group.add_argument('--resetuseable', action='store_true', default=False)
     group = p.add_mutually_exclusive_group(required=False)
     group.add_argument('--review_pass', action='store_true', default=False)
     group.add_argument('--review_fail', action='store_true', default=False)
+    group.add_argument('--review_reset', action='store_true', default=False)
     return p.parse_args()
 
 
