@@ -33,8 +33,8 @@ def main():
         patch['useable'] = 'yes'
     elif args.notuseable:
         patch['useable'] = 'no'
-    elif args.notuseable:
-        patch['resetuseable'] = 'not marked'
+    elif args.resetuseable:
+        patch['useable'] = 'not marked'
     if args.review_pass:
         patch['reviewed'] = 'pass'
     elif args.review_fail:
