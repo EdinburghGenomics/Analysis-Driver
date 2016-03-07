@@ -58,6 +58,9 @@ class ContaminationCheck(AppLogger, Thread):
 
 
     def _run_fastqscreen(self):
+        """
+        :return list: a list of the expected outfiles from fastq screen
+        """
         fastqscreen_run_command = self._fastqscreen_command()
         fastqscreen_expected_outfiles = self._get_expected_outfiles()
         ntf.start_stage('run_fastqscreen')
