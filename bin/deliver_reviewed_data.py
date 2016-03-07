@@ -1,17 +1,16 @@
-import datetime
-
-from analysis_driver import executor, clarity, rest_communication
-from analysis_driver.exceptions import AnalysisDriverError
-
 __author__ = 'tcezard'
 import sys
 import os
 import argparse
 import logging
+import datetime
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from analysis_driver.config import default as cfg, logging_default as log_cfg
 from analysis_driver.app_logging import AppLogger
+from analysis_driver import executor, clarity, rest_communication
+from analysis_driver.exceptions import AnalysisDriverError
+
 
 
 hs_list_files = [
@@ -41,9 +40,26 @@ class DataDelivery(AppLogger):
         self.all_commands = []
 
 
-    def get_deliverable_projects_samples(self):
+    def get_deliverable_projects_samples(self, project_id=None):
         project_to_samples = {}
-        #Get sample that have been review from REST API but not marked as status release
+        #Get sample that have been review from REST API but not marked as delivered
+        if project_id:
+            where_clause={"useable":"yes"}
+        else:
+            where_clause={"useable":"yes", "project_id":project_id}
+        samples = rest_communication.get_documents(
+                'samples',
+                depaginate=True,
+                embedded={"analysis_driver_procs":1},
+                where=where_clause
+        )
+        for sample in samples:
+            processes = sample.get('analysis_driver_procs',[{}])
+            processes.sort(key=lambda x: datetime.datetime.strptime(x.get('_created', '01_01_1970_00:00:00'), '%d_%m_%Y_%H:%M:%S'))
+            if not processes[-1].get('status','new') == 'finished':
+                raise AnalysisDriverError("Reviewed sample %s not marked as finished"%sample.get('sample_id'))
+            if sample.get('delivered','no') == 'no':
+                project_to_samples[sample.get(project_id)] = sample.get('sample_id')
         return project_to_samples
 
     def append_create_batch_delivery_folder(self, deliver_dir, project):
@@ -111,9 +127,8 @@ class DataDelivery(AppLogger):
                 exit_status = executor.execute([command], env='local').join()
                 if exit_status != 0:
                     raise AnalysisDriverError('command %s exited with status %s'%(command, exit_status))
-
-
-
+            # TODO: Generate csv file from database
+            # TODO: Generate project report
 
 
 def main():
