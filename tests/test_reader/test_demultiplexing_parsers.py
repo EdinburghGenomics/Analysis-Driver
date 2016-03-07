@@ -19,25 +19,25 @@ class TestDemultiplexingStats(TestAnalysisDriver):
         assert hi_q == 75199379
 
     def test_parse_fastqscreen_file1(self):
-        testFile = os.path.join(self.assets_path, "fastqscreenTestOutput.txt")
+        testFile = os.path.join(self.assets_path, "test_sample_R1_screen.txt")
         result = parse_fastqscreen_file(testFile, 'Homo sapiens')
         assert result == {ELEMENT_PCNT_UNMAPPED: 1.06, ELEMENT_PCNT_UNMAPPED_FOCAL: 1.09, ELEMENT_TOTAL_READS_MAPPED: 100000, ELEMENT_CONTAMINANT_UNIQUE_MAP: {'Gallus gallus': 1, 'Felis catus': 4, 'Bos taurus': 1, 'Ovis aries': 2, 'Mus musculus': 4}}
 
     def test_parse_fastqscreen_file2(self):
-        testFile = os.path.join(self.assets_path, "fastqscreenTestOutput.txt")
+        testFile = os.path.join(self.assets_path, "test_sample_R1_screen.txt")
         result = parse_fastqscreen_file(testFile, 'Mellivora capensis')
-        assert result == [100, 100, 100]
+        assert result == {ELEMENT_PCNT_UNMAPPED: 100, ELEMENT_PCNT_UNMAPPED_FOCAL: 100, ELEMENT_TOTAL_READS_MAPPED: 100, ELEMENT_CONTAMINANT_UNIQUE_MAP: {'None': 100}}
 
     @patch('analysis_driver.reader.demultiplexing_parsers.get_species_from_sample', autospec=True)
     def test_get_fastqscreen_results1(self, mocked_species_sample):
-        testFile = os.path.join(self.assets_path, "fastqscreenTestOutput.txt")
+        testFile = os.path.join(self.assets_path, "test_sample_R1_screen.txt")
         mocked_species_sample.return_value = None
         result = get_fastqscreen_results(testFile, 'testSampleID')
-        assert result == [100, 100, 100]
+        assert result == {ELEMENT_PCNT_UNMAPPED: 100, ELEMENT_PCNT_UNMAPPED_FOCAL: 100, ELEMENT_TOTAL_READS_MAPPED: 100, ELEMENT_CONTAMINANT_UNIQUE_MAP: {'None': 100}}
 
     @patch('analysis_driver.reader.demultiplexing_parsers.get_species_from_sample', autospec=True)
     def test_get_fastqscreen_results2(self, mocked_species_sample):
-        testFile = os.path.join(self.assets_path, "fastqscreenTestOutput.txt")
+        testFile = os.path.join(self.assets_path, "test_sample_R1_screen.txt")
         mocked_species_sample.return_value = 'Homo sapiens'
         result = get_fastqscreen_results(testFile, 'testSampleID')
         assert result == {ELEMENT_PCNT_UNMAPPED: 1.06, ELEMENT_TOTAL_READS_MAPPED: 100000, ELEMENT_PCNT_UNMAPPED_FOCAL: 1.09, ELEMENT_CONTAMINANT_UNIQUE_MAP: {'Gallus gallus': 1, 'Felis catus': 4, 'Bos taurus': 1, 'Ovis aries': 2, 'Mus musculus': 4}}
