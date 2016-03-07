@@ -121,7 +121,7 @@ def parse_fastqscreen_file(filename, myFocalSpecies):
     :return dict: the maximum number of reads mapped uniquely (singly or multiple times) to a contaminant species
     :return float: % reads unmapped to focal Species
     :return float: % reads with no hits to any of the genomes provided
-    :return float: number of reads mapped in total
+    :return int: number of reads mapped in total
     """
     file = open(filename)
     lines = file.readlines()
@@ -149,17 +149,31 @@ def parse_fastqscreen_file(filename, myFocalSpecies):
             elif speciesName == myFocalSpecies:
                 focalSpeciesPercentUnmapped = float(speciesResults[2])
         contaminantsUniquelyMapped = {k:v for k,v in contaminantsUniquelyMapped.items() if v != 0}
-        ELEMENT_SPECIES_CONTAMINATION = {ELEMENT_CONTAMINANT_UNIQUE_MAP:contaminantsUniquelyMapped, ELEMENT_TOTAL_READS_MAPPED:total_reads_mapped, ELEMENT_PCNT_UNMAPPED_FOCAL:focalSpeciesPercentUnmapped, ELEMENT_PCNT_UNMAPPED:Hit_no_genomes}
+        ELEMENT_SPECIES_CONTAMINATION = {ELEMENT_CONTAMINANT_UNIQUE_MAP:contaminantsUniquelyMapped,
+                                         ELEMENT_TOTAL_READS_MAPPED:total_reads_mapped,
+                                         ELEMENT_PCNT_UNMAPPED_FOCAL:focalSpeciesPercentUnmapped,
+                                         ELEMENT_PCNT_UNMAPPED:Hit_no_genomes}
         return ELEMENT_SPECIES_CONTAMINATION
     else:
         app_logger.warning('The focal species is not included in the contaminant database')
-        return [100, 100, 100]
+        contaminantsUniquelyMapped['None'] = 100
+        ELEMENT_SPECIES_CONTAMINATION = {ELEMENT_CONTAMINANT_UNIQUE_MAP:contaminantsUniquelyMapped,
+                                         ELEMENT_TOTAL_READS_MAPPED:100,
+                                         ELEMENT_PCNT_UNMAPPED_FOCAL:100,
+                                         ELEMENT_PCNT_UNMAPPED:100}
+        return ELEMENT_SPECIES_CONTAMINATION
 
 def get_fastqscreen_results(filename, sample_id):
     myFocalSpecies = get_focal_species(sample_id)
     if myFocalSpecies == None:
         app_logger.warning('No species name available')
-        return [100, 100, 100]
+        contaminantsUniquelyMapped = {}
+        contaminantsUniquelyMapped['None'] = 100
+        ELEMENT_SPECIES_CONTAMINATION = {ELEMENT_CONTAMINANT_UNIQUE_MAP:contaminantsUniquelyMapped,
+                                         ELEMENT_TOTAL_READS_MAPPED:100,
+                                         ELEMENT_PCNT_UNMAPPED_FOCAL:100,
+                                         ELEMENT_PCNT_UNMAPPED:100}
+        return ELEMENT_SPECIES_CONTAMINATION
     else:
         fastqscreen_results = parse_fastqscreen_file(filename, myFocalSpecies)
         return fastqscreen_results
