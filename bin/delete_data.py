@@ -5,7 +5,6 @@ from os.path import join as p_join
 from datetime import datetime
 import argparse
 import logging
-import requests
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from analysis_driver.exceptions import AnalysisDriverError
@@ -38,37 +37,17 @@ class Deleter(AppLogger):
             self.error('expected: ' + str(expected))
             raise AssertionError
 
-    @staticmethod
-    def _api_query(endpoint, *queries):  # TODO: this should go through rest_communication
-        query = cfg['rest_api']['url'].rstrip('/') + '/' + endpoint
-        if queries:
-            query += '?' + '&'.join(queries)
-        return query
-
-    @classmethod
-    def _depaginate(cls, query):  # TODO: add depagination to rest_communication
-        elements = []
-        url = cfg.query('rest_api', 'url').rstrip('/') + '/' + query
-        content = requests.get(url).json()
-        elements.extend(content['data'])
-
-        if 'next' in content['_links']:
-            next_query = content['_links']['next']['href']
-            elements.extend(cls._depaginate(next_query))
-        return elements
-
 
 class RawDataDeleter(Deleter):
     deletable_sub_dirs = ('Data', 'Logs', 'Thumbnail_Images')
 
     def deletable_runs(self):
-        non_deleted_runs = self._depaginate(
-            self._api_query(
-                'runs',
-                'embedded={"run_elements":1,"analysis_driver_procs":1}',
-                'aggregate=True',
-                'max_results=100'
-            )
+        non_deleted_runs = rest_communication.get_documents(
+            'runs',
+            depaginate=True,
+            max_results=100,
+            embedded={'run_elements': 1, 'analysis_driver_procs': 1},
+            aggregate=True
         )
 
         deletable_runs = []
@@ -124,7 +103,8 @@ class RawDataDeleter(Deleter):
             rest_communication.patch_entry(
                 'analysis_driver_procs',
                 {'status': 'deleted'},
-                proc_id=run['analysis_driver_procs'][-1]['proc_id']
+                'proc_id',
+                run['analysis_driver_procs'][-1]['proc_id']
             )
 
     def archive_run(self, run_id):
@@ -164,7 +144,7 @@ def main():
     p.add_argument('--dry_run', action='store_true')
     p.add_argument('--debug', action='store_true')
     p.add_argument('--work_dir', type=str, required=True)
-    p.add_argument('--deletion_limit', type=int, default=50)
+    p.add_argument('--deletion_limit', type=int, default=None)
     args = p.parse_args()
 
     if args.debug:

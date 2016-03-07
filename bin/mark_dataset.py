@@ -5,39 +5,46 @@ import argparse
 import logging
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from analysis_driver.config import default as cfg
 from analysis_driver.config import logging_default as log_cfg
 log_cfg.default_level = logging.DEBUG
 log_cfg.add_handler('stdout', logging.StreamHandler(stream=sys.stdout), logging.DEBUG)
-from analysis_driver.report_generation import rest_communication
+from analysis_driver import rest_communication
 
 
 def main():
     args = _parse_args()
     if args.run:
-        end_point = cfg['rest_api']['url'].rstrip('/') + '/run_elements/'
-        filters = [{'run_id':r} for r in args.run]
+        end_point = 'run_elements'
+        filters = [{'run_id': r} for r in args.run]
     elif args.lane:
-        end_point = cfg['rest_api']['url'].rstrip('/') + '/run_elements/'
-        filters = [{'run_id':'_'.join(l.split('_')[:-1]), 'lane':l.split('_')[-1]} for l in args.lane]
+        end_point = 'run_elements'
+        filters = [{'run_id': '_'.join(l.split('_')[:-1]), 'lane':l.split('_')[-1]} for l in args.lane]
     elif args.run_element:
-        end_point = cfg['rest_api']['url'].rstrip('/') + '/run_elements/'
-        filters = [{'run_element_id':r} for r in args.run_element]
+        end_point = 'run_elements'
+        filters = [{'run_element_id': r} for r in args.run_element]
     elif args.sample:
-        end_point = cfg['rest_api']['url'].rstrip('/') + '/samples/'
-        filters = [{'sample_id':s} for s in args.sample]
+        end_point = 'samples'
+        filters = [{'sample_id': s} for s in args.sample]
+    else:
+        return 1
+
     patch = {}
     if args.useable:
-        patch['useable'] ='yes'
+        patch['useable'] = 'yes'
     elif args.notuseable:
-        patch['useable'] ='no'
+        patch['useable'] = 'no'
+    elif args.resetuseable:
+        patch['useable'] = 'not marked'
     if args.review_pass:
-        patch['reviewed'] ='pass'
+        patch['reviewed'] = 'pass'
     elif args.review_fail:
-        patch['reviewed'] ='fail'
+        patch['reviewed'] = 'fail'
+    elif args.review_reset:
+        patch['reviewed'] = 'not reviewed'
 
-    for filter in filters:
-        rest_communication.patch_entries(end_point, payload=patch, update_lists=None, **filter)
+
+    for f in filters:
+        rest_communication.patch_entries(end_point, payload=patch, update_lists=None, where=f)
 
 
 def _parse_args():
@@ -51,10 +58,11 @@ def _parse_args():
     group = p.add_mutually_exclusive_group(required=False)
     group.add_argument('--useable', action='store_true', default=False)
     group.add_argument('--notuseable', action='store_true', default=False)
+    group.add_argument('--resetuseable', action='store_true', default=False)
     group = p.add_mutually_exclusive_group(required=False)
     group.add_argument('--review_pass', action='store_true', default=False)
     group.add_argument('--review_fail', action='store_true', default=False)
-
+    group.add_argument('--review_reset', action='store_true', default=False)
     return p.parse_args()
 
 
