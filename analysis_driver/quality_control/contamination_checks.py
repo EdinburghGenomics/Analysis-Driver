@@ -44,7 +44,7 @@ class ContaminationCheck(AppLogger, Thread):
                                                                                 confPath)]
             return fastqscreen_command
         else:
-           raise ValueError('Bad number of fastqs: ' + str(self.fastq_files))
+            raise ValueError('Bad number of fastqs: ' + str(self.fastq_files))
 
     def _get_expected_outfiles(self):
         if len(self.fastq_files) == 1:
