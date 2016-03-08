@@ -150,8 +150,8 @@ class DataDelivery(AppLogger):
             self.mark_samples_as_released(all_samples)
 
     def deliver_data(self, project_id=None, sample_id=None):
-        output_dir = cfg.query('output_dir')
-        delivery_dir = cfg.query('delivery_dir')
+        delivery_source = cfg.query('delivery_source')
+        delivery_dest = cfg.query('delivery_dest')
         project_to_samples = self.get_deliverable_projects_samples(project_id, sample_id)
         all_samples = []
         project_to_delivery_folder = {}
@@ -159,10 +159,10 @@ class DataDelivery(AppLogger):
         for project in project_to_samples:
             samples = project_to_samples.get(project)
             self.info('deliver %s samples from %s'%(len(samples), project))
-            batch_delivery_folder = self.append_create_batch_delivery_folder(delivery_dir, project)
+            batch_delivery_folder = self.append_create_batch_delivery_folder(delivery_dest, project)
             project_to_delivery_folder[project] = batch_delivery_folder
             for sample in samples:
-                origin_sample_dir = os.path.join(output_dir, project, sample)
+                origin_sample_dir = os.path.join(delivery_source, project, sample)
                 if not os.path.isdir(origin_sample_dir):
                     raise AnalysisDriverError('Directory for sample %s in project %s does not exist'%(sample, project))
                 sample_folder = self.append_create_sample_folder(batch_delivery_folder, sample)
