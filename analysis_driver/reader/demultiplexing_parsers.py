@@ -165,7 +165,7 @@ def parse_fastqscreen_file(filename, myFocalSpecies):
 
 def get_fastqscreen_results(filename, sample_id):
     myFocalSpecies = get_focal_species(sample_id)
-    if myFocalSpecies == None:
+    if myFocalSpecies is None:
         app_logger.warning('No species name available')
         contaminantsUniquelyMapped = {}
         contaminantsUniquelyMapped['None'] = 100
