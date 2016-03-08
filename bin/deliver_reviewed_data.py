@@ -193,9 +193,13 @@ class DataDelivery(AppLogger):
             for project in project_to_delivery_folder:
                 header, lines = self.summarise_metrics_per_sample(project)
                 summary_metrics_file = os.path.join(project_to_delivery_folder.get(project),'summary_metrics.csv')
-                with open(summary_metrics_file, 'w') as open_file:
-                    open_file.write('\t'.join(header) + '\n')
-                    open_file.write('\n'.join(lines) + '\n')
+                if os.path.isfile(summary_metrics_file):
+                    with open(summary_metrics_file, 'a') as open_file:
+                        open_file.write('\n'.join(lines) + '\n')
+                else:
+                    with open(summary_metrics_file, 'w') as open_file:
+                        open_file.write('\t'.join(header) + '\n')
+                        open_file.write('\n'.join(lines) + '\n')
 
             # TODO: Generate project report
 
