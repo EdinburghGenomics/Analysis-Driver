@@ -19,7 +19,7 @@ class ContaminationCheck(AppLogger, Thread):
 
     def _fastqscreen_command(self):
         """
-        :return list: the command used to run fastq screen
+        :return string: the command used to run fastq screen
         """
         if len(self.fastq_files) == 1:
 
@@ -27,9 +27,9 @@ class ContaminationCheck(AppLogger, Thread):
             confPath = (self.contamination_cfg.get('fastqscreen_conf'))
             fastq1 = self.fastq_files[0]
 
-            fastqscreen_command = ["{} --aligner bowtie2 {} --conf {} --force".format(fastqscreen_bin,
+            fastqscreen_command = ("{} --aligner bowtie2 {} --conf {} --force".format(fastqscreen_bin,
                                                                                fastq1,
-                                                                               confPath)]
+                                                                               confPath))
             return fastqscreen_command
 
         elif len(self.fastq_files) == 2:
@@ -38,10 +38,10 @@ class ContaminationCheck(AppLogger, Thread):
             fastq1 = self.fastq_files[0]
             fastq2 = self.fastq_files[1]
 
-            fastqscreen_command = ["{} --aligner bowtie2 {} {} --conf {} --force".format(fastqscreen_bin,
+            fastqscreen_command = ("{} --aligner bowtie2 {} {} --conf {} --force".format(fastqscreen_bin,
                                                                                 fastq1,
                                                                                 fastq2,
-                                                                                confPath)]
+                                                                                confPath))
             return fastqscreen_command
         else:
             raise ValueError('Bad number of fastqs: ' + str(self.fastq_files))
@@ -61,7 +61,7 @@ class ContaminationCheck(AppLogger, Thread):
         """
         :return list: a list of the expected outfiles from fastq screen
         """
-        fastqscreen_run_command = self._fastqscreen_command()
+        fastqscreen_run_command = [(self._fastqscreen_command())]
         fastqscreen_expected_outfiles = self._get_expected_outfiles()
         ntf.start_stage('run_fastqscreen')
         fastqscreen_executor = executor.execute(
