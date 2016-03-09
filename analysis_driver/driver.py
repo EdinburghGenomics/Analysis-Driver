@@ -197,7 +197,7 @@ def variant_calling_pipeline(dataset):
 
     # genotype validation
     ntf.start_stage('genotype validation')
-    genotype_validation = GenotypeValidation(fastq_pair, sample_id)
+    genotype_validation = GenotypeValidation(fastq_pair, sample_id, check_neighbour=True)
     genotype_validation.start()
 
     # bcbio

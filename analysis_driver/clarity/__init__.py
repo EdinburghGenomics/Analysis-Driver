@@ -257,8 +257,8 @@ def get_samples_arrived_with(sample_name):
     samples = set()
     if sample:
         container = sample.artifact.container
-        if container.name == '96 well plate':
-            samples = get_sample_names_from_plate_from_lims(container.id)
+        if container.type.name == '96 well plate':
+            samples = get_sample_names_from_plate_from_lims(container.name)
     return samples
 
 def get_samples_genotyped_with(sample_name):
@@ -269,7 +269,7 @@ def get_samples_genotyped_with(sample_name):
 
     samples = set()
     for container in containers:
-        samples.update(get_sample_names_from_plate_from_lims(container.id))
+        samples.update(get_sample_names_from_plate_from_lims(container.name))
     return samples
 
 
@@ -280,7 +280,7 @@ def get_samples_sequenced_with(sample_name):
     containers = get_output_containers_from_sample_and_step_name(sample_name, 'Sequencing Plate Preparation EG 1.0')
     samples = set()
     for container in containers:
-        samples.update(get_sample_names_from_plate_from_lims(container.id))
+        samples.update(get_sample_names_from_plate_from_lims(container.name))
     return samples
 
 def run_tests():
