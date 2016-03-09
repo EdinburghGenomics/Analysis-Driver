@@ -14,7 +14,7 @@ class GatkDepthofCoverage(AppLogger, Thread):
         Thread.__init__(self)
 
     def _get_gatk_depthofcoverage_command(self):
-        reference = cfg['bcbio'] + 'genomes/Hsapiens/' + cfg['genome'] + '/seq/' + cfg['genome'] + '.fa'
+        reference = os.path.join(cfg.query('tools', 'bcbio') + '/genomes/Hsapiens/' + cfg['genome'] + '/seq/' + cfg['genome'] + '.fa')
         gatk_depthofcoverage_out_file = ((self.bam_file.rstrip('bam')) + 'depthofcoverage')
         gatk_depthofcoverage_command = 'java -jar GenomeAnalysisTK.jar' \
                                        ' -T DepthOfCoverage ' \
@@ -23,14 +23,16 @@ class GatkDepthofCoverage(AppLogger, Thread):
                                        '-I %s' % (reference, gatk_depthofcoverage_out_file, self.bam_file)
         return gatk_depthofcoverage_command, gatk_depthofcoverage_out_file
 
+
+
     def _run_gatk_depthofcoverage(self):
         """
         :return string: the expected outfile from GATK depthofcoverage
         """
-        [depthofcoverage_command], depthofcoverage_out_file = self._get_gatk_depthofcoverage_command()
+        depthofcoverage_command, depthofcoverage_out_file = self._get_gatk_depthofcoverage_command()
         ntf.start_stage('run_gatk_depthofcoverage')
         depthofcoverage_executor = executor.execute(
-            depthofcoverage_command,
+            [depthofcoverage_command],
             job_name='depthofcoverage',
             working_dir=self.work_directory,
             cpus=2,
@@ -40,9 +42,11 @@ class GatkDepthofCoverage(AppLogger, Thread):
         ntf.end_stage('run_gatk_depthofcoverage', exit_status)
         return depthofcoverage_out_file
 
+
+
     def run(self):
         try:
-            self._run_gatk_depthofcoverage()
+            self.median_coverage_expected_outfiles = self._run_gatk_depthofcoverage()
         except Exception as e:
             self.exception = e
 
