@@ -2,8 +2,8 @@ import os
 from threading import Thread
 from analysis_driver.app_logging import AppLogger
 from analysis_driver import executor
-from analysis_driver.clarity import get_genotype_information_from_lims, get_plate_id_and_well_from_lims, \
-    get_sample_names_from_plate_from_lims, find_project_from_sample, get_sample_names_from_project_from_lims, \
+from analysis_driver.clarity import get_genotype_information_from_lims, \
+    find_project_from_sample, get_sample_names_from_project_from_lims, \
     get_samples_arrived_with, get_samples_genotyped_with, get_samples_sequenced_with
 from analysis_driver.exceptions import AnalysisDriverError
 from analysis_driver.notification import default as ntf
