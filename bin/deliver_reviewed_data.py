@@ -67,8 +67,10 @@ class DataDelivery(AppLogger):
                 project_to_samples[sample.get('project_id')].append(sample.get('sample_id'))
         return project_to_samples
 
-    def summarise_metrics_per_sample(self, project_id):
-        headers=['Project', 'Sample Id', 'User sample id', 'Read pair sequenced', 'Yield', 'Yield Q30', 'Nb reads in bam', 'mapping rate', 'properly mapped reads rate', 'duplicate rate', 'Mean coverage', 'Callable bases rate']
+    def summarise_metrics_per_sample(self, project_id, delivery_folder):
+        headers=['Project', 'Sample Id', 'User sample id', 'Read pair sequenced', 'Yield', 'Yield Q30',
+                 'Nb reads in bam', 'mapping rate', 'properly mapped reads rate', 'duplicate rate',
+                 'Mean coverage', 'Callable bases rate', 'Delivery folder']
         lines = []
         for sample in self.all_samples_values:
             if sample.get('project_id') == project_id:
@@ -96,6 +98,7 @@ class DataDelivery(AppLogger):
                 res.append(str(theoritical_cov))
                 #res.append(str(sample.get('median_coverage', '')))
                 res.append(str(sample.get('pc_callable', 0)*100))
+                res.append(os.path.basename(delivery_folder))
                 lines.append('\t'.join(res))
         return headers, lines
 
@@ -134,7 +137,7 @@ class DataDelivery(AppLogger):
 
     def mark_samples_as_released(self, samples):
         for sample_name in samples:
-            rest_communication.patch_entry('samples',payload={'delivered': 'yes'}, id_field='sample_id', element_id=sample_name)
+            rest_communication.patch_entry('samples', payload={'delivered': 'yes'}, id_field='sample_id', element_id=sample_name)
 
 
     def mark_only(self, project_id=None, sample_id=None):
@@ -179,8 +182,8 @@ class DataDelivery(AppLogger):
             print('====== Commands ======')
             print('\n'.join(self.all_commands))
             print('====== Metrics ======')
-            for project in project_to_samples:
-                header, lines = self.summarise_metrics_per_sample(project)
+            for project in project_to_delivery_folder:
+                header, lines = self.summarise_metrics_per_sample(project, project_to_delivery_folder.get(project))
                 print('\t'.join(header))
                 print('\n'.join(lines))
         else:
@@ -191,8 +194,8 @@ class DataDelivery(AppLogger):
                     raise AnalysisDriverError('command %s exited with status %s'%(command, exit_status))
 
             for project in project_to_delivery_folder:
-                header, lines = self.summarise_metrics_per_sample(project)
-                summary_metrics_file = os.path.join(project_to_delivery_folder.get(project),'summary_metrics.csv')
+                header, lines = self.summarise_metrics_per_sample(project,project_to_delivery_folder.get(project))
+                summary_metrics_file = os.path.join(delivery_dest, project, 'summary_metrics.csv')
                 if os.path.isfile(summary_metrics_file):
                     with open(summary_metrics_file, 'a') as open_file:
                         open_file.write('\n'.join(lines) + '\n')
