@@ -111,10 +111,6 @@ def parse_seqtk_fqchk_file(fqchk_file, q_threshold):
         return  nb_read, nb_base, lo_q, hi_q
 
 
-def get_focal_species(sample_id):
-    myFocalSpecies = get_species_from_sample(sample_id)
-    return myFocalSpecies
-
 def parse_fastqscreen_file(filename, myFocalSpecies):
     """
     parse the fastq screen outfile
@@ -163,7 +159,7 @@ def parse_fastqscreen_file(filename, myFocalSpecies):
         return fastqscreen_result
 
 def get_fastqscreen_results(filename, sample_id):
-    myFocalSpecies = get_focal_species(sample_id)
+    myFocalSpecies = get_species_from_sample(sample_id)
     if myFocalSpecies is None:
         app_logger.warning('No species name available')
         contaminantsUniquelyMapped = {}
