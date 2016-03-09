@@ -6,6 +6,7 @@ from analysis_driver.app_logging import AppLogger
 from analysis_driver.exceptions import AnalysisDriverError
 from analysis_driver.reader import demultiplexing_parsers, mapping_stats_parsers
 from analysis_driver.rest_communication import post_or_patch as pp
+from analysis_driver.quality_control import median_coverage
 from analysis_driver.config import default as cfg
 from analysis_driver.constants import ELEMENT_RUN_NAME, ELEMENT_NUMBER_LANE, ELEMENT_RUN_ELEMENTS, \
     ELEMENT_BARCODE, ELEMENT_RUN_ELEMENT_ID, ELEMENT_SAMPLE_INTERNAL_ID, ELEMENT_LIBRARY_INTERNAL_ID, \
@@ -261,6 +262,8 @@ class SampleCrawler(Crawler):
             sample[ELEMENT_MEDIAN_COVERAGE] = median_coverage
         else:
             self.critical('Missing %s-sort-highdepth-stats.yaml' % external_sample_name)
+
+
 
         bed_file_path = util.find_file(sample_dir, '*%s-sort-callable.bed' % external_sample_name)
         if bed_file_path:
