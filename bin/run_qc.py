@@ -36,7 +36,7 @@ def _parse_args():
 
     sp_contamination_parser = subparsers.add_parser('contamination_check')
     sp_contamination_parser.add_argument('--fastq_files', required=True, nargs='+', help='the fastq file pairs')
-    sp_contamination_parser.add_argument('--run_id', required=True)
+    sp_contamination_parser.add_argument('--work_dir', required=True)
     sp_contamination_parser.add_argument('--sample_id', required=True)
     sp_contamination_parser.set_defaults(func=run_species_contamiantion_check)
 
@@ -91,18 +91,14 @@ def run_genotype_validation(args):
 
 
 def run_species_contamiantion_check(args):
-    work_dir = os.path.join(cfg['jobs_dir'], args.run_id)
+    work_dir = os.path.join(cfg['jobs_dir'], args.sample_id)
     os.makedirs(work_dir,exist_ok=True)
-    species_contamination_check = ContaminationCheck(sorted(args.fastq_files),args.run_id)
+    species_contamination_check = ContaminationCheck(sorted(args.fastq_files),args.work_dir)
     species_contamination_check.start()
     expected_output_files = species_contamination_check.join()
     expected_output_files = (''.join(expected_output_files))
     fastqscreen_result = get_fastqscreen_results(expected_output_files, args.sample_id)
     print(fastqscreen_result)
-
-
-
-
 
 if __name__ == '__main__':
     sys.exit(main())
