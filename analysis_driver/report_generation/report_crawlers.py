@@ -238,7 +238,8 @@ class SampleCrawler(Crawler):
         ]
         for path in path_to_search:
             path.append(file_name)
-            return util.find_file(*path)
+            f = util.find_file(*path)
+            if f: return f
 
     @classmethod
     def _gender_alias(cls, gender):
@@ -303,7 +304,7 @@ class SampleCrawler(Crawler):
                 self.critical('Sample %s not found in file %s' % (self.sample_id, genotype_validation_path))
 
 
-        species_contamination_path = util.search_file(sample_dir, '%s_R1_screen.txt' % external_sample_name)
+        species_contamination_path = self.search_file(sample_dir, '%s_R1_screen.txt' % external_sample_name)
         if species_contamination_path:
             species_contamination_result = get_fastqscreen_results(species_contamination_path, self.sample_id)
             if species_contamination_result:
