@@ -16,11 +16,15 @@ class GenotypeValidation(AppLogger, Thread):
     This class will perform the Genotype validation steps. It subclasses Thread, allowing it to run in the
     background.
     """
-    def __init__(self, fastq_files, sample_id, vcf_file=None, check_neighbour=False, check_project=False, list_samples=None):
+    def __init__(self, fastq_files, sample_id, vcf_file=None, check_neighbour=False,
+                 check_project=False, list_samples=None):
         """
         :param list[str] fastq_files: fastq files to run genotype validation on
         :param str sample_id: the id of the run these sample were sequenced on
         :param str vcf_file:
+        :param check_neighbour:
+        :param check_project:
+        :param list_samples:
         """
         self.fastq_files = fastq_files
         self.sample_id = sample_id
@@ -174,7 +178,6 @@ class GenotypeValidation(AppLogger, Thread):
         list_commands = []
         for sample_name in sample2genotype:
             genotype_vcf = sample2genotype.get(sample_name)
-            tmp_genotype = sample2genotype.get(sample_name) + '.tmp'
             cmd = "{bcftools} reheader -s <(echo {sn}) {genovcf} > {genovcf}.tmp; mv {genovcf}.tmp {genovcf}"
             list_commands.append(cmd.format(bcftools=cfg.query('tools', 'bcftools'), sn=self.sample_id, genovcf=genotype_vcf))
 
