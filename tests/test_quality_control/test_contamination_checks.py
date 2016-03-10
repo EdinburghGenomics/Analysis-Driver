@@ -5,30 +5,31 @@ from unittest.mock import patch
 
 class TestContaminationCheck(TestAnalysisDriver):
 
-    def test_fastqscreen_command_pairedend(self):
-        fastq_files = ['fastqFile1.fastq', 'fastqFile2.fastq']
+    def test_fastqscreen_command(self):
+        fastq_files_single_end = ['fastqFile1.fastq']
+        fastq_files_paired_end = ['fastqFile1.fastq', 'fastqFile2.fastq']
         working_dir = 'testSample'
-        c = ContaminationCheck(fastq_files=fastq_files, working_dir=working_dir)
-        my_fastq_screen_command = c._fastqscreen_command()
-        assert my_fastq_screen_command == ("path/to/fastqscreen "
+        c_se = ContaminationCheck(fastq_files=fastq_files_single_end, working_dir=working_dir)
+        c_pe = ContaminationCheck(fastq_files=fastq_files_paired_end, working_dir=working_dir)
+        my_fastq_screen_command_se = c_se._fastqscreen_command()
+        my_fastq_screen_command_pe = c_pe._fastqscreen_command()
+        assert my_fastq_screen_command_se == ("path/to/fastqscreen "
+                                          "--aligner bowtie2 fastqFile1.fastq "
+                                          "--conf path/to/fastqscreen/conf --force")
+        assert my_fastq_screen_command_pe == ("path/to/fastqscreen "
                                           "--aligner bowtie2 fastqFile1.fastq fastqFile2.fastq "
                                           "--conf path/to/fastqscreen/conf --force")
 
-    def test_fastqscreen_command_singleend(self):
-        fastq_files = ['fastqFile1.fastq']
-        working_dir = 'testSample'
-        c = ContaminationCheck(fastq_files=fastq_files, working_dir=working_dir)
-        my_fastq_screen_command = c._fastqscreen_command()
-        assert my_fastq_screen_command == ("path/to/fastqscreen "
-                                          "--aligner bowtie2 fastqFile1.fastq " 
-                                          "--conf path/to/fastqscreen/conf --force")
-
     def test_get_expected_outfiles(self):
-        fastq_files = ['fastqFile1.fastq', 'fastqFile2.fastq']
+        fastq_files_single_end = ['fastqFile1.fastq']
+        fastq_files_paired_end = ['fastqFile1.fastq', 'fastqFile2.fastq']
         working_dir = 'testSample'
-        c = ContaminationCheck(fastq_files=fastq_files, working_dir=working_dir)
-        fastqscreen_expected_outfiles = c._get_expected_outfiles()
-        assert fastqscreen_expected_outfiles == ['fastqFile1_screen.txt', 'fastqFile2_screen.txt']
+        c_se = ContaminationCheck(fastq_files=fastq_files_single_end, working_dir=working_dir)
+        c_pe = ContaminationCheck(fastq_files=fastq_files_paired_end, working_dir=working_dir)
+        fastqscreen_expected_outfiles_se = c_se._get_expected_outfiles()
+        fastqscreen_expected_outfiles_pe = c_pe._get_expected_outfiles()
+        assert fastqscreen_expected_outfiles_se == ['fastqFile1_screen.txt']
+        assert fastqscreen_expected_outfiles_pe == ['fastqFile1_screen.txt', 'fastqFile2_screen.txt']
 
     @patch('analysis_driver.executor.execute')
     def test_run_fastqscreen(self, mocked_execute):
