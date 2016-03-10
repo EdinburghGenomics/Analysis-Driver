@@ -26,14 +26,14 @@ class TestDemultiplexingStats(TestAnalysisDriver):
     def test_parse_fastqscreen_file2(self):
         testFile = os.path.join(self.assets_path, "test_sample_R1_screen.txt")
         result = parse_fastqscreen_file(testFile, 'Mellivora capensis')
-        assert result == {ELEMENT_PCNT_UNMAPPED: 100, ELEMENT_PCNT_UNMAPPED_FOCAL: 100, ELEMENT_TOTAL_READS_MAPPED: 100, ELEMENT_CONTAMINANT_UNIQUE_MAP: {'None': 100}}
+        assert result is None
 
     @patch('analysis_driver.reader.demultiplexing_parsers.get_species_from_sample', autospec=True)
     def test_get_fastqscreen_results1(self, mocked_species_sample):
         testFile = os.path.join(self.assets_path, "test_sample_R1_screen.txt")
         mocked_species_sample.return_value = None
         result = get_fastqscreen_results(testFile, 'testSampleID')
-        assert result == {ELEMENT_PCNT_UNMAPPED: 100, ELEMENT_PCNT_UNMAPPED_FOCAL: 100, ELEMENT_TOTAL_READS_MAPPED: 100, ELEMENT_CONTAMINANT_UNIQUE_MAP: {'None': 100}}
+        assert result is None
 
     @patch('analysis_driver.reader.demultiplexing_parsers.get_species_from_sample', autospec=True)
     def test_get_fastqscreen_results2(self, mocked_species_sample):
