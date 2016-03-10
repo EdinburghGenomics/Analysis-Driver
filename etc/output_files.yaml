@@ -65,6 +65,9 @@ bcbio:
     basename: '{runfolder}_genotype_validation.vcf.gz'
     new_name: '{sample_id}_genotype_validation.vcf.gz'
 
+  - location: ['merged']
+    basename: '{sample_id}_R1_screen.txt'
+
 
 non_human_qc:
   - location: ['']
@@ -87,3 +90,6 @@ non_human_qc:
 
   - location: ['merged']
     basename: '{sample_id}_R2_fastqc.zip'
+
+  - location: ['merged']
+    basename: '{sample_id}_R1_screen.txt'

@@ -18,19 +18,19 @@ def main():
     if 'run' not in sys.argv and 'sample' not in sys.argv:
         print("no mode specified - use either 'run' or 'sample'")
         return 1
-
+    parent = argparse.ArgumentParser(add_help=False)
+    parent.add_argument('--test', action='store_true')
     p = argparse.ArgumentParser()
-    p.add_argument('--test', action='store_true')
     subparsers = p.add_subparsers()
 
-    run_parser = subparsers.add_parser('run')
+    run_parser = subparsers.add_parser('run', parents = [parent])
     run_parser.add_argument('run_id')
     run_parser.add_argument('--samplesheet')
     run_parser.add_argument('--conversion_stats', nargs='?', default=None)
     run_parser.add_argument('--run_dir', help='e.g. jobs/<run_id>')
     run_parser.set_defaults(func=run_crawler)
 
-    sample_parser = subparsers.add_parser('sample')
+    sample_parser = subparsers.add_parser('sample', parents = [parent])
     sample_parser.add_argument('project_id')
     sample_parser.add_argument('sample_id')
     sample_parser.add_argument('--input_dir')
