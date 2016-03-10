@@ -10,8 +10,8 @@ class TestContaminationCheck(TestAnalysisDriver):
         working_dir = 'testSample'
         c = ContaminationCheck(fastq_files=fastq_files, working_dir=working_dir)
         my_fastq_screen_command = c._fastqscreen_command()
-        assert my_fastq_screen_command == ("path/to/fastqscreen " \
-                                          "--aligner bowtie2 fastqFile1.fastq fastqFile2.fastq " \
+        assert my_fastq_screen_command == ("path/to/fastqscreen "
+                                          "--aligner bowtie2 fastqFile1.fastq fastqFile2.fastq "
                                           "--conf path/to/fastqscreen/conf --force")
 
     def test_fastqscreen_command_singleend(self):
@@ -19,8 +19,8 @@ class TestContaminationCheck(TestAnalysisDriver):
         working_dir = 'testSample'
         c = ContaminationCheck(fastq_files=fastq_files, working_dir=working_dir)
         my_fastq_screen_command = c._fastqscreen_command()
-        assert my_fastq_screen_command == ("path/to/fastqscreen " \
-                                          "--aligner bowtie2 fastqFile1.fastq " \
+        assert my_fastq_screen_command == ("path/to/fastqscreen "
+                                          "--aligner bowtie2 fastqFile1.fastq " 
                                           "--conf path/to/fastqscreen/conf --force")
 
     def test_get_expected_outfiles(self):
