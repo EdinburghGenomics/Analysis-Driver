@@ -1,3 +1,5 @@
+from analysis_driver.exceptions import AnalysisDriverError
+
 __author__ = 'mwham'
 import os
 import csv
@@ -74,6 +76,22 @@ def find_all_fastqs(location):
         fastqs.extend([os.path.join(name, f) for f in files if f.endswith('.fastq.gz')])
     app_logger.info('Found %s fastqs in %s' % (len(fastqs), location))
     return fastqs
+
+
+def find_all_fastq_pairs(location):
+    """
+    Return the results of find_all_fastqs as a list or paired fastq files.
+    It does not check the fastq name but expect that they will come together after sorting
+    :return: Full paths to all *.fastq.gz files for all sample projects and sample ids in the input dir aggregated per pair
+    :rtype: list[tuple(str, str)]
+    """
+    fastqs = find_all_fastqs(location)
+    if len(fastqs) % 2 != 0 :
+        raise AnalysisDriverError('Expect a even number of fastq file in %s found %s' % (location, len(fastqs)))
+    fastqs.sort()
+    return list(zip(*[iter(fastqs)]*2))
+
+
 
 
 def _write_bcbio_csv(run_dir, sample_id, fastqs, user_sample_id=None):

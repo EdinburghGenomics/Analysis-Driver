@@ -1,3 +1,5 @@
+from analysis_driver.exceptions import AnalysisDriverError
+
 __author__ = 'mwham'
 import os.path
 from analysis_driver.app_logging import get_logger
@@ -36,6 +38,31 @@ def seqtk_fqchk(fastq_file):
     app_logger.debug('Writing: ' + cmd)
     return cmd
 
+def sickle_paired_end_in_place(fastq_file_pair):
+    """
+    This command will run sicke in paired end mode to do a very minimal trimming and filter read shorter than 36 bases
+    It will essentially remove the adapter dimer flagged by blc2fastq
+    """
+    if len(fastq_file_pair) != 2:
+        raise AnalysisDriverError('sickle_paired_end only support paired fastq files')
+    f1, f2 = sorted(fastq_file_pair)
+    name, ext = os.path.splitext(f1)
+    of1 = name + '_sickle' + ext
+    name, ext = os.path.splitext(f1)
+    of2 = name + '_sickle' + ext
+    ofs = name + '_sickle_single' + ext
+    cmds = []
+    cmd = cfg['tools']['sickle'] + 'pe -f %s -r %s -o %s -p %s -s %s -q 5  -l 36  -x  -g -t sanger'
+    cmds.append(cmd % (f1, f2, of1, of2, ofs))
+    #replace the original files with the new files and remove the the single file to keep things clean
+    cmds.append('EXIT_CODE=$?' % (of1, f1))
+    cmds.append('$EXIT_CODE && mv %s %s' % (of1, f1))
+    cmds.append('$EXIT_CODE && mv %s %s' % (of2, f2))
+    cmds.append('$EXIT_CODE && rm %s' % (ofs))
+    cmds.append('echo $EXIT_CODE')
+    cmd = '\n'.join(cmds)
+    app_logger.debug('Writing: ' + cmd)
+    return cmd
 
 def bwa_mem_samblaster(fastq_pair, reference, expected_output_bam, thread=16):
     bwa_bin = cfg.query('tools', 'bwa')
