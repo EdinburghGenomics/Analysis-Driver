@@ -42,7 +42,7 @@ class TestGenotypeValidation(TestAnalysisDriver):
         )
         assert cmd == ' '.join(expected)
 
-    @patch('analysis_driver.quality_control.GenotypeValidation._bwa_aln', return_value='ƒmerge')
+    @patch('analysis_driver.quality_control.GenotypeValidation._bwa_aln', return_value='long_bwa_command')
     @patch('analysis_driver.executor.execute')
     def test__bwa_alignment(self, mocked_execute, mocked_bwa_aln):
         instance = mocked_execute.return_value
