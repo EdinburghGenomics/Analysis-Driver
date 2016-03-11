@@ -1,8 +1,9 @@
+from analysis_driver.reader.mapping_stats_parsers import parse_genotype_concordance
+
 __author__ = 'tcezard'
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, mock_open, call
 from tests.test_analysisdriver import TestAnalysisDriver
 import os.path
-import builtins
 from analysis_driver.quality_control import GenotypeValidation
 from analysis_driver.config import default as cfg
 
@@ -41,7 +42,7 @@ class TestGenotypeValidation(TestAnalysisDriver):
         )
         assert cmd == ' '.join(expected)
 
-    @patch('analysis_driver.quality_control.GenotypeValidation._bwa_aln', return_value='long_bwa_command')
+    @patch('analysis_driver.quality_control.GenotypeValidation._bwa_aln', return_value='ƒmerge')
     @patch('analysis_driver.executor.execute')
     def test__bwa_alignment(self, mocked_execute, mocked_bwa_aln):
         instance = mocked_execute.return_value
@@ -100,8 +101,8 @@ class TestGenotypeValidation(TestAnalysisDriver):
                  '-comp:VCF %s ' % vcf_file,
                  '-R %s' % cfg.query('genotype-validation', 'reference'),
                  ' > %s' % validation_results])
-        command_index = '{tabix} -p vcf {vcf}'.format(tabix=cfg.query('tools','tabix'), vcf=genotype_vcf)
-        #Call the index and the actuall validation
+        command_index = '{tabix} -p vcf {vcf}'.format(tabix=cfg.query('tools', 'tabix'), vcf=genotype_vcf)
+        # Call the index and the actuall validation
         assert mocked_execute.call_count == 2
         print(mocked_execute.call_args_list)
         mocked_execute.assert_any_call([command_index], job_name='index_vcf', working_dir=work_dir, cpus=1, mem=4)
@@ -110,24 +111,41 @@ class TestGenotypeValidation(TestAnalysisDriver):
         mocked_execute.reset_mock()
         with patch('os.path.isfile', side_effect = [True, True]):
             self.validator._vcf_validation(sample2genotype)
-        #No call to the index generation and the actuall validation
+        # No call to the index generation and the actuall validation
         assert mocked_execute.call_count == 1
         mocked_execute.assert_called_with([command_gatk], job_name='genotype_concordance', working_dir=work_dir, cpus=4, mem=8, log_commands=False)
+
 
     def test__merge_validation_results(self):
         sample2genotype_validation={"T00001P001A01":os.path.join(self.assets_path, 'sample_data', "T00001P001A01-validation.txt"),
                                     "T00001P001A02":os.path.join(self.assets_path, 'sample_data', "T00001P001A02-validation.txt")}
-        open_file1 = open(sample2genotype_validation.get("T00001P001A01"))
-        open_file2 = open(sample2genotype_validation.get("T00001P001A02"))
-        with patch.object(builtins, 'open') as mocked_open:
-            mock_open_write = MagicMock()
-            mocked_open.side_effect= [open_file1, open_file2, mock_open_write]
-            self.validator._merge_validation_results(sample2genotype_validation)
-            #print(mocked_open.mock_calls)
-            #print(mock_open_write.mock_calls)
+        o1 = parse_genotype_concordance(sample2genotype_validation.get("T00001P001A01"))
+        o2 = parse_genotype_concordance(sample2genotype_validation.get("T00001P001A02"))
 
-        open_file1.close()
-        open_file2.close()
+        with patch('analysis_driver.quality_control.genotype_validation.parse_genotype_concordance', side_effect=[o1, o2]):
+            mock_open_write = mock_open()
+            with patch('builtins.open', mock_open_write):
+                self.validator._merge_validation_results(sample2genotype_validation)
+                calls = []
+                calls.append(call('path/to/jobs/test_sample/test_sample_genotype_validation.txt', 'w'))
+                calls.append(call().__enter__())
+                calls.append(call().write('#:GATKTable:GenotypeConcordance_Counts:Per-sample concordance tables: comparison counts\n'))
+                calls.append(call().write('Sample\tNO_CALL_NO_CALL\tNO_CALL_HOM_REF\tNO_CALL_HET\tNO_CALL_HOM_VAR\t'
+                                          'NO_CALL_UNAVAILABLE\tNO_CALL_MIXED\tHOM_REF_NO_CALL\tHOM_REF_HOM_REF\t'
+                                          'HOM_REF_HET\tHOM_REF_HOM_VAR\tHOM_REF_UNAVAILABLE\tHOM_REF_MIXED\tHET_NO_CALL'
+                                          '\tHET_HOM_REF\tHET_HET\tHET_HOM_VAR\tHET_UNAVAILABLE\tHET_MIXED\tHOM_VAR_NO_CALL'
+                                          '\tHOM_VAR_HOM_REF\tHOM_VAR_HET\tHOM_VAR_HOM_VAR\tHOM_VAR_UNAVAILABLE\t'
+                                          'HOM_VAR_MIXED\tUNAVAILABLE_NO_CALL\tUNAVAILABLE_HOM_REF\tUNAVAILABLE_HET\t'
+                                          'UNAVAILABLE_HOM_VAR\tUNAVAILABLE_UNAVAILABLE\tUNAVAILABLE_MIXED\t'
+                                          'MIXED_NO_CALL\tMIXED_HOM_REF\tMIXED_HET\tMIXED_HOM_VAR\tMIXED_UNAVAILABLE\t'
+                                          'MIXED_MIXED\tMismatching_Alleles\n'))
+                calls.append(call().write('T00001P001A01\t3\t0\t0\t0\t3859\t0\t0\t9\t0\t0\t34303\t0\t0\t0\t13\t0\t127\t'
+                                          '0\t1\t0\t0\t6\t14\t0\t0\t0\t0\t0\t97\t0\t0\t0\t0\t0\t0\t0\t0\n'))
+                calls.append(call().write('T00001P001A02\t3\t0\t0\t0\t3859\t0\t0\t9\t0\t0\t34303\t0\t0\t0\t13\t0\t127\t'
+                                          '0\t1\t0\t0\t6\t14\t0\t0\t0\t0\t0\t97\t0\t0\t0\t0\t0\t0\t0\t0\n'))
+                calls.append(call().__exit__(None, None, None))
+                assert  mock_open_write.mock_calls == calls
+
 
     @patch('analysis_driver.executor.execute')
     def test__rename_expected_genotype(self, mocked_execute):

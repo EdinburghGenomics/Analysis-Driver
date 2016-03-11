@@ -261,8 +261,8 @@ class GenotypeValidation(AppLogger, Thread):
         if sample2genotype:
             self._rename_expected_genotype(sample2genotype)
             self.sample2genotype_validation = self._vcf_validation(sample2genotype)
-        if len(samples_names)>1:
-            self._merge_validation_results(self.sample2genotype_validation)
+            if len(self.sample2genotype_validation)>1:
+                self._merge_validation_results(self.sample2genotype_validation)
 
     def run(self):
         try:
