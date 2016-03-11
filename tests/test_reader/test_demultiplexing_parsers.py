@@ -1,7 +1,11 @@
 import os
 from analysis_driver.reader.demultiplexing_parsers import parse_seqtk_fqchk_file
+#from analysis_driver.reader.demultiplexing_parsers import parse_fastqscreen_file
+#from analysis_driver.reader.demultiplexing_parsers import get_fastqscreen_results
+from analysis_driver.reader.demultiplexing_parsers import get_median_coverage
 from tests.test_analysisdriver import TestAnalysisDriver
-
+#from analysis_driver.constants import ELEMENT_CONTAMINANT_UNIQUE_MAP, ELEMENT_PCNT_UNMAPPED_FOCAL, ELEMENT_PCNT_UNMAPPED, ELEMENT_TOTAL_READS_MAPPED
+from unittest.mock import patch
 __author__ = 'tcezard'
 
 
@@ -14,3 +18,32 @@ class TestDemultiplexingStats(TestAnalysisDriver):
         assert nb_base == 83750569
         assert lo_q == 8551190
         assert hi_q == 75199379
+
+#    def test_parse_fastqscreen_file1(self):
+#        testFile = os.path.join(self.assets_path, "test_sample_R1_screen.txt")
+#        result = parse_fastqscreen_file(testFile, 'Homo sapiens')
+#        assert result == {ELEMENT_PCNT_UNMAPPED: 1.06, ELEMENT_PCNT_UNMAPPED_FOCAL: 1.09, ELEMENT_TOTAL_READS_MAPPED: 100000, ELEMENT_CONTAMINANT_UNIQUE_MAP: {'Gallus gallus': 1, 'Felis catus': 4, 'Bos taurus': 1, 'Ovis aries': 2, 'Mus musculus': 4}}
+
+#    def test_parse_fastqscreen_file2(self):
+#        testFile = os.path.join(self.assets_path, "test_sample_R1_screen.txt")
+#        result = parse_fastqscreen_file(testFile, 'Mellivora capensis')
+#        assert result is None
+
+#    @patch('analysis_driver.reader.demultiplexing_parsers.get_species_from_sample', autospec=True)
+#    def test_get_fastqscreen_results1(self, mocked_species_sample):
+#        testFile = os.path.join(self.assets_path, "test_sample_R1_screen.txt")
+#        mocked_species_sample.return_value = None
+#        result = get_fastqscreen_results(testFile, 'testSampleID')
+#        assert result is None
+
+#    @patch('analysis_driver.reader.demultiplexing_parsers.get_species_from_sample', autospec=True)
+#    def test_get_fastqscreen_results2(self, mocked_species_sample):
+#        testFile = os.path.join(self.assets_path, "test_sample_R1_screen.txt")
+#        mocked_species_sample.return_value = 'Homo sapiens'
+#        result = get_fastqscreen_results(testFile, 'testSampleID')
+#        assert result == {ELEMENT_PCNT_UNMAPPED: 1.06, ELEMENT_TOTAL_READS_MAPPED: 100000, ELEMENT_PCNT_UNMAPPED_FOCAL: 1.09, ELEMENT_CONTAMINANT_UNIQUE_MAP: {'Gallus gallus': 1, 'Felis catus': 4, 'Bos taurus': 1, 'Ovis aries': 2, 'Mus musculus': 4}}
+
+    def test_get_median_coverage(self):
+        gatk_median_coverage_file = os.path.join(self.assets_path, 'test_crawlers', 'test_sample.depthofcoverage.sample_summary')
+        median_coverage = get_median_coverage(gatk_median_coverage_file)
+        assert median_coverage == 35.64

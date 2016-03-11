@@ -84,7 +84,8 @@ class TestSampleCrawler(TestCrawler):
         'bam_file_reads': 988805087,
         'mapped_reads': 975587288,
         'called_gender': 'male',
-        'provided_gender': 'female'
+        'provided_gender': 'female',
+        'gatk_median_coverage': 35.64
     }
 
     def setUp(self):

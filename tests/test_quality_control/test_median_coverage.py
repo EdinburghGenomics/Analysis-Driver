@@ -5,8 +5,8 @@ class TestGatkDepthOfCoverage():
 
     def test_get_gatk_depthofcoverage_command(self):
         bam_file = 'testfile.bam'
-        sample_id = 'test_sample'
-        g = GatkDepthofCoverage(sample_id = sample_id, bam_file = bam_file)
+        working_dir = 'test_sample'
+        g = GatkDepthofCoverage(bam_file = bam_file, working_dir = working_dir)
         my_gatk_depthofcoverage_command, my_gatk_depthofcoverage_outfile = g._get_gatk_depthofcoverage_command()
         assert my_gatk_depthofcoverage_command == 'java -jar GenomeAnalysisTK.jar ' \
                                                   '-T DepthOfCoverage ' \
@@ -20,8 +20,8 @@ class TestGatkDepthOfCoverage():
     @patch('analysis_driver.executor.execute', autospec=True)
     def test_run_gatk_depthofcoverage(self, mocked_execute):
         bam_file = 'testfile.bam'
-        sample_id = 'test_sample'
-        g = GatkDepthofCoverage(sample_id = sample_id, bam_file = bam_file)
+        working_dir = 'test_sample'
+        g = GatkDepthofCoverage(bam_file = bam_file, working_dir = working_dir)
         instance = mocked_execute.return_value
         instance.join.return_value = 0
         run_gatk_depthofcoverage = g._run_gatk_depthofcoverage()
@@ -31,7 +31,7 @@ class TestGatkDepthOfCoverage():
                                                   '-o testfile.depthofcoverage '
                                                   '-I testfile.bam'],
                                                job_name='depthofcoverage',
-                                               working_dir='path/to/jobs/test_sample',
+                                               working_dir='test_sample',
                                                cpus=2,
                                                mem=10
                                                )
