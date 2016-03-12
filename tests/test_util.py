@@ -52,10 +52,11 @@ class TestUtil(TestAnalysisDriver):
     def test_sickle_paired_end_in_place(self):
         expected_command = "path/to/sickle pe -f fastqfile1_R1.fastq.gz -r fastqfile1_R2.fastq.gz " \
                            "-o fastqfile1_R1.fastq_sickle.gz -p fastqfile1_R2.fastq_sickle.gz -s " \
-                           "fastqfile1_R1.fastq_sickle_single.gz -q 5  -l 36  -x  -g -t sanger\n"\
-                           "EXIT_CODE=$?\n$EXIT_CODE && mv fastqfile1_R1.fastq_sickle.gz fastqfile1_R1.fastq.gz\n" \
-                           "$EXIT_CODE && mv fastqfile1_R2.fastq_sickle.gz fastqfile1_R2.fastq.gz\n" \
-                           "$EXIT_CODE && rm fastqfile1_R1.fastq_sickle_single.gz\n(exit $EXIT_CODE)"
+                           "fastqfile1_R1.fastq_sickle_single.gz -q 5  -l 36  -x  -g -t sanger > " \
+                           "fastqfile1_R1.fastq_sickle.log\nEXIT_CODE=$?\n" \
+                           "(exit $EXIT_CODE) && mv fastqfile1_R1.fastq_sickle.gz fastqfile1_R1.fastq.gz\n" \
+                           "(exit $EXIT_CODE) && mv fastqfile1_R2.fastq_sickle.gz fastqfile1_R2.fastq.gz\n" \
+                           "(exit $EXIT_CODE) && rm fastqfile1_R1.fastq_sickle_single.gz\n(exit $EXIT_CODE)"
         cmd = sickle_paired_end_in_place(('fastqfile1_R1.fastq.gz', 'fastqfile1_R2.fastq.gz'))
         assert cmd == expected_command
 
