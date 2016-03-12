@@ -52,14 +52,14 @@ def sickle_paired_end_in_place(fastq_file_pair):
     of2 = name + '_sickle' + ext
     ofs = name + '_sickle_single' + ext
     cmds = []
-    cmd = cfg['tools']['sickle'] + 'pe -f %s -r %s -o %s -p %s -s %s -q 5  -l 36  -x  -g -t sanger'
+    cmd = cfg['tools']['sickle'] + ' pe -f %s -r %s -o %s -p %s -s %s -q 5  -l 36  -x  -g -t sanger'
     cmds.append(cmd % (f1, f2, of1, of2, ofs))
     #replace the original files with the new files and remove the the single file to keep things clean
-    cmds.append('EXIT_CODE=$?' % (of1, f1))
+    cmds.append('EXIT_CODE=$?')
     cmds.append('$EXIT_CODE && mv %s %s' % (of1, f1))
     cmds.append('$EXIT_CODE && mv %s %s' % (of2, f2))
     cmds.append('$EXIT_CODE && rm %s' % (ofs))
-    cmds.append('echo $EXIT_CODE')
+    cmds.append('(exit $EXIT_CODE)')
     cmd = '\n'.join(cmds)
     app_logger.debug('Writing: ' + cmd)
     return cmd
