@@ -48,9 +48,9 @@ def sickle_paired_end_in_place(fastq_file_pair):
     f1, f2 = sorted(fastq_file_pair)
     name, ext = os.path.splitext(f1)
     of1 = name + '_sickle' + ext
-    name, ext = os.path.splitext(f1)
-    of2 = name + '_sickle' + ext
     ofs = name + '_sickle_single' + ext
+    name, ext = os.path.splitext(f2)
+    of2 = name + '_sickle' + ext
     cmds = []
     cmd = cfg['tools']['sickle'] + ' pe -f %s -r %s -o %s -p %s -s %s -q 5  -l 36  -x  -g -t sanger'
     cmds.append(cmd % (f1, f2, of1, of2, ofs))
