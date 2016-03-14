@@ -41,7 +41,7 @@ class TestUtil(TestAnalysisDriver):
             ) in fastqs
 
 
-    def find_all_fastq_pairs(self):
+    def test_find_all_fastq_pairs(self):
         fastqs = util.find_all_fastq_pairs(self.fastq_path)
         for f1, f2 in [('10015AT0001_S6_L004_R1_001.fastq.gz', '10015AT0001_S6_L004_R2_001.fastq.gz'),
                        ('10015AT0001_S6_L005_R1_001.fastq.gz', '10015AT0001_S6_L005_R2_001.fastq.gz')]:
