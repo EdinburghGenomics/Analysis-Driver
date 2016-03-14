@@ -222,7 +222,7 @@ class GenotypeValidation(AppLogger, Thread):
         with open(os.path.join(self.work_directory, self.sample_id + '_genotype_validation.txt'), 'w'   ) as open_file:
             open_file.write(table_type + '\n')
             open_file.write('\t'.join(headers.split()) + '\n')
-            for sample in all_sample_lines:
+            for sample in sorted(all_sample_lines):
                 open_file.write(all_sample_lines.get(sample) + '\n')
 
 

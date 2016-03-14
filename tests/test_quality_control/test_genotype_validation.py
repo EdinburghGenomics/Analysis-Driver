@@ -118,7 +118,7 @@ class TestGenotypeValidation(TestAnalysisDriver):
 
 
     def test__merge_validation_results(self):
-        sample2genotype_validation=OrderedDict([
+        sample2genotype_validation=dict([
                 ("T00001P001A01", os.path.join(self.assets_path, 'sample_data', "T00001P001A01-validation.txt")),
                 ("T00001P001A02", os.path.join(self.assets_path, 'sample_data', "T00001P001A02-validation.txt"))
         ])
