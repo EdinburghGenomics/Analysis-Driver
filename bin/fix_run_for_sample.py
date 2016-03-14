@@ -5,17 +5,16 @@ import argparse
 import logging
 from ctypes import util
 
-from analysis_driver.dataset_scanner import SampleScanner
-from analysis_driver.transfer_data import prepare_sample_data
-
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from analysis_driver.quality_control.genotype_validation import GenotypeValidation
 from analysis_driver.config import logging_default as log_cfg
 from analysis_driver import executor
 from analysis_driver.exceptions import AnalysisDriverError
 from analysis_driver.util.bash_commands import rsync_from_to, is_remote_path
 from analysis_driver.config import default as cfg
-from analysis_driver.clarity import get_user_sample_name
+from analysis_driver.constants import ELEMENT_NB_READS_CLEANED, ELEMENT_RUN_NAME, ELEMENT_PROJECT_ID, ELEMENT_LANE
+from analysis_driver.dataset_scanner import SampleScanner
+from analysis_driver.transfer_data import prepare_sample_data
+
 
 log_cfg.default_level = logging.DEBUG
 log_cfg.add_handler('stdout', logging.StreamHandler(stream=sys.stdout), logging.DEBUG)
@@ -23,16 +22,55 @@ log_cfg.add_handler('stdout', logging.StreamHandler(stream=sys.stdout), logging.
 
 def main():
     args = _parse_args()
-
-    args.func(args)
+    fix_run_for_sample(args.sample_id)
 
 
 def _parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--project_id', required=True)
     parser.add_argument('--sample_id', required=True)
 
     return parser.parse_args()
+
+
+
+def copy_data_back_to_run(dataset, fastq_files):
+    """
+    Decide whether to rsync the fastq files to an intermediate dir just find them.
+    :param Dataset dataset: A dataset object
+    """
+    fastqs = []
+    for run_element in dataset.run_elements:
+        if int(run_element.get(ELEMENT_NB_READS_CLEANED, 0)) > 0:
+            files_to_transfer = list(fastq_files)
+            for f in fastq_files:
+                files_to_transfer.append(f + '.md5')
+                files_to_transfer.append(f + '.fqchk')
+            copy_data_back_to_run_element(dataset.name, run_element, files_to_transfer)
+
+
+def copy_data_back_to_run_element(sample_id, run_element, files_to_transfer):
+    run_id = run_element.get(ELEMENT_RUN_NAME)
+    project_id = run_element.get(ELEMENT_PROJECT_ID)
+
+    local_fastq_dir = os.path.join(cfg['jobs_dir'], run_id, 'fastq')
+    dest_dir = None
+    if os.path.isdir(local_fastq_dir, project_id, sample_id):
+        dest_dir = local_fastq_dir, project_id, sample_id
+
+    remote_fastq_dir = os.path.join(cfg['input_dir'], run_id, 'fastq')
+    if is_remote_path(remote_fastq_dir):
+        dest_dir = os.path.join(remote_fastq_dir, project_id, sample_id)
+    if dest_dir:
+        command = rsync_from_to(' '.join(files_to_transfer), dest_dir)
+        exit_status = executor.execute(
+                [command],
+                job_name='tf_bak',
+                working_dir=os.path.join(cfg['jobs_dir'], sample_id)
+            ).join()
+        return  exit_status
+    else:
+        raise AnalysisDriverError('Cannot find Destination directory for %s'%(sample_id))
+
 
 
 def fix_run_for_sample(sample_id):
@@ -91,6 +129,8 @@ def fix_run_for_sample(sample_id):
 
     if exit_status:
         return exit_status
+
+    copy_data_back_to_run(dataset, fastq_files)
 
 
 
