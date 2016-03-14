@@ -2,6 +2,7 @@ from analysis_driver.reader.mapping_stats_parsers import parse_genotype_concorda
 
 __author__ = 'tcezard'
 from unittest.mock import patch, mock_open, call
+from collections import OrderedDict
 from tests.test_analysisdriver import TestAnalysisDriver
 import os.path
 from analysis_driver.quality_control import GenotypeValidation
@@ -117,8 +118,10 @@ class TestGenotypeValidation(TestAnalysisDriver):
 
 
     def test__merge_validation_results(self):
-        sample2genotype_validation={"T00001P001A01":os.path.join(self.assets_path, 'sample_data', "T00001P001A01-validation.txt"),
-                                    "T00001P001A02":os.path.join(self.assets_path, 'sample_data', "T00001P001A02-validation.txt")}
+        sample2genotype_validation=OrderedDict([
+                ("T00001P001A01", os.path.join(self.assets_path, 'sample_data', "T00001P001A01-validation.txt")),
+                ("T00001P001A02", os.path.join(self.assets_path, 'sample_data', "T00001P001A02-validation.txt"))
+        ])
         o1 = parse_genotype_concordance(sample2genotype_validation.get("T00001P001A01"))
         o2 = parse_genotype_concordance(sample2genotype_validation.get("T00001P001A02"))
 
