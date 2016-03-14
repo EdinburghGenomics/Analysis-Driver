@@ -10,6 +10,7 @@ from analysis_driver.config import output_files_config, default as cfg  # import
 from analysis_driver.notification import default as ntf
 from analysis_driver.quality_control.gender_validation import GenderValidation
 from analysis_driver.quality_control.genotype_validation import GenotypeValidation
+from analysis_driver.quality_control.contamination_checks import ContaminationCheck
 from analysis_driver.report_generation.report_crawlers import RunCrawler, SampleCrawler
 from analysis_driver.transfer_data import prepare_run_data, prepare_sample_data, output_sample_data, output_run_data, \
     create_links_from_bcbio
@@ -200,6 +201,13 @@ def variant_calling_pipeline(dataset):
     genotype_validation = GenotypeValidation(fastq_pair, sample_id)
     genotype_validation.start()
 
+    # species contamination check
+    ntf.start_stage('species contamination check')
+    species_contamination_check = ContaminationCheck([(fastq_pair[0])], sample_dir)
+    species_contamination_check.start()
+    species_contamination_check.join()
+    ntf.end_stage('species contamination check')
+
     # bcbio
     ntf.start_stage('bcbio')
     bcbio_executor = _run_bcbio(sample_id, sample_dir, fastq_pair)
@@ -266,6 +274,13 @@ def qc_pipeline(dataset, species):
     ntf.end_stage('sample_fastqc', fastqc_exit_status)
     bwa_exit_status = bwa_mem_executor.join()
     ntf.end_stage('sample_bwa', bwa_exit_status)
+
+    # species contamination check
+    ntf.start_stage('species contamination check')
+    species_contamination_check = ContaminationCheck([(fastq_pair[0])], sample_dir)
+    species_contamination_check.start()
+    species_contamination_check.join()
+    ntf.end_stage('species contamination check')
 
     ntf.start_stage('bamtools_stat')
     bamtools_stat_file = os.path.join(sample_dir, 'bamtools_stats.txt')
