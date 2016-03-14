@@ -5,7 +5,7 @@ from analysis_driver.clarity import get_sex_from_lims, get_user_sample_name
 from analysis_driver.app_logging import AppLogger
 from analysis_driver.exceptions import AnalysisDriverError
 from analysis_driver.reader import demultiplexing_parsers, mapping_stats_parsers
-from analysis_driver.reader.demultiplexing_parsers import get_median_coverage
+from analysis_driver.reader.demultiplexing_parsers import get_fastqscreen_results
 from analysis_driver.rest_communication import post_or_patch as pp
 from analysis_driver.config import default as cfg
 from analysis_driver.constants import ELEMENT_RUN_NAME, ELEMENT_NUMBER_LANE, ELEMENT_RUN_ELEMENTS, \
@@ -13,10 +13,11 @@ from analysis_driver.constants import ELEMENT_RUN_NAME, ELEMENT_NUMBER_LANE, ELE
     ELEMENT_LANE, ELEMENT_SAMPLES, ELEMENT_NB_READS_SEQUENCED, ELEMENT_NB_READS_PASS_FILTER, ELEMENT_NB_BASE_R1, \
     ELEMENT_NB_BASE_R2, ELEMENT_NB_Q30_R1, ELEMENT_NB_Q30_R2, ELEMENT_PC_READ_IN_LANE, ELEMENT_LANE_ID, \
     ELEMENT_PROJECT_ID, ELEMENT_SAMPLE_EXTERNAL_ID, ELEMENT_NB_READS_IN_BAM, ELEMENT_NB_MAPPED_READS, \
-    ELEMENT_NB_DUPLICATE_READS, ELEMENT_NB_PROPERLY_MAPPED, ELEMENT_MEDIAN_COVERAGE, ELEMENT_GATK_MEDIAN_COVERAGE,\
-    ELEMENT_PC_BASES_CALLABLE, ELEMENT_LANE_NUMBER, ELEMENT_CALLED_GENDER, ELEMENT_PROVIDED_GENDER,\
-    ELEMENT_NB_READS_CLEANED, ELEMENT_NB_Q30_R1_CLEANED, ELEMENT_NB_BASE_R2_CLEANED, ELEMENT_NB_Q30_R2_CLEANED,\
-    ELEMENT_NB_BASE_R1_CLEANED, ELEMENT_GENOTYPE_VALIDATION
+    ELEMENT_NB_DUPLICATE_READS, ELEMENT_NB_PROPERLY_MAPPED, ELEMENT_MEDIAN_COVERAGE, ELEMENT_PC_BASES_CALLABLE, \
+    ELEMENT_LANE_NUMBER, ELEMENT_CALLED_GENDER, ELEMENT_PROVIDED_GENDER, ELEMENT_NB_READS_CLEANED, ELEMENT_NB_Q30_R1_CLEANED, \
+    ELEMENT_NB_BASE_R2_CLEANED, ELEMENT_NB_Q30_R2_CLEANED, ELEMENT_NB_BASE_R1_CLEANED, ELEMENT_GENOTYPE_VALIDATION, \
+    ELEMENT_SPECIES_CONTAMINATION
+
 
 
 class Crawler(AppLogger):
@@ -263,8 +264,6 @@ class SampleCrawler(Crawler):
         else:
             self.critical('Missing %s-sort-highdepth-stats.yaml' % external_sample_name)
 
-
-
         bed_file_path = util.find_file(sample_dir, '*%s-sort-callable.bed' % external_sample_name)
         if bed_file_path:
             coverage_per_type = mapping_stats_parsers.parse_callable_bed_file(bed_file_path)
@@ -293,16 +292,14 @@ class SampleCrawler(Crawler):
             else:
                 self.critical('Sample %s not found in file %s' % (self.sample_id, genotype_validation_paths[0]))
 
-        median_coverage_path = util.find_files(sample_dir, '%s.depthofcoverage.sample_summary' % external_sample_name)
-        if median_coverage_path:
-            median_coverage = get_median_coverage(median_coverage_path[0])
-            if median_coverage:
-                sample[ELEMENT_GATK_MEDIAN_COVERAGE] = median_coverage
+
+        species_contamination_paths = util.find_files(sample_dir, '%s_R1_screen.txt' % external_sample_name)
+        if species_contamination_paths:
+            species_contamination_result = get_fastqscreen_results(species_contamination_paths[0], self.sample_id)
+            if species_contamination_result:
+                sample[ELEMENT_SPECIES_CONTAMINATION] = species_contamination_result
             else:
-                self.critical('median coverage unavailable for %s' % external_sample_name)
-
-
-
+                self.critical('Contamination check unavailable for %s' % (self.sample_id))
         return sample
 
     def send_data(self):

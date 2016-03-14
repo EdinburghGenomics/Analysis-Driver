@@ -1,0 +1,12 @@
+#Fastq_screen version: 0.5.2	#Reads in subset: 100000
+Genome	#Reads_processed	#Unmapped	%Unmapped	#One_hit_one_genome	%One_hit_one_genome	#Multiple_hits_one_genome	%Multiple_hits_one_genome	#One_hit_multiple_genomes	%One_hit_multiple_genomes	Multiple_hits_multiple_genomes	%Multiple_hits_multiple_genomes
+Bradyrhizobium_diazoefficiens_semia_5080	93283	93270	99.99	0	0.00	0	0.00	4	0.00	9	0.01
+Gallus_gallus	93283	89830	96.30	1	0.00	0	0.00	1198	1.28	2254	2.42
+Sus_scrofa	93283	84109	90.17	0	0.00	0	0.00	3155	3.38	6019	6.45
+Ovis_aries	93283	85377	91.53	2	0.00	0	0.00	3406	3.65	4498	4.82
+Mus_musculus	93283	84993	91.11	3	0.00	1	0.00	2703	2.90	5583	5.99
+Bos_taurus	93283	83939	89.98	0	0.00	1	0.00	4422	4.74	4921	5.28
+Felis_catus	93283	83459	89.47	3	0.00	1	0.00	3908	4.19	5912	6.34
+Homo_sapiens	93283	1010	1.09	51361	55.06	22783	24.42	4519	4.84	13610	14.59
+
+%Hit_no_genomes: 1.06
