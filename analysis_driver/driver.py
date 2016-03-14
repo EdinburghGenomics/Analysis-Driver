@@ -235,11 +235,16 @@ def qc_pipeline(dataset, species):
     exit_status = 0
 
     dataset.start()
+
     fastq_files = prepare_sample_data(dataset)
 
     sample_id = dataset.name
     sample_dir = os.path.join(cfg['jobs_dir'], sample_id)
     app_logger.info('Job dir: ' + sample_dir)
+
+    reference = cfg.query('references', species.replace(' ', '_'), 'fasta')
+    if not reference:
+        raise AnalysisDriverError('Could not find reference for species % in sample % ' % species, sample_id)
 
     # merge fastq files
     ntf.start_stage('merge fastqs')
@@ -259,7 +264,6 @@ def qc_pipeline(dataset, species):
 
     # bwa mem
     expected_output_bam = os.path.join(sample_dir, sample_id + '.bam')
-    reference = cfg.query('references', species.replace(' ', '_'), 'fasta')
     app_logger.info('align %s to %s genome found at %s' % (sample_id, species, reference))
     ntf.start_stage('sample_bwa')
     bwa_mem_executor = executor.execute(
