@@ -3,11 +3,10 @@ import sys
 import os
 import argparse
 import logging
-from ctypes import util
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from analysis_driver.config import logging_default as log_cfg
-from analysis_driver import executor
+from analysis_driver import executor, util
 from analysis_driver.exceptions import AnalysisDriverError
 from analysis_driver.util.bash_commands import rsync_from_to, is_remote_path
 from analysis_driver.config import default as cfg
@@ -22,6 +21,7 @@ log_cfg.add_handler('stdout', logging.StreamHandler(stream=sys.stdout), logging.
 
 def main():
     args = _parse_args()
+    cfg.merge(cfg['sample'])
     fix_run_for_sample(args.sample_id)
 
 
@@ -38,7 +38,6 @@ def copy_data_back_to_run(dataset, fastq_files):
     Decide whether to rsync the fastq files to an intermediate dir just find them.
     :param Dataset dataset: A dataset object
     """
-    fastqs = []
     for run_element in dataset.run_elements:
         if int(run_element.get(ELEMENT_NB_READS_CLEANED, 0)) > 0:
             files_to_transfer = list(fastq_files)
@@ -52,25 +51,18 @@ def copy_data_back_to_run_element(sample_id, run_element, files_to_transfer):
     run_id = run_element.get(ELEMENT_RUN_NAME)
     project_id = run_element.get(ELEMENT_PROJECT_ID)
 
-    local_fastq_dir = os.path.join(cfg['jobs_dir'], run_id, 'fastq')
-    dest_dir = None
-    if os.path.isdir(local_fastq_dir, project_id, sample_id):
-        dest_dir = local_fastq_dir, project_id, sample_id
-
-    remote_fastq_dir = os.path.join(cfg['input_dir'], run_id, 'fastq')
-    if is_remote_path(remote_fastq_dir):
-        dest_dir = os.path.join(remote_fastq_dir, project_id, sample_id)
-    if dest_dir:
-        command = rsync_from_to(' '.join(files_to_transfer), dest_dir)
-        exit_status = executor.execute(
-                [command],
-                job_name='tf_bak',
-                working_dir=os.path.join(cfg['jobs_dir'], sample_id)
-            ).join()
-        return  exit_status
-    else:
+    fastq_dir = os.path.join(cfg['input_dir'], run_id, 'fastq')
+    dest_dir = os.path.join(fastq_dir, project_id, sample_id)
+    if not os.path.isdir(dest_dir) and  not is_remote_path(fastq_dir):
         raise AnalysisDriverError('Cannot find Destination directory for %s'%(sample_id))
 
+    command = rsync_from_to(' '.join(files_to_transfer), dest_dir)
+    exit_status = executor.execute(
+            [command],
+            job_name='tf_bak',
+            working_dir=os.path.join(cfg['jobs_dir'], sample_id)
+        ).join()
+    return  exit_status
 
 
 def fix_run_for_sample(sample_id):
@@ -79,7 +71,7 @@ def fix_run_for_sample(sample_id):
     scanner = SampleScanner(cfg)
     dataset = scanner.get_dataset(sample_id)
     fastq_files = prepare_sample_data(dataset)
-    fastq_files.sorted()
+    fastq_files.sort()
     fastq_pairs = list(zip(*[iter(fastq_files)]*2))
     exit_status = executor.execute(
         [util.bash_commands.sickle_paired_end_in_place(fqs) for fqs in fastq_pairs],
