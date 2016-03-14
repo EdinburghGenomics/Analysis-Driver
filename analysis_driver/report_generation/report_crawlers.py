@@ -5,8 +5,8 @@ from analysis_driver.clarity import get_sex_from_lims, get_user_sample_name
 from analysis_driver.app_logging import AppLogger
 from analysis_driver.exceptions import AnalysisDriverError
 from analysis_driver.reader import demultiplexing_parsers, mapping_stats_parsers
+from analysis_driver.reader.demultiplexing_parsers import get_median_coverage
 from analysis_driver.rest_communication import post_or_patch as pp
-from analysis_driver.quality_control import median_coverage
 from analysis_driver.config import default as cfg
 from analysis_driver.constants import ELEMENT_RUN_NAME, ELEMENT_NUMBER_LANE, ELEMENT_RUN_ELEMENTS, \
     ELEMENT_BARCODE, ELEMENT_RUN_ELEMENT_ID, ELEMENT_SAMPLE_INTERNAL_ID, ELEMENT_LIBRARY_INTERNAL_ID, \
@@ -292,6 +292,16 @@ class SampleCrawler(Crawler):
                 sample[ELEMENT_GENOTYPE_VALIDATION] = genotyping_result
             else:
                 self.critical('Sample %s not found in file %s' % (self.sample_id, genotype_validation_paths[0]))
+
+        median_coverage_path = util.find_files(sample_dir, '%s.depthofcoverage.sample_summary' % external_sample_name)
+        if median_coverage_path:
+            median_coverage = get_median_coverage(median_coverage_path[0])
+            if median_coverage:
+                sample[ELEMENT_GATK_MEDIAN_COVERAGE] = median_coverage
+            else:
+                self.critical('median coverage unavailable for %s' % external_sample_name)
+
+
 
         return sample
 

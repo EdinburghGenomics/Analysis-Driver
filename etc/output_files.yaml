@@ -65,6 +65,8 @@ bcbio:
     basename: '{runfolder}_genotype_validation.vcf.gz'
     new_name: '{sample_id}_genotype_validation.vcf.gz'
 
+  - location:
+
 
 non_human_qc:
   - location: ['']

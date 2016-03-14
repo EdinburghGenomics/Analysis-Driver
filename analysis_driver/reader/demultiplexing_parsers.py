@@ -99,3 +99,9 @@ def parse_seqtk_fqchk_file(fqchk_file, q_threshold):
             else:
                 hi_q += int(all_cycles[9+i])
         return nb_read, nb_base, lo_q, hi_q
+
+
+def get_median_coverage(filename):
+    with open(filename) as open_file:
+        median_coverage = float(((open_file.readlines())[1]).split()[2])
+    return median_coverage

@@ -6,16 +6,15 @@ from analysis_driver.config import default as cfg
 from analysis_driver.notification import default as ntf
 
 class GatkDepthofCoverage(AppLogger, Thread):
-    def __init__(self, sample_id, bam_file):
-        self.sample_id = sample_id
+    def __init__(self, working_dir, bam_file):
         self.bam_file = bam_file
-        self.work_directory = os.path.join(cfg['jobs_dir'], self.sample_id)
+        self.working_dir =  working_dir
         self.exception = None
         Thread.__init__(self)
 
     def _get_gatk_depthofcoverage_command(self):
         reference = os.path.join(cfg.query('tools', 'bcbio') + '/genomes/Hsapiens/' + cfg['genome'] + '/seq/' + cfg['genome'] + '.fa')
-        gatk_depthofcoverage_out_file = ((self.bam_file.rstrip('bam')) + 'depthofcoverage')
+        gatk_depthofcoverage_out_file = ((self.bam_file).rstrip('bam') + 'depthofcoverage')
         gatk_depthofcoverage_command = 'java -jar GenomeAnalysisTK.jar' \
                                        ' -T DepthOfCoverage ' \
                                        '-R %s ' \
@@ -34,7 +33,7 @@ class GatkDepthofCoverage(AppLogger, Thread):
         depthofcoverage_executor = executor.execute(
             [depthofcoverage_command],
             job_name='depthofcoverage',
-            working_dir=self.work_directory,
+            working_dir=self.working_dir,
             cpus=2,
             mem=10
         )
