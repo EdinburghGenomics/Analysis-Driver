@@ -46,7 +46,7 @@ def _parse_args():
 
 
 def run_genotype_validation(args):
-    def retrive_data(paths, work_dir, allow_fail=False):
+    def retrieve_data(paths, work_dir, allow_fail=False):
         cmd = rsync_from_to(paths, work_dir)
         exit_status = executor.execute(
                 [cmd],
@@ -63,16 +63,16 @@ def run_genotype_validation(args):
     projects_source = cfg.query('output_dir')
     work_dir = os.path.join(cfg['jobs_dir'], args.sample_id)
     os.makedirs(work_dir, exist_ok=True)
-    # Hack to retrive the fastq file from the CIFS share
+    # Hack to retrieve the fastq file from the CIFS share
     if is_remote_path(projects_source):
         # First try to retrieve the genotype vcf file
         genotype_vcfs = os.path.join(projects_source, args.project_id, args.sample_id, '*_genotype_validation.vcf.gz')
-        retrive_data(genotype_vcfs, work_dir, allow_fail=True)
+        retrieve_data(genotype_vcfs, work_dir, allow_fail=True)
         genotype_vcfs = glob.glob(os.path.join(work_dir, '*_genotype_validation.vcf.gz'))
         if not genotype_vcfs:
             # Need to retrieve the fastq files localy
             fastq_files = os.path.join(projects_source, args.project_id, args.sample_id, '*_R?.fastq.gz')
-            retrive_data(fastq_files, work_dir)
+            retrieve_data(fastq_files, work_dir)
             fastq_files = glob.glob(os.path.join(work_dir, '*_R?.fastq.gz'))
             genotype_vcf = None
         else:

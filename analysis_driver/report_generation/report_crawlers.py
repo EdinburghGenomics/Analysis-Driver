@@ -256,9 +256,7 @@ class SampleCrawler(Crawler):
             ELEMENT_PROJECT_ID: self.project_id,
             ELEMENT_SAMPLE_EXTERNAL_ID: external_sample_name
         }
-        print(sample_dir)
         bamtools_path = self.search_file(sample_dir, 'bamtools_stats.txt')
-        print(bamtools_path)
         if bamtools_path:
             (total_reads, mapped_reads,
              duplicate_reads, proper_pairs) = mapping_stats_parsers.parse_bamtools_stats(bamtools_path)

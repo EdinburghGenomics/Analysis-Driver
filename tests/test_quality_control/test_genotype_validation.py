@@ -158,7 +158,6 @@ class TestGenotypeValidation(TestAnalysisDriver):
         self.validator._rename_expected_genotype({sample_name:genotype_vcf})
         command = "{bcftools} reheader -s <(echo {sample_name}) {genotype_vcf} > {genotype_vcf}.tmp; mv {genotype_vcf}.tmp {genotype_vcf}"
         command = command.format(bcftools=cfg.query('tools','bcftools'), sample_name=sample_name, genotype_vcf=genotype_vcf)
-        assert mocked_execute.call_count == 1
         mocked_execute.assert_called_once_with([command], job_name='genotype_rename', working_dir=work_dir, cpus=4, mem=8, log_commands=False)
 
     def test_genotype_validation(self):
