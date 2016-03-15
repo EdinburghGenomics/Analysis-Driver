@@ -244,7 +244,7 @@ def qc_pipeline(dataset, species):
 
     reference = cfg.query('references', species.replace(' ', '_'), 'fasta')
     if not reference:
-        raise AnalysisDriverError('Could not find reference for species % in sample % ' % species, sample_id)
+        raise AnalysisDriverError('Could not find reference for species %s in sample %s ' % (species, sample_id))
 
     # merge fastq files
     ntf.start_stage('merge fastqs')
