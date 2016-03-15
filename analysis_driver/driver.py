@@ -95,6 +95,20 @@ def demultiplexing_pipeline(dataset):
     if exit_status:
         return exit_status
 
+    # Filter the adapter dimer from fastq with sickle
+    # seqtk fqchk
+    ntf.start_stage('sickle_filter')
+    exit_status = executor.execute(
+        [util.bash_commands.sickle_paired_end_in_place(fqs) for fqs in util.find_all_fastq_pairs(fastq_dir)],
+        job_name='sickle_filter',
+        working_dir=job_dir,
+        cpus=1,
+        mem=2
+    ).join()
+    ntf.end_stage('sickle_filter', exit_status)
+    if exit_status:
+        return exit_status
+
     # fastqc
     ntf.start_stage('fastqc')
     fastqc_executor = executor.execute(
