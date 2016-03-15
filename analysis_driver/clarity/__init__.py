@@ -50,7 +50,7 @@ def find_project_from_sample(sample_name):
 
 def find_run_elements_from_sample(sample_name):
     lims = _get_lims_connection()
-    sample = get_lims_sample(sample_name, lims)
+    sample = get_lims_sample(sample_name)
     if sample:
         run_log_files = lims.get_artifacts(sample_name=sample.name, process_type="AUTOMATED - Sequence")
         for run_log_file in run_log_files:
@@ -137,7 +137,8 @@ def get_lims_samples(sample_name, lims):
     return samples
 
 
-def get_lims_sample(sample_name, lims):
+def get_lims_sample(sample_name):
+    lims = _get_lims_connection()
     samples = get_lims_samples(sample_name, lims)
     if len(samples) != 1:
         app_logger.warning('%s Sample(s) found for name %s' % (len(samples), sample_name))
@@ -152,8 +153,7 @@ def get_user_sample_name(sample_name, lenient=False):
     :param bool lenient: If True, return the sample name if no user sample name found
     :return: the user's sample name or None
     """
-    lims = _get_lims_connection()
-    user_sample_name = get_lims_sample(sample_name, lims).udf.get('User Sample Name')
+    user_sample_name = get_lims_sample(sample_name).udf.get('User Sample Name')
     if user_sample_name:
         return sanitize_user_id(user_sample_name)
     elif lenient:
@@ -170,7 +170,7 @@ def get_sex_from_lims(sample_name):
 
 def get_genotype_information_from_lims(sample_name, output_file_name):
     lims = _get_lims_connection()
-    sample = get_lims_sample(sample_name, lims)
+    sample = get_lims_sample(sample_name)
     if sample:
         file_id = sample.udf.get('Genotyping results file id')
         if file_id:
@@ -189,8 +189,7 @@ def get_expected_yield_for_sample(sample_name):
     :param sample_name: the sample name
     :return: number of bases
     """
-    lims = _get_lims_connection()
-    sample = get_lims_sample(sample_name, lims)
+    sample = get_lims_sample(sample_name)
     if sample:
         nb_gb = sample.udf.get('Yield for Quoted Coverage (Gb)')
         if nb_gb:
@@ -204,6 +203,17 @@ def get_run(run_id):
         app_logger.error('%s runs found for %s' % (len(runs), run_id))
     if runs:
         return runs[0]
+
+
+def get_released_samples():
+    released_samples = []
+    lims = _get_lims_connection()
+    processes = lims.get_processes(type='Data Release EG 1.0')
+    for process in processes:
+        for artifact in process.all_inputs():
+            released_samples.extend([s.name for s in artifact.samples])
+
+    return sorted(set(released_samples))
 
 
 def run_tests():

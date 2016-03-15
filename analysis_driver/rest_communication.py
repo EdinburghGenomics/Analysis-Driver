@@ -110,9 +110,10 @@ def patch_entry(endpoint, payload, id_field, element_id, update_lists=None):
     """
     Retrieve a document at the given endpoint with the given unique ID, and patch it with some data.
     :param str endpoint:
-    :param str payload:
+    :param dict payload:
     :param str id_field: The name of the unique identifier (e.g. 'run_element_id', 'proc_id', etc.)
     :param element_id: The value of id_field to retrieve (e.g. '160301_2_ATGCATGC')
+    :param list update_lists:
     """
     doc = get_document(endpoint, where={id_field: element_id})
     if doc:
@@ -124,7 +125,8 @@ def patch_entries(endpoint, payload, update_lists=None, **query_args):
     """
     Retrieve many documents and patch them all with the same data.
     :param str endpoint:
-    :param str payload:
+    :param dict payload:
+    :param list update_lists:
     :param query_args: Database query args to pass to get_documents
     """
     docs = get_documents(endpoint, **query_args)
@@ -148,6 +150,7 @@ def post_or_patch(endpoint, input_json, id_field=None, update_lists=None):
     :param str endpoint:
     :param input_json: A single document or list of documents to post or patch to the endpoint.
     :param str id_field: The field to use as the unique ID for the endpoint.
+    :param list update_lists:
     """
     success = True
     for payload in input_json:

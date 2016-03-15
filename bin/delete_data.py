@@ -1,4 +1,3 @@
-__author__ = 'mwham'
 import sys
 import os
 from os.path import join as p_join
@@ -10,8 +9,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from analysis_driver.exceptions import AnalysisDriverError
 from analysis_driver.config import default as cfg, logging_default as log_cfg
 from analysis_driver.app_logging import AppLogger
-from analysis_driver import rest_communication
-from analysis_driver import executor
+from analysis_driver import rest_communication, executor, clarity
 
 
 class Deleter(AppLogger):
@@ -137,6 +135,34 @@ class RawDataDeleter(Deleter):
             assert os.listdir(p_join(cfg['archive_dir'], run['run_id']))
 
         self.delete_runs(deletion_dir)
+
+
+class FastqDeleter(Deleter):
+    def __init__(self, work_dir, dry_run=False, deletion_limit=None):
+        super().__init__(work_dir, dry_run, deletion_limit)
+        self._samples_released_in_lims = None
+        self._samples_released_in_app = None
+        # TODO: also check whether the pipeline has delivered the data to Aspera
+
+    @property
+    def samples_released_in_lims(self):
+        if self._samples_released_in_lims is None:
+            self._samples_released_in_lims = clarity.get_released_samples()
+        return self._samples_released_in_lims
+
+    @property
+    def samples_released_in_app(self):
+        if self._samples_released_in_app is None:
+            self._samples_released_in_app = rest_communication.get_documents(
+                'samples',
+                where={'delivered': 'yes', 'useable': 'yes'},
+                projection={'sample_id': 1},
+                depaginate=True
+            )
+        return sorted(set([s['sample_id'] for s in self._samples_released_in_app]))
+
+    def deletable_fastqs(self):
+        pass
 
 
 def main():
