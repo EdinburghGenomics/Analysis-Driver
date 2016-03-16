@@ -1,4 +1,3 @@
-import glob
 import sys
 import os
 import argparse
@@ -33,30 +32,28 @@ def _parse_args():
 
 
 
-def copy_data_back_to_run(dataset, fastq_files):
+def copy_sample_back(dataset, working_dir):
     """
-    Decide whether to rsync the fastq files to an intermediate dir just find them.
+    rsync the fastq files and qc to an the sample input_dir.
     :param Dataset dataset: A dataset object
+    :param working_dir: The place where the fixed fastq files are
     """
+    run_names = set
+    project_id = None
     for run_element in dataset.run_elements:
         if int(run_element.get(ELEMENT_NB_READS_CLEANED, 0)) > 0:
-            files_to_transfer = list(fastq_files)
-            for f in fastq_files:
-                files_to_transfer.append(f + '.md5')
-                files_to_transfer.append(f + '.fqchk')
-            copy_data_back_to_run_element(dataset.name, run_element, files_to_transfer)
+            run_names.add(run_element.get(ELEMENT_RUN_NAME))
+            project_id = run_element.get(ELEMENT_PROJECT_ID)
+    for run_name in run_names:
+        fastq_dir = os.path.join(working_dir, run_name+'/', )
+        copy_run_back(dataset.name, project_id,  run_name, fastq_dir)
 
 
-def copy_data_back_to_run_element(sample_id, run_element, files_to_transfer):
-    run_id = run_element.get(ELEMENT_RUN_NAME)
-    project_id = run_element.get(ELEMENT_PROJECT_ID)
-
-    fastq_dir = os.path.join(cfg['input_dir'], run_id, 'fastq')
-    dest_dir = os.path.join(fastq_dir, project_id, sample_id)
-    if not os.path.isdir(dest_dir) and  not is_remote_path(fastq_dir):
+def copy_run_back(sample_id, project_id, run_name, fastq_dir_to_transfer):
+    dest_dir = os.path.join(cfg['input_dir'], run_name, 'fastq', project_id, sample_id)
+    if not os.path.isdir(dest_dir) and  not is_remote_path(dest_dir):
         raise AnalysisDriverError('Cannot find Destination directory for %s'%(sample_id))
-
-    command = rsync_from_to(' '.join(files_to_transfer), dest_dir)
+    command = rsync_from_to(' '.join(fastq_dir_to_transfer), dest_dir)
     exit_status = executor.execute(
             [command],
             job_name='tf_bak',
@@ -122,7 +119,7 @@ def fix_run_for_sample(sample_id):
     if exit_status:
         return exit_status
 
-    copy_data_back_to_run(dataset, fastq_files)
+    copy_run_back(dataset, working_dir)
 
 
 
