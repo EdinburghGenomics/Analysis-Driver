@@ -129,7 +129,7 @@ def is_remote_path(fp):
 
 def rsync_from_to(source, dest, exclude=None):
     """rsync command that will transfer the file to the desired destination"""
-    command = 'rsync -rLD '
+    command = 'rsync -ruLD '
     if exclude:
         command += '--exclude=%s ' % exclude
     if is_remote_path(source) or is_remote_path(dest):
