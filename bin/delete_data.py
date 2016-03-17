@@ -18,6 +18,10 @@ class Deleter(AppLogger):
         self.dry_run = dry_run
         self.deletion_limit = deletion_limit
 
+    def delete_dir(self, d):
+        self.debug('Removing deletion dir containing: %s' % os.listdir(d))
+        self._execute('rm -rfv ' + d, cluster_execution=True)
+
     def _execute(self, cmd, cluster_execution=False):
         if cluster_execution:
             status = executor.execute([cmd], job_name='data_deletion', working_dir=self.work_dir).join()
@@ -72,7 +76,7 @@ class RawDataDeleter(Deleter):
             to_d = p_join(deletable_data, d)
             self._execute('mv %s %s' % (from_d, to_d))
 
-        return os.listdir(deletable_data)
+        return os.listdir(deletable_data)  # Data, Thumbnaiil_Images, etc.
 
     def setup_runs_for_deletion(self, runs):
         deletion_dir = p_join(
@@ -90,11 +94,6 @@ class RawDataDeleter(Deleter):
 
         self._compare_lists(os.listdir(deletion_dir), run_ids)
         return deletion_dir
-
-    def delete_runs(self, deletion_dir):
-        runs_to_delete = os.listdir(deletion_dir)
-        self.debug('Removing deletion dir with %s runs' % len(runs_to_delete))
-        self._execute('rm -rfv ' + deletion_dir, cluster_execution=True)
 
     def mark_run_as_deleted(self, run):
         self.debug('Updating dataset status for ' + run['run_id'])
@@ -140,7 +139,7 @@ class RawDataDeleter(Deleter):
             self.archive_run(run['run_id'])
             assert os.listdir(p_join(cfg['data_deletion']['raw_archives'], run['run_id']))
 
-        self.delete_runs(deletion_dir)
+        self.delete_dir(deletion_dir)
 
 
 class FastqDeleter(Deleter):
@@ -165,11 +164,7 @@ class FastqDeleter(Deleter):
                 projection={'sample_id': 1},
                 depaginate=True
             )
-        return set([s['sample_id'] for s in self._samples_released_in_app])
-
-    @staticmethod
-    def find_run_elements_for_sample(sample_id):
-        return rest_communication.get_documents('run_elements', where={'sample_id': sample_id})
+        return [s['sample_id'] for s in self._samples_released_in_app]
 
     @staticmethod
     def find_fastqs_for_run_element(run_element):
@@ -180,23 +175,9 @@ class FastqDeleter(Deleter):
             lane=run_element['lane']
         )
 
-    def deletable_samples(self):
-        return self.samples_released_in_lims & self.samples_released_in_app
-
-    def find_all_deletable_fastqs(self):
-        fastqs = []
-        for sample_id in self.deletable_samples():
-            for e in self.find_run_elements_for_sample(sample_id):
-                fastqs.extend(self.find_fastqs_for_run_element(e))
-
-        return fastqs
-
-    def setup_fastqs_for_deletion(self):
-        pass
-
-    def delete_data(self):
-        deletable_samples = self.deletable_samples()
-        samples_to_delete = {}
+    def setup_deletion_records(self):
+        deletable_samples = self.samples_released_in_lims & set(self.samples_released_in_app)
+        deletion_records = []
 
         n_samples = 0
         n_run_elements = 0
@@ -204,41 +185,89 @@ class FastqDeleter(Deleter):
 
         for s in deletable_samples:
             n_samples += 1
-            samples_to_delete[s] = {}
-            for e in self.find_run_elements_for_sample(s):
+            for e in rest_communication.get_documents('run_elements', where={'sample_id': s}):
+                assert e['sample_id'] == s
                 n_run_elements += 1
                 fastqs = self.find_fastqs_for_run_element(e)
                 n_fastqs += len(e)
-                samples_to_delete[s][e['run_element_id']] = fastqs
+                deletion_records.append(_FastqDeletionRecord(e, fastqs))
 
-        print(samples_to_delete)
-
-        #self.debug(
-        print(
-            'Found %s deletable fastqs from %s samples and %s run elements' % (
-                n_fastqs, n_samples, n_run_elements
+        self.debug(
+            'Found %s deletable fastqs from %s run elements in %s samples: %s' % (
+                n_fastqs, n_run_elements, n_samples, deletion_records
             )
         )
+        return deletion_records
 
-        if self.dry_run or not n_fastqs:
+    def setup_fastqs_for_deletion(self, deletion_records):
+        deletion_dir = p_join(
+            cfg['data_deletion']['fastqs'],
+            '.data_deletion_' + datetime.utcnow().strftime('%d_%m_%Y_%H:%M:%S')
+        )
+        all_fastqs = []
+        for r in deletion_records:
+            all_fastqs.extend(self._setup_record_for_deletion(deletion_dir, r))
+
+        comparisons = (
+            (os.listdir(deletion_dir), [r.run_id for r in deletion_records]),
+            (util.find_files(deletion_dir, '*', 'fastq', '*'), [r.project_id for r in deletion_records]),
+            (util.find_files(deletion_dir, '*', 'fastq', '*', '*'), [r.sample_id for r in deletion_records]),
+            (util.find_all_fastqs(deletion_dir), all_fastqs)
+        )
+        for expected, observed in comparisons:
+            self._compare_lists(set([os.path.basename(f) for f in observed]), set([os.path.basename(f) for f in expected]))
+
+        return deletion_dir
+
+    def _setup_record_for_deletion(self, deletion_dir, del_record):
+        deletion_sub_dir = p_join(
+            deletion_dir,
+            del_record.run_id,
+            'fastq',
+            del_record.project_id,
+            del_record.sample_id
+        )
+        os.makedirs(deletion_sub_dir, exist_ok=True)
+        self._execute('mv %s %s' % (' '.join(del_record.fastqs), deletion_sub_dir))
+        observed = [os.path.basename(f) for f in os.listdir(deletion_sub_dir)]
+        for f in del_record.fastqs:
+            assert os.path.basename(f) in observed
+        return del_record.fastqs
+
+    def mark_sample_fastqs_as_deleted(self, sample_id):
+        self.debug('Updating dataset status for ' + sample_id)
+        if not self.dry_run:
+            rest_communication.patch_entry('samples', {'input_fastqs_deleted': 'yes'}, 'sample_id', sample_id)
+
+    def delete_data(self):
+        deletion_records = self.setup_deletion_records()
+        if self.dry_run or not deletion_records:
             return 0
 
-        # deletion_dir = self.setup_fastqs_for_deletion(deletable_fastqs)
-        # fastqs_to_delete = os.listd
-        # runs_to_delete = os.listdir(deletion_dir)
-        # self._compare_lists(
-        #     runs_to_delete,
-        #     [run['run_id'] for run in deletable_runs]
-        # )
-        # assert all([os.listdir(p_join(cfg['input_dir'], r)) for r in runs_to_delete])
-        #
-        # for run in deletable_runs:
-        #     assert run['run_id'] in runs_to_delete
-        #     self.mark_run_as_deleted(run)
-        #     self.archive_run(run['run_id'])
-        #     assert os.listdir(p_join(cfg['archive_dir'], run['run_id']))
-        #
-        # self.delete_runs(deletion_dir)
+        deletion_dir = self.setup_fastqs_for_deletion(deletion_records)
+        for s in set([r.sample_id for r in deletion_records]):
+            self.mark_sample_fastqs_as_deleted(s)
+
+        self.delete_dir(deletion_dir)
+
+
+class _FastqDeletionRecord:
+    def __init__(self, run_element, fastqs):
+        self.run_element = run_element
+        self.fastqs = fastqs
+        self.run_id = run_element['run_id']
+        self.sample_id = run_element['sample_id']
+        self.project_id = run_element['project_id']
+        self.lane = run_element['lane']
+
+    def __repr__(self):
+        return '%s(%s/%s/%s/%s)' % (
+            self.__class__.__name__,
+            self.run_id,
+            self.project_id,
+            self.sample_id,
+            [os.path.basename(f) for f in self.fastqs]
+        )
 
 
 def main():
