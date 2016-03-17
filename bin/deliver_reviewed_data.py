@@ -138,6 +138,7 @@ class DataDelivery(AppLogger):
     def mark_samples_as_released(self, samples):
         for sample_name in samples:
             rest_communication.patch_entry('samples', payload={'delivered': 'yes'}, id_field='sample_id', element_id=sample_name)
+        clarity.route_samples_to_delivery_workflow(samples)
 
 
     def mark_only(self, project_id=None, sample_id=None):
