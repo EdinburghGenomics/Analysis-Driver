@@ -119,7 +119,7 @@ def fix_run_for_sample(sample_id):
     if exit_status:
         return exit_status
 
-    copy_run_back(dataset, working_dir)
+    copy_sample_back(dataset, working_dir)
 
 
 
