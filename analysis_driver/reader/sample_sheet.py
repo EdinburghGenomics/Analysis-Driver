@@ -56,6 +56,10 @@ class SampleSheet(AppLogger):
         self._populate()
         self.debug('Sample project entries: ' + str(self.sample_projects))
 
+
+
+
+
     def check_barcodes(self):
         """
         For each sample project, check that all the DNA barcodes are the same length
@@ -83,6 +87,30 @@ class SampleSheet(AppLogger):
                         last_sample = sample
         self.debug('Barcode check done. Barcode len: %s' % len(last_sample.barcode))
         return len(last_sample.barcode)
+
+
+    def check_one_barcode_per_lane(self):
+        lanes = []
+        for name, sample_project in self.sample_projects.items():
+            self.debug('Checking sample project ' + name)
+            for name2, sample_id in sample_project.sample_ids.items():
+                self.debug('Checking sample id ' + name2)
+                for sample in sample_id.samples:
+                    lane_list = (sample.lane).split('+')
+                    lanes.extend(lane_list)
+        lanes = set(lanes)
+        lane2barcodes = {}
+        for lane in lanes:
+            lane_barcodes = []
+            for name, sample_project in self.sample_projects.items():
+                for name2, sample_id in sample_project.sample_ids.items():
+                    for sample in sample_id.samples:
+                        if lane in sample.lane:
+                            lane_barcodes.append(sample.barcode)
+            lane2barcodes[lane] = lane_barcodes
+        return all(i == 1 for i in [len(i) for i in (lane2barcodes.values())])
+
+
 
     def generate_mask(self, mask):
         """

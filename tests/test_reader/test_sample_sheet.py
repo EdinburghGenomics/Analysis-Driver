@@ -37,6 +37,10 @@ class TestSampleSheet(TestAnalysisDriver):
     def test_generate_mask(self):
         assert self.sample_sheet.generate_mask(self.run_info.mask) == 'y150n,i6,y150n'
 
+    def test_check_one_barcode_per_lane(self):
+        assert self.sample_sheet.check_one_barcode_per_lane() is True
+
+
 
 class TestSampleProject(TestAnalysisDriver):
     def setUp(self):
