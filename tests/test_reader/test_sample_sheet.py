@@ -35,10 +35,14 @@ class TestSampleSheet(TestAnalysisDriver):
         assert self.sample_sheet.check_barcodes() == 6
 
     def test_generate_mask(self):
-        assert self.sample_sheet.generate_mask(self.run_info.mask) == 'y150n,i6,y150n'
+        assert self.sample_sheet.generate_mask(self.run_info.mask, 'barcoded') == 'y150n,i6,y150n'
+        assert self.sample_sheet.generate_mask(self.run_info.mask, 'barcodeless') == 'y150n,y150n'
 
     def test_check_one_barcode_per_lane(self):
         assert self.sample_sheet.check_one_barcode_per_lane() is True
+
+    def test_validate(self):
+        assert self.sample_sheet.validate(self.run_info.mask) == 'barcoded'
 
 
 

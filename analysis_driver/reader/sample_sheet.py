@@ -112,7 +112,7 @@ class SampleSheet(AppLogger):
 
 
 
-    def generate_mask(self, mask):
+    def generate_mask(self, mask, validation_results):
         """
         Translate:
             <Read IsIndexedRead=N Number=1 NumCycles=151/>
@@ -121,16 +121,26 @@ class SampleSheet(AppLogger):
         to 'y150n,i8,y150n'.
         """
         self.debug('Generating mask...')
-        barcode_len = self.check_barcodes()
-        out = ['y' + str(mask.num_cycles(mask.upstream_read) - 1) + 'n']
 
-        for i in mask.index_lengths:
-            diff = i - barcode_len
-            out.append('i' + str(barcode_len) + 'n' * diff)
+        if validation_results == 'barcoded':
+            barcode_len = self.check_barcodes()
+            out = ['y' + str(mask.num_cycles(mask.upstream_read) - 1) + 'n']
 
-        out.append('y' + str(mask.num_cycles(mask.downstream_read) - 1) + 'n')
-        self.debug(out)
-        return ','.join(out)
+            for i in mask.index_lengths:
+                diff = i - barcode_len
+                out.append('i' + str(barcode_len) + 'n' * diff)
+
+            out.append('y' + str(mask.num_cycles(mask.downstream_read) - 1) + 'n')
+            self.debug(out)
+            return ','.join(out)
+
+        elif validation_results == 'barcodeless':
+
+            out = ['y' + str(mask.num_cycles(mask.upstream_read) - 1) + 'n']
+
+            out.append('y' + str(mask.num_cycles(mask.downstream_read) - 1) + 'n')
+            self.debug(out)
+            return ','.join(out)
 
     def validate(self, mask):
         """
@@ -138,7 +148,10 @@ class SampleSheet(AppLogger):
         """
         self.debug('Validating...')
         if not mask.barcode_len:
-            return False
+            if not self.check_one_barcode_per_lane():
+                return False
+            if mask.validate_barcodeless():
+                return('barcodeless')
         if self.check_barcodes() != mask.barcode_len:
             self.error(
                 'Barcode mismatch: %s (SampleSheet.csv) and %s (RunInfo.xml)' %
@@ -146,7 +159,8 @@ class SampleSheet(AppLogger):
             )
             return False
         self.debug('Done. Now validating RunInfo')
-        return mask.validate()
+        if mask.validate_barcoded():
+            return('barcoded')
 
     def get_samples(self, sample_project, sample_id):
         return self.sample_projects[sample_project].sample_ids[sample_id].samples

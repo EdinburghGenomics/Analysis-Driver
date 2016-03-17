@@ -1,6 +1,7 @@
 import os.path
 from xml.etree import ElementTree
 from analysis_driver.app_logging import AppLogger
+from analysis_driver.exceptions import AnalysisDriverError
 
 
 class RunInfo(AppLogger):
@@ -65,6 +66,8 @@ class Mask:
 
     @property
     def indexes(self):
+        if len(self.reads) != 3:
+            raise AnalysisDriverError('Incorrect number of reads for retrieving indexes')
         return self.reads[1:len(self.reads)-1]
 
     @property
@@ -82,7 +85,7 @@ class Mask:
             assert (read.attrib == self.barcode_len or self.barcode_len is None)
             self.barcode_len = int(read.attrib['NumCycles'])
 
-    def validate(self):
+    def validate_barcoded(self):
         """
         Ensure that the first and last items of self.reads are not barcodes, and that all others are.
         """
@@ -91,6 +94,14 @@ class Mask:
         for index in self.indexes:
             if not self._is_indexed_read(index):
                 return False
+        return True
+
+    def validate_barcodeless(self):
+        """
+        Check that the first and last items of self.reads are not barcodes
+        """
+        if self._is_indexed_read(self.reads[0]) or self._is_indexed_read(self.reads[-1]):
+            return False
         return True
 
     @staticmethod

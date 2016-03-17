@@ -65,10 +65,11 @@ def demultiplexing_pipeline(dataset):
     ntf.start_stage('setup')
     reader.transform_sample_sheet(input_run_folder)
     sample_sheet = reader.SampleSheet(os.path.join(input_run_folder, 'SampleSheet_analysis_driver.csv'))
-    if not sample_sheet.validate(run_info.mask):
+    validation_results = sample_sheet.validate(run_info.mask)
+    if not validation_results:
         raise AnalysisDriverError('Validation failed. Check SampleSheet.csv and RunInfo.xml.')
 
-    mask = sample_sheet.generate_mask(run_info.mask)
+    mask = sample_sheet.generate_mask(run_info.mask, validation_results)
     app_logger.info('bcl2fastq mask: ' + mask)  # e.g: mask = 'y150n,i6,y150n'
 
     # Send the information about the run to the rest API
