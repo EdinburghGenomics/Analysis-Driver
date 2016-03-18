@@ -40,7 +40,7 @@ class DataDelivery(AppLogger):
     def __init__(self, dry_run):
         self.all_commands = []
         self.dry_run = dry_run
-
+        self.all_samples_values = []
 
     def get_deliverable_projects_samples(self, project_id=None, sample_id=None):
         project_to_samples = defaultdict(list)
@@ -50,14 +50,13 @@ class DataDelivery(AppLogger):
             where_clause["project_id"] = project_id
         if sample_id:
             where_clause["sample_id"] = sample_id
-
+        # These samples are useable but could have been delivered already so need to check
         samples = rest_communication.get_documents(
                 'samples',
                 depaginate=True,
                 embedded={"analysis_driver_procs":1, "run_elements":1},
                 where=where_clause
         )
-        self.all_samples_values =samples
         for sample in samples:
             processes = sample.get('analysis_driver_procs',[{}])
             processes.sort(key=lambda x: datetime.datetime.strptime(x.get('_created', '01_01_1970_00:00:00'), '%d_%m_%Y_%H:%M:%S'))
@@ -65,6 +64,7 @@ class DataDelivery(AppLogger):
                 raise AnalysisDriverError("Reviewed sample %s not marked as finished"%sample.get('sample_id'))
             if sample.get('delivered','no') == 'no':
                 project_to_samples[sample.get('project_id')].append(sample.get('sample_id'))
+                self.all_samples_values.append(sample)
         return project_to_samples
 
     def summarise_metrics_per_sample(self, project_id, delivery_folder):
@@ -73,6 +73,7 @@ class DataDelivery(AppLogger):
                  'Mean coverage', 'Callable bases rate', 'Delivery folder']
         lines = []
         for sample in self.all_samples_values:
+            # TODO: Aggregation is done here until we can do the filtering on the REST API
             if sample.get('project_id') == project_id:
                 res = [sample.get('project_id'),sample.get('sample_id'), sample.get('user_sample_id')]
                 clean_reads = sum([int(e.get('clean_reads', '0')) for e in sample.get('run_elements') if e.get('useable')=='yes'])
@@ -96,7 +97,6 @@ class DataDelivery(AppLogger):
                 res.append(str(float(dr)/float(tr)*100))
                 theoritical_cov = theoritical_cov*(float(mr)/float(tr))*(1-(float(dr)/float(tr)))
                 res.append(str(theoritical_cov))
-                #res.append(str(sample.get('median_coverage', '')))
                 res.append(str(sample.get('pc_callable', 0)*100))
                 res.append(os.path.basename(delivery_folder))
                 lines.append('\t'.join(res))
