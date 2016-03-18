@@ -76,7 +76,7 @@ class RawDataDeleter(Deleter):
             to_d = p_join(deletable_data, d)
             self._execute('mv %s %s' % (from_d, to_d))
 
-        return os.listdir(deletable_data)  # Data, Thumbnaiil_Images, etc.
+        return os.listdir(deletable_data)  # Data, Thumbnail_Images, etc.
 
     def setup_runs_for_deletion(self, runs):
         deletion_dir = p_join(
@@ -86,11 +86,12 @@ class RawDataDeleter(Deleter):
         run_ids = [r['run_id'] for r in runs]
         for run in run_ids:
             deletable_dirs = self._setup_run_for_deletion(run, deletion_dir)
-            self._compare_lists(
-                deletable_dirs,
-                self.deletable_sub_dirs,
-                'Unexpected deletable sub dirs:'
-            )
+            if sorted(self.deletable_sub_dirs) != sorted(deletable_dirs):
+                self.warn(
+                    'Not all deletable dirs were present: %s' % (
+                        [d for d in self.deletable_sub_dirs if d not in deletable_dirs]
+                    )
+                )
 
         self._compare_lists(os.listdir(deletion_dir), run_ids)
         return deletion_dir
