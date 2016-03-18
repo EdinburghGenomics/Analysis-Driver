@@ -11,6 +11,7 @@ default:
     output_dir: path/to/output_data
 
     data_deletion:
+      raw_data: tests/assets/data_deletion/raw
       raw_archives: tests/assets/data_deletion/archive
       fastqs: tests/assets/data_deletion/fastqs
 
