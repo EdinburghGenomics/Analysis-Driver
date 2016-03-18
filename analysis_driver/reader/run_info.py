@@ -28,9 +28,6 @@ class RunInfo(AppLogger):
             self.debug('Adding read: ' + str(read.attrib))
             self.mask.add(read)
 
-        if not self.mask.index_lengths:
-            self.warn('RunInfo.xml has no barcode reads')
-
         self.flowcell_name = root.find('Run/Flowcell').text
 
 
@@ -72,6 +69,8 @@ class Mask:
 
     @property
     def index_lengths(self):
+        if len(self.reads) != 3:
+            raise AnalysisDriverError('Incorrect number of reads for retrieving indexes')
         return [self.num_cycles(read) for read in self.indexes]
 
     def add(self, read):
