@@ -12,7 +12,7 @@ run_info = RunInfo(helper.assets_path)
 
 
 def test_bcl2fastq():
-    mask = sample_sheet.generate_mask(run_info.mask)
+    mask = sample_sheet.generate_mask(run_info.mask, 'barcoded')
     helper.compare_lists(
         observed=bash_commands.bcl2fastq(helper.assets_path, helper.fastq_path, sample_sheet_csv, mask),
         expected=(
