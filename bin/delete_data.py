@@ -1,11 +1,12 @@
-import sys
-import os
-from os.path import join as p_join
+from os import listdir
+from os.path import basename, join as p_join
 from datetime import datetime
 import argparse
 import logging
 
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+import sys
+from os.path import dirname, abspath
+sys.path.append(dirname(dirname(abspath(__file__))))
 from analysis_driver.exceptions import AnalysisDriverError
 from analysis_driver.config import default as cfg, logging_default as log_cfg
 from analysis_driver.app_logging import AppLogger
@@ -19,7 +20,7 @@ class Deleter(AppLogger):
         self.deletion_limit = deletion_limit
 
     def delete_dir(self, d):
-        self.debug('Removing deletion dir containing: %s' % os.listdir(d))
+        self.debug('Removing deletion dir containing: %s' % listdir(d))
         self._execute('rm -rfv ' + d, cluster_execution=True)
 
     def _execute(self, cmd, cluster_execution=False):
@@ -47,7 +48,6 @@ class RawDataDeleter(Deleter):
         super().__init__(work_dir, dry_run, deletion_limit)
         self.data_dir = cfg['data_deletion']['raw_data']
         self.archive_dir = cfg['data_deletion']['raw_archives']
-
 
     def deletable_runs(self):
         runs = rest_communication.get_documents(
@@ -82,7 +82,7 @@ class RawDataDeleter(Deleter):
             to_d = p_join(deletable_data, d)
             self._execute('mv %s %s' % (from_d, to_d))
 
-        return os.listdir(deletable_data)  # Data, Thumbnail_Images, etc.
+        return listdir(deletable_data)  # Data, Thumbnail_Images, etc.
 
     def setup_runs_for_deletion(self, runs):
         deletion_dir = p_join(
@@ -94,12 +94,12 @@ class RawDataDeleter(Deleter):
             deletable_dirs = self._setup_run_for_deletion(run, deletion_dir)
             if sorted(self.deletable_sub_dirs) != sorted(deletable_dirs):
                 self.warn(
-                    'Not all deletable dirs were present: %s' % (
-                        [d for d in self.deletable_sub_dirs if d not in deletable_dirs]
+                    'Not all deletable dirs were present for run %s: %s' % (
+                        run, [d for d in self.deletable_sub_dirs if d not in deletable_dirs]
                     )
                 )
 
-        self._compare_lists(os.listdir(deletion_dir), run_ids)
+        self._compare_lists(listdir(deletion_dir), run_ids)
         return deletion_dir
 
     def mark_run_as_deleted(self, run):
@@ -115,14 +115,13 @@ class RawDataDeleter(Deleter):
     def archive_run(self, run_id):
         run_to_be_archived = p_join(self.data_dir, run_id)
         self.debug('Archiving ' + run_id)
-        assert not any([d in self.deletable_sub_dirs for d in os.listdir(run_to_be_archived)])
+        assert not any([d in self.deletable_sub_dirs for d in listdir(run_to_be_archived)])
         self._execute(
             'mv %s %s' % (
                 p_join(self.data_dir, run_id),
                 p_join(self.archive_dir, run_id)
             )
         )
-        self.debug('Archiving done')
 
     def delete_data(self):
         deletable_runs = self.deletable_runs()
@@ -133,29 +132,29 @@ class RawDataDeleter(Deleter):
             return 0
 
         deletion_dir = self.setup_runs_for_deletion(deletable_runs)
-        runs_to_delete = os.listdir(deletion_dir)
+        runs_to_delete = listdir(deletion_dir)
         self._compare_lists(
             runs_to_delete,
             [run['run_id'] for run in deletable_runs]
         )
-        assert all([os.listdir(p_join(self.data_dir, r)) for r in runs_to_delete])
+        assert all([listdir(p_join(self.data_dir, r)) for r in runs_to_delete])
 
         for run in deletable_runs:
             assert run['run_id'] in runs_to_delete
             self.mark_run_as_deleted(run)
             self.archive_run(run['run_id'])
-            assert os.listdir(p_join(self.archive_dir, run['run_id']))
+            assert listdir(p_join(self.archive_dir, run['run_id']))
 
         self.delete_dir(deletion_dir)
 
 
 class FastqDeleter(Deleter):
-    def __init__(self, work_dir, dry_run=False, deletion_limit=None):
+    def __init__(self, work_dir, dry_run=False, deletion_limit=None, project_id=None):
         super().__init__(work_dir, dry_run, deletion_limit)
         self.data_dir = cfg['data_deletion']['fastqs']
-
         self._samples_released_in_lims = None
         self._samples_released_in_app = None
+        self.project_id = project_id
         # TODO: also check whether the pipeline has delivered the data to Aspera
 
     @property
@@ -167,9 +166,12 @@ class FastqDeleter(Deleter):
     @property
     def samples_released_in_app(self):
         if self._samples_released_in_app is None:
+            where = {'delivered': 'yes', 'useable': 'yes'}
+            if self.project_id:
+                where['project_id'] = self.project_id
             self._samples_released_in_app = rest_communication.get_documents(
                 'samples',
-                where={'delivered': 'yes', 'useable': 'yes'},  # TODO: do we want useable only?
+                where=where,  # TODO: do we want useable only?
                 projection={'sample_id': 1},
                 depaginate=True
             )
@@ -195,10 +197,11 @@ class FastqDeleter(Deleter):
             n_samples += 1
             for e in rest_communication.get_documents('run_elements', where={'sample_id': s}):
                 assert e['sample_id'] == s
-                n_run_elements += 1
                 fastqs = self.find_fastqs_for_run_element(e)
-                n_fastqs += len(e)
-                deletion_records.append(_FastqDeletionRecord(e, fastqs))
+                if fastqs:
+                    n_run_elements += 1
+                    n_fastqs += len(fastqs)
+                    deletion_records.append(_FastqDeletionRecord(e, fastqs))
 
         self.debug(
             'Found %s deletable fastqs from %s run elements in %s samples: %s' % (
@@ -217,14 +220,14 @@ class FastqDeleter(Deleter):
             all_fastqs.extend(self._setup_record_for_deletion(deletion_dir, r))
 
         comparisons = (
-            (os.listdir(deletion_dir), [r.run_id for r in deletion_records]),
+            (listdir(deletion_dir), [r.run_id for r in deletion_records]),
             (util.find_files(deletion_dir, '*', 'fastq', '*'), [r.project_id for r in deletion_records]),
             (util.find_files(deletion_dir, '*', 'fastq', '*', '*'), [r.sample_id for r in deletion_records]),
             (util.find_all_fastqs(deletion_dir), all_fastqs)
         )
         for expected, observed in comparisons:
-            self._compare_lists(set([os.path.basename(f) for f in observed]),
-                                set([os.path.basename(f) for f in expected]))
+            self._compare_lists(set([basename(f) for f in observed]),
+                                set([basename(f) for f in expected]))
 
         return deletion_dir
 
@@ -236,11 +239,10 @@ class FastqDeleter(Deleter):
             del_record.project_id,
             del_record.sample_id
         )
-        os.makedirs(deletion_sub_dir, exist_ok=True)
+        self._execute('mkdir -p ' + deletion_sub_dir)
         self._execute('mv %s %s' % (' '.join(del_record.fastqs), deletion_sub_dir))
-        observed = [os.path.basename(f) for f in os.listdir(deletion_sub_dir)]
-        for f in del_record.fastqs:
-            assert os.path.basename(f) in observed
+        observed = [basename(f) for f in listdir(deletion_sub_dir)]
+        assert all([basename(f) in observed for f in del_record.fastqs])
         return del_record.fastqs
 
     def mark_sample_fastqs_as_deleted(self, sample_id):
@@ -275,7 +277,7 @@ class _FastqDeletionRecord:
             self.run_id,
             self.project_id,
             self.sample_id,
-            [os.path.basename(f) for f in self.fastqs]
+            [basename(f) for f in self.fastqs]
         )
 
 
@@ -287,18 +289,24 @@ def main():
     }
 
     p = argparse.ArgumentParser()
-    p.add_argument('--type', type=str, choice=['raw', 'fastq'])
     p.add_argument('--dry_run', action='store_true')
-    p.add_argument('--debug', action='store_true')
-    p.add_argument('--work_dir', type=str, required=True)
+    p.add_argument('--work_dir', default='~')
     p.add_argument('--deletion_limit', type=int, default=None)
-    args = p.parse_args()
+    p.add_argument('--project_id', type=str)
+    deleter_args, unknown_args = p.parse_known_args()
 
-    if args.debug:
+    q = argparse.ArgumentParser()
+    q.add_argument('deleter', type=str, choices=deleters.keys())
+    q.add_argument('--debug', action='store_true')
+    extra_args = q.parse_args(unknown_args)
+
+    if extra_args.debug:
         log_cfg.default_level = logging.DEBUG
         log_cfg.add_handler('stdout', logging.StreamHandler(stream=sys.stdout), logging.DEBUG)
 
-    d = deleters[args.type](args.work_dir, args.dry_run, args.deletion_limit)
+    deleter_args = dict([(k, v) for k, v in deleter_args.__dict__.items() if v])
+
+    d = deleters[extra_args.deleter](**deleter_args)
     d.delete_data()
 
 
