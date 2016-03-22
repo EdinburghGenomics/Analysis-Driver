@@ -61,6 +61,7 @@ def demultiplexing_pipeline(dataset):
     app_logger.info('Job dir: ' + job_dir)
 
     run_info = reader.RunInfo(input_run_folder)
+    has_barcode = True
 
     ntf.start_stage('setup')
     reader.transform_sample_sheet(input_run_folder)
@@ -68,12 +69,14 @@ def demultiplexing_pipeline(dataset):
     validation_results = sample_sheet.validate(run_info.mask)
     if not validation_results:
         raise AnalysisDriverError('Validation failed. Check SampleSheet.csv and RunInfo.xml.')
-
+    if validation_results == 'barcodeless':
+        has_barcode = False
+        reader._remove_samplesheet_barcodes(input_run_folder)
     mask = sample_sheet.generate_mask(run_info.mask, validation_results)
     app_logger.info('bcl2fastq mask: ' + mask)  # e.g: mask = 'y150n,i6,y150n'
 
     # Send the information about the run to the rest API
-    crawler = RunCrawler(run_id, sample_sheet)
+    crawler = RunCrawler(run_id, sample_sheet, has_barcode)
     crawler.send_data()
     ntf.end_stage('setup')
 

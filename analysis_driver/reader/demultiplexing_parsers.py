@@ -41,7 +41,7 @@ def parse_demultiplexing_stats(xml_file):
 def parse_conversion_stats(xml_file):
     tree = ElementTree.parse(xml_file).getroot()
     all_barcodes_per_lanes = []
-
+    all_barcodeless = []
     for project in tree.iter('Project'):
         if project.get('name') == 'all':
             continue
@@ -51,8 +51,6 @@ def parse_conversion_stats(xml_file):
                 continue
 
             for barcode in sample.findall('Barcode'):
-                if barcode.get('name') == 'all':
-                    continue
 
                 for lane in barcode.findall('Lane'):
                     barcode.get('name')
@@ -70,26 +68,46 @@ def parse_conversion_stats(xml_file):
                                 nb_bases_r1_q30 += int(read.find('YieldQ30').text)
                             if read.get('number') == "2":
                                 nb_bases_r2_q30 += int(read.find('YieldQ30').text)
-                    all_barcodes_per_lanes.append(
-                        (
-                            project.get('name'),
-                            sample.get('name'),
-                            lane.get('number'),
-                            barcode.get('name'),
-                            clust_count,
-                            clust_count_pf,
-                            nb_bases,
-                            nb_bases_r1_q30,
-                            nb_bases_r2_q30
+
+                    if barcode.get('name') == 'all':
+
+                        all_barcodeless.append(
+                            (
+                                project.get('name'),
+                                sample.get('name'),
+                                lane.get('number'),
+                                barcode.get('name'),
+                                clust_count,
+                                clust_count_pf,
+                                nb_bases,
+                                nb_bases_r1_q30,
+                                nb_bases_r2_q30
+                            )
                         )
-                    )
+
+                    else:
+
+                        all_barcodes_per_lanes.append(
+                            (
+                                project.get('name'),
+                                sample.get('name'),
+                                lane.get('number'),
+                                barcode.get('name'),
+                                clust_count,
+                                clust_count_pf,
+                                nb_bases,
+                                nb_bases_r1_q30,
+                                nb_bases_r2_q30
+                            )
+                        )
+
     top_unknown_barcodes_per_lanes = []
     for lane in tree.find('Flowcell').findall('Lane'):
         for unknown_barcode in lane.iter('Barcode'):
             top_unknown_barcodes_per_lanes.append(
                 (lane.get('number'), unknown_barcode.get('sequence'), unknown_barcode.get('count'))
             )
-    return all_barcodes_per_lanes, top_unknown_barcodes_per_lanes
+    return all_barcodes_per_lanes, top_unknown_barcodes_per_lanes, all_barcodeless
 
 
 def parse_seqtk_fqchk_file(fqchk_file, q_threshold):

@@ -48,6 +48,22 @@ def _read_sample_sheet(sample_sheet):
     f.close()
     return None, None
 
+def _remove_samplesheet_barcodes(data_dir):
+    with open((os.path.join(data_dir, 'SampleSheet_analysis_driver.csv'))) as openfile:
+        with_barcode = openfile.read()
+        data = ((with_barcode.split('[Data]\n')[1]).split('\n'))[1:]
+        barcodes = []
+        for line in data:
+            if line:
+                barcode = (line.split(',')[5])
+                barcodes.append(barcode)
+        without_barcode = with_barcode
+        for b in barcodes:
+            without_barcode = without_barcode.replace(b, '')
+        with open((os.path.join(data_dir, 'SampleSheet_analysis_driver.csv')), 'w') as outfile:
+            outfile.write(without_barcode)
+
+
 
 class SampleSheet(AppLogger):
     def __init__(self, filename):
@@ -151,6 +167,7 @@ class SampleSheet(AppLogger):
             if not self.check_one_barcode_per_lane():
                 return False
             if mask.validate_barcodeless():
+                print('barcodeless run')
                 return('barcodeless')
         if self.check_barcodes() != mask.barcode_len:
             self.error(

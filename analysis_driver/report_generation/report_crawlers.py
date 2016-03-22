@@ -32,8 +32,9 @@ class Crawler(AppLogger):
 
 
 class RunCrawler(Crawler):
-    def __init__(self, run_id, samplesheet, conversion_xml_file=None, run_dir=None):
+    def __init__(self, run_id, samplesheet, has_barcode, conversion_xml_file=None, run_dir=None):
         self.run_id = run_id
+        self.has_barcode = has_barcode
         self._populate_barcode_info_from_sample_sheet(samplesheet)
         if conversion_xml_file:
             self._populate_barcode_info_from_conversion_file(conversion_xml_file)
@@ -64,10 +65,13 @@ class RunCrawler(Crawler):
             for sample_id_obj in proj_obj.sample_ids.values():
                 for sample in sample_id_obj.samples:
                     for lane in sample.lane.split('+'):
-                        run_element_id = '%s_%s_%s' % (self.run_id, lane, sample.barcode)
-
+                        if not self.has_barcode:
+                            sample_barcode = 'barcodeless'
+                        else:
+                            sample_barcode = sample.barcode
+                        run_element_id = '%s_%s_%s' % (self.run_id, lane, sample_barcode)
                         self.barcodes_info[run_element_id] = {
-                            ELEMENT_BARCODE: sample.barcode,
+                            ELEMENT_BARCODE: sample_barcode,
                             ELEMENT_RUN_ELEMENT_ID: run_element_id,
                             ELEMENT_RUN_NAME: self.run_id,
                             ELEMENT_PROJECT_ID: project_id,
@@ -126,33 +130,6 @@ class RunCrawler(Crawler):
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     def _populate_barcode_info_from_seqtk_fqchk_files(self, run_dir):
         for run_element_id in self.barcodes_info:
             barcode_info = self.barcodes_info.get(run_element_id)
@@ -194,16 +171,28 @@ class RunCrawler(Crawler):
             else:
                 raise AnalysisDriverError('%s fqchk files found in %s for %s' % (len(fq_chk_files), run_dir, run_element_id))
 
+
+
+
+
+
+
     def _populate_barcode_info_from_conversion_file(self, conversion_xml):
-        all_barcodes, top_unknown_barcodes = demultiplexing_parsers.parse_conversion_stats(conversion_xml)
+        all_barcodes, top_unknown_barcodes, all_barcodeless = demultiplexing_parsers.parse_conversion_stats(conversion_xml)
         reads_per_lane = Counter()
+        barcodes = ''
+        if not self.has_barcode:
+            barcodes = all_barcodeless
+        elif self.has_barcode:
+            barcodes = all_barcodes
 
         for (project, library, lane, barcode, clust_count,
-             clust_count_pf, nb_bases, nb_bases_r1_q30, nb_bases_r2_q30) in all_barcodes:
+             clust_count_pf, nb_bases, nb_bases_r1_q30, nb_bases_r2_q30) in barcodes:
             reads_per_lane[lane] += clust_count_pf
             # For the moment, assume that nb_bases for r1 and r2 are the same.
             # TODO: remove this assumption by parsing ConversionStats.xml
             barcode_info = self.barcodes_info.get('%s_%s_%s' % (self.run_id, lane, barcode))
+
             barcode_info[ELEMENT_NB_READS_SEQUENCED] = clust_count
             barcode_info[ELEMENT_NB_READS_PASS_FILTER] = clust_count_pf
             barcode_info[ELEMENT_NB_BASE_R1] = nb_bases
