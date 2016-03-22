@@ -1,5 +1,5 @@
 from os import listdir
-from os.path import basename, join as p_join
+from os.path import basename, expanduser, join as p_join
 from datetime import datetime
 import argparse
 import logging
@@ -155,7 +155,6 @@ class FastqDeleter(Deleter):
         self._samples_released_in_lims = None
         self._samples_released_in_app = None
         self.project_id = project_id
-        # TODO: also check whether the pipeline has delivered the data to Aspera
 
     @property
     def samples_released_in_lims(self):
@@ -166,7 +165,7 @@ class FastqDeleter(Deleter):
     @property
     def samples_released_in_app(self):
         if self._samples_released_in_app is None:
-            where = {'delivered': 'yes', 'useable': 'yes'}
+            where = {'delivered': 'yes', 'useable': 'yes', 'input_fastqs_deleted': 'no'}
             if self.project_id:
                 where['project_id'] = self.project_id
             self._samples_released_in_app = rest_communication.get_documents(
@@ -289,24 +288,22 @@ def main():
     }
 
     p = argparse.ArgumentParser()
+    p.add_argument('deleter', type=str, choices=deleters.keys())
+    p.add_argument('--debug', action='store_true')
     p.add_argument('--dry_run', action='store_true')
-    p.add_argument('--work_dir', default='~')
+    p.add_argument('--work_dir', default=expanduser('~'))
     p.add_argument('--deletion_limit', type=int, default=None)
     p.add_argument('--project_id', type=str)
-    deleter_args, unknown_args = p.parse_known_args()
+    args = p.parse_args()
 
-    q = argparse.ArgumentParser()
-    q.add_argument('deleter', type=str, choices=deleters.keys())
-    q.add_argument('--debug', action='store_true')
-    extra_args = q.parse_args(unknown_args)
-
-    if extra_args.debug:
+    if args.__dict__.pop('debug', False):
         log_cfg.default_level = logging.DEBUG
         log_cfg.add_handler('stdout', logging.StreamHandler(stream=sys.stdout), logging.DEBUG)
 
-    deleter_args = dict([(k, v) for k, v in deleter_args.__dict__.items() if v])
+    deleter_type = args.__dict__.pop('deleter')
+    deleter_args = dict([(k, v) for k, v in args.__dict__.items() if v])
 
-    d = deleters[extra_args.deleter](**deleter_args)
+    d = deleters[deleter_type](**deleter_args)
     d.delete_data()
 
 
