@@ -47,9 +47,11 @@ class TestRunCrawler(TestCrawler):
         return self._expected_output
 
     def setUp(self):
+        has_barcode=True
         self.crawler = report_generation.RunCrawler(
             self.run_id,
             SampleSheet(os.path.join(self.test_data, 'SampleSheet_analysis_driver.csv')),
+            has_barcode,
             os.path.join(self.test_data, 'ConversionStats.xml')
         )
 
