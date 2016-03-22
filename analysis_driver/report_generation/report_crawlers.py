@@ -66,7 +66,7 @@ class RunCrawler(Crawler):
                 for sample in sample_id_obj.samples:
                     for lane in sample.lane.split('+'):
                         if not self.has_barcode:
-                            sample_barcode = 'barcodeless'
+                            sample_barcode = 'all'
                         else:
                             sample_barcode = sample.barcode
                         run_element_id = '%s_%s_%s' % (self.run_id, lane, sample_barcode)
