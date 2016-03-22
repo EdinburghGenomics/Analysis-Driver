@@ -51,7 +51,7 @@ def _read_sample_sheet(sample_sheet):
 def _remove_samplesheet_barcodes(data_dir):
     with open((os.path.join(data_dir, 'SampleSheet_analysis_driver.csv'))) as openfile:
         with_barcode = openfile.read()
-        data = ((with_barcode.split('[Data]\n')[1]).split('\n'))[1:]
+        data = ((with_barcode.split('[Data],\n')[1]).split('\n'))[1:]
         barcodes = []
         for line in data:
             if line:
