@@ -151,24 +151,14 @@ def parse_fastqscreen_file(filename, myFocalSpecies):
         return fastqscreen_result
     else:
         app_logger.warning('The focal species is not included in the contaminant database')
-        contaminantsUniquelyMapped['None'] = 100
-        fastqscreen_result = {ELEMENT_CONTAMINANT_UNIQUE_MAP:contaminantsUniquelyMapped,
-                                         ELEMENT_TOTAL_READS_MAPPED:100,
-                                         ELEMENT_PCNT_UNMAPPED_FOCAL:100,
-                                         ELEMENT_PCNT_UNMAPPED:100}
+        fastqscreen_result = None
         return fastqscreen_result
 
 def get_fastqscreen_results(filename, sample_id):
     myFocalSpecies = get_species_from_sample(sample_id)
     if myFocalSpecies is None:
         app_logger.warning('No species name available')
-        contaminantsUniquelyMapped = {}
-        contaminantsUniquelyMapped['None'] = 100
-        fastqscreen_result = {ELEMENT_CONTAMINANT_UNIQUE_MAP:contaminantsUniquelyMapped,
-                                         ELEMENT_TOTAL_READS_MAPPED:100,
-                                         ELEMENT_PCNT_UNMAPPED_FOCAL:100,
-                                         ELEMENT_PCNT_UNMAPPED:100}
-        return fastqscreen_result
+        return None
     else:
         fastqscreen_results = parse_fastqscreen_file(filename, myFocalSpecies)
         return fastqscreen_results

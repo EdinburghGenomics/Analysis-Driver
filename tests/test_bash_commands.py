@@ -40,7 +40,7 @@ def test_bcbio():
 
 def test_rsync_from_to():
     cmd = bash_commands.rsync_from_to('a_source', 'a_dest', exclude='an_exclude')
-    assert cmd == 'rsync -rLD --exclude=an_exclude a_source a_dest'
+    assert cmd == 'rsync -ruLD --exclude=an_exclude a_source a_dest'
 
 
 def test_bwa_mem_samblaster():
