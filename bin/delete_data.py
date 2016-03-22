@@ -10,6 +10,9 @@ sys.path.append(dirname(dirname(abspath(__file__))))
 from analysis_driver.exceptions import AnalysisDriverError
 from analysis_driver.config import default as cfg, logging_default as log_cfg
 from analysis_driver.app_logging import AppLogger
+from analysis_driver.constants import ELEMENT_PROJECT_ID, ELEMENT_SAMPLE_INTERNAL_ID, ELEMENT_RUN_ELEMENTS,\
+    ELEMENT_PROCS, ELEMENT_RUN_NAME, ELEMENT_STATUS, ELEMENT_PROC_ID, ELEMENT_USEABLE, ELEMENT_FASTQS_DELETED,\
+    ELEMENT_DELIVERED, ELEMENT_LANE
 from analysis_driver import rest_communication, executor, clarity, util
 
 
@@ -54,19 +57,19 @@ class RawDataDeleter(Deleter):
             'runs',
             depaginate=True,
             max_results=100,
-            embedded={'run_elements': 1, 'analysis_driver_procs': 1},
-            sort='run_id',
+            embedded={ELEMENT_RUN_ELEMENTS: 1, ELEMENT_PROCS: 1},
+            sort=ELEMENT_RUN_NAME,
             aggregate=True
         )
 
         deletable_runs = []
         for r in runs:
             review_statuses = r.get('review_statuses')
-            most_recent_proc = r.get('analysis_driver_procs', [{}])[-1]
+            most_recent_proc = r.get(ELEMENT_PROCS, [{}])[-1]
             if type(review_statuses) is list:
                 review_statuses = [s for s in review_statuses if s]
             if review_statuses and 'not reviewed' not in review_statuses:
-                if most_recent_proc.get('status') in ('finished', 'aborted'):  # i.e. not 'deleted'
+                if most_recent_proc.get(ELEMENT_STATUS) in ('finished', 'aborted'):  # i.e. not 'deleted'
                     deletable_runs.append(r)
 
         return deletable_runs[:self.deletion_limit]
@@ -89,7 +92,7 @@ class RawDataDeleter(Deleter):
             self.data_dir,
             '.data_deletion_' + datetime.utcnow().strftime('%d_%m_%Y_%H:%M:%S')
         )
-        run_ids = [r['run_id'] for r in runs]
+        run_ids = [r[ELEMENT_RUN_NAME] for r in runs]
         for run in run_ids:
             deletable_dirs = self._setup_run_for_deletion(run, deletion_dir)
             if sorted(self.deletable_sub_dirs) != sorted(deletable_dirs):
@@ -103,13 +106,13 @@ class RawDataDeleter(Deleter):
         return deletion_dir
 
     def mark_run_as_deleted(self, run):
-        self.debug('Updating dataset status for ' + run['run_id'])
+        self.debug('Updating dataset status for ' + run[ELEMENT_RUN_NAME])
         if not self.dry_run:
             rest_communication.patch_entry(
-                'analysis_driver_procs',
-                {'status': 'deleted'},
-                'proc_id',
-                run['analysis_driver_procs'][-1]['proc_id']
+                ELEMENT_PROCS,
+                {ELEMENT_STATUS: 'deleted'},
+                ELEMENT_PROC_ID,
+                run[ELEMENT_PROCS][-1][ELEMENT_PROC_ID]
             )
 
     def archive_run(self, run_id):
@@ -126,7 +129,9 @@ class RawDataDeleter(Deleter):
     def delete_data(self):
         deletable_runs = self.deletable_runs()
         self.debug(
-            'Found %s runs for deletion: %s' % (len(deletable_runs), [r['run_id'] for r in deletable_runs])
+            'Found %s runs for deletion: %s' % (
+                len(deletable_runs), [r[ELEMENT_RUN_NAME] for r in deletable_runs]
+            )
         )
         if self.dry_run or not deletable_runs:
             return 0
@@ -135,15 +140,15 @@ class RawDataDeleter(Deleter):
         runs_to_delete = listdir(deletion_dir)
         self._compare_lists(
             runs_to_delete,
-            [run['run_id'] for run in deletable_runs]
+            [run[ELEMENT_RUN_NAME] for run in deletable_runs]
         )
         assert all([listdir(p_join(self.data_dir, r)) for r in runs_to_delete])
 
         for run in deletable_runs:
-            assert run['run_id'] in runs_to_delete
+            assert run[ELEMENT_RUN_NAME] in runs_to_delete
             self.mark_run_as_deleted(run)
-            self.archive_run(run['run_id'])
-            assert listdir(p_join(self.archive_dir, run['run_id']))
+            self.archive_run(run[ELEMENT_RUN_NAME])
+            assert listdir(p_join(self.archive_dir, run[ELEMENT_RUN_NAME]))
 
         self.delete_dir(deletion_dir)
 
@@ -165,23 +170,23 @@ class FastqDeleter(Deleter):
     @property
     def samples_released_in_app(self):
         if self._samples_released_in_app is None:
-            where = {'delivered': 'yes', 'useable': 'yes', 'input_fastqs_deleted': 'no'}
+            where = {ELEMENT_DELIVERED: 'yes', ELEMENT_USEABLE: 'yes', ELEMENT_FASTQS_DELETED: 'no'}
             if self.project_id:
-                where['project_id'] = self.project_id
+                where[ELEMENT_PROJECT_ID] = self.project_id
             self._samples_released_in_app = rest_communication.get_documents(
                 'samples',
                 where=where,  # TODO: do we want useable only?
-                projection={'sample_id': 1},
+                projection={ELEMENT_SAMPLE_INTERNAL_ID: 1},
                 depaginate=True
             )
-        return [s['sample_id'] for s in self._samples_released_in_app]
+        return [s[ELEMENT_SAMPLE_INTERNAL_ID] for s in self._samples_released_in_app]
 
     def find_fastqs_for_run_element(self, run_element):
         return util.find_fastqs(
-            p_join(self.data_dir, run_element['run_id'], 'fastq'),
-            run_element['project_id'],
-            run_element['sample_id'],
-            lane=run_element['lane']
+            p_join(self.data_dir, run_element[ELEMENT_RUN_NAME], 'fastq'),
+            run_element[ELEMENT_PROJECT_ID],
+            run_element[ELEMENT_SAMPLE_INTERNAL_ID],
+            lane=run_element[ELEMENT_LANE]
         )
 
     def setup_deletion_records(self):
@@ -194,8 +199,8 @@ class FastqDeleter(Deleter):
 
         for s in deletable_samples:
             n_samples += 1
-            for e in rest_communication.get_documents('run_elements', where={'sample_id': s}):
-                assert e['sample_id'] == s
+            for e in rest_communication.get_documents('run_elements', where={ELEMENT_SAMPLE_INTERNAL_ID: s}):
+                assert e[ELEMENT_SAMPLE_INTERNAL_ID] == s
                 fastqs = self.find_fastqs_for_run_element(e)
                 if fastqs:
                     n_run_elements += 1
@@ -247,7 +252,9 @@ class FastqDeleter(Deleter):
     def mark_sample_fastqs_as_deleted(self, sample_id):
         self.debug('Updating dataset status for ' + sample_id)
         if not self.dry_run:
-            rest_communication.patch_entry('samples', {'input_fastqs_deleted': 'yes'}, 'sample_id', sample_id)
+            rest_communication.patch_entry(
+                'samples', {ELEMENT_FASTQS_DELETED: 'yes'}, ELEMENT_SAMPLE_INTERNAL_ID, sample_id
+            )
 
     def delete_data(self):
         deletion_records = self.setup_deletion_records()
@@ -265,10 +272,10 @@ class _FastqDeletionRecord:
     def __init__(self, run_element, fastqs):
         self.run_element = run_element
         self.fastqs = fastqs
-        self.run_id = run_element['run_id']
-        self.sample_id = run_element['sample_id']
-        self.project_id = run_element['project_id']
-        self.lane = run_element['lane']
+        self.run_id = run_element[ELEMENT_RUN_NAME]
+        self.sample_id = run_element[ELEMENT_SAMPLE_INTERNAL_ID]
+        self.project_id = run_element[ELEMENT_PROJECT_ID]
+        self.lane = run_element[ELEMENT_LANE]
 
     def __repr__(self):
         return '%s(%s/%s/%s/%s)' % (
