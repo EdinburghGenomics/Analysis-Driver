@@ -199,8 +199,11 @@ class RunCrawler(Crawler):
             barcode_info[ELEMENT_NB_BASE_R2] = nb_bases
             barcode_info[ELEMENT_NB_Q30_R1] = nb_bases_r1_q30
             barcode_info[ELEMENT_NB_Q30_R2] = nb_bases_r2_q30
-
+        print('printing self barcodes info')
+        print(self.barcodes_info)
         for run_element_id in self.barcodes_info:
+            print('printing run element id')
+            print(run_element_id)
             barcode = self.barcodes_info[run_element_id]
             reads_for_lane = reads_per_lane.get(barcode[ELEMENT_LANE])
             if reads_for_lane > 0:
