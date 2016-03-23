@@ -87,7 +87,7 @@ class DataDelivery(AppLogger):
                 res.append(str((clean_bases_r1+clean_bases_r2)/1000000000))
                 res.append(str((clean_q30_bases_r1+clean_q30_bases_r2)/1000000000))
                 theoritical_cov = (clean_bases_r1 + clean_bases_r2)/3200000000.0
-                if self.get_sample_species(sample) == 'Homo sapiens':
+                if self.get_sample_species(sample.get('sample_id')) == 'Homo sapiens':
                     tr = sample.get('bam_file_reads', 0)
                     mr = sample.get('mapped_reads', 0)
                     dr = sample.get('duplicate_reads', 0)
@@ -126,7 +126,7 @@ class DataDelivery(AppLogger):
         self.all_commands.append(command)
 
     def get_sample_species(self, sample_name):
-        if not sample_name in self.sample2species:
+        if sample_name not in self.sample2species:
             self.sample2species[sample_name] = clarity.get_species_from_sample(sample_name)
         return self.sample2species.get(sample_name)
 
