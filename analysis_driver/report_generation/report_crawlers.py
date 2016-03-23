@@ -178,7 +178,7 @@ class RunCrawler(Crawler):
 
 
     def _populate_barcode_info_from_conversion_file(self, conversion_xml):
-        all_barcodes, top_unknown_barcodes, all_barcodeless = demultiplexing_parsers.parse_conversion_stats(conversion_xml)
+        all_barcodes, top_unknown_barcodes, all_barcodeless = demultiplexing_parsers.parse_conversion_stats(conversion_xml, self.samplesheet.has_barcode)
         reads_per_lane = Counter()
         barcodes = ''
         if not self.samplesheet.has_barcode:
