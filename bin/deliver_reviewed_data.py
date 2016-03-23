@@ -41,6 +41,7 @@ class DataDelivery(AppLogger):
         self.all_commands = []
         self.dry_run = dry_run
         self.all_samples_values = []
+        self.sample2species = {}
 
     def get_deliverable_projects_samples(self, project_id=None, sample_id=None):
         project_to_samples = defaultdict(list)
@@ -71,6 +72,7 @@ class DataDelivery(AppLogger):
         headers=['Project', 'Sample Id', 'User sample id', 'Read pair sequenced', 'Yield', 'Yield Q30',
                  'Nb reads in bam', 'mapping rate', 'properly mapped reads rate', 'duplicate rate',
                  'Mean coverage', 'Callable bases rate', 'Delivery folder']
+        headers_not_human=['Project', 'Sample Id', 'User sample id', 'Read pair sequenced', 'Yield', 'Yield Q30', 'Delivery folder']
         lines = []
         for sample in self.all_samples_values:
             # TODO: Aggregation is done here until we can do the filtering on the REST API
@@ -85,19 +87,22 @@ class DataDelivery(AppLogger):
                 res.append(str((clean_bases_r1+clean_bases_r2)/1000000000))
                 res.append(str((clean_q30_bases_r1+clean_q30_bases_r2)/1000000000))
                 theoritical_cov = (clean_bases_r1 + clean_bases_r2)/3200000000.0
-                tr = sample.get('bam_file_reads', 0)
-                mr = sample.get('mapped_reads', 0)
-                dr = sample.get('duplicate_reads', 0)
-                pmr = sample.get('properly_mapped_reads', 0)
-                if not tr:
-                    raise AnalysisDriverError('Sample %s has no total number of reads'%sample.get('sample_id'))
-                res.append(str(tr))
-                res.append(str(float(mr)/float(tr)*100))
-                res.append(str(float(pmr)/float(tr)*100))
-                res.append(str(float(dr)/float(tr)*100))
-                theoritical_cov = theoritical_cov*(float(mr)/float(tr))*(1-(float(dr)/float(tr)))
-                res.append(str(theoritical_cov))
-                res.append(str(sample.get('pc_callable', 0)*100))
+                if self.get_sample_species(sample) == 'Homo sapiens':
+                    tr = sample.get('bam_file_reads', 0)
+                    mr = sample.get('mapped_reads', 0)
+                    dr = sample.get('duplicate_reads', 0)
+                    pmr = sample.get('properly_mapped_reads', 0)
+                    if not tr:
+                        raise AnalysisDriverError('Sample %s has no total number of reads'%sample.get('sample_id'))
+                    res.append(str(tr))
+                    res.append(str(float(mr)/float(tr)*100))
+                    res.append(str(float(pmr)/float(tr)*100))
+                    res.append(str(float(dr)/float(tr)*100))
+                    theoritical_cov = theoritical_cov*(float(mr)/float(tr))*(1-(float(dr)/float(tr)))
+                    res.append(str(theoritical_cov))
+                    res.append(str(sample.get('pc_callable', 0)*100))
+                else:
+                    headers=headers_not_human
                 res.append(os.path.basename(delivery_folder))
                 lines.append('\t'.join(res))
         return headers, lines
@@ -120,8 +125,13 @@ class DataDelivery(AppLogger):
         command = 'mv %s %s'%(file_to_move, os.path.join(sample_folder, name))
         self.all_commands.append(command)
 
+    def get_sample_species(self, sample_name):
+        if not sample_name in self.sample2species:
+            self.sample2species[sample_name] = clarity.get_species_from_sample(sample_name)
+        return self.sample2species.get(sample_name)
+
     def get_list_of_file_to_move(self, sample_name):
-        species = clarity.get_species_from_sample(sample_name)
+        species = self.get_sample_species(sample_name)
         external_sample_name = clarity.get_user_sample_name(sample_name)
         if species is None:
             raise AnalysisDriverError('No species information found in the LIMS for ' + sample_name)
