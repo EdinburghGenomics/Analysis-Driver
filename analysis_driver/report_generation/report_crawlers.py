@@ -32,9 +32,9 @@ class Crawler(AppLogger):
 
 
 class RunCrawler(Crawler):
-    def __init__(self, run_id, samplesheet, has_barcode, conversion_xml_file=None, run_dir=None):
+    def __init__(self, run_id, samplesheet, conversion_xml_file=None, run_dir=None):
         self.run_id = run_id
-        self.has_barcode = has_barcode
+        self.samplesheet = samplesheet
         self._populate_barcode_info_from_sample_sheet(samplesheet)
         if conversion_xml_file:
             self._populate_barcode_info_from_conversion_file(conversion_xml_file)
@@ -65,7 +65,7 @@ class RunCrawler(Crawler):
             for sample_id_obj in proj_obj.sample_ids.values():
                 for sample in sample_id_obj.samples:
                     for lane in sample.lane.split('+'):
-                        if not self.has_barcode:
+                        if not samplesheet.has_barcode:
                             sample_barcode = 'all'
                         else:
                             sample_barcode = sample.barcode
@@ -181,9 +181,9 @@ class RunCrawler(Crawler):
         all_barcodes, top_unknown_barcodes, all_barcodeless = demultiplexing_parsers.parse_conversion_stats(conversion_xml)
         reads_per_lane = Counter()
         barcodes = ''
-        if not self.has_barcode:
+        if not self.samplesheet.has_barcode:
             barcodes = all_barcodeless
-        elif self.has_barcode:
+        elif self.samplesheet.has_barcode:
             barcodes = all_barcodes
 
         for (project, library, lane, barcode, clust_count,

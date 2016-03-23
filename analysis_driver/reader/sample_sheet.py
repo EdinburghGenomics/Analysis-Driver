@@ -48,8 +48,9 @@ def _read_sample_sheet(sample_sheet):
     f.close()
     return None, None
 
-def _remove_samplesheet_barcodes(data_dir):
-    with open((os.path.join(data_dir, 'SampleSheet_analysis_driver.csv'))) as openfile:
+def remove_samplesheet_barcodes(filename):
+    barcodeless_samplesheet = ''
+    with open(filename) as openfile:
         with_barcode = openfile.read()
         data = ((with_barcode.split('[Data],\n')[1]).split('\n'))[1:]
         barcodes = []
@@ -60,8 +61,9 @@ def _remove_samplesheet_barcodes(data_dir):
         without_barcode = with_barcode
         for b in barcodes:
             without_barcode = without_barcode.replace(b, '')
-        with open((os.path.join(data_dir, 'SampleSheet_analysis_driver.csv')), 'w') as outfile:
-            outfile.write(without_barcode)
+        barcodeless_samplesheet = without_barcode
+    with open(filename, 'w') as outfile:
+        outfile.write(barcodeless_samplesheet)
 
 
 
@@ -71,9 +73,11 @@ class SampleSheet(AppLogger):
         self.filename = filename
         self._populate()
         self.debug('Sample project entries: ' + str(self.sample_projects))
-
-
-
+        if self.check_one_barcode_per_lane() is True:
+            self.has_barcode = False
+            remove_samplesheet_barcodes(filename)
+        else:
+            self.has_barcode = True
 
 
     def check_barcodes(self):
@@ -128,7 +132,7 @@ class SampleSheet(AppLogger):
 
 
 
-    def generate_mask(self, mask, validation_results):
+    def generate_mask(self, mask):
         """
         Translate:
             <Read IsIndexedRead=N Number=1 NumCycles=151/>
@@ -138,7 +142,7 @@ class SampleSheet(AppLogger):
         """
         self.debug('Generating mask...')
 
-        if validation_results == 'barcoded':
+        if self.has_barcode:
             barcode_len = self.check_barcodes()
             out = ['y' + str(mask.num_cycles(mask.upstream_read) - 1) + 'n']
 
@@ -150,7 +154,7 @@ class SampleSheet(AppLogger):
             self.debug(out)
             return ','.join(out)
 
-        elif validation_results == 'barcodeless':
+        elif not self.has_barcode:
 
             out = ['y' + str(mask.num_cycles(mask.upstream_read) - 1) + 'n']
 
@@ -164,11 +168,10 @@ class SampleSheet(AppLogger):
         """
         self.debug('Validating...')
         if not mask.barcode_len:
-            if not self.check_one_barcode_per_lane():
+            if self.has_barcode:
                 return False
             if mask.validate_barcodeless():
-                print('barcodeless run')
-                return('barcodeless')
+                return True
         if self.check_barcodes() != mask.barcode_len:
             self.error(
                 'Barcode mismatch: %s (SampleSheet.csv) and %s (RunInfo.xml)' %
@@ -176,8 +179,7 @@ class SampleSheet(AppLogger):
             )
             return False
         self.debug('Done. Now validating RunInfo')
-        if mask.validate_barcoded():
-            return('barcoded')
+        return mask.validate_barcoded()
 
     def get_samples(self, sample_project, sample_id):
         return self.sample_projects[sample_project].sample_ids[sample_id].samples
