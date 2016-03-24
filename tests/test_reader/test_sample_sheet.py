@@ -70,7 +70,7 @@ Lane,Sample_ID,Sample_Name,Sample_Plate,Sample_Well,Index2,Index,Sample_Project,
 8,10015AT0001,10015ATpool01,,,,,10015AT,
 """
 class TestSampleSheetFunctions(TestAnalysisDriver):
-    new_SP_file = os.path.join(super().assets_path, 'SampleSheet_analysis_driver.csv')
+    new_SP_file = os.path.join(TestAnalysisDriver.assets_path, 'SampleSheet_analysis_driver.csv')
 
     def setUp(self):
         if os.path.exists(self.new_SP_file):
