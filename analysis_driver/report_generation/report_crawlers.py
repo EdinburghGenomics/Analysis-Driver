@@ -183,9 +183,10 @@ class RunCrawler(Crawler):
         all_barcodes, top_unknown_barcodes, all_barcodeless = demultiplexing_parsers.parse_conversion_stats(conversion_xml, self.samplesheet.has_barcode)
         reads_per_lane = Counter()
         barcodes = ''
+
         if not self.samplesheet.has_barcode:
             barcodes = all_barcodeless
-        elif self.samplesheet.has_barcode:
+        else:
             barcodes = all_barcodes
 
         for (project, library, lane, barcode, clust_count,
@@ -193,7 +194,11 @@ class RunCrawler(Crawler):
             reads_per_lane[lane] += clust_count_pf
             # For the moment, assume that nb_bases for r1 and r2 are the same.
             # TODO: remove this assumption by parsing ConversionStats.xml
-            barcode_info = self.barcodes_info.get('%s_%s_%s' % (self.run_id, lane, barcode))
+            print(self.barcodes_info)
+            if not self.samplesheet.has_barcode:
+                barcode_info = self.barcodes_info.get('%s_%s' % (self.run_id, lane))
+            else:
+                barcode_info = self.barcodes_info.get('%s_%s_%s' % (self.run_id, lane, barcode))
 
             barcode_info[ELEMENT_NB_READS_SEQUENCED] = clust_count
             barcode_info[ELEMENT_NB_READS_PASS_FILTER] = clust_count_pf
@@ -201,11 +206,7 @@ class RunCrawler(Crawler):
             barcode_info[ELEMENT_NB_BASE_R2] = nb_bases
             barcode_info[ELEMENT_NB_Q30_R1] = nb_bases_r1_q30
             barcode_info[ELEMENT_NB_Q30_R2] = nb_bases_r2_q30
-        print('printing self barcodes info')
-        print(self.barcodes_info)
         for run_element_id in self.barcodes_info:
-            print('printing run element id')
-            print(run_element_id)
             barcode = self.barcodes_info[run_element_id]
             reads_for_lane = reads_per_lane.get(barcode[ELEMENT_LANE])
             if reads_for_lane > 0:
