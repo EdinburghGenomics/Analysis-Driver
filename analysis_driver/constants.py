@@ -52,6 +52,14 @@ ELEMENT_CONTAMINANT_UNIQUE_MAP = 'contaminant_unique_mapped'
 ELEMENT_PCNT_UNMAPPED_FOCAL = 'percent_unmapped_focal'
 ELEMENT_PCNT_UNMAPPED = 'percent_unmapped'
 
+ELEMENT_DELIVERED = 'delivered'
+ELEMENT_USEABLE = 'useable'
+ELEMENT_FASTQS_DELETED = 'input_fastqs_deleted'
+
+
+ELEMENT_PROCS = 'analysis_driver_procs'
+ELEMENT_PROC_ID = 'proc_id'
+ELEMENT_STATUS = 'status'
 DATASET_NEW = 'new'
 DATASET_READY = 'ready'
 DATASET_FORCE_READY = 'force_ready'

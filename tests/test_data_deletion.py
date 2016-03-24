@@ -1,10 +1,34 @@
-__author__ = 'mwham'
 import os
 from os.path import join as p_join
 import shutil
 from tests.test_analysisdriver import TestAnalysisDriver
 from unittest.mock import patch, Mock
 from bin import delete_data
+from analysis_driver.util import find_files, find_fastqs
+
+
+class FakeExecutor(Mock):
+    @staticmethod
+    def join():
+        pass
+
+
+class TestDeleter(TestAnalysisDriver):
+    @property
+    def assets_deletion(self):
+        return p_join(self.assets_path, 'data_deletion')
+
+    @staticmethod
+    def touch(file_path):
+        open(file_path, 'w').close()
+
+    def setUp(self):
+        self.deleter = delete_data.Deleter(self.assets_deletion)
+
+    @patch('bin.delete_data.executor.execute', return_value=FakeExecutor())
+    def test_execute(self, mocked_execute):
+        self.deleter._execute('a test command')
+        mocked_execute.assert_called_with(['a test command'], 'local')
 
 
 finished_proc = {'status': 'finished'}
@@ -77,13 +101,6 @@ fake_run_elements_procs_complete = [
 
 ]
 
-
-class FakeExecutor(Mock):
-    @staticmethod
-    def join():
-        pass
-
-
 patched_patch_entry = patch('bin.delete_data.rest_communication.patch_entry')
 patched_deletable_runs = patch(
     'bin.delete_data.RawDataDeleter.deletable_runs',
@@ -97,20 +114,6 @@ patched_deletable_runs = patch(
         }
     ]
 )
-
-
-class TestDeleter(TestAnalysisDriver):
-    @property
-    def assets_deletion(self):
-        return p_join(self.assets_path, 'data_deletion')
-
-    def setUp(self):
-        self.deleter = delete_data.Deleter(self.assets_deletion)
-
-    @patch('bin.delete_data.executor.execute', return_value=FakeExecutor())
-    def test_execute(self, mocked_execute):
-        self.deleter._execute('a test command')
-        mocked_execute.assert_called_with(['a test command'], 'local')
 
 
 class TestRawDataDeleter(TestDeleter):
@@ -140,7 +143,8 @@ class TestRawDataDeleter(TestDeleter):
         expected_rest_query = {
             'max_results': 100,
             'embedded': {'run_elements': 1, 'analysis_driver_procs': 1},
-            'aggregate': True
+            'aggregate': True,
+            'sort': 'run_id'
         }
 
         with patch(patch_target, return_value=fake_run_elements_no_procs) as p:
@@ -176,7 +180,7 @@ class TestRawDataDeleter(TestDeleter):
     def test_delete_runs(self):
         with patched_deletable_runs:
             deletion_dir = self.deleter.setup_runs_for_deletion(self.deleter.deletable_runs())
-            self.deleter.delete_runs(deletion_dir)
+            self.deleter.delete_dir(deletion_dir)
             assert not os.path.isdir(deletion_dir)
 
     @patched_patch_entry
@@ -226,7 +230,7 @@ class TestRawDataDeleter(TestDeleter):
                 os.listdir(d),
                 list(self.deleter.deletable_sub_dirs) + ['Stats', 'InterOp', 'RTAComplete.txt']
             )
-        self.deleter.run_deletion()
+        self.deleter.delete_data()
         assert os.path.isdir(non_del_dir)
         self.compare_lists(
             os.listdir(non_del_dir),
@@ -243,3 +247,163 @@ class TestRawDataDeleter(TestDeleter):
             'most_recent_proc'
         )
         assert mocked_deletable_runs.call_count == 1
+
+
+patched_clarity_get_samples = patch(
+    'bin.delete_data.clarity.get_released_samples', return_value=['deletable_sample', 'deletable_sample_2']
+)
+
+patched_deletable_samples = patch(
+    'bin.delete_data.rest_communication.get_documents',
+    return_value=[{'sample_id': 'deletable_sample'}]
+)
+
+
+class TestFastqDeleter(TestDeleter):
+    @property
+    def fake_deletion_record(self):
+        return delete_data._FastqDeletionRecord(
+            run_element={
+                'run_id': 'a_run',
+                'project_id': 'a_project',
+                'sample_id': 'deletable_sample',
+                'lane': '1'
+            },
+            fastqs=find_fastqs(
+                p_join(self.assets_deletion, 'fastqs', 'a_run', 'fastq'),
+                'a_project',
+                'deletable_sample',
+                lane=1
+            )
+        )
+
+    def _setup_fastqs(self, run_id, project_id, sample_id):
+        fastq_dir = p_join(self.assets_deletion, 'fastqs', run_id, 'fastq', project_id, sample_id)
+        os.makedirs(fastq_dir, exist_ok=True)
+        for lane in range(8):
+            for read in ('1', '2'):
+                for file_ext in ('fastq.gz', 'fastqc.html'):
+                    self.touch(p_join(fastq_dir, 'fastq_L00%s_R%s.%s' % (str(lane + 1), read, file_ext)))
+
+    def setUp(self):
+        self.deleter = delete_data.FastqDeleter(self.assets_deletion)
+        for run_id in ('a_run', 'another_run'):
+            for sample_id in ('deletable_sample', 'non_deletable_sample'):
+                self._setup_fastqs(run_id, 'a_project', sample_id)
+
+    def tearDown(self):
+        for r in ('a_run', 'another_run'):
+            shutil.rmtree(p_join(self.assets_deletion, 'fastqs', r), ignore_errors=True)
+
+        deletion_script = p_join(self.assets_deletion, 'data_deletion.pbs')
+        if os.path.isfile(deletion_script):
+            os.remove(deletion_script)
+
+        for tmpdir in find_files(self.assets_deletion, 'fastqs', '.data_deletion_*'):
+            shutil.rmtree(tmpdir)
+
+    def test_samples_released_in_lims(self):
+        with patched_clarity_get_samples:
+            assert self.deleter.samples_released_in_lims == {'deletable_sample', 'deletable_sample_2'}
+
+    def test_samples_released_in_app(self):
+        with patched_deletable_samples:
+            self.compare_lists(self.deleter.samples_released_in_app, ['deletable_sample'])
+
+    def test_find_fastqs_for_run_element(self):
+        run_element = {
+            'run_id': 'a_run',
+            'project_id': 'a_project',
+            'sample_id': 'deletable_sample',
+            'lane': '1'
+        }
+        fqs = self.deleter.find_fastqs_for_run_element(run_element)
+        assert len(fqs) == 2
+
+        obs = [os.path.basename(f) for f in fqs]
+        expected_fqs = find_fastqs(
+            p_join(self.assets_deletion, 'fastqs', 'a_run', 'fastq'),
+            'a_project',
+            'deletable_sample',
+            lane=1
+        )
+        exp = [os.path.basename(f) for f in expected_fqs]
+        self.compare_lists(obs, exp)
+
+    def test_setup_record_for_deletion(self):
+        deletion_dir = p_join(self.assets_deletion, 'fastqs', '.test_setup_record')
+        os.makedirs(deletion_dir, exist_ok=True)
+        e = {
+            'run_id': 'a_run',
+            'project_id': 'a_project',
+            'sample_id': 'deletable_sample',
+            'lane': '1'
+        }
+        fqs = self.deleter.find_fastqs_for_run_element(e)
+        record = delete_data._FastqDeletionRecord(e, fqs)
+        self.deleter._setup_record_for_deletion(deletion_dir, record)
+
+        self.compare_lists(os.listdir(deletion_dir), ['a_run'])
+        self.compare_lists(os.listdir(p_join(deletion_dir, 'a_run', 'fastq', 'a_project')), ['deletable_sample'])
+        self.compare_lists(
+            os.listdir(p_join(deletion_dir, 'a_run', 'fastq', 'a_project', 'deletable_sample')),
+            [os.path.basename(fq) for fq in fqs]
+        )
+        shutil.rmtree(deletion_dir)
+
+    def setup_deletion_records(self):  # test set() intersection between lims and app
+        with patched_clarity_get_samples, patched_deletable_samples:
+            records = self.deleter.setup_deletion_records()
+            assert len(records) == 1 and records[0].sample_id == 'deletable_sample'
+
+    def test_setup_fastqs_for_deletion(self):
+        records = [self.fake_deletion_record]
+        with patched_clarity_get_samples:
+            self.deleter.setup_fastqs_for_deletion(records)
+
+    def test_delete_data(self):
+        run_elements = []
+        for run in ('a_run', 'another_run'):
+            for lane in range(8):
+                e = {
+                    'run_id': run,
+                    'project_id': 'a_project',
+                    'sample_id': 'deletable_sample',
+                    'lane': str(lane + 1)
+                }
+                run_elements.append(e)
+
+        patched_app = patch(
+            'bin.delete_data.FastqDeleter.samples_released_in_app',
+            new={'deletable_sample'}
+        )
+        patched_run_elements = patch(
+            'bin.delete_data.rest_communication.get_documents',
+            return_value=run_elements
+        )
+        patched_mark_sample = patch(
+            'bin.delete_data.FastqDeleter.mark_sample_fastqs_as_deleted',
+        )
+        basenames = []
+        for lane in range(8):
+            for read in ('1', '2'):
+                for file_ext in ('fastq.gz', 'fastqc.html'):
+                    basenames.append('fastq_L00%s_R%s.%s' % (lane + 1, read, file_ext))
+
+        with patched_clarity_get_samples, patched_app, patched_run_elements, patched_mark_sample:
+            self.compare_lists(
+                [os.path.basename(f) for f in find_files(self.assets_deletion, 'fastqs', '*run*')],
+                ['a_run', 'another_run']
+            )
+            for run in ('a_run', 'another_run'):
+                self.compare_lists(
+                    os.listdir(p_join(self.assets_deletion, 'fastqs', run, 'fastq', 'a_project', 'deletable_sample')),
+                    basenames
+                )
+            self.deleter.delete_data()
+
+            for run in ('a_run', 'another_run'):
+                self.compare_lists(
+                    os.listdir(p_join(self.assets_deletion, 'fastqs', run, 'fastq', 'a_project', 'deletable_sample')),
+                    [f for f in basenames if f.endswith('fastqc.html')]
+                )

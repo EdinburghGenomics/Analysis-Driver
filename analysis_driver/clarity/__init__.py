@@ -6,9 +6,14 @@ from analysis_driver.app_logging import logging_default as log_cfg
 
 app_logger = log_cfg.get_logger('Clarity')
 
+_lims = None
+
 
 def _get_lims_connection():
-    return Lims(**cfg.get('clarity'))
+    global _lims
+    if not _lims:
+        _lims = Lims(**cfg.get('clarity'))
+    return _lims
 
 
 def get_valid_lanes(flowcell_name):
@@ -50,7 +55,7 @@ def find_project_from_sample(sample_name):
 
 def find_run_elements_from_sample(sample_name):
     lims = _get_lims_connection()
-    sample = get_lims_sample(sample_name, lims)
+    sample = get_lims_sample(sample_name)
     if sample:
         run_log_files = lims.get_artifacts(sample_name=sample.name, process_type="AUTOMATED - Sequence")
         for run_log_file in run_log_files:
@@ -137,7 +142,8 @@ def get_lims_samples(sample_name, lims):
     return samples
 
 
-def get_lims_sample(sample_name, lims):
+def get_lims_sample(sample_name):
+    lims = _get_lims_connection()
     samples = get_lims_samples(sample_name, lims)
     if len(samples) != 1:
         app_logger.warning('%s Sample(s) found for name %s' % (len(samples), sample_name))
@@ -152,8 +158,7 @@ def get_user_sample_name(sample_name, lenient=False):
     :param bool lenient: If True, return the sample name if no user sample name found
     :return: the user's sample name or None
     """
-    lims = _get_lims_connection()
-    user_sample_name = get_lims_sample(sample_name, lims).udf.get('User Sample Name')
+    user_sample_name = get_lims_sample(sample_name).udf.get('User Sample Name')
     if user_sample_name:
         return sanitize_user_id(user_sample_name)
     elif lenient:
@@ -170,7 +175,7 @@ def get_sex_from_lims(sample_name):
 
 def get_genotype_information_from_lims(sample_name, output_file_name):
     lims = _get_lims_connection()
-    sample = get_lims_sample(sample_name, lims)
+    sample = get_lims_sample(sample_name)
     if sample:
         file_id = sample.udf.get('Genotyping results file id')
         if file_id:
@@ -189,8 +194,7 @@ def get_expected_yield_for_sample(sample_name):
     :param sample_name: the sample name
     :return: number of bases
     """
-    lims = _get_lims_connection()
-    sample = get_lims_sample(sample_name, lims)
+    sample = get_lims_sample(sample_name)
     if sample:
         nb_gb = sample.udf.get('Yield for Quoted Coverage (Gb)')
         if nb_gb:
@@ -204,6 +208,91 @@ def get_run(run_id):
         app_logger.error('%s runs found for %s' % (len(runs), run_id))
     if runs:
         return runs[0]
+
+
+def get_plate_id_and_well_from_lims(sample_name):
+    lims = _get_lims_connection()
+    samples = get_lims_samples(sample_name, lims)
+    if len(samples) == 1:
+        plate, well = samples[0].artifact.location
+        return plate.name, well
+    else:
+        return None, None
+
+
+def get_sample_names_from_plate_from_lims(plate_id):
+    lims = _get_lims_connection()
+    containers = lims.get_containers(type='96 well plate', name=plate_id)
+    if containers:
+        samples = {}
+        placements = containers[0].get_placements()
+        for key in placements:
+            sample_name = placements.get(key).samples[0].name
+            samples[key] = sanitize_user_id(sample_name)
+        return list(samples.values())
+
+
+def get_sample_names_from_project_from_lims(project_id):
+    lims = _get_lims_connection()
+    samples = lims.get_samples(projectname=project_id)
+    sample_names = [sample.name for sample in samples]
+    return sample_names
+
+
+def get_output_containers_from_sample_and_step_name(sample_name, step_name):
+    lims = _get_lims_connection()
+    sample = get_lims_sample(sample_name)
+    sample_name = sample.name
+    containers = set()
+    arts = [a.id for a in lims.get_artifacts(sample_name=sample_name)]
+    prcs = lims.get_processes(type=step_name, inputartifactlimsid=arts)
+    for prc in prcs:
+        arts = prc.input_per_sample(sample_name)
+        for art in arts:
+            containers.update([o.container for o in prc.outputs_per_input(art.id, Analyte=True)])
+    return containers
+
+
+def get_samples_arrived_with(sample_name):
+    sample = get_lims_sample(sample_name)
+    samples = set()
+    if sample:
+        container = sample.artifact.container
+        if container.type.name == '96 well plate':
+            samples = get_sample_names_from_plate_from_lims(container.name)
+    return samples
+
+
+def get_samples_genotyped_with(sample_name):
+    sample = get_lims_sample(sample_name)
+    sample_name = sample.name
+    containers = get_output_containers_from_sample_and_step_name(sample_name, 'Genotyping Plate Preparation EG 1.0')
+
+    samples = set()
+    for container in containers:
+        samples.update(get_sample_names_from_plate_from_lims(container.name))
+    return samples
+
+
+def get_samples_sequenced_with(sample_name):
+    sample = get_lims_sample(sample_name)
+    sample_name = sample.name
+    containers = get_output_containers_from_sample_and_step_name(sample_name, 'Sequencing Plate Preparation EG 1.0')
+    samples = set()
+    for container in containers:
+        samples.update(get_sample_names_from_plate_from_lims(container.name))
+    return samples
+
+
+def get_released_samples():
+    released_samples = []
+    lims = _get_lims_connection()
+    processes = lims.get_processes(type='Data Release EG 1.0')
+    for process in processes:
+        for artifact in process.all_inputs():
+            released_samples.extend([s.name for s in artifact.samples])
+
+    return sorted(set(released_samples))
 
 
 def run_tests():

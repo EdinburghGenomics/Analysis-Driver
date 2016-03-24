@@ -1,3 +1,5 @@
+from analysis_driver.util.bash_commands import sickle_paired_end_in_place
+
 __author__ = 'mwham'
 from unittest.mock import patch
 from tests.test_analysisdriver import TestAnalysisDriver
@@ -38,6 +40,25 @@ class TestUtil(TestAnalysisDriver):
                 self.fastq_path, '10015AT', '10015AT0001', file_name
             ) in fastqs
 
+
+    def test_find_all_fastq_pairs(self):
+        fastqs = util.find_all_fastq_pairs(self.fastq_path)
+        for f1, f2 in [('10015AT0001_S6_L004_R1_001.fastq.gz', '10015AT0001_S6_L004_R2_001.fastq.gz'),
+                       ('10015AT0001_S6_L005_R1_001.fastq.gz', '10015AT0001_S6_L005_R2_001.fastq.gz')]:
+            fp1 = os.path.join(self.fastq_path, '10015AT', '10015AT0001', f1 )
+            fp2 = os.path.join(self.fastq_path, '10015AT', '10015AT0001', f2 )
+            assert (fp1, fp2) in fastqs
+
+    def test_sickle_paired_end_in_place(self):
+        expected_command = "path/to/sickle pe -f fastqfile1_R1.fastq.gz -r fastqfile1_R2.fastq.gz " \
+                           "-o fastqfile1_R1.fastq_sickle.gz -p fastqfile1_R2.fastq_sickle.gz -s " \
+                           "fastqfile1_R1.fastq_sickle_single.gz -q 5  -l 36  -x  -g -t sanger > " \
+                           "fastqfile1_R1.fastq_sickle.log\nEXIT_CODE=$?\n" \
+                           "(exit $EXIT_CODE) && mv fastqfile1_R1.fastq_sickle.gz fastqfile1_R1.fastq.gz\n" \
+                           "(exit $EXIT_CODE) && mv fastqfile1_R2.fastq_sickle.gz fastqfile1_R2.fastq.gz\n" \
+                           "(exit $EXIT_CODE) && rm fastqfile1_R1.fastq_sickle_single.gz\n(exit $EXIT_CODE)"
+        cmd = sickle_paired_end_in_place(('fastqfile1_R1.fastq.gz', 'fastqfile1_R2.fastq.gz'))
+        assert cmd == expected_command
 
 class TestTransferData(TestAnalysisDriver):
     sample_id = '10015AT0001'
