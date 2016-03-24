@@ -1,4 +1,3 @@
-__author__ = 'tcezard'
 import os
 import shutil
 import pytest
@@ -170,7 +169,8 @@ class TestDataset(TestAnalysisDriver):
                     'status': 'a_status',
                     'dataset_type': self.dataset.type,
                     'dataset_name': 'test_dataset',
-                    'end_date': self.dataset._now()
+                    'end_date': self.dataset._now(),
+                    'pid': None
                 },
                 'proc_id',
                 'a_type_a_name'
@@ -290,7 +290,13 @@ class TestDataset(TestAnalysisDriver):
 
     def setup_dataset(self):
         with patched_request:
-            self.dataset = Dataset('test_dataset')
+            self.dataset = _TestDataset('test_dataset')
+
+
+class _TestDataset(Dataset):
+    type = 'None'
+    endpoint = 'None'
+    id_field = 'None'
 
 
 class TestRunDataset(TestDataset):

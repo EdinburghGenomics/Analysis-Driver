@@ -5,7 +5,7 @@ from analysis_driver import executor
 from analysis_driver.clarity import get_genotype_information_from_lims, \
     find_project_from_sample, get_sample_names_from_project_from_lims, \
     get_samples_arrived_with, get_samples_genotyped_with, get_samples_sequenced_with
-from analysis_driver.exceptions import AnalysisDriverError
+from analysis_driver.exceptions import PipelineError
 from analysis_driver.notification import default as ntf
 from analysis_driver.config import default as cfg
 from analysis_driver.reader.mapping_stats_parsers import parse_genotype_concordance
@@ -66,7 +66,7 @@ class GenotypeValidation(AppLogger, Thread):
                                                                             command_aln1, fastq_files[0])
 
         else:
-            raise AnalysisDriverError('Bad number of fastqs: ' + str(fastq_files))
+            raise PipelineError('Bad number of fastqs: ' + str(fastq_files))
 
         command_samblaster = '%s --removeDups' % (cfg.query('tools', 'samblaster', ret_default='samblaster'))
         command_samtools = '%s view -F 4 -Sb -' % (cfg.query('tools', 'samtools', ret_default='samtools'))
@@ -144,7 +144,7 @@ class GenotypeValidation(AppLogger, Thread):
         """
         list_commands = []
         sample2genotype_validation = {}
-        #Make sure the file exists
+        # Make sure the file exists
         assert os.path.isfile(self.seq_vcf_file)
 
         if not os.path.isfile(self.seq_vcf_file+'.tbi'):
@@ -225,8 +225,6 @@ class GenotypeValidation(AppLogger, Thread):
             for sample in sorted(all_sample_lines):
                 open_file.write(all_sample_lines.get(sample) + '\n')
 
-
-
     def _genotype_validation(self):
         """
         Perform validation for each of the samples from a run
@@ -234,12 +232,12 @@ class GenotypeValidation(AppLogger, Thread):
         :return list of file containing the results of the validation.
         """
         if not os.path.isfile(self.seq_vcf_file):
-            #Generate self.seq_vcf_file
+            # Generate self.seq_vcf_file
             bam_file = self._bwa_alignment()
             self._snp_calling(bam_file)
 
         # Compare against the sample or the plate
-        samples_names = set([self.sample_id])
+        samples_names = {self.sample_id}
         if self.check_neighbour:
             samples_names.update(get_samples_arrived_with(self.sample_id))
             samples_names.update(get_samples_genotyped_with(self.sample_id))

@@ -1,4 +1,3 @@
-__author__ = 'mwham'
 import os
 from datetime import datetime
 from collections import defaultdict
@@ -17,14 +16,15 @@ STATUS_HIDDEN = [DATASET_PROCESSED_SUCCESS, DATASET_PROCESSED_FAIL, DATASET_ABOR
 
 
 class Dataset:
-    type = 'None'
-    endpoint = 'None'
-    id_field = 'None'
+    type = None
+    endpoint = None
+    id_field = None
 
     def __init__(self, name):
         self.name = name
-        self.pid = None
-        self.proc_id = self._most_recent_proc().get('proc_id', '_'.join((self.type, self.name)))
+        most_recent_proc = self._most_recent_proc()
+        self.pid = most_recent_proc.get('pid')
+        self.proc_id = most_recent_proc.get('proc_id', '_'.join((self.type, self.name)))
 
     def _most_recent_proc(self):
         procs = rest_communication.get_documents(
@@ -110,7 +110,9 @@ class Dataset:
             'status': status
         }
         if finish:
+            self.pid = None
             end_date = self._now()
+            new_content['pid'] = self.pid
             new_content['end_date'] = end_date
         else:
             end_date = None

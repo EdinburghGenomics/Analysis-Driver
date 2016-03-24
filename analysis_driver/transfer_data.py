@@ -2,7 +2,7 @@ __author__ = 'mwham'
 import os
 from time import sleep
 from analysis_driver import executor, clarity, util
-from analysis_driver.exceptions import AnalysisDriverError
+from analysis_driver.exceptions import PipelineError
 from analysis_driver.util.bash_commands import rsync_from_to, is_remote_path
 from analysis_driver.app_logging import get_logger
 from analysis_driver.config import default as cfg
@@ -80,7 +80,7 @@ def _find_fastqs_for_sample(sample_id, run_element):
     if len(fastqs) == 0:
         app_logger.warning('0 fastqs found for %s/%s/%s/L00%s' % (run_id, project_id, sample_id, lane))
     elif len(fastqs) != 2:
-        raise AnalysisDriverError(
+        raise PipelineError(
             '%s fastqs found for %s/%s/%s/L00%s' % (len(fastqs), run_id, project_id, sample_id, lane)
         )
     return fastqs
@@ -155,7 +155,7 @@ def _output_data(source_dir, output_dir, run_id):
         ssh_cmd = 'ssh %s mkdir -p %s' % (host, path)
         exit_status = executor.execute([ssh_cmd], env='local', stream=False).join()
         if exit_status:
-            raise AnalysisDriverError('Could not create remote output dir: ' + output_dir)
+            raise PipelineError('Could not create remote output dir: ' + output_dir)
 
     else:
         os.makedirs(output_dir, exist_ok=True)

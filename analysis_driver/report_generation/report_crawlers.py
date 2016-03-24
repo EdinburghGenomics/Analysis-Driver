@@ -3,7 +3,7 @@ import json
 from analysis_driver import util
 from analysis_driver.clarity import get_sex_from_lims, get_user_sample_name
 from analysis_driver.app_logging import AppLogger
-from analysis_driver.exceptions import AnalysisDriverError
+from analysis_driver.exceptions import PipelineError
 from analysis_driver.reader import demultiplexing_parsers, mapping_stats_parsers
 from analysis_driver.reader.demultiplexing_parsers import get_fastqscreen_results
 from analysis_driver.rest_communication import post_or_patch as pp
@@ -18,8 +18,6 @@ from analysis_driver.constants import ELEMENT_RUN_NAME, ELEMENT_NUMBER_LANE, ELE
     ELEMENT_LANE_NUMBER, ELEMENT_CALLED_GENDER, ELEMENT_PROVIDED_GENDER, ELEMENT_NB_READS_CLEANED, ELEMENT_NB_Q30_R1_CLEANED, \
     ELEMENT_SPECIES_CONTAMINATION, ELEMENT_NB_BASE_R2_CLEANED, ELEMENT_NB_Q30_R2_CLEANED, ELEMENT_NB_BASE_R1_CLEANED, \
     ELEMENT_GENOTYPE_VALIDATION
-
-
 
 
 class Crawler(AppLogger):
@@ -150,7 +148,7 @@ class RunCrawler(Crawler):
                 barcode_info[ELEMENT_NB_Q30_R2_CLEANED] = hi_q
 
             elif len(fq_chk_files) == 1:
-                raise AnalysisDriverError('Only one fqchk file found in %s for %s' % (run_dir, run_element_id))
+                raise PipelineError('Only one fqchk file found in %s for %s' % (run_dir, run_element_id))
 
             elif barcode_info[ELEMENT_NB_READS_PASS_FILTER] == 0:
                 barcode_info[ELEMENT_NB_READS_CLEANED] = 0
@@ -160,7 +158,7 @@ class RunCrawler(Crawler):
                 barcode_info[ELEMENT_NB_Q30_R2_CLEANED] = 0
 
             else:
-                raise AnalysisDriverError('%s fqchk files found in %s for %s' % (len(fq_chk_files), run_dir, run_element_id))
+                raise PipelineError('%s fqchk files found in %s for %s' % (len(fq_chk_files), run_dir, run_element_id))
 
     def _populate_barcode_info_from_conversion_file(self, conversion_xml):
         all_barcodes, top_unknown_barcodes = demultiplexing_parsers.parse_conversion_stats(conversion_xml)
@@ -300,7 +298,6 @@ class SampleCrawler(Crawler):
                 sample[ELEMENT_GENOTYPE_VALIDATION] = genotyping_result
             else:
                 self.critical('Sample %s not found in file %s' % (self.sample_id, genotype_validation_path))
-
 
         species_contamination_path = self.search_file(sample_dir, '%s_R1_screen.txt' % external_sample_name)
         if species_contamination_path:

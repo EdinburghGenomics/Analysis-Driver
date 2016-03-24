@@ -4,7 +4,7 @@ import shutil
 import yaml
 from analysis_driver import reader, util, executor, clarity
 from analysis_driver.dataset_scanner import RunDataset, SampleDataset
-from analysis_driver.exceptions import AnalysisDriverError
+from analysis_driver.exceptions import PipelineError, SequencingRunError
 from analysis_driver.app_logging import get_logger
 from analysis_driver.config import output_files_config, default as cfg  # imports the default config singleton
 from analysis_driver.notification import default as ntf
@@ -25,7 +25,7 @@ def pipeline(dataset):
     elif isinstance(dataset, SampleDataset):
         species = clarity.get_species_from_sample(dataset.name)
         if species is None:
-            raise AnalysisDriverError('No species information found in the LIMS for ' + dataset.name)
+            raise PipelineError('No species information found in the LIMS for ' + dataset.name)
         elif species == 'Homo sapiens':
             exit_status = variant_calling_pipeline(dataset)
         else:
@@ -66,7 +66,7 @@ def demultiplexing_pipeline(dataset):
     reader.transform_sample_sheet(input_run_folder)
     sample_sheet = reader.SampleSheet(os.path.join(input_run_folder, 'SampleSheet_analysis_driver.csv'))
     if not sample_sheet.validate(run_info.mask):
-        raise AnalysisDriverError('Validation failed. Check SampleSheet.csv and RunInfo.xml.')
+        raise PipelineError('Validation failed. Check SampleSheet.csv and RunInfo.xml.')
 
     mask = sample_sheet.generate_mask(run_info.mask)
     app_logger.info('bcl2fastq mask: ' + mask)  # e.g: mask = 'y150n,i6,y150n'
@@ -80,7 +80,7 @@ def demultiplexing_pipeline(dataset):
     # TODO: catch bcl2fastq error logs instead
     if run_status != 'RunCompleted':
         app_logger.error('Run status is \'%s\'. Stopping.' % run_status)
-        return 2
+        raise SequencingRunError(run_status)
 
     # bcl2fastq
     ntf.start_stage('bcl2fastq')
@@ -258,7 +258,7 @@ def qc_pipeline(dataset, species):
 
     reference = cfg.query('references', species.replace(' ', '_'), 'fasta')
     if not reference:
-        raise AnalysisDriverError('Could not find reference for species %s in sample %s ' % (species, sample_id))
+        raise PipelineError('Could not find reference for species %s in sample %s ' % (species, sample_id))
 
     # merge fastq files
     ntf.start_stage('merge fastqs')
@@ -394,7 +394,7 @@ def _run_bcbio(sample_id, sample_dir, sample_fastqs):
         '..', 'etc', 'bcbio_alignment_' + cfg['genome'] + '.yaml'
     )
     if not os.path.isfile(run_template):
-        raise AnalysisDriverError(
+        raise PipelineError(
             'Could not find BCBio run template ' + run_template + '. Is the correct genome set?'
         )
 

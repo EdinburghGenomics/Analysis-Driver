@@ -1,4 +1,3 @@
-__author__ = 'mwham'
 import argparse
 import logging
 import os
@@ -6,7 +5,7 @@ import sys
 from analysis_driver.app_logging import get_logger
 from analysis_driver.config import default as cfg, logging_default as log_cfg
 from analysis_driver.notification import default as ntf, LogNotification, EmailNotification
-from analysis_driver.exceptions import AnalysisDriverError
+from analysis_driver import exceptions
 from analysis_driver.dataset_scanner import RunScanner, SampleScanner, DATASET_READY, DATASET_FORCE_READY
 
 
@@ -29,7 +28,7 @@ def main():
                     s = sys.stderr
                 handler = logging.StreamHandler(stream=s)
             else:
-                raise AnalysisDriverError('Invalid logging configuration: %s %s' % name, str(config))
+                raise exceptions.AnalysisDriverError('Invalid log configuration: %s %s' % name, str(config))
             log_cfg.add_handler(name, handler, config.get('level', log_cfg.default_level))
 
     if args.run:
@@ -121,6 +120,11 @@ def _process_dataset(d):
         ntf.start_pipeline()
         exit_status = driver.pipeline(d)
         app_logger.info('Done')
+
+    except exceptions.SequencingRunError as e:
+        app_logger.info('Bad sequencing run: %s. Aborting this dataset' + str(e))
+        d.abort()
+        exit_status = 2  # TODO: we should send a notification of the run status found
 
     except Exception as e:
         app_logger.critical('Encountered a %s exception: %s' % (e.__class__.__name__, str(e)))
