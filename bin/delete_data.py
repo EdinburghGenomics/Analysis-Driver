@@ -96,7 +96,7 @@ class RawDataDeleter(Deleter):
         for run in run_ids:
             deletable_dirs = self._setup_run_for_deletion(run, deletion_dir)
             if sorted(self.deletable_sub_dirs) != sorted(deletable_dirs):
-                self.warn(
+                self.warning(
                     'Not all deletable dirs were present for run %s: %s' % (
                         run, [d for d in self.deletable_sub_dirs if d not in deletable_dirs]
                     )

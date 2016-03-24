@@ -4,7 +4,7 @@ import argparse
 import logging
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from analysis_driver.config import logging_default as log_cfg
+from analysis_driver.app_logging import logging_default as log_cfg
 from analysis_driver import executor, util
 from analysis_driver.exceptions import AnalysisDriverError
 from analysis_driver.util.bash_commands import rsync_from_to, is_remote_path
@@ -14,8 +14,8 @@ from analysis_driver.dataset_scanner import SampleScanner
 from analysis_driver.transfer_data import prepare_sample_data
 
 
-log_cfg.default_level = logging.DEBUG
-log_cfg.add_handler('stdout', logging.StreamHandler(stream=sys.stdout), logging.DEBUG)
+log_cfg.set_log_level(logging.DEBUG)
+log_cfg.add_handler(logging.StreamHandler(stream=sys.stdout))
 
 
 def main():
