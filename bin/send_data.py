@@ -1,3 +1,5 @@
+from yaml import reader
+
 __author__ = 'mwham'
 import sys
 import os
@@ -12,6 +14,7 @@ log_cfg.add_handler('stdout', logging.StreamHandler(stream=sys.stdout), logging.
 
 from analysis_driver.reader import SampleSheet
 from analysis_driver.report_generation.report_crawlers import SampleCrawler, RunCrawler
+from analysis_driver.config import default as cfg
 
 
 def main():
@@ -42,9 +45,22 @@ def main():
 
 
 def run_crawler(args):
-    for f in (args.samplesheet, args.conversion_stats):
-        assert os.path.isfile(f), 'Missing file: ' + f
-    c = RunCrawler(args.run_id, SampleSheet(args.samplesheet), args.conversion_stats, args.run_dir)
+    cfg.merge(cfg.merge(cfg['run']))
+    if args.run_dir:
+        run_dir = args.run_dir
+    else:
+        run_dir = os.path.path(cfg.query('output_dir'), args.run_id, 'fastq')
+    if args.conversion_stats:
+        conversion_stats = args.conversion_stats
+    else:
+        conversion_stats = os.path.path(run_dir, 'Stats', 'ConversionStats.xml')
+    run_info = reader.RunInfo(run_dir)
+    if args.samplesheet:
+        samplesheet = SampleSheet(args.samplesheet, has_barcode=run_info.mask.has_barcodes)
+    else:
+        samplesheet = SampleSheet(os.path.path(run_dir, 'SampleSheet_analysis_driver.csv'), has_barcode=run_info.mask.has_barcodes)
+
+    c = RunCrawler(args.run_id, samplesheet, conversion_stats, run_dir)
     if args.test:
         print(
             json.dumps(
