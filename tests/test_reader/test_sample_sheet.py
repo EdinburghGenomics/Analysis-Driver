@@ -72,27 +72,16 @@ Lane,Sample_ID,Sample_Name,Sample_Plate,Sample_Well,Index2,Index,Sample_Project,
 class TestSampleSheetFunctions(TestAnalysisDriver):
     new_SP_file = os.path.join(TestAnalysisDriver.assets_path, 'SampleSheet_analysis_driver.csv')
 
-    def setUp(self):
-        if os.path.exists(self.new_SP_file):
-            os.unlink(self.new_SP_file)
-
-    def tearDown(self):
-        if os.path.exists(self.new_SP_file):
-            os.unlink(self.new_SP_file)
-
     def test_transform_sample_sheet(self):
-        assert not os.path.exists(self.new_SP_file)
-        transform_sample_sheet(self.assets_path)
-        assert os.path.exists(self.new_SP_file)
-        with open(self.new_SP_file) as open_file:
-            assert open_file.read() == samplesheet_with_barcode
-        os.unlink(self.new_SP_file)
-
         transform_sample_sheet(self.assets_path, remove_barcode=True)
         assert os.path.exists(self.new_SP_file)
         with open(self.new_SP_file) as open_file:
             assert open_file.read() == samplesheet_without_barcode
-        os.unlink(self.new_SP_file)
+
+        transform_sample_sheet(self.assets_path)
+        assert os.path.exists(self.new_SP_file)
+        with open(self.new_SP_file) as open_file:
+            assert open_file.read() == samplesheet_with_barcode
 
 
 class TestSampleSheet(TestAnalysisDriver):
