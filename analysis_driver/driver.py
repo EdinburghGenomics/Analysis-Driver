@@ -67,9 +67,6 @@ def demultiplexing_pipeline(dataset):
     if not sample_sheet.validate(run_info.mask):
         raise AnalysisDriverError('Validation failed. Check SampleSheet.csv and RunInfo.xml.')
 
-    mask = sample_sheet.generate_mask(run_info.mask)
-    app_logger.info('bcl2fastq mask: ' + mask)  # e.g: mask = 'y150n,i6,y150n'
-
     # Send the information about the run to the rest API
     crawler = RunCrawler(run_id, sample_sheet)
     crawler.send_data()
@@ -82,6 +79,9 @@ def demultiplexing_pipeline(dataset):
         return 2
 
     # bcl2fastq
+    mask = sample_sheet.generate_mask(run_info.mask)
+    app_logger.info('bcl2fastq mask: ' + mask)  # e.g: mask = 'y150n,i6,y150n'
+
     ntf.start_stage('bcl2fastq')
     exit_status += executor.execute(
         [util.bash_commands.bcl2fastq(input_run_folder, fastq_dir, sample_sheet.filename, mask)],
@@ -95,7 +95,6 @@ def demultiplexing_pipeline(dataset):
         return exit_status
 
     # Filter the adapter dimer from fastq with sickle
-    # seqtk fqchk
     ntf.start_stage('sickle_filter')
     exit_status = executor.execute(
         [util.bash_commands.sickle_paired_end_in_place(fqs) for fqs in util.find_all_fastq_pairs(fastq_dir)],

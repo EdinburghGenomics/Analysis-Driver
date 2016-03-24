@@ -66,19 +66,26 @@ class RunCrawler(Crawler):
                 for sample in sample_id_obj.samples:
                     for lane in sample.lane.split('+'):
                         if not samplesheet.has_barcode:
-                            sample_barcode = 'all'
+                            run_element_id = '%s_%s_%s' % (self.run_id, lane, sample.barcode)
+                            self.barcodes_info[run_element_id] = {
+                                ELEMENT_RUN_ELEMENT_ID: run_element_id,
+                                ELEMENT_RUN_NAME: self.run_id,
+                                ELEMENT_PROJECT_ID: project_id,
+                                ELEMENT_SAMPLE_INTERNAL_ID: sample.sample_id,
+                                ELEMENT_LIBRARY_INTERNAL_ID: sample.sample_name,
+                                ELEMENT_LANE: lane
+                            }
                         else:
-                            sample_barcode = sample.barcode
-                        run_element_id = '%s_%s_%s' % (self.run_id, lane, sample_barcode)
-                        self.barcodes_info[run_element_id] = {
-                            ELEMENT_BARCODE: sample_barcode,
-                            ELEMENT_RUN_ELEMENT_ID: run_element_id,
-                            ELEMENT_RUN_NAME: self.run_id,
-                            ELEMENT_PROJECT_ID: project_id,
-                            ELEMENT_SAMPLE_INTERNAL_ID: sample.sample_id,
-                            ELEMENT_LIBRARY_INTERNAL_ID: sample.sample_name,
-                            ELEMENT_LANE: lane
-                        }
+                            run_element_id = '%s_%s' % (self.run_id, lane)
+                            self.barcodes_info[run_element_id] = {
+                                ELEMENT_BARCODE: sample.barcode,
+                                ELEMENT_RUN_ELEMENT_ID: run_element_id,
+                                ELEMENT_RUN_NAME: self.run_id,
+                                ELEMENT_PROJECT_ID: project_id,
+                                ELEMENT_SAMPLE_INTERNAL_ID: sample.sample_id,
+                                ELEMENT_LIBRARY_INTERNAL_ID: sample.sample_name,
+                                ELEMENT_LANE: lane
+                            }
 
                         # Populate the libraries
                         lib = self.libraries[sample.sample_name]
@@ -103,17 +110,17 @@ class RunCrawler(Crawler):
                         # Populate the run
                         self.run[ELEMENT_RUN_ELEMENTS].append(run_element_id)
 
-                        unknown_element_id = '%s_%s_%s' % (self.run_id, lane, 'unknown')
-                        self.barcodes_info[unknown_element_id] = {
-                            ELEMENT_BARCODE: 'unknown',
-                            ELEMENT_RUN_ELEMENT_ID: unknown_element_id,
-                            ELEMENT_RUN_NAME: self.run_id,
-                            ELEMENT_PROJECT_ID: 'default',
-                            ELEMENT_SAMPLE_INTERNAL_ID: 'Undetermined',
-                            ELEMENT_LIBRARY_INTERNAL_ID: 'Undetermined',
-                            ELEMENT_LANE: lane
-                        }
-
+                        if samplesheet.has_barcode:
+                            unknown_element_id = '%s_%s_%s' % (self.run_id, lane, 'unknown')
+                            self.barcodes_info[unknown_element_id] = {
+                                ELEMENT_BARCODE: 'unknown',
+                                ELEMENT_RUN_ELEMENT_ID: unknown_element_id,
+                                ELEMENT_RUN_NAME: self.run_id,
+                                ELEMENT_PROJECT_ID: 'default',
+                                ELEMENT_SAMPLE_INTERNAL_ID: 'Undetermined',
+                                ELEMENT_LIBRARY_INTERNAL_ID: 'Undetermined',
+                                ELEMENT_LANE: lane
+                            }
         for project_id in self.projects:
             self.projects[project_id][ELEMENT_SAMPLES] = list(self.projects[project_id][ELEMENT_SAMPLES])
 
@@ -124,10 +131,6 @@ class RunCrawler(Crawler):
             self.lanes[lane_id][ELEMENT_RUN_ELEMENTS].append(unknown)
 
         self.run[ELEMENT_NUMBER_LANE] = len(self.lanes)
-
-
-
-
 
 
     def _populate_barcode_info_from_seqtk_fqchk_files(self, run_dir):
@@ -167,7 +170,6 @@ class RunCrawler(Crawler):
                 barcode_info[ELEMENT_NB_Q30_R1_CLEANED] = 0
                 barcode_info[ELEMENT_NB_BASE_R2_CLEANED] = 0
                 barcode_info[ELEMENT_NB_Q30_R2_CLEANED] = 0
-
             else:
                 raise AnalysisDriverError('%s fqchk files found in %s for %s' % (len(fq_chk_files), run_dir, run_element_id))
 
@@ -244,43 +246,6 @@ class RunCrawler(Crawler):
                     pp('projects', self.projects.values(), ELEMENT_PROJECT_ID, ['samples'])
                 )
             )
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 class SampleCrawler(Crawler):

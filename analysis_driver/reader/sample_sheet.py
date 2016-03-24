@@ -159,14 +159,12 @@ class SampleSheet(AppLogger):
         Ensure that the SampleSheet is consistent with itself and RunInfo
         """
         self.debug('Validating...')
-        if mask.has_barcodes:
-           if self.check_barcodes() != mask.barcode_len:
+        if mask.has_barcodes and self.check_barcodes() != mask.barcode_len:
             self.error(
                 'Barcode mismatch: %s (SampleSheet.csv) and %s (RunInfo.xml)' %
                 (self.check_barcodes(), mask.barcode_len)
             )
             return False
-        self.debug('Done. Now validating RunInfo')
         return True
 
     def get_samples(self, sample_project, sample_id):

@@ -1,7 +1,6 @@
 import os.path
 from xml.etree import ElementTree
 from analysis_driver.app_logging import AppLogger
-from analysis_driver.exceptions import AnalysisDriverError
 
 
 class RunInfo(AppLogger):
