@@ -14,7 +14,7 @@ def main():
     if args.debug:
         log_cfg.log_level = logging.DEBUG
 
-    log_cfg.configure_handlers_from_config(cfg.query('logging', 'handlers'))
+    log_cfg.configure_handlers_from_config(cfg.get('logging'))
 
     if args.run:
         if 'run' in cfg:

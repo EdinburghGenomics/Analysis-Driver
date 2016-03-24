@@ -34,11 +34,13 @@ class LoggingConfiguration:
         return logger
 
     def add_handler(self, handler, level=logging.NOTSET):
-        """Add a handler and set its format/level if needed"""
+        """Add a handler, set its format/level if needed and register all loggers to it"""
         if level == logging.NOTSET:
             level = self.log_level
         handler.setLevel(level)
         handler.setFormatter(self.formatter)
+        for l in self.loggers:
+            l.addHandler(handler)
         self.handlers.add(handler)
 
     def set_log_level(self, level):
