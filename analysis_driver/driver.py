@@ -63,7 +63,7 @@ def demultiplexing_pipeline(dataset):
     run_info = reader.RunInfo(input_run_folder)
     ntf.start_stage('setup')
     reader.transform_sample_sheet(input_run_folder)
-    sample_sheet = reader.SampleSheet(os.path.join(input_run_folder, 'SampleSheet_analysis_driver.csv'))
+    sample_sheet = reader.SampleSheet(os.path.join(input_run_folder, 'SampleSheet_analysis_driver.csv'), has_barcode=run_info.mask.has_barcodes)
     if not sample_sheet.validate(run_info.mask):
         raise AnalysisDriverError('Validation failed. Check SampleSheet.csv and RunInfo.xml.')
 

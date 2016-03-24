@@ -63,15 +63,15 @@ class Mask:
 
     @property
     def indexes(self):
-        if len(self.reads) != 3:
-            raise AnalysisDriverError('Incorrect number of reads for retrieving indexes')
-        return self.reads[1:len(self.reads)-1]
+        return [r for r in self.reads if self._is_indexed_read(r)]
 
     @property
     def index_lengths(self):
-        if len(self.reads) != 3:
-            raise AnalysisDriverError('Incorrect number of reads for retrieving indexes')
         return [self.num_cycles(read) for read in self.indexes]
+
+    @property
+    def has_barcodes(self):
+        return self.barcode_len is not None
 
     def add(self, read):
         """
@@ -84,24 +84,24 @@ class Mask:
             assert (read.attrib == self.barcode_len or self.barcode_len is None)
             self.barcode_len = int(read.attrib['NumCycles'])
 
-    def validate_barcoded(self):
-        """
-        Ensure that the first and last items of self.reads are not barcodes, and that all others are.
-        """
-        if self._is_indexed_read(self.reads[0]) or self._is_indexed_read(self.reads[-1]):
-            return False
-        for index in self.indexes:
-            if not self._is_indexed_read(index):
-                return False
-        return True
+    #def validate_barcoded(self):
+    #    """
+    #    Ensure that the first and last items of self.reads are not barcodes, and that all others are.
+    #    """
+    #    if self._is_indexed_read(self.reads[0]) or self._is_indexed_read(self.reads[-1]):
+    #        return False
+    #    for index in self.indexes:
+    #        if not self._is_indexed_read(index):
+    #            return False
+    #    return True
 
-    def validate_barcodeless(self):
-        """
-        Check that the first and last items of self.reads are not barcodes
-        """
-        if self._is_indexed_read(self.reads[0]) or self._is_indexed_read(self.reads[-1]):
-            return False
-        return True
+    #def validate_barcodeless(self):
+    #    """
+    #    Check that the first and last items of self.reads are not barcodes
+    #    """
+    #    if self._is_indexed_read(self.reads[0]) or self._is_indexed_read(self.reads[-1]):
+    #        return False
+    #    return True
 
     @staticmethod
     def num_cycles(read):

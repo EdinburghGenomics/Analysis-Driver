@@ -6,6 +6,95 @@ import pytest
 import os
 
 
+samplesheet_with_barcode = """[Header],,,,,,,,
+IEMFileVersion,4,,,,,,,
+Investigator Name,Lucas Lefevre,,,,,,,
+Experiment Name,,,,,,,,
+Date,02/12/2015,,,,,,,
+Workflow,GenerateFASTQ,,,,,,,
+Application,HiSeq FASTQ Only,,,,,,,
+Assay,TruSeq HT,,,,,,,
+Description,HiSeqX run,,,,,,,
+Chemistry,Default,,,,,,,
+,,,,,,,,
+[Reads],,,,,,,,
+151,,,,,,,,
+151,,,,,,,,
+,,,,,,,,
+[Settings],,,,,,,,
+ReverseComplement,0,,,,,,,
+Adapter,AGATCGGAAGAGCACACGTCTGAACTCCAGTCA,,,,,,,
+AdapterRead2,AGATCGGAAGAGCGTCGTGTAGGGAAAGAGTGT,,,,,,,
+,,,,,,,,
+[Data],
+Lane,Sample_ID,Sample_Name,Sample_Plate,Sample_Well,Index2,Index,Sample_Project,GenomeFolder
+1,10015AT0001,10015ATpool01,,,IL-TP-006,GCCAAT,10015AT,
+2,10015AT0001,10015ATpool01,,,IL-TP-002,CGATGT,10015AT,
+3,10015AT0001,10015ATpool01,,,IL-TP-007,CAGATC,10015AT,
+4,10015AT0001,10015ATpool01,,,IL-TP-005,ACAGTG,10015AT,
+5,10015AT0001,10015ATpool01,,,IL-TP-012,CTTGTA,10015AT,
+6,10015AT0001,10015ATpool01,,,IL-TP-013,AGTCAA,10015AT,
+7,10015AT0001,10015ATpool01,,,IL-TP-014,AGTTCC,10015AT,
+8,10015AT0001,10015ATpool01,,,IL-TP-002,CGATGT,10015AT,
+"""
+
+samplesheet_without_barcode = """[Header],,,,,,,,
+IEMFileVersion,4,,,,,,,
+Investigator Name,Lucas Lefevre,,,,,,,
+Experiment Name,,,,,,,,
+Date,02/12/2015,,,,,,,
+Workflow,GenerateFASTQ,,,,,,,
+Application,HiSeq FASTQ Only,,,,,,,
+Assay,TruSeq HT,,,,,,,
+Description,HiSeqX run,,,,,,,
+Chemistry,Default,,,,,,,
+,,,,,,,,
+[Reads],,,,,,,,
+151,,,,,,,,
+151,,,,,,,,
+,,,,,,,,
+[Settings],,,,,,,,
+ReverseComplement,0,,,,,,,
+Adapter,AGATCGGAAGAGCACACGTCTGAACTCCAGTCA,,,,,,,
+AdapterRead2,AGATCGGAAGAGCGTCGTGTAGGGAAAGAGTGT,,,,,,,
+,,,,,,,,
+[Data],
+Lane,Sample_ID,Sample_Name,Sample_Plate,Sample_Well,Index2,Index,Sample_Project,GenomeFolder
+1,10015AT0001,10015ATpool01,,,,,10015AT,
+2,10015AT0001,10015ATpool01,,,,,10015AT,
+3,10015AT0001,10015ATpool01,,,,,10015AT,
+4,10015AT0001,10015ATpool01,,,,,10015AT,
+5,10015AT0001,10015ATpool01,,,,,10015AT,
+6,10015AT0001,10015ATpool01,,,,,10015AT,
+7,10015AT0001,10015ATpool01,,,,,10015AT,
+8,10015AT0001,10015ATpool01,,,,,10015AT,
+"""
+class TestSampleSheetFunctions(TestAnalysisDriver):
+    new_SP_file = os.path.join(super().assets_path, 'SampleSheet_analysis_driver.csv')
+
+    def setUp(self):
+        if os.path.exists(self.new_SP_file):
+            os.unlink(self.new_SP_file)
+
+    def tearDown(self):
+        if os.path.exists(self.new_SP_file):
+            os.unlink(self.new_SP_file)
+
+    def test_transform_sample_sheet(self):
+        assert not os.path.exists(self.new_SP_file)
+        transform_sample_sheet(self.assets_path)
+        assert os.path.exists(self.new_SP_file)
+        with open(self.new_SP_file) as open_file:
+            assert open_file.read() == samplesheet_with_barcode
+        os.unlink(self.new_SP_file)
+
+        transform_sample_sheet(self.assets_path, remove_barcode=True)
+        assert os.path.exists(self.new_SP_file)
+        with open(self.new_SP_file) as open_file:
+            assert open_file.read() == samplesheet_without_barcode
+        os.unlink(self.new_SP_file)
+
+
 class TestSampleSheet(TestAnalysisDriver):
     def setUp(self):
         transform_sample_sheet(self.assets_path)
@@ -44,7 +133,7 @@ class TestSampleSheet(TestAnalysisDriver):
         assert self.barcodeless_samplesheet.generate_mask(self.barcodeless_run_info.mask) == 'y150n,y150n'
 
     def test_check_one_barcode_per_lane(self):
-        assert self.sample_sheet.check_one_barcode_per_lane() is True
+        self.sample_sheet._validate_one_sample_per_lane()
 
     def test_validate(self):
         assert self.sample_sheet.validate(self.run_info.mask) is True

@@ -67,8 +67,8 @@ class TestMask(TestAnalysisDriver):
         assert self.barcoded_mask_helper.index_lengths == [6]
     #    self.assertRaises(AnalysisDriverError, self.barcodeless_mask_helper.index_lengths)
 
-    def test_validate_barcoded(self):
-        assert self.barcoded_mask_helper.validate_barcoded()
+    #def test_validate_barcoded(self):
+    #    assert self.barcoded_mask_helper.validate_barcoded()
 
-    def test_validate_barcodeless(self):
-        assert self.barcodeless_mask_helper.validate_barcodeless()
+    #def test_validate_barcodeless(self):
+    #    assert self.barcodeless_mask_helper.validate_barcodeless()

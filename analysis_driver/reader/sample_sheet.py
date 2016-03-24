@@ -1,3 +1,7 @@
+from collections import defaultdict
+
+from analysis_driver.exceptions import AnalysisDriverError
+
 __author__ = 'mwham'
 import csv
 import os.path
@@ -7,26 +11,42 @@ from analysis_driver import config
 app_logger = get_logger('reader')
 
 
-def transform_sample_sheet(data_dir):
+def transform_sample_sheet(data_dir, remove_barcode=False):
     """
     Read SampleSheet.csv, translate column names and write to SampleSheet_analysis_driver.csv
     :param data_dir: Full path to a data directory containing SampleSheet.csv
     """
     before, header = _read_sample_sheet(os.path.join(data_dir, 'SampleSheet.csv'))
     cols = before.readline().strip().split(',')
-    after = open(os.path.join(data_dir, 'SampleSheet_analysis_driver.csv'), 'w')
+    out_lines = []
     transformations = config.sample_sheet_config.get('transformations', [])
     for idx, col in enumerate(cols):
         if col in transformations:
             cols[idx] = transformations[col]
     for line in header:
-        after.write(line)
-    after.write('[Data],\n')
-    after.write(','.join(cols) + '\n')
+        out_lines.append(line.strip())
+    out_lines.append('[Data],')
+    out_lines.append(','.join(cols))
+    index_col = index2_col = -1
+    if remove_barcode:
+        if 'Index' in cols:
+            index_col = cols.index('Index')
+        if 'Index2' in cols:
+            index2_col = cols.index('Index2')
     for line in before:
-        after.write(line)
+        if remove_barcode:
+            sp_line = line.strip().split(',')
+            if index_col >= 0:
+                sp_line[index_col] = ''
+            if index2_col >= 0:
+                sp_line[index2_col] = ''
+            out_lines.append(','.join(sp_line))
+        else:
+            out_lines.append(line.strip())
     before.close()
-
+    out_lines.append('')
+    with open(os.path.join(data_dir, 'SampleSheet_analysis_driver.csv'), 'w') as after:
+        after.write('\n'.join(out_lines))
 
 def _read_sample_sheet(sample_sheet):
     """
@@ -44,38 +64,19 @@ def _read_sample_sheet(sample_sheet):
         else:
             counter += 1
             header.append(line)
-
     f.close()
     return None, None
 
-def remove_samplesheet_barcodes(filename):
-    barcodeless_samplesheet = ''
-    with open(filename) as openfile:
-        with_barcode = openfile.read()
-        data = ((with_barcode.split('[Data],\n')[1]).split('\n'))[1:]
-        barcodes = []
-        for line in data:
-            if line:
-                barcode = (line.split(',')[5])
-                barcodes.append(barcode)
-        without_barcode = with_barcode
-        for b in barcodes:
-            without_barcode = without_barcode.replace(b, '')
-        barcodeless_samplesheet = without_barcode
-    with open(filename, 'w') as outfile:
-        outfile.write(barcodeless_samplesheet)
-
-
 
 class SampleSheet(AppLogger):
-    def __init__(self, filename):
+    def __init__(self, filename, has_barcode=True):
         self.sample_projects = {}  # {name: samples} {str: Sample}
         self.filename = filename
         self._populate()
         self.debug('Sample project entries: ' + str(self.sample_projects))
-        if self.check_one_barcode_per_lane() is True:
+        if not has_barcode:
             self.has_barcode = False
-            remove_samplesheet_barcodes(filename)
+            self._validate_one_sample_per_lane()
         else:
             self.has_barcode = True
 
@@ -109,28 +110,19 @@ class SampleSheet(AppLogger):
         return len(last_sample.barcode)
 
 
-    def check_one_barcode_per_lane(self):
-        lanes = []
+    def _validate_one_sample_per_lane(self):
+        """
+        Check that only one sample is present in each lane and raise AnalysisDriverError if more than one is found.
+        """
+        lane2samples = defaultdict(list)
         for name, sample_project in self.sample_projects.items():
-            self.debug('Checking sample project ' + name)
             for name2, sample_id in sample_project.sample_ids.items():
-                self.debug('Checking sample id ' + name2)
                 for sample in sample_id.samples:
-                    lane_list = (sample.lane).split('+')
-                    lanes.extend(lane_list)
-        lanes = set(lanes)
-        lane2barcodes = {}
-        for lane in lanes:
-            lane_barcodes = []
-            for name, sample_project in self.sample_projects.items():
-                for name2, sample_id in sample_project.sample_ids.items():
-                    for sample in sample_id.samples:
-                        if lane in sample.lane:
-                            lane_barcodes.append(sample.barcode)
-            lane2barcodes[lane] = lane_barcodes
-        return all(i == 1 for i in [len(i) for i in (lane2barcodes.values())])
-
-
+                    for lane in sample.lane.split('+'):
+                        lane2samples[lane].append(sample)
+        for lane, samples in lane2samples.items():
+            if len(samples) > 1:
+                raise AnalysisDriverError('%s samples in lane %s despite has barcode set to %s'%(len(samples, lane, self.has_barcode)))
 
     def generate_mask(self, mask):
         """
@@ -167,19 +159,15 @@ class SampleSheet(AppLogger):
         Ensure that the SampleSheet is consistent with itself and RunInfo
         """
         self.debug('Validating...')
-        if not mask.barcode_len:
-            if self.has_barcode:
-                return False
-            if mask.validate_barcodeless():
-                return True
-        if self.check_barcodes() != mask.barcode_len:
+        if mask.has_barcodes:
+           if self.check_barcodes() != mask.barcode_len:
             self.error(
                 'Barcode mismatch: %s (SampleSheet.csv) and %s (RunInfo.xml)' %
                 (self.check_barcodes(), mask.barcode_len)
             )
             return False
         self.debug('Done. Now validating RunInfo')
-        return mask.validate_barcoded()
+        return True
 
     def get_samples(self, sample_project, sample_id):
         return self.sample_projects[sample_project].sample_ids[sample_id].samples

@@ -1,4 +1,4 @@
-from .sample_sheet import SampleSheet, transform_sample_sheet, remove_samplesheet_barcodes
+from .sample_sheet import SampleSheet, transform_sample_sheet
 from .run_info import RunInfo
 from . import demultiplexing_parsers, mapping_stats_parsers
 from .demultiplexing_parsers import parse_demultiplexing_stats, parse_conversion_stats
