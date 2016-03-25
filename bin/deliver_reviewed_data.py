@@ -99,7 +99,8 @@ class DataDelivery(AppLogger):
                     res.append(str(float(pmr)/float(tr)*100))
                     res.append(str(float(dr)/float(tr)*100))
                     theoritical_cov = theoritical_cov*(float(mr)/float(tr))*(1-(float(dr)/float(tr)))
-                    res.append(str(theoritical_cov))
+                    #res.append(str(theoritical_cov))
+                    res.append(str(sample.get('median_coverage', 0)))
                     res.append(str(sample.get('pc_callable', 0)*100))
                 else:
                     headers=headers_not_human
