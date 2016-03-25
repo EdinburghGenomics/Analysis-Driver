@@ -170,7 +170,7 @@ class TestDataset(TestAnalysisDriver):
                     'dataset_type': self.dataset.type,
                     'dataset_name': 'test_dataset',
                     'end_date': self.dataset._now(),
-                    'pid': None
+                    'pid': 0
                 },
                 'proc_id',
                 'a_type_a_name'
