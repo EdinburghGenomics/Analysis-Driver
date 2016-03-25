@@ -83,25 +83,6 @@ class Mask:
             assert (read.attrib == self.barcode_len or self.barcode_len is None)
             self.barcode_len = int(read.attrib['NumCycles'])
 
-    #def validate_barcoded(self):
-    #    """
-    #    Ensure that the first and last items of self.reads are not barcodes, and that all others are.
-    #    """
-    #    if self._is_indexed_read(self.reads[0]) or self._is_indexed_read(self.reads[-1]):
-    #        return False
-    #    for index in self.indexes:
-    #        if not self._is_indexed_read(index):
-    #            return False
-    #    return True
-
-    #def validate_barcodeless(self):
-    #    """
-    #    Check that the first and last items of self.reads are not barcodes
-    #    """
-    #    if self._is_indexed_read(self.reads[0]) or self._is_indexed_read(self.reads[-1]):
-    #        return False
-    #    return True
-
     @staticmethod
     def num_cycles(read):
         """

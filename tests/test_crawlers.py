@@ -72,33 +72,33 @@ class TestRunCrawler(TestCrawler):
         self.compare_jsons(dict(self.crawler.projects), self.expected_output['projects'])
 
 
-#class TestSampleCrawler(TestCrawler):
-#    expected_sample = {
-#        'properly_mapped_reads': 949154225,
-#        'duplicate_reads': 171911966,
-#        'sample_id': 'test_sample',
-#        'median_coverage': 30.156,
-#        'user_sample_id': 'test_sample',
-#        'pc_callable': 0.24392084973311048,
-#        'project_id': 'test_project',
-#        'bam_file_reads': 988805087,
-#        'mapped_reads': 975587288,
-#        'called_gender': 'male',
-#        'provided_gender': 'female',
-#        "species_contamination": {"contaminant_unique_mapped": {"Bos taurus": 1, "Felis catus": 4, "Gallus gallus": 1, "Mus musculus": 4, "Ovis aries": 2},
-#                                  "percent_unmapped": 1.06,
-#                                  "percent_unmapped_focal": 1.09,
-#                                  "total_reads_mapped": 100000}
-#    }
+class TestSampleCrawler(TestCrawler):
+    expected_sample = {
+        'properly_mapped_reads': 949154225,
+        'duplicate_reads': 171911966,
+        'sample_id': 'test_sample',
+        'median_coverage': 30.156,
+        'user_sample_id': 'test_sample',
+        'pc_callable': 0.24392084973311048,
+        'project_id': 'test_project',
+        'bam_file_reads': 988805087,
+        'mapped_reads': 975587288,
+        'called_gender': 'male',
+        'provided_gender': 'female',
+        "species_contamination": {"contaminant_unique_mapped": {"Bos taurus": 1, "Felis catus": 4, "Gallus gallus": 1, "Mus musculus": 4, "Ovis aries": 2},
+                                  "percent_unmapped": 1.06,
+                                  "percent_unmapped_focal": 1.09,
+                                  "total_reads_mapped": 100000}
+    }
 
-#    def setUp(self):
-#        with patch('analysis_driver.report_generation.report_crawlers.get_user_sample_name',
-#                   return_value='test_sample'):
-#            with patch('analysis_driver.report_generation.report_crawlers.get_sex_from_lims',
-#                       return_value='female'):
-#                with patch('analysis_driver.reader.demultiplexing_parsers.get_species_from_sample',
-#                           return_value='Homo sapiens'):
-#                    self.crawler = report_generation.SampleCrawler('test_sample', 'test_project', self.test_data)
+    def setUp(self):
+        with patch('analysis_driver.report_generation.report_crawlers.get_user_sample_name',
+                   return_value='test_sample'):
+            with patch('analysis_driver.report_generation.report_crawlers.get_sex_from_lims',
+                       return_value='female'):
+                with patch('analysis_driver.reader.demultiplexing_parsers.get_species_from_sample',
+                           return_value='Homo sapiens'):
+                    self.crawler = report_generation.SampleCrawler('test_sample', 'test_project', self.test_data)
 
-#    def test_sample(self):
-#        self.compare_jsons(self.crawler.sample, self.expected_sample)
+    def test_sample(self):
+        self.compare_jsons(self.crawler.sample, self.expected_sample)
