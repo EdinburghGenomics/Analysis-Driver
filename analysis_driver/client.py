@@ -122,7 +122,7 @@ def _process_dataset(d):
         app_logger.info('Done')
 
     except exceptions.SequencingRunError as e:
-        app_logger.info('Bad sequencing run: %s. Aborting this dataset' + str(e))
+        app_logger.info('Bad sequencing run: %s. Aborting this dataset' % str(e))
         d.abort()
         exit_status = 2  # TODO: we should send a notification of the run status found
 

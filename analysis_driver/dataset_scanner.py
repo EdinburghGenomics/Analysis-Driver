@@ -110,7 +110,7 @@ class Dataset:
             'status': status
         }
         if finish:
-            self.pid = None
+            self.pid = 0
             end_date = self._now()
             new_content['pid'] = self.pid
             new_content['end_date'] = end_date
