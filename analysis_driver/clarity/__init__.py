@@ -212,7 +212,7 @@ def get_run(run_id):
 def route_samples_to_delivery_workflow(sample_names):
     lims = _get_lims_connection()
     workflow_uri = lims.get_uri('configuration', 'workflows', '401')
-    samples = [get_lims_sample(sample_name, lims) for sample_name in sample_names]
+    samples = [get_lims_sample(sample_name) for sample_name in sample_names]
     artifacts = [sample.artifact for sample in samples]
     lims.route_artifacts(artifacts, workflow_uri=workflow_uri)
 
