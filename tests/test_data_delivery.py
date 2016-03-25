@@ -82,7 +82,7 @@ class TestDataDelivery(TestAnalysisDriver):
                                'Yield', 'Yield Q30', 'Nb reads in bam', 'mapping rate', 'properly mapped reads rate',
                                'duplicate rate', 'Mean coverage', 'Callable bases rate', 'Delivery folder']
             expected_lines=[
-                'test_project\tdeliverable_sample\tuser_s_id\t0\t0.0\t0.0\t1\t0.0\t0.0\t0.0\t0.0\t0\tdate_delivery'
+                'test_project\tdeliverable_sample\tuser_s_id\t0\t0.0\t0.0\t1\t0.0\t0.0\t0.0\t0\t0\tdate_delivery'
             ]
             with patch('analysis_driver.clarity.get_species_from_sample', return_value="Homo sapiens"):
                 header, lines = self.delivery_dry.summarise_metrics_per_sample(project_id='test_project', delivery_folder='date_delivery')
