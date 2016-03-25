@@ -1,3 +1,7 @@
+from collections import defaultdict
+
+from analysis_driver.exceptions import AnalysisDriverError
+
 __author__ = 'mwham'
 import csv
 import os.path
@@ -7,26 +11,42 @@ from analysis_driver import config
 app_logger = get_logger('reader')
 
 
-def transform_sample_sheet(data_dir):
+def transform_sample_sheet(data_dir, remove_barcode=False):
     """
     Read SampleSheet.csv, translate column names and write to SampleSheet_analysis_driver.csv
     :param data_dir: Full path to a data directory containing SampleSheet.csv
     """
     before, header = _read_sample_sheet(os.path.join(data_dir, 'SampleSheet.csv'))
     cols = before.readline().strip().split(',')
-    after = open(os.path.join(data_dir, 'SampleSheet_analysis_driver.csv'), 'w')
+    out_lines = []
     transformations = config.sample_sheet_config.get('transformations', [])
     for idx, col in enumerate(cols):
         if col in transformations:
             cols[idx] = transformations[col]
     for line in header:
-        after.write(line)
-    after.write('[Data],\n')
-    after.write(','.join(cols) + '\n')
+        out_lines.append(line.strip())
+    out_lines.append('[Data],')
+    out_lines.append(','.join(cols))
+    index_col = index2_col = -1
+    if remove_barcode:
+        if 'Index' in cols:
+            index_col = cols.index('Index')
+        if 'Index2' in cols:
+            index2_col = cols.index('Index2')
     for line in before:
-        after.write(line)
+        if remove_barcode:
+            sp_line = line.strip().split(',')
+            if index_col >= 0:
+                sp_line[index_col] = ''
+            if index2_col >= 0:
+                sp_line[index2_col] = ''
+            out_lines.append(','.join(sp_line))
+        else:
+            out_lines.append(line.strip())
     before.close()
-
+    out_lines.append('')
+    with open(os.path.join(data_dir, 'SampleSheet_analysis_driver.csv'), 'w') as after:
+        after.write('\n'.join(out_lines))
 
 def _read_sample_sheet(sample_sheet):
     """
@@ -44,17 +64,22 @@ def _read_sample_sheet(sample_sheet):
         else:
             counter += 1
             header.append(line)
-
     f.close()
     return None, None
 
 
 class SampleSheet(AppLogger):
-    def __init__(self, filename):
+    def __init__(self, filename, has_barcode=True):
         self.sample_projects = {}  # {name: samples} {str: Sample}
         self.filename = filename
         self._populate()
         self.debug('Sample project entries: ' + str(self.sample_projects))
+        if not has_barcode:
+            self.has_barcode = False
+            self._validate_one_sample_per_lane()
+        else:
+            self.has_barcode = True
+
 
     def check_barcodes(self):
         """
@@ -84,6 +109,21 @@ class SampleSheet(AppLogger):
         self.debug('Barcode check done. Barcode len: %s' % len(last_sample.barcode))
         return len(last_sample.barcode)
 
+
+    def _validate_one_sample_per_lane(self):
+        """
+        Check that only one sample is present in each lane and raise AnalysisDriverError if more than one is found.
+        """
+        lane2samples = defaultdict(list)
+        for name, sample_project in self.sample_projects.items():
+            for name2, sample_id in sample_project.sample_ids.items():
+                for sample in sample_id.samples:
+                    for lane in sample.lane.split('+'):
+                        lane2samples[lane].append(sample)
+        for lane, samples in lane2samples.items():
+            if len(samples) > 1:
+                raise AnalysisDriverError('%s samples in lane %s despite has barcode set to %s'%(len(samples, lane, self.has_barcode)))
+
     def generate_mask(self, mask):
         """
         Translate:
@@ -93,32 +133,39 @@ class SampleSheet(AppLogger):
         to 'y150n,i8,y150n'.
         """
         self.debug('Generating mask...')
-        barcode_len = self.check_barcodes()
-        out = ['y' + str(mask.num_cycles(mask.upstream_read) - 1) + 'n']
 
-        for i in mask.index_lengths:
-            diff = i - barcode_len
-            out.append('i' + str(barcode_len) + 'n' * diff)
+        if self.has_barcode:
+            barcode_len = self.check_barcodes()
+            out = ['y' + str(mask.num_cycles(mask.upstream_read) - 1) + 'n']
 
-        out.append('y' + str(mask.num_cycles(mask.downstream_read) - 1) + 'n')
-        self.debug(out)
-        return ','.join(out)
+            for i in mask.index_lengths:
+                diff = i - barcode_len
+                out.append('i' + str(barcode_len) + 'n' * diff)
+
+            out.append('y' + str(mask.num_cycles(mask.downstream_read) - 1) + 'n')
+            self.debug(out)
+            return ','.join(out)
+
+        elif not self.has_barcode:
+
+            out = ['y' + str(mask.num_cycles(mask.upstream_read) - 1) + 'n']
+
+            out.append('y' + str(mask.num_cycles(mask.downstream_read) - 1) + 'n')
+            self.debug(out)
+            return ','.join(out)
 
     def validate(self, mask):
         """
         Ensure that the SampleSheet is consistent with itself and RunInfo
         """
         self.debug('Validating...')
-        if not mask.barcode_len:
-            return False
-        if self.check_barcodes() != mask.barcode_len:
+        if mask.has_barcodes and self.check_barcodes() != mask.barcode_len:
             self.error(
                 'Barcode mismatch: %s (SampleSheet.csv) and %s (RunInfo.xml)' %
                 (self.check_barcodes(), mask.barcode_len)
             )
             return False
-        self.debug('Done. Now validating RunInfo')
-        return mask.validate()
+        return True
 
     def get_samples(self, sample_project, sample_id):
         return self.sample_projects[sample_project].sample_ids[sample_id].samples
