@@ -28,6 +28,11 @@ default:
         samtools: path/to/samtools
         bamtools: path/to/bamtools
         sambamba: path/to/sambamba
+        sickle: path/to/sickle
+        bcftools: path/to/bcftools
+        tabix: path/to/tabix
+        fastqscreen: path/to/fastqscreen
+
 
     logging:
         format: '[%(asctime)s][%(name)s][%(levelname)s] %(message)s'
@@ -51,3 +56,6 @@ default:
     genotype-validation:
         reference: path/to/genotype_validation/genotype_32_SNPS_genome_600bp.fa
         genotypes_repository: path/to/genotype_validation/genotypes
+
+    contamination-check:
+      fastqscreen_conf: path/to/fastqscreen/conf

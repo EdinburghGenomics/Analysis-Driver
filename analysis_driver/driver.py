@@ -10,6 +10,7 @@ from analysis_driver.config import output_files_config, default as cfg  # import
 from analysis_driver.notification import default as ntf
 from analysis_driver.quality_control.gender_validation import GenderValidation
 from analysis_driver.quality_control.genotype_validation import GenotypeValidation
+from analysis_driver.quality_control.contamination_checks import ContaminationCheck
 from analysis_driver.report_generation.report_crawlers import RunCrawler, SampleCrawler
 from analysis_driver.transfer_data import prepare_run_data, prepare_sample_data, output_sample_data, output_run_data, \
     create_links_from_bcbio
@@ -91,6 +92,20 @@ def demultiplexing_pipeline(dataset):
         mem=32
     ).join()
     ntf.end_stage('bcl2fastq', exit_status)
+    if exit_status:
+        return exit_status
+
+    # Filter the adapter dimer from fastq with sickle
+    # seqtk fqchk
+    ntf.start_stage('sickle_filter')
+    exit_status = executor.execute(
+        [util.bash_commands.sickle_paired_end_in_place(fqs) for fqs in util.find_all_fastq_pairs(fastq_dir)],
+        job_name='sickle_filter',
+        working_dir=job_dir,
+        cpus=1,
+        mem=2
+    ).join()
+    ntf.end_stage('sickle_filter', exit_status)
     if exit_status:
         return exit_status
 
@@ -200,6 +215,13 @@ def variant_calling_pipeline(dataset):
     genotype_validation = GenotypeValidation(fastq_pair, sample_id)
     genotype_validation.start()
 
+    # species contamination check
+    ntf.start_stage('species contamination check')
+    species_contamination_check = ContaminationCheck([(fastq_pair[0])], sample_dir)
+    species_contamination_check.start()
+    species_contamination_check.join()
+    ntf.end_stage('species contamination check')
+
     # bcbio
     ntf.start_stage('bcbio')
     bcbio_executor = _run_bcbio(sample_id, sample_dir, fastq_pair)
@@ -227,11 +249,16 @@ def qc_pipeline(dataset, species):
     exit_status = 0
 
     dataset.start()
+
     fastq_files = prepare_sample_data(dataset)
 
     sample_id = dataset.name
     sample_dir = os.path.join(cfg['jobs_dir'], sample_id)
     app_logger.info('Job dir: ' + sample_dir)
+
+    reference = cfg.query('references', species.replace(' ', '_'), 'fasta')
+    if not reference:
+        raise AnalysisDriverError('Could not find reference for species %s in sample %s ' % (species, sample_id))
 
     # merge fastq files
     ntf.start_stage('merge fastqs')
@@ -251,7 +278,6 @@ def qc_pipeline(dataset, species):
 
     # bwa mem
     expected_output_bam = os.path.join(sample_dir, sample_id + '.bam')
-    reference = cfg.query('references', species.replace(' ', '_'), 'fasta')
     app_logger.info('align %s to %s genome found at %s' % (sample_id, species, reference))
     ntf.start_stage('sample_bwa')
     bwa_mem_executor = executor.execute(
@@ -266,6 +292,13 @@ def qc_pipeline(dataset, species):
     ntf.end_stage('sample_fastqc', fastqc_exit_status)
     bwa_exit_status = bwa_mem_executor.join()
     ntf.end_stage('sample_bwa', bwa_exit_status)
+
+    # species contamination check
+    ntf.start_stage('species contamination check')
+    species_contamination_check = ContaminationCheck([(fastq_pair[0])], sample_dir)
+    species_contamination_check.start()
+    species_contamination_check.join()
+    ntf.end_stage('species contamination check')
 
     ntf.start_stage('bamtools_stat')
     bamtools_stat_file = os.path.join(sample_dir, 'bamtools_stats.txt')
