@@ -48,7 +48,6 @@ def demultiplexing_pipeline(dataset):
     """
     exit_status = 0
 
-    dataset.start()
     ntf.start_stage('transfer')
     input_run_folder = prepare_run_data(dataset)
     ntf.end_stage('transfer')
@@ -79,7 +78,7 @@ def demultiplexing_pipeline(dataset):
     run_status = clarity.get_run(run_id).udf.get('Run Status')
     # TODO: catch bcl2fastq error logs instead
     if run_status != 'RunCompleted':
-        app_logger.error('Run status is \'%s\'. Stopping.' % run_status)
+        app_logger.error('Run status is \'%s\'. Stopping.', run_status)
         return 2
 
     # bcl2fastq
@@ -165,7 +164,7 @@ def demultiplexing_pipeline(dataset):
         crawler.write_json(json_file)
         crawler.send_data()
     else:
-        app_logger.error('File not found: %s' % conversion_xml)
+        app_logger.error('File not found: %s', conversion_xml)
         exit_status += 1
 
     ntf.start_stage('data_transfer')
@@ -187,7 +186,6 @@ def variant_calling_pipeline(dataset):
     :rtype: int
     """
     exit_status = 0
-    dataset.start()
     fastq_files = prepare_sample_data(dataset)
 
     sample_id = dataset.name
@@ -248,8 +246,6 @@ def variant_calling_pipeline(dataset):
 def qc_pipeline(dataset, species):
     exit_status = 0
 
-    dataset.start()
-
     fastq_files = prepare_sample_data(dataset)
 
     sample_id = dataset.name
@@ -278,7 +274,7 @@ def qc_pipeline(dataset, species):
 
     # bwa mem
     expected_output_bam = os.path.join(sample_dir, sample_id + '.bam')
-    app_logger.info('align %s to %s genome found at %s' % (sample_id, species, reference))
+    app_logger.info('align %s to %s genome found at %s', sample_id, species, reference)
     ntf.start_stage('sample_bwa')
     bwa_mem_executor = executor.execute(
         [util.bash_commands.bwa_mem_samblaster(fastq_pair, reference, expected_output_bam, thread=16)],

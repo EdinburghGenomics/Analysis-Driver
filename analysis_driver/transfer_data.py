@@ -1,4 +1,3 @@
-__author__ = 'mwham'
 import os
 from time import sleep
 from analysis_driver import executor, clarity, util
@@ -16,7 +15,7 @@ def prepare_run_data(dataset):
     Decide whether to rsync a dataset to an intermediate dir and run driver.pipeline on it.
     :param Dataset dataset: A dataset object
     """
-    app_logger.debug('Preparing dataset %s (%s)' % (dataset.name, dataset.dataset_status))
+    app_logger.debug('Preparing dataset %s (%s)', dataset.name, dataset.dataset_status)
     if cfg.get('intermediate_dir'):
         _transfer_run_to_int_dir(
             dataset,
@@ -36,7 +35,7 @@ def prepare_sample_data(dataset):
     Decide whether to rsync the fastq files to an intermediate dir just find them.
     :param Dataset dataset: A dataset object
     """
-    app_logger.debug('Preparing dataset %s (%s)' % (dataset.name, dataset.dataset_status))
+    app_logger.debug('Preparing dataset %s (%s)', dataset.name, dataset.dataset_status)
     fastqs = []
 
     for run_element in dataset.run_elements:
@@ -78,7 +77,7 @@ def _find_fastqs_for_sample(sample_id, run_element):
         fastqs = util.find_files(cfg['jobs_dir'], sample_id, run_id, '*L00%s*.fastq.gz' % lane)
 
     if len(fastqs) == 0:
-        app_logger.warning('0 fastqs found for %s/%s/%s/L00%s' % (run_id, project_id, sample_id, lane))
+        app_logger.warning('0 fastqs found for %s/%s/%s/L00%s', run_id, project_id, sample_id, lane)
     elif len(fastqs) != 2:
         raise AnalysisDriverError(
             '%s fastqs found for %s/%s/%s/L00%s' % (len(fastqs), run_id, project_id, sample_id, lane)

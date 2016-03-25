@@ -1,4 +1,3 @@
-__author__ = 'mwham'
 import logging
 import logging.config
 import logging.handlers
@@ -88,20 +87,20 @@ class AppLogger:
     log_cfg = logging_default
     __logger = None
 
-    def debug(self, msg):
-        self._logger.debug(msg)
+    def debug(self, msg, *args):
+        self._logger.debug(msg, *args)
 
-    def info(self, msg):
-        self._logger.info(msg)
+    def info(self, msg, *args):
+        self._logger.info(msg, *args)
 
-    def warning(self, msg):
-        self._logger.warning(msg)
+    def warning(self, msg, *args):
+        self._logger.warning(msg, *args)
 
-    def error(self, msg):
-        self._logger.error(msg)
+    def error(self, msg, *args):
+        self._logger.error(msg, *args)
 
-    def critical(self, msg):
-        self._logger.critical(msg)
+    def critical(self, msg, *args):
+        self._logger.critical(msg, *args)
 
     @property
     def _logger(self):

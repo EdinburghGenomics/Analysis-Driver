@@ -1,4 +1,3 @@
-__author__ = 'mwham'
 import csv
 import os.path
 from analysis_driver.app_logging import AppLogger, logging_default as log_cfg
@@ -81,7 +80,7 @@ class SampleSheet(AppLogger):
                         pass
                     finally:
                         last_sample = sample
-        self.debug('Barcode check done. Barcode len: %s' % len(last_sample.barcode))
+        self.debug('Barcode check done. Barcode len: %s', len(last_sample.barcode))
         return len(last_sample.barcode)
 
     def generate_mask(self, mask):
@@ -150,7 +149,7 @@ class SampleSheet(AppLogger):
                 sample_id_obj = sample_project_obj.get_sample_id(sample_id)
                 sample_id_obj.add_sample(new_sample)
         f.close()
-        self.debug('Added %s samples' % counter)
+        self.debug('Added %s samples', counter)
 
     def _get_sample_project(self, name):
         sample_project = ValueError('Could not add sample project ' + name)

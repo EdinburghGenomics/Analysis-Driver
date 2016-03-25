@@ -1,4 +1,3 @@
-__author__ = 'mwham'
 import argparse
 import logging
 import os
@@ -33,7 +32,7 @@ def main():
             dataset = scanner.get_dataset(d)
             dataset.reset()
             dataset.start()
-            dataset.succeed()
+            dataset.succeed(quiet=True)
         for d in args.reset:
             scanner.get_dataset(d).reset()
         for d in args.force:
@@ -98,24 +97,22 @@ def _process_dataset(d):
     )
 
     exit_status = 9
-    stacktrace = None
     try:
         from analysis_driver import driver
-        ntf.start_pipeline()
+        d.start()
         exit_status = driver.pipeline(d)
+        d.succeed()
         app_logger.info('Done')
 
     except Exception as e:
-        app_logger.critical('Encountered a %s exception: %s' % (e.__class__.__name__, str(e)))
-        d.fail()
+        app_logger.critical('Encountered a %s exception: %s', e.__class__.__name__, str(e))
         import traceback
-        log_cfg.set_formatter(log_cfg.blank_formatter)  # blank formatting for stacktrace
         stacktrace = traceback.format_exc()
-        app_logger.info(stacktrace)
-        log_cfg.set_formatter(log_cfg.default_formatter)
+        app_logger.info('Stack trace below:\n' + stacktrace)
+        d.fail(exit_status)
+        ntf.crash_report(exit_status, stacktrace)
 
     finally:
-        ntf.end_pipeline(exit_status, stacktrace)
         return exit_status
 
 

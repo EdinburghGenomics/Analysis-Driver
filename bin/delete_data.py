@@ -23,7 +23,7 @@ class Deleter(AppLogger):
         self.deletion_limit = deletion_limit
 
     def delete_dir(self, d):
-        self.debug('Removing deletion dir containing: %s' % listdir(d))
+        self.debug('Removing deletion dir containing: %s', listdir(d))
         self._execute('rm -rfv ' + d, cluster_execution=True)
 
     def _execute(self, cmd, cluster_execution=False):

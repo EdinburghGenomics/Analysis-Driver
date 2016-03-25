@@ -1,9 +1,7 @@
-from analysis_driver.exceptions import AnalysisDriverError
-
-__author__ = 'mwham'
 import os
 import csv
 from glob import glob
+from analysis_driver.exceptions import AnalysisDriverError
 from analysis_driver.app_logging import logging_default as log_cfg
 from analysis_driver.config import default as cfg
 from . import bash_commands
@@ -61,7 +59,7 @@ def find_fastqs(location, sample_project, sample_id, lane=None):
     else:
         pattern = os.path.join(sample_project, sample_id, '*.fastq.gz')
     fastqs = find_files(location, pattern)
-    app_logger.info('Found %s fastq files for %s' % (len(fastqs), pattern))
+    app_logger.info('Found %s fastq files for %s', len(fastqs), pattern)
     return fastqs
 
 
@@ -74,7 +72,7 @@ def find_all_fastqs(location):
     fastqs = []
     for name, dirs, files in os.walk(location):
         fastqs.extend([os.path.join(name, f) for f in files if f.endswith('.fastq.gz')])
-    app_logger.info('Found %s fastqs in %s' % (len(fastqs), location))
+    app_logger.info('Found %s fastqs in %s', len(fastqs), location)
     return fastqs
 
 

@@ -65,7 +65,7 @@ def get_document(endpoint, idx=0, **query_args):
     if documents:
         return documents[idx]
     else:
-        app_logger.warning('No document found in endpoint %s for %s' % (endpoint, str(query_args)))
+        app_logger.warning('No document found in endpoint %s for %s', endpoint, query_args)
 
 
 def post_entry(endpoint, payload):
@@ -138,7 +138,7 @@ def patch_entries(endpoint, payload, update_lists=None, **query_args):
                 nb_docs += 1
             else:
                 success = False
-        app_logger.info('Updated %s documents matching %s' % (nb_docs, query_args))
+        app_logger.info('Updated %s documents matching %s', nb_docs, query_args)
         return success
     return False
 

@@ -1,4 +1,3 @@
-__author__ = 'tcezard'
 import os
 import shutil
 import pytest
@@ -200,11 +199,11 @@ class TestDataset(TestAnalysisDriver):
     @patched_change_status
     def test_fail(self, mocked_change_status):
         with patched_dataset_status(DATASET_PROCESSING):
-            self.dataset.fail()
+            self.dataset.fail(1)
             mocked_change_status.assert_called_with(DATASET_PROCESSED_FAIL)
 
         with patched_dataset_status(DATASET_NEW), pytest.raises(AssertionError):
-            self.dataset.fail()
+            self.dataset.fail(1)
 
     @patched_change_status
     def test_abort(self, mocked_change_status):

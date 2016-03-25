@@ -231,7 +231,8 @@ class SampleCrawler(Crawler):
         self.all_info = []
         self.sample = self._populate_lib_info(sample_dir)
 
-    def search_file(self, sample_dir, file_name):
+    @staticmethod
+    def search_file(sample_dir, file_name):
         path_to_search = [
             [sample_dir],
             [sample_dir, '.qc']
@@ -239,7 +240,8 @@ class SampleCrawler(Crawler):
         for path in path_to_search:
             path.append(file_name)
             f = util.find_file(*path)
-            if f: return f
+            if f:
+                return f
 
     @classmethod
     def _gender_alias(cls, gender):
@@ -273,7 +275,7 @@ class SampleCrawler(Crawler):
             median_coverage = mapping_stats_parsers.parse_highdepth_yaml_file(yaml_metric_path)
             sample[ELEMENT_MEDIAN_COVERAGE] = median_coverage
         else:
-            self.critical('Missing %s-sort-highdepth-stats.yaml' % external_sample_name)
+            self.critical('Missing %s-sort-highdepth-stats.yaml', external_sample_name)
 
         bed_file_path = self.search_file(sample_dir, '*%s-sort-callable.bed' % external_sample_name)
         if bed_file_path:
@@ -282,9 +284,9 @@ class SampleCrawler(Crawler):
             total = sum(coverage_per_type.values())
             sample[ELEMENT_PC_BASES_CALLABLE] = callable_bases/total
         else:
-            self.critical('Missing *%s-sort-callable.bed' % external_sample_name)
+            self.critical('Missing *%s-sort-callable.bed', external_sample_name)
 
-        sex_file_path = self.search_file(sample_dir, '%s.sex'%external_sample_name)
+        sex_file_path = self.search_file(sample_dir, '%s.sex' % external_sample_name)
         if sex_file_path:
             with open(sex_file_path) as f:
                 gender = f.read().strip()
@@ -292,15 +294,14 @@ class SampleCrawler(Crawler):
                 sample[ELEMENT_PROVIDED_GENDER] = self._gender_alias(gender_from_lims)
                 sample[ELEMENT_CALLED_GENDER] = self._gender_alias(gender)
 
-        genotype_validation_path = self.search_file(sample_dir, '%s_genotype_validation.txt'%external_sample_name)
+        genotype_validation_path = self.search_file(sample_dir, '%s_genotype_validation.txt' % external_sample_name)
         if genotype_validation_path:
             genotyping_results = parse_and_aggregate_genotype_concordance(genotype_validation_path)
             genotyping_result = genotyping_results.get(self.sample_id)
             if genotyping_result:
                 sample[ELEMENT_GENOTYPE_VALIDATION] = genotyping_result
             else:
-                self.critical('Sample %s not found in file %s' % (self.sample_id, genotype_validation_path))
-
+                self.critical('Sample %s not found in file %s', self.sample_id, genotype_validation_path)
 
         species_contamination_path = self.search_file(sample_dir, '%s_R1_screen.txt' % external_sample_name)
         if species_contamination_path:
@@ -308,7 +309,7 @@ class SampleCrawler(Crawler):
             if species_contamination_result:
                 sample[ELEMENT_SPECIES_CONTAMINATION] = species_contamination_result
             else:
-                self.critical('Contamination check unavailable for %s' % (self.sample_id))
+                self.critical('Contamination check unavailable for %s', self.sample_id)
         return sample
 
     def send_data(self):
