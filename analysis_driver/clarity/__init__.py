@@ -299,7 +299,7 @@ def get_released_samples():
     processes = lims.get_processes(type='Data Release EG 1.0')
     for process in processes:
         for artifact in process.all_inputs():
-            released_samples.extend([s.name for s in artifact.samples])
+            released_samples.extend([sanitize_user_id(s.name) for s in artifact.samples])
 
     return sorted(set(released_samples))
 
