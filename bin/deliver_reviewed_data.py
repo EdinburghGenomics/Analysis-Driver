@@ -7,8 +7,8 @@ import datetime
 from collections import defaultdict
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from analysis_driver.config import default as cfg, logging_default as log_cfg
-from analysis_driver.app_logging import AppLogger
+from analysis_driver.config import default as cfg
+from analysis_driver.app_logging import AppLogger, logging_default as log_cfg
 from analysis_driver import executor, clarity, rest_communication
 from analysis_driver.exceptions import AnalysisDriverError
 

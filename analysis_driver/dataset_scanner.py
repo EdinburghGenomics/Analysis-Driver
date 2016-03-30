@@ -69,29 +69,6 @@ class Dataset:
         new_content = {'proc_id': self.proc_id, 'status': DATASET_REPROCESS}
         rest_communication.post_or_patch('analysis_driver_procs', [new_content], id_field='proc_id')
 
-    def _change_status(self, status, finish=True):
-        new_content = {
-            'dataset_type': self.type,
-            'dataset_name': self.name,
-            'status': status
-        }
-        if finish:
-            self.pid = 0
-            end_date = self._now()
-            new_content['pid'] = self.pid
-            new_content['end_date'] = end_date
-        else:
-            end_date = None
-
-        patch_success = rest_communication.patch_entry(
-            'analysis_driver_procs',
-            new_content,
-            'proc_id',
-            self.proc_id
-        )
-        if not patch_success:
-            self._create_process(status=status, end_date=end_date)
-
     def add_stage(self, stage_name):
         now = self._now()
         stages = self._most_recent_proc().get('stages', [])
@@ -160,7 +137,9 @@ class Dataset:
             'status': status
         }
         if finish:
+            self.pid = 0
             end_date = self._now()
+            new_content['pid'] = self.pid
             new_content['end_date'] = end_date
         else:
             end_date = None
