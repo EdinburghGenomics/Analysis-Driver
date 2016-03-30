@@ -3,7 +3,7 @@ import json
 from analysis_driver import util
 from analysis_driver.clarity import get_sex_from_lims, get_user_sample_name
 from analysis_driver.app_logging import AppLogger
-from analysis_driver.exceptions import AnalysisDriverError
+from analysis_driver.exceptions import PipelineError
 from analysis_driver.reader import demultiplexing_parsers, mapping_stats_parsers
 from analysis_driver.reader.demultiplexing_parsers import get_fastqscreen_results
 from analysis_driver.rest_communication import post_or_patch as pp
@@ -20,8 +20,6 @@ from analysis_driver.constants import ELEMENT_RUN_NAME, ELEMENT_NUMBER_LANE, ELE
     ELEMENT_GENOTYPE_VALIDATION
 
 
-
-
 class Crawler(AppLogger):
     def _check_config(self):
         if cfg.get('rest_api') and cfg.query('rest_api', 'url'):
@@ -34,6 +32,7 @@ class Crawler(AppLogger):
 class RunCrawler(Crawler):
     def __init__(self, run_id, samplesheet, conversion_xml_file=None, run_dir=None):
         self.run_id = run_id
+        self.samplesheet = samplesheet
         self._populate_barcode_info_from_sample_sheet(samplesheet)
         if conversion_xml_file:
             self._populate_barcode_info_from_conversion_file(conversion_xml_file)
@@ -64,17 +63,27 @@ class RunCrawler(Crawler):
             for sample_id_obj in proj_obj.sample_ids.values():
                 for sample in sample_id_obj.samples:
                     for lane in sample.lane.split('+'):
-                        run_element_id = '%s_%s_%s' % (self.run_id, lane, sample.barcode)
-
-                        self.barcodes_info[run_element_id] = {
-                            ELEMENT_BARCODE: sample.barcode,
-                            ELEMENT_RUN_ELEMENT_ID: run_element_id,
-                            ELEMENT_RUN_NAME: self.run_id,
-                            ELEMENT_PROJECT_ID: project_id,
-                            ELEMENT_SAMPLE_INTERNAL_ID: sample.sample_id,
-                            ELEMENT_LIBRARY_INTERNAL_ID: sample.sample_name,
-                            ELEMENT_LANE: lane
-                        }
+                        if not samplesheet.has_barcode:
+                            run_element_id = '%s_%s' % (self.run_id, lane)
+                            self.barcodes_info[run_element_id] = {
+                                ELEMENT_RUN_ELEMENT_ID: run_element_id,
+                                ELEMENT_RUN_NAME: self.run_id,
+                                ELEMENT_PROJECT_ID: project_id,
+                                ELEMENT_SAMPLE_INTERNAL_ID: sample.sample_id,
+                                ELEMENT_LIBRARY_INTERNAL_ID: sample.sample_name,
+                                ELEMENT_LANE: lane
+                            }
+                        else:
+                            run_element_id = '%s_%s_%s' % (self.run_id, lane, sample.barcode)
+                            self.barcodes_info[run_element_id] = {
+                                ELEMENT_BARCODE: sample.barcode,
+                                ELEMENT_RUN_ELEMENT_ID: run_element_id,
+                                ELEMENT_RUN_NAME: self.run_id,
+                                ELEMENT_PROJECT_ID: project_id,
+                                ELEMENT_SAMPLE_INTERNAL_ID: sample.sample_id,
+                                ELEMENT_LIBRARY_INTERNAL_ID: sample.sample_name,
+                                ELEMENT_LANE: lane
+                            }
 
                         # Populate the libraries
                         lib = self.libraries[sample.sample_name]
@@ -99,17 +108,17 @@ class RunCrawler(Crawler):
                         # Populate the run
                         self.run[ELEMENT_RUN_ELEMENTS].append(run_element_id)
 
-                        unknown_element_id = '%s_%s_%s' % (self.run_id, lane, 'unknown')
-                        self.barcodes_info[unknown_element_id] = {
-                            ELEMENT_BARCODE: 'unknown',
-                            ELEMENT_RUN_ELEMENT_ID: unknown_element_id,
-                            ELEMENT_RUN_NAME: self.run_id,
-                            ELEMENT_PROJECT_ID: 'default',
-                            ELEMENT_SAMPLE_INTERNAL_ID: 'Undetermined',
-                            ELEMENT_LIBRARY_INTERNAL_ID: 'Undetermined',
-                            ELEMENT_LANE: lane
-                        }
-
+                        if samplesheet.has_barcode:
+                            unknown_element_id = '%s_%s_%s' % (self.run_id, lane, 'unknown')
+                            self.barcodes_info[unknown_element_id] = {
+                                ELEMENT_BARCODE: 'unknown',
+                                ELEMENT_RUN_ELEMENT_ID: unknown_element_id,
+                                ELEMENT_RUN_NAME: self.run_id,
+                                ELEMENT_PROJECT_ID: 'default',
+                                ELEMENT_SAMPLE_INTERNAL_ID: 'Undetermined',
+                                ELEMENT_LIBRARY_INTERNAL_ID: 'Undetermined',
+                                ELEMENT_LANE: lane
+                            }
         for project_id in self.projects:
             self.projects[project_id][ELEMENT_SAMPLES] = list(self.projects[project_id][ELEMENT_SAMPLES])
 
@@ -121,10 +130,11 @@ class RunCrawler(Crawler):
 
         self.run[ELEMENT_NUMBER_LANE] = len(self.lanes)
 
+
     def _populate_barcode_info_from_seqtk_fqchk_files(self, run_dir):
         for run_element_id in self.barcodes_info:
             barcode_info = self.barcodes_info.get(run_element_id)
-            if barcode_info[ELEMENT_BARCODE] == 'unknown':
+            if ELEMENT_BARCODE in barcode_info and barcode_info[ELEMENT_BARCODE] == 'unknown':
                 fq_chk_files = util.find_files(
                     run_dir,
                     'fastq',
@@ -150,7 +160,7 @@ class RunCrawler(Crawler):
                 barcode_info[ELEMENT_NB_Q30_R2_CLEANED] = hi_q
 
             elif len(fq_chk_files) == 1:
-                raise AnalysisDriverError('Only one fqchk file found in %s for %s' % (run_dir, run_element_id))
+                raise PipelineError('Only one fqchk file found in %s for %s' % (run_dir, run_element_id))
 
             elif barcode_info[ELEMENT_NB_READS_PASS_FILTER] == 0:
                 barcode_info[ELEMENT_NB_READS_CLEANED] = 0
@@ -158,27 +168,35 @@ class RunCrawler(Crawler):
                 barcode_info[ELEMENT_NB_Q30_R1_CLEANED] = 0
                 barcode_info[ELEMENT_NB_BASE_R2_CLEANED] = 0
                 barcode_info[ELEMENT_NB_Q30_R2_CLEANED] = 0
-
             else:
-                raise AnalysisDriverError('%s fqchk files found in %s for %s' % (len(fq_chk_files), run_dir, run_element_id))
+                raise PipelineError('%s fqchk files found in %s for %s' % (len(fq_chk_files), run_dir, run_element_id))
+
 
     def _populate_barcode_info_from_conversion_file(self, conversion_xml):
-        all_barcodes, top_unknown_barcodes = demultiplexing_parsers.parse_conversion_stats(conversion_xml)
+        all_barcodes, top_unknown_barcodes, all_barcodeless = demultiplexing_parsers.parse_conversion_stats(conversion_xml, self.samplesheet.has_barcode)
         reads_per_lane = Counter()
+        barcodes = ''
+        if not self.samplesheet.has_barcode:
+            barcodes = all_barcodeless
+        else:
+            barcodes = all_barcodes
 
         for (project, library, lane, barcode, clust_count,
-             clust_count_pf, nb_bases, nb_bases_r1_q30, nb_bases_r2_q30) in all_barcodes:
+             clust_count_pf, nb_bases, nb_bases_r1_q30, nb_bases_r2_q30) in barcodes:
             reads_per_lane[lane] += clust_count_pf
             # For the moment, assume that nb_bases for r1 and r2 are the same.
             # TODO: remove this assumption by parsing ConversionStats.xml
-            barcode_info = self.barcodes_info.get('%s_%s_%s' % (self.run_id, lane, barcode))
+            if not self.samplesheet.has_barcode:
+                barcode_info = self.barcodes_info.get('%s_%s' % (self.run_id, lane))
+            else:
+                barcode_info = self.barcodes_info.get('%s_%s_%s' % (self.run_id, lane, barcode))
+
             barcode_info[ELEMENT_NB_READS_SEQUENCED] = clust_count
             barcode_info[ELEMENT_NB_READS_PASS_FILTER] = clust_count_pf
             barcode_info[ELEMENT_NB_BASE_R1] = nb_bases
             barcode_info[ELEMENT_NB_BASE_R2] = nb_bases
             barcode_info[ELEMENT_NB_Q30_R1] = nb_bases_r1_q30
             barcode_info[ELEMENT_NB_Q30_R2] = nb_bases_r2_q30
-
         for run_element_id in self.barcodes_info:
             barcode = self.barcodes_info[run_element_id]
             reads_for_lane = reads_per_lane.get(barcode[ELEMENT_LANE])

@@ -15,14 +15,15 @@ STATUS_HIDDEN = [DATASET_PROCESSED_SUCCESS, DATASET_PROCESSED_FAIL, DATASET_ABOR
 
 
 class Dataset:
-    type = 'None'
-    endpoint = 'None'
-    id_field = 'None'
+    type = None
+    endpoint = None
+    id_field = None
 
     def __init__(self, name):
         self.name = name
-        self.pid = None
-        self.proc_id = self._most_recent_proc().get('proc_id', '_'.join((self.type, self.name)))
+        most_recent_proc = self._most_recent_proc()
+        self.pid = most_recent_proc.get('pid')
+        self.proc_id = most_recent_proc.get('proc_id', '_'.join((self.type, self.name)))
 
     @property
     def dataset_status(self):
@@ -67,6 +68,29 @@ class Dataset:
     def reset(self):
         new_content = {'proc_id': self.proc_id, 'status': DATASET_REPROCESS}
         rest_communication.post_or_patch('analysis_driver_procs', [new_content], id_field='proc_id')
+
+    def _change_status(self, status, finish=True):
+        new_content = {
+            'dataset_type': self.type,
+            'dataset_name': self.name,
+            'status': status
+        }
+        if finish:
+            self.pid = 0
+            end_date = self._now()
+            new_content['pid'] = self.pid
+            new_content['end_date'] = end_date
+        else:
+            end_date = None
+
+        patch_success = rest_communication.patch_entry(
+            'analysis_driver_procs',
+            new_content,
+            'proc_id',
+            self.proc_id
+        )
+        if not patch_success:
+            self._create_process(status=status, end_date=end_date)
 
     def add_stage(self, stage_name):
         now = self._now()

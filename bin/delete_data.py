@@ -1,5 +1,5 @@
 from os import listdir
-from os.path import basename, expanduser, join as p_join
+from os.path import basename, expanduser, join as p_join, isdir
 from datetime import datetime
 import argparse
 import logging
@@ -82,8 +82,9 @@ class RawDataDeleter(Deleter):
 
         for d in self.deletable_sub_dirs:
             from_d = p_join(raw_data, d)
-            to_d = p_join(deletable_data, d)
-            self._execute('mv %s %s' % (from_d, to_d))
+            if isdir(from_d):
+                to_d = p_join(deletable_data, d)
+                self._execute('mv %s %s' % (from_d, to_d))
 
         return listdir(deletable_data)  # Data, Thumbnail_Images, etc.
 
