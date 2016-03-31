@@ -230,8 +230,8 @@ def main():
     args = p.parse_args()
 
     if args.debug:
-        log_cfg.default_level = logging.DEBUG
-        log_cfg.add_handler('stdout', logging.StreamHandler(stream=sys.stdout), logging.DEBUG)
+        log_cfg.set_log_level(logging.DEBUG)
+        log_cfg.add_handler(logging.StreamHandler(stream=sys.stdout))
 
     cfg.merge(cfg['sample'])
     dd = DataDelivery(args.dry_run)

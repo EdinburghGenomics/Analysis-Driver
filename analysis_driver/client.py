@@ -121,7 +121,7 @@ def _process_dataset(d):
         if exit_status == 0:
             d.succeed()
         else:
-            d.fail()
+            d.fail(exit_status)
         app_logger.info('Finished with exit status ' + str(exit_status))
 
     finally:

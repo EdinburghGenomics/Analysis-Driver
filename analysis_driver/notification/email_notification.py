@@ -27,7 +27,10 @@ class EmailNotification(Notification):
         self._send_mail('Pipeline finished with exit status ' + str(exit_status), bool(exit_status))
 
     def crash_report(self, exit_status, crash_report):
-        self._send_mail('Crash report for %s %s:\n\n' + crash_report, diagnostics=True)
+        self._send_mail(
+            'Crash report for %s %s:\n\n%s' % (self.dataset.type, self.dataset.name, crash_report),
+            diagnostics=True
+        )
 
     def _send_mail(self, body, diagnostics=False):
         msg = self._prepare_message(body, diagnostics=diagnostics)
