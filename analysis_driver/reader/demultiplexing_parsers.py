@@ -72,7 +72,7 @@ def parse_conversion_stats(xml_file, has_barcode):
                                     if read.get('number') == "2":
                                         nb_bases += int(read.find('Yield').text)
                                         nb_bases_r1_q30 += int(read.find('YieldQ30').text)
-                                    if read.get('number') == "192":
+                                    if read.get('number') != "2":
                                         nb_bases_r2_q30 += int(read.find('YieldQ30').text)
                             all_barcodeless.append(
                                 (
