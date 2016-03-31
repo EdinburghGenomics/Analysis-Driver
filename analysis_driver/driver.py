@@ -15,29 +15,23 @@ from analysis_driver.report_generation.report_crawlers import RunCrawler, Sample
 from analysis_driver.transfer_data import prepare_run_data, prepare_sample_data, output_sample_data, output_run_data, \
     create_links_from_bcbio
 
-app_logger = log_cfg.get_logger('driver')
+app_logger = log_cfg.get_logger(__name__)
 
 
 def pipeline(dataset):
 
     if isinstance(dataset, RunDataset):
-        exit_status = demultiplexing_pipeline(dataset)
+        return demultiplexing_pipeline(dataset)
     elif isinstance(dataset, SampleDataset):
         species = clarity.get_species_from_sample(dataset.name)
         if species is None:
             raise PipelineError('No species information found in the LIMS for ' + dataset.name)
         elif species == 'Homo sapiens':
-            exit_status = variant_calling_pipeline(dataset)
+            return variant_calling_pipeline(dataset)
         else:
-            exit_status = qc_pipeline(dataset, species)
+            return qc_pipeline(dataset, species)
     else:
         raise AssertionError('Unexpected dataset type: ' + str(dataset))
-
-    if exit_status != 0:
-        dataset.fail()
-    else:
-        dataset.succeed()
-    return exit_status
 
 
 def demultiplexing_pipeline(dataset):

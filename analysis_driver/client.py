@@ -102,13 +102,12 @@ def _process_dataset(d):
         from analysis_driver import driver
         d.start()
         exit_status = driver.pipeline(d)
-        d.succeed()
         app_logger.info('Done')
 
     except exceptions.SequencingRunError as e:
         app_logger.info('Bad sequencing run: %s. Aborting this dataset' % str(e))
-        d.abort()
         exit_status = 2  # TODO: we should send a notification of the run status found
+        d.abort()
 
     except Exception as e:
         app_logger.critical('Encountered a %s exception: %s', e.__class__.__name__, str(e))
@@ -117,6 +116,13 @@ def _process_dataset(d):
         app_logger.info('Stack trace below:\n' + stacktrace)
         d.fail(exit_status)
         ntf.crash_report(exit_status, stacktrace)
+
+    else:
+        if exit_status == 0:
+            d.succeed()
+        else:
+            d.fail()
+        app_logger.info('Finished with exit status ' + str(exit_status))
 
     finally:
         return exit_status
