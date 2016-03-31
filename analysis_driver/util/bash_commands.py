@@ -4,7 +4,7 @@ from analysis_driver.app_logging import logging_default as log_cfg
 from analysis_driver.config import default as cfg
 
 
-app_logger = log_cfg.get_logger(__name__)
+app_logger = log_cfg.get_logger('bash_commands')
 
 
 def bcl2fastq(input_dir, fastq_path, sample_sheet=None, mask=None):
@@ -42,7 +42,7 @@ def sickle_paired_end_in_place(fastq_file_pair):
     """
     Run sickle in paired end mode to do a very minimal trimming and filter reads shorter than 36 bases, i.e.
     remove the adapter dimers flagged by bcl2fastq.
-    :param list fastq_file_pair: Two fastqs
+    :param fastq_file_pair: A pair of fastqs to run sickle on
     """
     if len(fastq_file_pair) != 2:
         raise AnalysisDriverError('sickle_paired_end only supports paired fastq files')

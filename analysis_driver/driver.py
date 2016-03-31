@@ -15,7 +15,7 @@ from analysis_driver.report_generation.report_crawlers import RunCrawler, Sample
 from analysis_driver.transfer_data import prepare_run_data, prepare_sample_data, output_sample_data, output_run_data, \
     create_links_from_bcbio
 
-app_logger = log_cfg.get_logger(__name__)
+app_logger = log_cfg.get_logger('driver')
 
 
 def pipeline(dataset):
