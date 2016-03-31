@@ -21,15 +21,10 @@ class LogNotification(Notification):
         self.info('Started pipeline')
 
     def start_stage(self, stage_name):
-        self.dataset.add_stage(stage_name)  # TODO: the dataset should control the notifier
         self.info('Started stage ' + stage_name)
 
     def end_stage(self, stage_name, exit_status=0):
-        self.dataset.end_stage(stage_name, exit_status)
-        if exit_status == 0:
-            self.info('Finished stage ' + stage_name)
-        else:
-            self.error('Failed stage ' + stage_name + ' with exit status ' + str(exit_status))
+        self.info('Finished stage ' + stage_name + ' with exit status ' + str(exit_status))
 
     def end_pipeline(self, exit_status=0):
         self.info('Finished pipeline with exit status ' + str(exit_status))

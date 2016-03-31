@@ -38,6 +38,7 @@ class GenotypeValidation(AppLogger, Thread):
         self.list_samples = list_samples
         self.sample2genotype_validation = {}
         self.exception = None
+        self.exit_status = 0
         Thread.__init__(self)
 
     @staticmethod
@@ -267,6 +268,7 @@ class GenotypeValidation(AppLogger, Thread):
             self._genotype_validation()
         except Exception as e:
             self.exception = e
+            self.exit_status = 8
 
     def join(self, timeout=None):
         super().join(timeout=timeout)

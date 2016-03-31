@@ -69,7 +69,8 @@ class Dataset:
         new_content = {'proc_id': self.proc_id, 'status': DATASET_REPROCESS}
         rest_communication.post_or_patch('analysis_driver_procs', [new_content], id_field='proc_id')
 
-    def add_stage(self, stage_name):
+    def start_stage(self, stage_name):
+        ntf.start_stage(stage_name)
         now = self._now()
         stages = self._most_recent_proc().get('stages', [])
         new_stage = {
@@ -80,7 +81,8 @@ class Dataset:
         new_content = {'proc_id': self.proc_id, 'stages': stages}
         rest_communication.post_or_patch('analysis_driver_procs', [new_content], id_field='proc_id')
 
-    def end_stage(self, stage_name, exit_status):
+    def end_stage(self, stage_name, exit_status=0):
+        ntf.end_stage(stage_name, exit_status)
         stages = self._most_recent_proc().get('stages')
         for s in stages:
             if s['stage_name'] == stage_name:

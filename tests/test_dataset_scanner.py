@@ -223,9 +223,9 @@ class TestDataset(TestAnalysisDriver):
 
     @patched_most_recent_proc()
     @patched_post_or_patch
-    def test_add_stage(self, mocked_post_or_patch, mocked_most_recent_proc):
+    def test_start_stage(self, mocked_post_or_patch, mocked_most_recent_proc):
         now = self.dataset._now()
-        self.dataset.add_stage('a_stage')
+        self.dataset.start_stage('a_stage')
         mocked_post_or_patch.assert_called_with(
             'analysis_driver_procs',
             [

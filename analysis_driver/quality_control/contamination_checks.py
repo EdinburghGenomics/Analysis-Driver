@@ -1,4 +1,3 @@
-import os
 from threading import Thread
 from analysis_driver.config import default as cfg
 from analysis_driver import executor
@@ -6,16 +5,16 @@ from analysis_driver.notification import default as ntf
 from analysis_driver.app_logging import AppLogger
 
 
-
 class ContaminationCheck(AppLogger, Thread):
-
     def __init__(self, fastq_files, working_dir):
         self.fastq_files = fastq_files
         self.working_dir = working_dir
         self.contamination_cfg = cfg.get('contamination-check')
         self.tools = cfg.get('tools')
         Thread.__init__(self)
+        self.fastqscreen_expected_outfiles = None
         self.exception = None
+        self.exit_status = 0
 
     def _fastqscreen_command(self):
         """
@@ -56,7 +55,6 @@ class ContaminationCheck(AppLogger, Thread):
         else:
             raise ValueError('Bad number of fastqs: ' + str(self.fastq_files))
 
-
     def _run_fastqscreen(self):
         """
         :return list: a list of the expected outfiles from fastq screen
@@ -80,6 +78,7 @@ class ContaminationCheck(AppLogger, Thread):
             self.fastqscreen_expected_outfiles = self._run_fastqscreen()
         except Exception as e:
             self.exception = e
+            self.exit_status = 8
 
     def join(self, timeout=None):
         super().join(timeout=timeout)
