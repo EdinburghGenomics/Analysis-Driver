@@ -2,14 +2,11 @@ import os
 import time
 import shutil
 import yaml
-from analysis_driver import reader, util, executor, clarity
+from analysis_driver import reader, util, executor, clarity, quality_control as qc
 from analysis_driver.dataset_scanner import RunDataset, SampleDataset
 from analysis_driver.exceptions import PipelineError, SequencingRunError
 from analysis_driver.app_logging import logging_default as log_cfg
 from analysis_driver.config import output_files_config, default as cfg
-from analysis_driver.quality_control.gender_validation import GenderValidation
-from analysis_driver.quality_control.genotype_validation import GenotypeValidation
-from analysis_driver.quality_control.contamination_checks import ContaminationCheck
 from analysis_driver.report_generation.report_crawlers import RunCrawler, SampleCrawler
 from analysis_driver.transfer_data import prepare_run_data, prepare_sample_data, output_sample_data,\
     output_run_data, create_links_from_bcbio
@@ -201,12 +198,12 @@ def variant_calling_pipeline(dataset):
 
     # genotype validation
     dataset.start_stage('genotype validation')
-    genotype_validation = GenotypeValidation(fastq_pair, sample_id)
+    genotype_validation = qc.GenotypeValidation(dataset, sample_dir, fastq_pair)
     genotype_validation.start()
 
     # species contamination check
     dataset.start_stage('species contamination check')
-    species_contamination_check = ContaminationCheck([(fastq_pair[0])], sample_dir)
+    species_contamination_check = qc.ContaminationCheck(dataset, sample_dir, [fastq_pair[0]])
     species_contamination_check.start()
     species_contamination_check.join()
     dataset.end_stage('species contamination check', species_contamination_check.exit_status)
@@ -282,7 +279,7 @@ def qc_pipeline(dataset, species):
 
     # species contamination check
     dataset.start_stage('species contamination check')
-    species_contamination_check = ContaminationCheck([(fastq_pair[0])], sample_dir)
+    species_contamination_check = qc.ContaminationCheck(dataset, sample_dir, [fastq_pair[0]])
     species_contamination_check.start()
     species_contamination_check.join()
     dataset.end_stage('species contamination check', species_contamination_check.exit_status)
@@ -323,12 +320,10 @@ def _output_data(dataset, sample_dir, sample_id, output_fileset):
         user_sample_id = clarity.get_user_sample_name(sample_id, lenient=True)
     
         # gender detection
-        dataset.start_stage('gender_validation')
         vcf_file = os.path.join(dir_with_linked_files, user_sample_id + '.vcf.gz')
-        g = GenderValidation(sample_dir, vcf_file)
-        g.start()
-        g_val_exit_status = g.join()
-        dataset.end_stage('gender_validation', g_val_exit_status)
+        gender_validation = qc.GenderValidation(dataset, sample_dir, vcf_file)
+        gender_validation.start()
+        gender_validation.join()
 
     # upload the data to the rest API
     project_id = clarity.find_project_from_sample(sample_id)

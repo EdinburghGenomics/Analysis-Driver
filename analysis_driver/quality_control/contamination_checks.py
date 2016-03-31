@@ -1,20 +1,15 @@
-from threading import Thread
-from analysis_driver.config import default as cfg
 from analysis_driver import executor
-from analysis_driver.notification import default as ntf
-from analysis_driver.app_logging import AppLogger
+from analysis_driver.config import default as cfg
+from .quality_control_base import QualityControl
 
 
-class ContaminationCheck(AppLogger, Thread):
-    def __init__(self, fastq_files, working_dir):
+class ContaminationCheck(QualityControl):
+    def __init__(self, dataset, working_dir, fastq_files):
+        super().__init__(dataset, working_dir)
         self.fastq_files = fastq_files
-        self.working_dir = working_dir
         self.contamination_cfg = cfg.get('contamination-check')
         self.tools = cfg.get('tools')
-        Thread.__init__(self)
         self.fastqscreen_expected_outfiles = None
-        self.exception = None
-        self.exit_status = 0
 
     def _fastqscreen_command(self):
         """
@@ -61,7 +56,7 @@ class ContaminationCheck(AppLogger, Thread):
         """
         fastqscreen_run_command = [(self._fastqscreen_command())]
         fastqscreen_expected_outfiles = self._get_expected_outfiles()
-        ntf.start_stage('run_fastqscreen')
+        self.dataset.start_stage('run_fastqscreen')
         fastqscreen_executor = executor.execute(
             fastqscreen_run_command,
             job_name='fastqscreen',
@@ -70,7 +65,7 @@ class ContaminationCheck(AppLogger, Thread):
             mem=10
         )
         exit_status = fastqscreen_executor.join()
-        ntf.end_stage('run_fastqscreen', exit_status)
+        self.dataset.end_stage('run_fastqscreen', exit_status)
         return fastqscreen_expected_outfiles
 
     def run(self):
