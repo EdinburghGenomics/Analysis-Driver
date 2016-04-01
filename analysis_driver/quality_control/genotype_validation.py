@@ -1,44 +1,39 @@
 import os
-from threading import Thread
-from analysis_driver.app_logging import AppLogger
 from analysis_driver import executor
 from analysis_driver.clarity import get_genotype_information_from_lims, \
     find_project_from_sample, get_sample_names_from_project_from_lims, \
     get_samples_arrived_with, get_samples_genotyped_with, get_samples_sequenced_with
 from analysis_driver.exceptions import PipelineError
-from analysis_driver.notification import default as ntf
 from analysis_driver.config import default as cfg
 from analysis_driver.reader.mapping_stats_parsers import parse_genotype_concordance
+from .quality_control_base import QualityControl
 
 
-class GenotypeValidation(AppLogger, Thread):
+class GenotypeValidation(QualityControl):
     """
     This class will perform the Genotype validation steps. It subclasses Thread, allowing it to run in the
     background.
     """
-    def __init__(self, fastq_files, sample_id, vcf_file=None, check_neighbour=False,
+    def __init__(self, dataset, working_dir, fastq_files, vcf_file=None, check_neighbour=False,
                  check_project=False, list_samples=None):
         """
         :param list[str] fastq_files: fastq files to run genotype validation on
-        :param str sample_id: the id of the run these sample were sequenced on
         :param str vcf_file:
         :param check_neighbour:
         :param check_project:
         :param list_samples:
         """
+        super().__init__(dataset, working_dir)
+        self.sample_id = self.dataset.name
         self.fastq_files = fastq_files
-        self.sample_id = sample_id
-        self.work_directory = os.path.join(cfg['jobs_dir'], self.sample_id)
         if vcf_file:
             self.seq_vcf_file = vcf_file
         else:
-            self.seq_vcf_file = os.path.join(self.work_directory, self.sample_id + '_genotype_validation.vcf.gz')
+            self.seq_vcf_file = os.path.join(self.working_dir, self.sample_id + '_genotype_validation.vcf.gz')
         self.check_neighbour = check_neighbour
         self.check_project = check_project
         self.list_samples = list_samples
         self.sample2genotype_validation = {}
-        self.exception = None
-        Thread.__init__(self)
 
     @staticmethod
     def _bwa_aln(fastq_files, sample_name, expected_output_bam, reference):
@@ -82,7 +77,7 @@ class GenotypeValidation(AppLogger, Thread):
         :rtype: list
         :return list of bam file containing the reads aligned.
         """
-        expected_bam = os.path.join(self.work_directory, self.sample_id + '_geno_val.bam')
+        expected_bam = os.path.join(self.working_dir, self.sample_id + '_geno_val.bam')
 
         command = self._bwa_aln(
             self.fastq_files,
@@ -91,16 +86,16 @@ class GenotypeValidation(AppLogger, Thread):
             cfg.query('genotype-validation', 'reference')
         )
         
-        ntf.start_stage('genotype_validation_bwa')
+        self.dataset.start_stage('genotype_validation_bwa')
         bwa_executor = executor.execute(
             [command],
             job_name='alignment_bwa',
-            working_dir=self.work_directory,
+            working_dir=self.working_dir,
             cpus=4,
             mem=8
         )
         exit_status = bwa_executor.join()
-        ntf.end_stage('genotype_validation_bwa', exit_status)
+        self.dataset.end_stage('genotype_validation_bwa', exit_status)
 
         return expected_bam
 
@@ -123,16 +118,16 @@ class GenotypeValidation(AppLogger, Thread):
             '-o %s' % self.seq_vcf_file
         ]
 
-        ntf.start_stage('genotype_validation_gatk')
+        self.dataset.start_stage('genotype_validation_gatk')
         gatk_executor = executor.execute(
             [' '.join(gatk_command)],
             job_name='snpcall_gatk',
-            working_dir=self.work_directory,
+            working_dir=self.working_dir,
             cpus=4,
             mem=4
         )
         exit_status = gatk_executor.join()
-        ntf.end_stage('genotype_validation_gatk', exit_status)
+        self.dataset.end_stage('genotype_validation_gatk', exit_status)
         return self.seq_vcf_file
 
     def _vcf_validation(self, sample2genotype):
@@ -150,7 +145,7 @@ class GenotypeValidation(AppLogger, Thread):
         if not os.path.isfile(self.seq_vcf_file+'.tbi'):
             self._index_vcf_gz(self.seq_vcf_file)
         for sample_name in sample2genotype:
-            validation_results = os.path.join(self.work_directory, sample_name + '_genotype_validation.txt')
+            validation_results = os.path.join(self.working_dir, sample_name + '_genotype_validation.txt')
             sample2genotype_validation[sample_name] = validation_results
             gatk_command = ['java -Xmx4G -jar %s' % cfg.query('tools', 'gatk'),
                             '-T GenotypeConcordance',
@@ -160,17 +155,17 @@ class GenotypeValidation(AppLogger, Thread):
                             ' > %s' % validation_results]
             list_commands.append(' '.join(gatk_command))
 
-        ntf.start_stage('validation_genotype_concordance')
+        self.dataset.start_stage('validation_genotype_concordance')
         genotype_concordance_executor = executor.execute(
             list_commands,
             job_name='genotype_concordance',
-            working_dir=self.work_directory,
+            working_dir=self.working_dir,
             cpus=4,
             mem=8,
             log_commands=False
         )
         exit_status = genotype_concordance_executor.join()
-        ntf.end_stage('validation_genotype_concordance', exit_status)
+        self.dataset.end_stage('validation_genotype_concordance', exit_status)
         return sample2genotype_validation
 
     def _rename_expected_genotype(self, sample2genotype):
@@ -184,7 +179,7 @@ class GenotypeValidation(AppLogger, Thread):
         exit_status = executor.execute(
             list_commands,
             job_name='genotype_rename',
-            working_dir=self.work_directory,
+            working_dir=self.working_dir,
             cpus=4,
             mem=8,
             log_commands=False
@@ -196,7 +191,7 @@ class GenotypeValidation(AppLogger, Thread):
         exit_status = executor.execute(
             [command],
             job_name='index_vcf',
-            working_dir=self.work_directory,
+            working_dir=self.working_dir,
             cpus=1,
             mem=4
         ).join()
@@ -218,8 +213,8 @@ class GenotypeValidation(AppLogger, Thread):
                 table_type, headers, lines = parse_genotype_concordance(genotype_validation)
                 sp_line = lines[1].split()
                 sp_line[0] = sample
-                all_sample_lines[sample]='\t'.join(sp_line)
-        with open(os.path.join(self.work_directory, self.sample_id + '_genotype_validation.txt'), 'w'   ) as open_file:
+                all_sample_lines[sample] = '\t'.join(sp_line)
+        with open(os.path.join(self.working_dir, self.sample_id + '_genotype_validation.txt'), 'w') as open_file:
             open_file.write(table_type + '\n')
             open_file.write('\t'.join(headers.split()) + '\n')
             for sample in sorted(all_sample_lines):
@@ -251,7 +246,7 @@ class GenotypeValidation(AppLogger, Thread):
         sample2genotype = {}
         # TODO: Change to use batch calls which should be much faster
         for sample_name in samples_names:
-            genotype_vcf = os.path.join(self.work_directory, sample_name + '_expected_genotype.vcf')
+            genotype_vcf = os.path.join(self.working_dir, sample_name + '_expected_genotype.vcf')
             genotype_vcf = get_genotype_information_from_lims(sample_name, genotype_vcf)
             if genotype_vcf:
                 sample2genotype[sample_name] = genotype_vcf
@@ -259,7 +254,7 @@ class GenotypeValidation(AppLogger, Thread):
         if sample2genotype:
             self._rename_expected_genotype(sample2genotype)
             self.sample2genotype_validation = self._vcf_validation(sample2genotype)
-            if len(self.sample2genotype_validation)>1:
+            if len(self.sample2genotype_validation) > 1:
                 self._merge_validation_results(self.sample2genotype_validation)
 
     def run(self):
@@ -267,6 +262,7 @@ class GenotypeValidation(AppLogger, Thread):
             self._genotype_validation()
         except Exception as e:
             self.exception = e
+            self.exit_status = 8
 
     def join(self, timeout=None):
         super().join(timeout=timeout)

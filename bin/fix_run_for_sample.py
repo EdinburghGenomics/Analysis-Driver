@@ -4,7 +4,7 @@ import argparse
 import logging
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from analysis_driver.config import logging_default as log_cfg
+from analysis_driver.app_logging import logging_default as log_cfg
 from analysis_driver import executor, util
 from analysis_driver.exceptions import AnalysisDriverError
 from analysis_driver.util.bash_commands import rsync_from_to, is_remote_path
@@ -14,8 +14,8 @@ from analysis_driver.dataset_scanner import SampleScanner
 from analysis_driver.transfer_data import prepare_sample_data
 
 
-log_cfg.default_level = logging.DEBUG
-log_cfg.add_handler('stdout', logging.StreamHandler(stream=sys.stdout), logging.DEBUG)
+log_cfg.set_log_level(logging.DEBUG)
+log_cfg.add_handler(logging.StreamHandler(stream=sys.stdout))
 
 
 def main():
@@ -31,14 +31,13 @@ def _parse_args():
     return parser.parse_args()
 
 
-
 def copy_sample_back(dataset, working_dir):
     """
     rsync the fastq files and qc to an the sample input_dir.
     :param Dataset dataset: A dataset object
     :param working_dir: The place where the fixed fastq files are
     """
-    run_names = set
+    run_names = set()
     project_id = None
     for run_element in dataset.run_elements:
         if int(run_element.get(ELEMENT_NB_READS_CLEANED, 0)) > 0:
@@ -51,7 +50,7 @@ def copy_sample_back(dataset, working_dir):
 
 def copy_run_back(sample_id, project_id, run_name, fastq_dir_to_transfer):
     dest_dir = os.path.join(cfg['input_dir'], run_name, 'fastq', project_id, sample_id)
-    if not os.path.isdir(dest_dir) and  not is_remote_path(dest_dir):
+    if not os.path.isdir(dest_dir) and not is_remote_path(dest_dir):
         raise AnalysisDriverError('Cannot find Destination directory for %s'%(sample_id))
     command = rsync_from_to(' '.join(fastq_dir_to_transfer), dest_dir)
     exit_status = executor.execute(
@@ -59,7 +58,7 @@ def copy_run_back(sample_id, project_id, run_name, fastq_dir_to_transfer):
             job_name='tf_bak',
             working_dir=os.path.join(cfg['jobs_dir'], sample_id)
         ).join()
-    return  exit_status
+    return exit_status
 
 
 def fix_run_for_sample(sample_id):
@@ -120,7 +119,6 @@ def fix_run_for_sample(sample_id):
         return exit_status
 
     copy_sample_back(dataset, working_dir)
-
 
 
 if __name__ == '__main__':

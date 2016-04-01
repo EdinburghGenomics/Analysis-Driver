@@ -1,11 +1,13 @@
 __author__ = 'mwham'
 import os
 from tests.test_analysisdriver import TestAnalysisDriver
-from analysis_driver.config import Configuration, EnvConfiguration, LoggingConfiguration, logging_default
+from analysis_driver.config import Configuration, EnvConfiguration
+from analysis_driver.app_logging import LoggingConfiguration, logging_default
 from analysis_driver import app_logging
 from analysis_driver.exceptions import AnalysisDriverError
 import pytest
 import logging
+import logging.handlers
 import sys
 
 
@@ -122,6 +124,9 @@ class TestLoggingConfiguration(TestAnalysisDriver):
     def setUp(self):
         self.log_cfg = LoggingConfiguration()
 
+    def tearDown(self):
+        self.log_cfg = None
+
     def test_formatters(self):
         default = self.log_cfg.default_formatter
         assert default.datefmt == '%Y-%b-%d %H:%M:%S'
@@ -133,47 +138,75 @@ class TestLoggingConfiguration(TestAnalysisDriver):
 
         assert self.log_cfg.formatter is default
 
-        assert self.log_cfg.handlers == {}
-        assert self.log_cfg.default_level == logging.INFO
+        assert self.log_cfg.handlers == set()
+        assert self.log_cfg.log_level == logging.INFO
+
+    def test_get_logger(self):
+        l = self.log_cfg.get_logger('a_logger')
+        assert l.level == self.log_cfg.log_level
+        assert l in self.log_cfg.loggers
+        assert list(self.log_cfg.handlers) == l.handlers
 
     def test_add_handler(self):
         h = logging.StreamHandler(stream=sys.stdout)
-        self.log_cfg.add_handler('test', h)
+        self.log_cfg.add_handler(h)
 
-        assert self.log_cfg.handlers['test'] is h
+        assert h in self.log_cfg.handlers
         assert h.formatter is self.log_cfg.formatter
         assert h.level == logging.INFO
 
-    def test_switch_formatter(self):
+    def test_set_log_level(self):
         h = logging.StreamHandler(stream=sys.stdout)
-        self.log_cfg.add_handler('test', h)
+        self.log_cfg.add_handler(h, level=logging.INFO)
+        l = self.log_cfg.get_logger('a_logger')
+        assert h.level == l.level == logging.INFO
 
-        self.log_cfg.switch_formatter(self.log_cfg.blank_formatter)
+        self.log_cfg.set_log_level(logging.DEBUG)
+        assert h.level == l.level == logging.DEBUG
+
+    def test_set_formatter(self):
+        h = logging.StreamHandler(stream=sys.stdout)
+        self.log_cfg.add_handler(h)
+
+        self.log_cfg.set_formatter(self.log_cfg.blank_formatter)
         assert h.formatter is self.log_cfg.blank_formatter
-        self.log_cfg.switch_formatter(self.log_cfg.default_formatter)
+        self.log_cfg.set_formatter(self.log_cfg.default_formatter)
         assert h.formatter is self.log_cfg.default_formatter
+
+    def test_configure_handlers_from_config(self):
+        test_log = os.path.join(self.assets_path, 'test.log')
+        logging_cfg = {
+            'stream_handlers': [{'stream': 'ext://sys.stdout', 'level': 'DEBUG'}],
+            'file_handlers': [{'filename': test_log, 'mode': 'a', 'level': 'WARNING'}],
+            'timed_rotating_file_handlers': [{'filename': test_log, 'when': 'h', 'interval': 1}]
+        }
+        self.log_cfg.configure_handlers_from_config(logging_cfg)
+        for h in self.log_cfg.handlers:
+            if type(h) is logging.StreamHandler:
+                assert h.stream is sys.stdout and h.level == logging.DEBUG
+            elif type(h) is logging.FileHandler:
+                assert h.stream.name == test_log and h.level == logging.WARNING
+            elif type(h) is logging.handlers.TimedRotatingFileHandler:
+                assert h.stream.name == test_log and h.level == logging.INFO
+                assert h.when == 'H' and h.interval == 3600  # casts 'h' to 'H' and multiplies when to seconds
 
 
 class TestAppLogging(app_logging.AppLogger, TestAnalysisDriver):
     def setUp(self):
-        logging_default.add_handler('test', logging.StreamHandler(stream=sys.stdout))
-        logging_default.add_handler('test2', logging.StreamHandler(stream=sys.stderr))
+        logging_default.add_handler(logging.StreamHandler(stream=sys.stdout))
+        logging_default.add_handler(logging.StreamHandler(stream=sys.stderr))
 
     def tearDown(self):
-        logging_default.handlers = {}
+        logging_default.handlers.clear()
 
     def test_log_msgs(self):
         self.debug('Debug')
         self.info('Info')
-        self.warn('Warning')
+        self.warning('Warning')
         self.error('Error')
         self.critical('Critical')
 
-        with pytest.raises(KeyError) as e:
-            self.critical('Oh noes!', error_class=KeyError)
-            assert str(e) == 'Oh noes!'
-
     def test_get_logger(self):
-        logger = app_logging.get_logger('test')
-        assert logger.level == logging_default.default_level
-        assert list(logging_default.handlers.values()) == logger.handlers
+        logger = logging_default.get_logger('test')
+        assert logger.level == logging_default.log_level
+        assert list(logging_default.handlers) == logger.handlers

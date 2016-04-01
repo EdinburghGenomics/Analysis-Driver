@@ -2,9 +2,9 @@ import re
 import requests
 from genologics.lims import Lims
 from analysis_driver.config import default as cfg
-from analysis_driver.app_logging import get_logger
+from analysis_driver.app_logging import logging_default as log_cfg
 
-app_logger = get_logger('Clarity')
+app_logger = log_cfg.get_logger('Clarity')
 
 _lims = None
 
@@ -25,7 +25,7 @@ def get_valid_lanes(flowcell_name):
     lims = _get_lims_connection()
     containers = lims.get_containers(type='Patterned Flowcell', name=flowcell_name)
     if len(containers) != 1:
-        app_logger.warning('%s Flowcell(s) found for name %s' % (len(containers), flowcell_name))
+        app_logger.warning('%s Flowcell(s) found for name %s', len(containers), flowcell_name)
         return None
 
     flowcell = containers[0]
@@ -36,7 +36,7 @@ def get_valid_lanes(flowcell_name):
         if not artifact.udf.get('Lane Failed?', False):
             valid_lanes.append(lane)
     valid_lanes = sorted(valid_lanes)
-    app_logger.info('Valid lanes for %s: %s' % (flowcell_name, str(valid_lanes)))
+    app_logger.info('Valid lanes for %s: %s', flowcell_name, str(valid_lanes))
     return valid_lanes
 
 
@@ -47,7 +47,7 @@ def find_project_from_sample(sample_name):
     if samples:
         project_names = set([s.project.name for s in samples])
         if len(project_names) != 1:
-            app_logger.error('%s projects found for sample %s' % (len(project_names), sample_name))
+            app_logger.error('%s projects found for sample %s', len(project_names), sample_name)
             return None
         else:
             return project_names.pop()
@@ -97,10 +97,10 @@ def get_species_information_from_ncbi(species):
                 common_name = match.group(1)
             all_species_names.append((taxid, scientific_name, common_name))
     if len(all_species_names) > 1:
-        app_logger.error("More than one taxon corresponding to %s" % species)
+        app_logger.error('More than one taxon corresponding to %s', species)
         return None, None, None
     elif len(all_species_names) == 0:
-        app_logger.error("No taxon found corresponding to %s" % species)
+        app_logger.error('No taxon found corresponding to %s', species)
         return None, None, None
 
     return all_species_names[0]
@@ -113,7 +113,7 @@ def get_species_from_sample(sample_name):
     if samples:
         species_strings = set([s.udf.get('Species') for s in samples])
         if len(species_strings) != 1:
-            app_logger.error('%s species found for sample %s' % (len(species_strings), sample_name))
+            app_logger.error('%s species found for sample %s', len(species_strings), sample_name)
         else:
             species_string = species_strings.pop()
     if species_string:
@@ -146,7 +146,7 @@ def get_lims_sample(sample_name):
     lims = _get_lims_connection()
     samples = get_lims_samples(sample_name, lims)
     if len(samples) != 1:
-        app_logger.warning('%s Sample(s) found for name %s' % (len(samples), sample_name))
+        app_logger.warning('%s Sample(s) found for name %s', len(samples), sample_name)
         return None
     return samples[0]
 
@@ -184,7 +184,7 @@ def get_genotype_information_from_lims(sample_name, output_file_name):
                 open_file.write(file_content)
             return output_file_name
         else:
-            app_logger.warning('Cannot download genotype results for %s' % sample_name)
+            app_logger.warning('Cannot download genotype results for %s', sample_name)
     return None
 
 
@@ -205,7 +205,7 @@ def get_run(run_id):
     lims = _get_lims_connection()
     runs = lims.get_processes(type='AUTOMATED - Sequence', udf={'RunID': run_id})
     if len(runs) != 1:
-        app_logger.error('%s runs found for %s' % (len(runs), run_id))
+        app_logger.error('%s runs found for %s', len(runs), run_id)
     if runs:
         return runs[0]
 

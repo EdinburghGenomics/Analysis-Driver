@@ -1,14 +1,13 @@
-__author__ = 'mwham'
 import os
 from time import sleep
 from analysis_driver import executor, clarity, util
 from analysis_driver.exceptions import PipelineError
 from analysis_driver.util.bash_commands import rsync_from_to, is_remote_path
-from analysis_driver.app_logging import get_logger
+from analysis_driver.app_logging import logging_default as log_cfg
 from analysis_driver.config import default as cfg
 from analysis_driver.constants import ELEMENT_RUN_NAME, ELEMENT_LANE, ELEMENT_PROJECT_ID, ELEMENT_NB_READS_CLEANED
 
-app_logger = get_logger(__name__)
+app_logger = log_cfg.get_logger(__name__)
 
 
 def prepare_run_data(dataset):
@@ -16,7 +15,7 @@ def prepare_run_data(dataset):
     Decide whether to rsync a dataset to an intermediate dir and run driver.pipeline on it.
     :param Dataset dataset: A dataset object
     """
-    app_logger.debug('Preparing dataset %s (%s)' % (dataset.name, dataset.dataset_status))
+    app_logger.debug('Preparing dataset %s (%s)', dataset.name, dataset.dataset_status)
     if cfg.get('intermediate_dir'):
         _transfer_run_to_int_dir(
             dataset,
@@ -36,7 +35,7 @@ def prepare_sample_data(dataset):
     Decide whether to rsync the fastq files to an intermediate dir just find them.
     :param Dataset dataset: A dataset object
     """
-    app_logger.debug('Preparing dataset %s (%s)' % (dataset.name, dataset.dataset_status))
+    app_logger.debug('Preparing dataset %s (%s)', dataset.name, dataset.dataset_status)
     fastqs = []
 
     for run_element in dataset.run_elements:
@@ -78,7 +77,7 @@ def _find_fastqs_for_sample(sample_id, run_element):
         fastqs = util.find_files(cfg['jobs_dir'], sample_id, run_id, '*L00%s*.fastq.gz' % lane)
 
     if len(fastqs) == 0:
-        app_logger.warning('0 fastqs found for %s/%s/%s/L00%s' % (run_id, project_id, sample_id, lane))
+        app_logger.warning('0 fastqs found for %s/%s/%s/L00%s', run_id, project_id, sample_id, lane)
     elif len(fastqs) != 2:
         raise PipelineError(
             '%s fastqs found for %s/%s/%s/L00%s' % (len(fastqs), run_id, project_id, sample_id, lane)

@@ -1,9 +1,9 @@
 from urllib.parse import urljoin
 import requests
 from analysis_driver.config import default as cfg
-from analysis_driver.app_logging import get_logger
+from analysis_driver.app_logging import logging_default as log_cfg
 
-app_logger = get_logger(__name__)
+app_logger = log_cfg.get_logger(__name__)
 
 eve_query_args = (
     'where', 'max_results', 'aggregate', 'page', 'sort', 'projection', 'embedded',
@@ -65,7 +65,7 @@ def get_document(endpoint, idx=0, **query_args):
     if documents:
         return documents[idx]
     else:
-        app_logger.warning('No document found in endpoint %s for %s' % (endpoint, str(query_args)))
+        app_logger.warning('No document found in endpoint %s for %s', endpoint, query_args)
 
 
 def post_entry(endpoint, payload):
@@ -138,7 +138,7 @@ def patch_entries(endpoint, payload, update_lists=None, **query_args):
                 nb_docs += 1
             else:
                 success = False
-        app_logger.info('Updated %s documents matching %s' % (nb_docs, query_args))
+        app_logger.info('Updated %s documents matching %s', nb_docs, query_args)
         return success
     return False
 

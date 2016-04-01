@@ -7,8 +7,8 @@ import datetime
 from collections import defaultdict
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from analysis_driver.config import default as cfg, logging_default as log_cfg
-from analysis_driver.app_logging import AppLogger
+from analysis_driver.config import default as cfg
+from analysis_driver.app_logging import AppLogger, logging_default as log_cfg
 from analysis_driver import executor, clarity, rest_communication
 from analysis_driver.exceptions import AnalysisDriverError
 
@@ -230,8 +230,8 @@ def main():
     args = p.parse_args()
 
     if args.debug:
-        log_cfg.default_level = logging.DEBUG
-        log_cfg.add_handler('stdout', logging.StreamHandler(stream=sys.stdout), logging.DEBUG)
+        log_cfg.set_log_level(logging.DEBUG)
+        log_cfg.add_handler(logging.StreamHandler(stream=sys.stdout))
 
     cfg.merge(cfg['sample'])
     dd = DataDelivery(args.dry_run)

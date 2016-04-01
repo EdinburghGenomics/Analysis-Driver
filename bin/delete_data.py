@@ -8,8 +8,8 @@ import sys
 from os.path import dirname, abspath
 sys.path.append(dirname(dirname(abspath(__file__))))
 from analysis_driver.exceptions import AnalysisDriverError
-from analysis_driver.config import default as cfg, logging_default as log_cfg
-from analysis_driver.app_logging import AppLogger
+from analysis_driver.config import default as cfg
+from analysis_driver.app_logging import AppLogger, logging_default as log_cfg
 from analysis_driver.constants import ELEMENT_PROJECT_ID, ELEMENT_SAMPLE_INTERNAL_ID, ELEMENT_RUN_ELEMENTS,\
     ELEMENT_PROCS, ELEMENT_RUN_NAME, ELEMENT_STATUS, ELEMENT_PROC_ID, ELEMENT_USEABLE, ELEMENT_FASTQS_DELETED,\
     ELEMENT_DELIVERED, ELEMENT_LANE
@@ -23,7 +23,7 @@ class Deleter(AppLogger):
         self.deletion_limit = deletion_limit
 
     def delete_dir(self, d):
-        self.debug('Removing deletion dir containing: %s' % listdir(d))
+        self.debug('Removing deletion dir containing: %s', listdir(d))
         self._execute('rm -rfv ' + d, cluster_execution=True)
 
     def _execute(self, cmd, cluster_execution=False):
@@ -97,7 +97,7 @@ class RawDataDeleter(Deleter):
         for run in run_ids:
             deletable_dirs = self._setup_run_for_deletion(run, deletion_dir)
             if sorted(self.deletable_sub_dirs) != sorted(deletable_dirs):
-                self.warn(
+                self.warning(
                     'Not all deletable dirs were present for run %s: %s' % (
                         run, [d for d in self.deletable_sub_dirs if d not in deletable_dirs]
                     )
@@ -306,7 +306,7 @@ def main():
 
     if args.__dict__.pop('debug', False):
         log_cfg.default_level = logging.DEBUG
-        log_cfg.add_handler('stdout', logging.StreamHandler(stream=sys.stdout), logging.DEBUG)
+        log_cfg.add_handler(logging.StreamHandler(stream=sys.stdout), logging.DEBUG)
 
     deleter_type = args.__dict__.pop('deleter')
     deleter_args = dict([(k, v) for k, v in args.__dict__.items() if v])

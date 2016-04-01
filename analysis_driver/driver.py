@@ -2,42 +2,32 @@ import os
 import time
 import shutil
 import yaml
-from analysis_driver import reader, util, executor, clarity
+from analysis_driver import reader, util, executor, clarity, quality_control as qc
 from analysis_driver.dataset_scanner import RunDataset, SampleDataset
 from analysis_driver.exceptions import PipelineError, SequencingRunError
-from analysis_driver.app_logging import get_logger
-from analysis_driver.config import output_files_config, default as cfg  # imports the default config singleton
-from analysis_driver.notification import default as ntf
-from analysis_driver.quality_control.gender_validation import GenderValidation
-from analysis_driver.quality_control.genotype_validation import GenotypeValidation
-from analysis_driver.quality_control.contamination_checks import ContaminationCheck
+from analysis_driver.app_logging import logging_default as log_cfg
+from analysis_driver.config import output_files_config, default as cfg
 from analysis_driver.report_generation.report_crawlers import RunCrawler, SampleCrawler
-from analysis_driver.transfer_data import prepare_run_data, prepare_sample_data, output_sample_data, output_run_data, \
-    create_links_from_bcbio
+from analysis_driver.transfer_data import prepare_run_data, prepare_sample_data, output_sample_data,\
+    output_run_data, create_links_from_bcbio
 
-app_logger = get_logger('driver')
+app_logger = log_cfg.get_logger('driver')
 
 
 def pipeline(dataset):
 
     if isinstance(dataset, RunDataset):
-        exit_status = demultiplexing_pipeline(dataset)
+        return demultiplexing_pipeline(dataset)
     elif isinstance(dataset, SampleDataset):
         species = clarity.get_species_from_sample(dataset.name)
         if species is None:
             raise PipelineError('No species information found in the LIMS for ' + dataset.name)
         elif species == 'Homo sapiens':
-            exit_status = variant_calling_pipeline(dataset)
+            return variant_calling_pipeline(dataset)
         else:
-            exit_status = qc_pipeline(dataset, species)
+            return qc_pipeline(dataset, species)
     else:
         raise AssertionError('Unexpected dataset type: ' + str(dataset))
-
-    if exit_status != 0:
-        dataset.fail()
-    else:
-        dataset.succeed()
-    return exit_status
 
 
 def demultiplexing_pipeline(dataset):
@@ -48,10 +38,9 @@ def demultiplexing_pipeline(dataset):
     """
     exit_status = 0
 
-    dataset.start()
-    ntf.start_stage('transfer')
+    dataset.start_stage('transfer')
     input_run_folder = prepare_run_data(dataset)
-    ntf.end_stage('transfer')
+    dataset.end_stage('transfer')
 
     run_id = os.path.basename(input_run_folder)
     job_dir = os.path.join(cfg['jobs_dir'], run_id)
@@ -61,7 +50,7 @@ def demultiplexing_pipeline(dataset):
     app_logger.info('Job dir: ' + job_dir)
 
     run_info = reader.RunInfo(input_run_folder)
-    ntf.start_stage('setup')
+    dataset.start_stage('setup')
     reader.transform_sample_sheet(input_run_folder, remove_barcode=not run_info.mask.has_barcodes)
     sample_sheet = reader.SampleSheet(os.path.join(input_run_folder, 'SampleSheet_analysis_driver.csv'), has_barcode=run_info.mask.has_barcodes)
     if not sample_sheet.validate(run_info.mask):
@@ -70,19 +59,19 @@ def demultiplexing_pipeline(dataset):
     # Send the information about the run to the rest API
     crawler = RunCrawler(run_id, sample_sheet)
     crawler.send_data()
-    ntf.end_stage('setup')
+    dataset.end_stage('setup')
 
     run_status = clarity.get_run(run_id).udf.get('Run Status')
     # TODO: catch bcl2fastq error logs instead
     if run_status != 'RunCompleted':
-        app_logger.error('Run status is \'%s\'. Stopping.' % run_status)
+        app_logger.error('Run status is \'%s\'. Stopping.', run_status)
         raise SequencingRunError(run_status)
 
     # bcl2fastq
     mask = sample_sheet.generate_mask(run_info.mask)
     app_logger.info('bcl2fastq mask: ' + mask)  # e.g: mask = 'y150n,i6,y150n'
 
-    ntf.start_stage('bcl2fastq')
+    dataset.start_stage('bcl2fastq')
     exit_status += executor.execute(
         [util.bash_commands.bcl2fastq(input_run_folder, fastq_dir, sample_sheet.filename, mask)],
         job_name='bcl2fastq',
@@ -90,12 +79,12 @@ def demultiplexing_pipeline(dataset):
         cpus=8,
         mem=32
     ).join()
-    ntf.end_stage('bcl2fastq', exit_status)
+    dataset.end_stage('bcl2fastq', exit_status)
     if exit_status:
         return exit_status
 
     # Filter the adapter dimer from fastq with sickle
-    ntf.start_stage('sickle_filter')
+    dataset.start_stage('sickle_filter')
     exit_status = executor.execute(
         [util.bash_commands.sickle_paired_end_in_place(fqs) for fqs in util.find_all_fastq_pairs(fastq_dir)],
         job_name='sickle_filter',
@@ -103,12 +92,12 @@ def demultiplexing_pipeline(dataset):
         cpus=1,
         mem=2
     ).join()
-    ntf.end_stage('sickle_filter', exit_status)
+    dataset.end_stage('sickle_filter', exit_status)
     if exit_status:
         return exit_status
 
     # fastqc
-    ntf.start_stage('fastqc')
+    dataset.start_stage('fastqc')
     fastqc_executor = executor.execute(
         [util.bash_commands.fastqc(fq) for fq in util.find_all_fastqs(fastq_dir)],
         job_name='fastqc',
@@ -118,7 +107,7 @@ def demultiplexing_pipeline(dataset):
     )
 
     # seqtk fqchk
-    ntf.start_stage('seqtk_fqchk')
+    dataset.start_stage('seqtk_fqchk')
     seqtk_fqchk_executor = executor.execute(
         [util.bash_commands.seqtk_fqchk(fq) for fq in util.find_all_fastqs(fastq_dir)],
         job_name='fqchk',
@@ -129,7 +118,7 @@ def demultiplexing_pipeline(dataset):
     )
 
     # md5sum
-    ntf.start_stage('md5sum')
+    dataset.start_stage('md5sum')
     md5sum_executor = executor.execute(
         [util.bash_commands.md5sum(fq) for fq in util.find_all_fastqs(fastq_dir)],
         job_name='md5sum',
@@ -140,11 +129,11 @@ def demultiplexing_pipeline(dataset):
     )
 
     fastqc_exit_status = fastqc_executor.join()
-    ntf.end_stage('fastqc', fastqc_exit_status)
+    dataset.end_stage('fastqc', fastqc_exit_status)
     seqtk_fqchk_exit_status = seqtk_fqchk_executor.join()
-    ntf.end_stage('seqtk_fqchk', seqtk_fqchk_exit_status)
+    dataset.end_stage('seqtk_fqchk', seqtk_fqchk_exit_status)
     md5_exit_status = md5sum_executor.join()
-    ntf.end_stage('md5sum', md5_exit_status)
+    dataset.end_stage('md5sum', md5_exit_status)
 
     # Copy the Samplesheet Runinfo.xml run_parameters.xml to the fastq dir
     for f in ['SampleSheet.csv', 'SampleSheet_analysis_driver.csv', 'runParameters.xml',
@@ -163,18 +152,18 @@ def demultiplexing_pipeline(dataset):
         crawler.write_json(json_file)
         crawler.send_data()
     else:
-        app_logger.error('File not found: %s' % conversion_xml)
+        app_logger.error('File not found: %s', conversion_xml)
         exit_status += 1
 
-    ntf.start_stage('data_transfer')
+    dataset.start_stage('data_transfer')
     transfer_exit_status = output_run_data(fastq_dir, run_id)
-    ntf.end_stage('data_transfer', transfer_exit_status)
+    dataset.end_stage('data_transfer', transfer_exit_status)
     exit_status += transfer_exit_status + fastqc_exit_status + md5_exit_status
 
     # if exit_status == 0:
-    #     ntf.start_stage('cleanup')
+    #     dataset.start_stage('cleanup')
     #     exit_status += _cleanup(run_id)
-    #     ntf.end_stage('cleanup', exit_status)
+    #     dataset.end_stage('cleanup', exit_status)
     return exit_status
 
 
@@ -185,7 +174,6 @@ def variant_calling_pipeline(dataset):
     :rtype: int
     """
     exit_status = 0
-    dataset.start()
     fastq_files = prepare_sample_data(dataset)
 
     sample_id = dataset.name
@@ -193,13 +181,13 @@ def variant_calling_pipeline(dataset):
     app_logger.info('Job dir: ' + sample_dir)
 
     # merge fastq files
-    ntf.start_stage('merge fastqs')
+    dataset.start_stage('merge fastqs')
     fastq_pair = _bcbio_prepare_sample(sample_dir, sample_id, fastq_files)
     app_logger.debug('sample fastq files: ' + str(fastq_pair))
-    ntf.end_stage('merge fastqs')
+    dataset.end_stage('merge fastqs')
 
     # fastqc2
-    ntf.start_stage('sample_fastqc')
+    dataset.start_stage('sample_fastqc')
     fastqc2_executor = executor.execute(
         [util.bash_commands.fastqc(fastq_file) for fastq_file in fastq_pair],
         job_name='fastqc2',
@@ -209,44 +197,42 @@ def variant_calling_pipeline(dataset):
     )
 
     # genotype validation
-    ntf.start_stage('genotype validation')
-    genotype_validation = GenotypeValidation(fastq_pair, sample_id)
+    dataset.start_stage('genotype validation')
+    genotype_validation = qc.GenotypeValidation(dataset, sample_dir, fastq_pair)
     genotype_validation.start()
 
     # species contamination check
-    ntf.start_stage('species contamination check')
-    species_contamination_check = ContaminationCheck([(fastq_pair[0])], sample_dir)
+    dataset.start_stage('species contamination check')
+    species_contamination_check = qc.ContaminationCheck(dataset, sample_dir, [fastq_pair[0]])
     species_contamination_check.start()
     species_contamination_check.join()
-    ntf.end_stage('species contamination check')
+    dataset.end_stage('species contamination check', species_contamination_check.exit_status)
 
     # bcbio
-    ntf.start_stage('bcbio')
+    dataset.start_stage('bcbio')
     bcbio_executor = _run_bcbio(sample_id, sample_dir, fastq_pair)
 
     # wait for genotype_validation fastqc and bcbio to finish
     geno_valid_vcf_file, geno_valid_results = genotype_validation.join()
     app_logger.info('Written files: ' + str(geno_valid_vcf_file) + ' ' + str(geno_valid_results))
-    ntf.end_stage('genotype validation')
+    dataset.end_stage('genotype validation', genotype_validation.exit_status)
 
     fastqc2_exit_status = fastqc2_executor.join()
-    ntf.end_stage('sample_fastqc', fastqc2_exit_status)
+    dataset.end_stage('sample_fastqc', fastqc2_exit_status)
 
     bcbio_exit_status = bcbio_executor.join()
-    ntf.end_stage('bcbio', bcbio_exit_status)
+    dataset.end_stage('bcbio', bcbio_exit_status)
 
     # sort out exit statuses
     if bcbio_exit_status:
         return bcbio_exit_status
     exit_status += fastqc2_exit_status + bcbio_exit_status
-    exit_status += _output_data(sample_dir, sample_id, 'bcbio')
+    exit_status += _output_data(dataset, sample_dir, sample_id, 'bcbio')
     return exit_status
 
 
 def qc_pipeline(dataset, species):
     exit_status = 0
-
-    dataset.start()
 
     fastq_files = prepare_sample_data(dataset)
 
@@ -259,13 +245,13 @@ def qc_pipeline(dataset, species):
         raise PipelineError('Could not find reference for species %s in sample %s ' % (species, sample_id))
 
     # merge fastq files
-    ntf.start_stage('merge fastqs')
+    dataset.start_stage('merge fastqs')
     fastq_pair = _bcbio_prepare_sample(sample_dir, sample_id, fastq_files)
     app_logger.debug('sample fastq files: ' + str(fastq_pair))
-    ntf.end_stage('merge fastqs')
+    dataset.end_stage('merge fastqs')
 
     # fastqc2
-    ntf.start_stage('sample_fastqc')
+    dataset.start_stage('sample_fastqc')
     fastqc_executor = executor.execute(
         [util.bash_commands.fastqc(fastq_file) for fastq_file in fastq_pair],
         job_name='fastqc2',
@@ -276,8 +262,8 @@ def qc_pipeline(dataset, species):
 
     # bwa mem
     expected_output_bam = os.path.join(sample_dir, sample_id + '.bam')
-    app_logger.info('align %s to %s genome found at %s' % (sample_id, species, reference))
-    ntf.start_stage('sample_bwa')
+    app_logger.info('align %s to %s genome found at %s', sample_id, species, reference)
+    dataset.start_stage('sample_bwa')
     bwa_mem_executor = executor.execute(
         [util.bash_commands.bwa_mem_samblaster(fastq_pair, reference, expected_output_bam, thread=16)],
         job_name='bwa_mem',
@@ -287,18 +273,18 @@ def qc_pipeline(dataset, species):
     )
 
     fastqc_exit_status = fastqc_executor.join()
-    ntf.end_stage('sample_fastqc', fastqc_exit_status)
+    dataset.end_stage('sample_fastqc', fastqc_exit_status)
     bwa_exit_status = bwa_mem_executor.join()
-    ntf.end_stage('sample_bwa', bwa_exit_status)
+    dataset.end_stage('sample_bwa', bwa_exit_status)
 
     # species contamination check
-    ntf.start_stage('species contamination check')
-    species_contamination_check = ContaminationCheck([(fastq_pair[0])], sample_dir)
+    dataset.start_stage('species contamination check')
+    species_contamination_check = qc.ContaminationCheck(dataset, sample_dir, [fastq_pair[0]])
     species_contamination_check.start()
     species_contamination_check.join()
-    ntf.end_stage('species contamination check')
+    dataset.end_stage('species contamination check', species_contamination_check.exit_status)
 
-    ntf.start_stage('bamtools_stat')
+    dataset.start_stage('bamtools_stat')
     bamtools_stat_file = os.path.join(sample_dir, 'bamtools_stats.txt')
     bamtools_exit_status = executor.execute(
         [util.bash_commands.bamtools_stats(expected_output_bam, bamtools_stat_file)],
@@ -308,15 +294,15 @@ def qc_pipeline(dataset, species):
         mem=4,
         log_commands=False
     ).join()
-    ntf.end_stage('bamtools_stat', bamtools_exit_status)
+    dataset.end_stage('bamtools_stat', bamtools_exit_status)
 
     exit_status += fastqc_exit_status + bwa_exit_status + bamtools_exit_status
-    exit_status += _output_data(sample_dir, sample_id, 'non_human_qc')
+    exit_status += _output_data(dataset, sample_dir, sample_id, 'non_human_qc')
 
     return exit_status
 
 
-def _output_data(sample_dir, sample_id, output_fileset):
+def _output_data(dataset, sample_dir, sample_id, output_fileset):
     exit_status = 0
 
     dir_with_linked_files = os.path.join(sample_dir, 'linked_output_files')
@@ -335,9 +321,9 @@ def _output_data(sample_dir, sample_id, output_fileset):
     
         # gender detection
         vcf_file = os.path.join(dir_with_linked_files, user_sample_id + '.vcf.gz')
-        g = GenderValidation(sample_dir, vcf_file)
-        g.start()
-        g.join()
+        gender_validation = qc.GenderValidation(dataset, sample_dir, vcf_file)
+        gender_validation.start()
+        gender_validation.join()
 
     # upload the data to the rest API
     project_id = clarity.find_project_from_sample(sample_id)
@@ -345,7 +331,7 @@ def _output_data(sample_dir, sample_id, output_fileset):
     c.send_data()
 
     # md5sum
-    ntf.start_stage('md5sum')
+    dataset.start_stage('md5sum')
     md5sum_exit_status = executor.execute(
         [util.bash_commands.md5sum(f) for f in linked_files],
         job_name='md5sum',
@@ -354,20 +340,20 @@ def _output_data(sample_dir, sample_id, output_fileset):
         mem=2,
         log_commands=False
     ).join()
-    ntf.end_stage('md5sum', md5sum_exit_status)
+    dataset.end_stage('md5sum', md5sum_exit_status)
 
     exit_status += md5sum_exit_status
 
     # transfer output data
-    ntf.start_stage('data_transfer')
+    dataset.start_stage('data_transfer')
     transfer_exit_status = output_sample_data(sample_id, dir_with_linked_files, cfg['output_dir'])
-    ntf.end_stage('data_transfer', transfer_exit_status)
+    dataset.end_stage('data_transfer', transfer_exit_status)
     exit_status += transfer_exit_status
 
     if exit_status == 0:
-        ntf.start_stage('cleanup')
+        dataset.start_stage('cleanup')
         exit_status += _cleanup(sample_id)
-        ntf.end_stage('cleanup', exit_status)
+        dataset.end_stage('cleanup', exit_status)
     return exit_status
 
 

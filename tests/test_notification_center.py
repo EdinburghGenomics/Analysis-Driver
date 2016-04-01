@@ -1,4 +1,3 @@
-__author__ = 'tcezard'
 import os
 import pytest
 from unittest.mock import Mock, patch
@@ -55,13 +54,13 @@ class TestNotificationCenter(TestAnalysisDriver):
             email_config = cfg.query('notification', 'email_notification')
         
         print(self.notification_center.subscribers)
-        self.email_notification = EmailNotification(dataset, email_config)
+        self.email_ntf = EmailNotification(dataset, email_config)
 
     @patch('smtplib.SMTP', new=FakeSMTP)
     def test_retries(self):
-        assert self.email_notification._try_send('this is a test', diagnostics=False) is True
-        assert self.email_notification._try_send('dodgy', diagnostics=False) is False
+        assert self.email_ntf._try_send(self.email_ntf._prepare_message('this is a test')) is True
+        assert self.email_ntf._try_send(self.email_ntf._prepare_message('dodgy')) is False
 
         with pytest.raises(AnalysisDriverError) as e:
-            self.email_notification._send_mail('dodgy')
+            self.email_ntf._send_mail('dodgy')
             assert 'Failed to send message: dodgy' in str(e)
