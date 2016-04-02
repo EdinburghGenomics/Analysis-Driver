@@ -1,3 +1,3 @@
-__author__ = 'tcezard'
 from .genotype_validation import GenotypeValidation
-from .contamination_check import ContaminationCheck
+from .contamination_checks import ContaminationCheck
+from .gender_validation import GenderValidation

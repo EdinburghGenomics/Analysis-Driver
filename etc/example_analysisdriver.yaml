@@ -9,7 +9,11 @@ default:
     intermediate_dir: tests/assets/data_transfer/to/
     jobs_dir : path/to/jobs
     output_dir: path/to/output_data
-    archive_dir: tests/assets/data_deletion/archive
+
+    data_deletion:
+      raw_data: tests/assets/data_deletion/raw
+      raw_archives: tests/assets/data_deletion/archive
+      fastqs: tests/assets/data_deletion/fastqs
 
     tt_agent_delay: 20
     job_execution: pbs  # pbs or None
@@ -28,6 +32,11 @@ default:
         samtools: path/to/samtools
         bamtools: path/to/bamtools
         sambamba: path/to/sambamba
+        sickle: path/to/sickle
+        bcftools: path/to/bcftools
+        tabix: path/to/tabix
+        fastqscreen: path/to/fastqscreen
+
 
     logging:
         format: '[%(asctime)s][%(name)s][%(levelname)s] %(message)s'
@@ -51,3 +60,6 @@ default:
     genotype-validation:
         reference: path/to/genotype_validation/genotype_32_SNPS_genome_600bp.fa
         genotypes_repository: path/to/genotype_validation/genotypes
+
+    contamination-check:
+      fastqscreen_conf: path/to/fastqscreen/conf

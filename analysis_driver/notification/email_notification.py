@@ -1,8 +1,7 @@
-__author__ = 'tcezard'
+import os
 import smtplib
-from email.mime.text import MIMEText
 import jinja2
-import os.path
+from email.mime.text import MIMEText
 from time import sleep
 from .notification_center import Notification
 from analysis_driver.exceptions import AnalysisDriverError
@@ -24,36 +23,39 @@ class EmailNotification(Notification):
         if exit_status != 0:
             self._send_mail('Stage \'%s\' failed with exit status %s' % (stage_name, exit_status))
 
-    def end_pipeline(self, exit_status, stacktrace=None):
-        msg = 'Pipeline finished with exit status ' + str(exit_status)
-        if stacktrace:
-            msg = self._format_error_message(message=msg, stacktrace=stacktrace)
-        self._send_mail(msg, diagnostics=bool(stacktrace))
+    def end_pipeline(self, exit_status=0):
+        self._send_mail('Pipeline finished with exit status ' + str(exit_status), bool(exit_status))
+
+    def crash_report(self, exit_status, crash_report):
+        self._send_mail(
+            'Crash report for %s %s:\n\n%s' % (self.dataset.type, self.dataset.name, crash_report),
+            diagnostics=True
+        )
 
     def _send_mail(self, body, diagnostics=False):
-        mail_success = self._try_send(body, diagnostics)
+        msg = self._prepare_message(body, diagnostics=diagnostics)
+        mail_success = self._try_send(msg)
         if not mail_success:
             if self.strict is True:
                 raise AnalysisDriverError('Failed to send message: ' + body)
             else:
                 self.critical('Failed to send message: ' + body)
 
-    def _try_send(self, body, diagnostics, retries=1):
+    def _try_send(self, msg, retries=3):
         """
         Prepare a MIMEText message from body and diagnostics, and try to send a set number of times.
         :param int retries: Which retry we're currently on
         :return: True if a message is sucessfully sent, otherwise False
         """
-        msg = self._prepare_message(body, diagnostics=diagnostics)
         try:
             self._connect_and_send(msg)
             return True
         except (smtplib.SMTPException, TimeoutError) as e:
-            self.warn('Encountered a ' + str(e) + ' exception. Retry number ' + str(retries))
-            retries += 1
-            if retries <= 3:
+            retries -= 1
+            self.warning('Encountered a %s exception. %s retries remaining', str(e), retries)
+            if retries:
                 sleep(2)
-                return self._try_send(body, diagnostics, retries)
+                return self._try_send(msg, retries)
             else:
                 return False
 
@@ -74,7 +76,6 @@ class EmailNotification(Notification):
         render_params = {
             'dataset_type': self.dataset.type,
             'run': self.dataset.name,
-
             'body': self._prepare_string(body, {' ': '&nbsp', '\n': '<br/>'})
         }
         if diagnostics:
