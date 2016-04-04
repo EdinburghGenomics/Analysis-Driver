@@ -1,8 +1,8 @@
 from .executor import Executor, StreamExecutor, ClusterExecutor, ArrayExecutor
 from analysis_driver.config import default as cfg
-from analysis_driver.app_logging import get_logger
+from analysis_driver.app_logging import logging_default as log_cfg
 
-app_logger = get_logger('executor')
+app_logger = log_cfg.get_logger('executor')
 
 
 def execute(cmds, env=None, **kwargs):

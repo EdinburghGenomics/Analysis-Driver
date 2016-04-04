@@ -1,4 +1,3 @@
-__author__ = 'tcezard'
 import os
 import shutil
 import pytest
@@ -170,7 +169,8 @@ class TestDataset(TestAnalysisDriver):
                     'status': 'a_status',
                     'dataset_type': self.dataset.type,
                     'dataset_name': 'test_dataset',
-                    'end_date': self.dataset._now()
+                    'end_date': self.dataset._now(),
+                    'pid': 0
                 },
                 'proc_id',
                 'a_type_a_name'
@@ -200,11 +200,11 @@ class TestDataset(TestAnalysisDriver):
     @patched_change_status
     def test_fail(self, mocked_change_status):
         with patched_dataset_status(DATASET_PROCESSING):
-            self.dataset.fail()
+            self.dataset.fail(1)
             mocked_change_status.assert_called_with(DATASET_PROCESSED_FAIL)
 
         with patched_dataset_status(DATASET_NEW), pytest.raises(AssertionError):
-            self.dataset.fail()
+            self.dataset.fail(1)
 
     @patched_change_status
     def test_abort(self, mocked_change_status):
@@ -223,9 +223,9 @@ class TestDataset(TestAnalysisDriver):
 
     @patched_most_recent_proc()
     @patched_post_or_patch
-    def test_add_stage(self, mocked_post_or_patch, mocked_most_recent_proc):
+    def test_start_stage(self, mocked_post_or_patch, mocked_most_recent_proc):
         now = self.dataset._now()
-        self.dataset.add_stage('a_stage')
+        self.dataset.start_stage('a_stage')
         mocked_post_or_patch.assert_called_with(
             'analysis_driver_procs',
             [
@@ -290,7 +290,13 @@ class TestDataset(TestAnalysisDriver):
 
     def setup_dataset(self):
         with patched_request:
-            self.dataset = Dataset('test_dataset')
+            self.dataset = _TestDataset('test_dataset')
+
+
+class _TestDataset(Dataset):
+    type = 'None'
+    endpoint = 'None'
+    id_field = 'None'
 
 
 class TestRunDataset(TestDataset):

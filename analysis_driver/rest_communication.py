@@ -1,9 +1,9 @@
 from urllib.parse import urljoin
 import requests
 from analysis_driver.config import default as cfg
-from analysis_driver.app_logging import get_logger
+from analysis_driver.app_logging import logging_default as log_cfg
 
-app_logger = get_logger(__name__)
+app_logger = log_cfg.get_logger(__name__)
 
 eve_query_args = (
     'where', 'max_results', 'aggregate', 'page', 'sort', 'projection', 'embedded',
@@ -65,7 +65,7 @@ def get_document(endpoint, idx=0, **query_args):
     if documents:
         return documents[idx]
     else:
-        app_logger.warning('No document found in endpoint %s for %s' % (endpoint, str(query_args)))
+        app_logger.warning('No document found in endpoint %s for %s', endpoint, query_args)
 
 
 def post_entry(endpoint, payload):
@@ -110,9 +110,10 @@ def patch_entry(endpoint, payload, id_field, element_id, update_lists=None):
     """
     Retrieve a document at the given endpoint with the given unique ID, and patch it with some data.
     :param str endpoint:
-    :param str payload:
+    :param dict payload:
     :param str id_field: The name of the unique identifier (e.g. 'run_element_id', 'proc_id', etc.)
     :param element_id: The value of id_field to retrieve (e.g. '160301_2_ATGCATGC')
+    :param list update_lists:
     """
     doc = get_document(endpoint, where={id_field: element_id})
     if doc:
@@ -124,7 +125,8 @@ def patch_entries(endpoint, payload, update_lists=None, **query_args):
     """
     Retrieve many documents and patch them all with the same data.
     :param str endpoint:
-    :param str payload:
+    :param dict payload:
+    :param list update_lists:
     :param query_args: Database query args to pass to get_documents
     """
     docs = get_documents(endpoint, **query_args)
@@ -136,7 +138,7 @@ def patch_entries(endpoint, payload, update_lists=None, **query_args):
                 nb_docs += 1
             else:
                 success = False
-        app_logger.info('Updated %s documents matching %s' % (nb_docs, query_args))
+        app_logger.info('Updated %s documents matching %s', nb_docs, query_args)
         return success
     return False
 
@@ -148,6 +150,7 @@ def post_or_patch(endpoint, input_json, id_field=None, update_lists=None):
     :param str endpoint:
     :param input_json: A single document or list of documents to post or patch to the endpoint.
     :param str id_field: The field to use as the unique ID for the endpoint.
+    :param list update_lists:
     """
     success = True
     for payload in input_json:

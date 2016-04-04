@@ -1,30 +1,104 @@
-__author__ = 'mwham'
 import os
 from datetime import datetime
 from collections import defaultdict
-from analysis_driver.exceptions import AnalysisDriverError
 from analysis_driver import rest_communication
-from analysis_driver.app_logging import get_logger
+from analysis_driver.notification import default as ntf
+from analysis_driver.exceptions import AnalysisDriverError
+from analysis_driver.app_logging import AppLogger
 from analysis_driver.clarity import get_expected_yield_for_sample
 from analysis_driver.constants import DATASET_NEW, DATASET_READY, DATASET_FORCE_READY, DATASET_PROCESSING,\
     DATASET_PROCESSED_SUCCESS, DATASET_PROCESSED_FAIL, DATASET_ABORTED, DATASET_REPROCESS, ELEMENT_RUN_NAME,\
     ELEMENT_NB_Q30_R2_CLEANED, ELEMENT_NB_Q30_R1_CLEANED
-
-app_logger = get_logger('scanner')
 
 STATUS_VISIBLE = [DATASET_NEW, DATASET_READY, DATASET_FORCE_READY, DATASET_PROCESSING]
 STATUS_HIDDEN = [DATASET_PROCESSED_SUCCESS, DATASET_PROCESSED_FAIL, DATASET_ABORTED]
 
 
 class Dataset:
-    type = 'None'
-    endpoint = 'None'
-    id_field = 'None'
+    type = None
+    endpoint = None
+    id_field = None
 
     def __init__(self, name):
         self.name = name
-        self.pid = None
-        self.proc_id = self._most_recent_proc().get('proc_id', '_'.join((self.type, self.name)))
+        most_recent_proc = self._most_recent_proc()
+        self.pid = most_recent_proc.get('pid')
+        self.proc_id = most_recent_proc.get('proc_id', '_'.join((self.type, self.name)))
+
+    @property
+    def dataset_status(self):
+        most_recent_proc = self._most_recent_proc()
+        db_proc_status = most_recent_proc.get('status')
+        if db_proc_status in (DATASET_REPROCESS, None):
+            if self._is_ready():
+                return DATASET_READY
+            else:
+                return DATASET_NEW
+        else:
+            return db_proc_status
+
+    @property
+    def stages(self):
+        proc = self._most_recent_proc()
+        return [s['stage_name'] for s in proc.get('stages', []) if 'date_finished' not in s]
+
+    def start(self):
+        assert self.dataset_status in (DATASET_READY, DATASET_FORCE_READY, DATASET_NEW)
+        self.pid = os.getpid()
+        start_time = self._now()
+        self.proc_id = '_'.join((self.type, self.name, start_time))
+        # proc_id is now different, so a new analysis_driver_proc will be created
+        ntf.start_pipeline()
+        self._change_status(DATASET_PROCESSING, finish=False)
+
+    def succeed(self, quiet=False):
+        assert self.dataset_status == DATASET_PROCESSING
+        self._change_status(DATASET_PROCESSED_SUCCESS)
+        if not quiet:
+            ntf.end_pipeline(0)
+
+    def fail(self, exit_status):
+        assert self.dataset_status == DATASET_PROCESSING
+        ntf.end_pipeline(exit_status)
+        self._change_status(DATASET_PROCESSED_FAIL)
+
+    def abort(self):
+        self._change_status(DATASET_ABORTED)
+
+    def reset(self):
+        new_content = {'proc_id': self.proc_id, 'status': DATASET_REPROCESS}
+        rest_communication.post_or_patch('analysis_driver_procs', [new_content], id_field='proc_id')
+
+    def start_stage(self, stage_name):
+        ntf.start_stage(stage_name)
+        now = self._now()
+        stages = self._most_recent_proc().get('stages', [])
+        new_stage = {
+            'date_started': now,
+            'stage_name': stage_name
+        }
+        stages.append(new_stage)
+        new_content = {'proc_id': self.proc_id, 'stages': stages}
+        rest_communication.post_or_patch('analysis_driver_procs', [new_content], id_field='proc_id')
+
+    def end_stage(self, stage_name, exit_status=0):
+        ntf.end_stage(stage_name, exit_status)
+        stages = self._most_recent_proc().get('stages')
+        for s in stages:
+            if s['stage_name'] == stage_name:
+                s['date_finished'] = self._now()
+                s['exit_status'] = exit_status
+
+        new_content = {'proc_id': self.proc_id, 'stages': stages}
+        rest_communication.post_or_patch('analysis_driver_procs', [new_content], id_field='proc_id')
+
+    @property
+    def _is_ready(self):
+        raise NotImplementedError
+
+    @staticmethod
+    def _now():
+        return datetime.utcnow().strftime('%d_%m_%Y_%H:%M:%S')
 
     def _most_recent_proc(self):
         procs = rest_communication.get_documents(
@@ -58,51 +132,6 @@ class Dataset:
         )
         return proc
 
-    @property
-    def dataset_status(self):
-        most_recent_proc = self._most_recent_proc()
-        db_proc_status = most_recent_proc.get('status')
-        if db_proc_status in (DATASET_REPROCESS, None):
-            if self._is_ready():
-                return DATASET_READY
-            else:
-                return DATASET_NEW
-        else:
-            return db_proc_status
-
-    @property
-    def _is_ready(self):
-        raise NotImplementedError
-
-    @staticmethod
-    def _now():
-        return datetime.utcnow().strftime('%d_%m_%Y_%H:%M:%S')
-
-    def start(self):
-        assert self.dataset_status in (DATASET_READY, DATASET_FORCE_READY, DATASET_NEW)
-        self.pid = os.getpid()
-        # sleep(1.1)
-        start_time = self._now()
-        self.proc_id = '_'.join((self.type, self.name, start_time))
-        # proc_id is now different, so _change_status should create a new analysis_driver_proc and register it
-        # to an appropriate endpoint
-        self._change_status(DATASET_PROCESSING, finish=False)
-
-    def succeed(self):
-        assert self.dataset_status == DATASET_PROCESSING
-        self._change_status(DATASET_PROCESSED_SUCCESS)
-
-    def fail(self):
-        assert self.dataset_status == DATASET_PROCESSING
-        self._change_status(DATASET_PROCESSED_FAIL)
-
-    def abort(self):
-        self._change_status(DATASET_ABORTED)
-
-    def reset(self):
-        new_content = {'proc_id': self.proc_id, 'status': DATASET_REPROCESS}
-        rest_communication.post_or_patch('analysis_driver_procs', [new_content], id_field='proc_id')
-
     def _change_status(self, status, finish=True):
         new_content = {
             'dataset_type': self.type,
@@ -110,7 +139,9 @@ class Dataset:
             'status': status
         }
         if finish:
+            self.pid = 0
             end_date = self._now()
+            new_content['pid'] = self.pid
             new_content['end_date'] = end_date
         else:
             end_date = None
@@ -123,32 +154,6 @@ class Dataset:
         )
         if not patch_success:
             self._create_process(status=status, end_date=end_date)
-
-    def add_stage(self, stage_name):
-        now = self._now()
-        stages = self._most_recent_proc().get('stages', [])
-        new_stage = {
-            'date_started': now,
-            'stage_name': stage_name
-        }
-        stages.append(new_stage)
-        new_content = {'proc_id': self.proc_id, 'stages': stages}
-        rest_communication.post_or_patch('analysis_driver_procs', [new_content], id_field='proc_id')
-
-    def end_stage(self, stage_name, exit_status):
-        stages = self._most_recent_proc().get('stages')
-        for s in stages:
-            if s['stage_name'] == stage_name:
-                s['date_finished'] = self._now()
-                s['exit_status'] = exit_status
-
-        new_content = {'proc_id': self.proc_id, 'stages': stages}
-        rest_communication.post_or_patch('analysis_driver_procs', [new_content], id_field='proc_id')
-
-    @property
-    def stages(self):
-        proc = self._most_recent_proc()
-        return [s['stage_name'] for s in proc.get('stages', []) if 'date_finished' not in s]
 
     def __str__(self):
         out = [self.name]
@@ -228,7 +233,7 @@ class SampleDataset(Dataset):
         )
 
 
-class DatasetScanner:
+class DatasetScanner(AppLogger):
     def __init__(self, config):
         self.input_dir = config.get('input_dir')
 
@@ -241,7 +246,7 @@ class DatasetScanner:
                 for p in f.readlines():
                     if not p.startswith('#'):
                         ignorables.append(p.rstrip('\n'))
-        app_logger.debug('Ignoring %s datasets' % len(ignorables))
+        self.debug('Ignoring %s datasets', len(ignorables))
 
         n_datasets = 0
         datasets = defaultdict(list)
@@ -250,7 +255,7 @@ class DatasetScanner:
                 d = self.get_dataset(name)
                 datasets[d.dataset_status].append(d)
                 n_datasets += 1
-        app_logger.debug('Found %s datasets' % n_datasets)
+        self.debug('Found %s datasets', n_datasets)
         return datasets
 
     def _list_datasets(self):

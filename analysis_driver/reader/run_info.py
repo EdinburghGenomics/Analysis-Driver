@@ -27,9 +27,6 @@ class RunInfo(AppLogger):
             self.debug('Adding read: ' + str(read.attrib))
             self.mask.add(read)
 
-        if not self.mask.index_lengths:
-            self.warn('RunInfo.xml has no barcode reads')
-
         self.flowcell_name = root.find('Run/Flowcell').text
 
 
@@ -65,11 +62,15 @@ class Mask:
 
     @property
     def indexes(self):
-        return self.reads[1:len(self.reads)-1]
+        return [r for r in self.reads if self._is_indexed_read(r)]
 
     @property
     def index_lengths(self):
         return [self.num_cycles(read) for read in self.indexes]
+
+    @property
+    def has_barcodes(self):
+        return self.barcode_len is not None
 
     def add(self, read):
         """
@@ -81,17 +82,6 @@ class Mask:
         if self._is_indexed_read(read):
             assert (read.attrib == self.barcode_len or self.barcode_len is None)
             self.barcode_len = int(read.attrib['NumCycles'])
-
-    def validate(self):
-        """
-        Ensure that the first and last items of self.reads are not barcodes, and that all others are.
-        """
-        if self._is_indexed_read(self.reads[0]) or self._is_indexed_read(self.reads[-1]):
-            return False
-        for index in self.indexes:
-            if not self._is_indexed_read(index):
-                return False
-        return True
 
     @staticmethod
     def num_cycles(read):

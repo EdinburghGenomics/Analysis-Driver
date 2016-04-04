@@ -1,4 +1,3 @@
-__author__ = 'tcezard'
 from analysis_driver.app_logging import AppLogger
 
 
@@ -60,16 +59,11 @@ class Notification(AppLogger):
     def end_stage(self, stage_name, exit_status=0):
         pass
 
-    def end_pipeline(self, exit_status, stacktrace=None):
+    def end_pipeline(self, exit_status):
         pass
 
-    @staticmethod
-    def _format_error_message(**kwargs):
-        msg = ' '.join(('Run failed.', kwargs.get('message', '')))
-        if kwargs.get('stacktrace'):
-            msg += '\nStack trace below:\n\n'
-            msg += kwargs['stacktrace']
-        return msg
+    def crash_report(self, exit_status, stacktrace):
+        pass
 
 
 default = NotificationCenter()
