@@ -1,0 +1,34 @@
+<?xml version="1.0"?>
+<RunInfo xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" Version="3">
+  <Run Id="150703_E00328_0011_BH5VJMCCXX" Number="11">
+    <Flowcell>H5VJMCCXX</Flowcell>
+    <Instrument>E00328</Instrument>
+    <Date>150703</Date>
+    <Reads>
+      <Read Number="1" NumCycles="151" IsIndexedRead="N" />
+      <Read Number="3" NumCycles="151" IsIndexedRead="N" />
+    </Reads>
+    <FlowcellLayout LaneCount="8" SurfaceCount="1" SwathCount="1" TileCount="1">
+      <TileSet TileNamingConvention="FourDigit">
+        <Tiles>
+          <Tile>1_1101</Tile>
+          <Tile>2_1101</Tile>
+          <Tile>3_1101</Tile>
+          <Tile>4_1101</Tile>
+          <Tile>5_1101</Tile>
+          <Tile>6_1101</Tile>
+          <Tile>7_1101</Tile>
+          <Tile>8_1101</Tile>
+        </Tiles>
+      </TileSet>
+    </FlowcellLayout>
+    <AlignToPhiX />
+    <ImageDimensions Width="3188" Height="7241" />
+    <ImageChannels>
+      <Name>A</Name>
+      <Name>G</Name>
+      <Name>T</Name>
+      <Name>C</Name>
+    </ImageChannels>
+  </Run>
+</RunInfo>

@@ -1,0 +1,23 @@
+[Header]
+Investigator Name,Elizabeth Heap
+Date,07/23/2015
+Workflow,Generate FASTQ Only
+
+[Reads]
+151
+151
+
+[Settings]
+Adapter,AGATCGGAAGAGCACACGTCTGAACTCCAGTCA
+AdapterRead2,AGATCGGAAGAGCGTCGTGTAGGGAAAGAGTGT
+
+[Data],
+Lane,Sample_ID,Sample_Name,Sample_Plate,Sample_Well,Index,Index2,Sample_Project,GenomeFolder
+1,T00002P001A01,T00002P001A01_01,LP1223378-DNA,A01,,,T00002,/illumina/cBot/exampleGenomeFolder
+2,T00002P001A02,T00002P001A02_02,LP1223378-DNA,A02,,,T00002,/illumina/cBot/exampleGenomeFolder
+3,T00002P001A03,T00002P001A03_03,LP1223378-DNA,A03,,,T00002,/illumina/cBot/exampleGenomeFolder
+4,T00002P001A04,T00002P001A04_04,LP1223378-DNA,A04,,,T00002,/illumina/cBot/exampleGenomeFolder
+5,T00002P001A05,T00002P001A05_05,LP1223378-DNA,A05,,,T00002,/illumina/cBot/exampleGenomeFolder
+6,T00002P001A06,T00002P001A06_06,LP1223378-DNA,A06,,,T00002,/illumina/cBot/exampleGenomeFolder
+7,T00002P001A07,T00002P001A07_07,LP1223378-DNA,A07,,,T00002,/illumina/cBot/exampleGenomeFolder
+8,T00002P001A08,T00002P001A08_08,LP1223378-DNA,A08,,,T00002,/illumina/cBot/exampleGenomeFolder
