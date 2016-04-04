@@ -1,51 +1,47 @@
-import os
-from threading import Thread
 from analysis_driver import executor
-from analysis_driver.app_logging import AppLogger
 from analysis_driver.config import default as cfg
 from analysis_driver.notification import default as ntf
+from .quality_control_base import QualityControl
 
-class GatkDepthofCoverage(AppLogger, Thread):
-    def __init__(self, working_dir, bam_file):
+class SamtoolsDepth(QualityControl):
+    def __init__(self, dataset, working_dir, bam_file):
+        super().__init__(dataset, working_dir)
         self.bam_file = bam_file
         self.working_dir =  working_dir
         self.exception = None
-        Thread.__init__(self)
 
-    def _get_gatk_depthofcoverage_command(self):
-        reference = os.path.join(cfg.query('tools', 'bcbio') + '/genomes/Hsapiens/' + cfg['genome'] + '/seq/' + cfg['genome'] + '.fa')
-        gatk_depthofcoverage_out_file = ((self.bam_file).rstrip('bam') + 'depthofcoverage')
-        gatk_depthofcoverage_command = 'java -jar GenomeAnalysisTK.jar' \
-                                       ' -T DepthOfCoverage ' \
-                                       '-R %s ' \
-                                       '-o %s ' \
-                                       '-I %s' % (reference, gatk_depthofcoverage_out_file, self.bam_file)
-        return gatk_depthofcoverage_command, gatk_depthofcoverage_out_file
+
+    def _get_samtools_depth_command(self):
+        samtools_bin = cfg['tools']['samtools']
+        samtools_depth_out_file = ((self.bam_file).rstrip('bam') + 'depth')
+        samtools_depth_command = "%s depth -a -a -q 0 -Q 0 %s > %s" % (samtools_bin, self.bam_file, samtools_depth_out_file)
+
+        return samtools_depth_command, samtools_depth_out_file
 
 
 
-    def _run_gatk_depthofcoverage(self):
+    def _run_samtools_depth(self):
         """
-        :return string: the expected outfile from GATK depthofcoverage
+        :return string: the expected outfile from samtools depth
         """
-        depthofcoverage_command, depthofcoverage_out_file = self._get_gatk_depthofcoverage_command()
-        ntf.start_stage('run_gatk_depthofcoverage')
-        depthofcoverage_executor = executor.execute(
-            [depthofcoverage_command],
-            job_name='depthofcoverage',
+        samtools_depth_command, samtools_depth_out_file = self._get_samtools_depth_command()
+        ntf.start_stage('run_samtools_depth')
+        samtools_depth_executor = executor.execute(
+            [samtools_depth_command],
+            job_name='samtoolsdepth',
             working_dir=self.working_dir,
             cpus=2,
             mem=10
         )
-        exit_status = depthofcoverage_executor.join()
-        ntf.end_stage('run_gatk_depthofcoverage', exit_status)
-        return depthofcoverage_out_file
+        exit_status = samtools_depth_executor.join()
+        ntf.end_stage('run_samtools_depth', exit_status)
+        return samtools_depth_out_file
 
 
 
     def run(self):
         try:
-            self.median_coverage_expected_outfiles = self._run_gatk_depthofcoverage()
+            self.median_coverage_expected_outfiles = self._run_samtools_depth()
         except Exception as e:
             self.exception = e
 

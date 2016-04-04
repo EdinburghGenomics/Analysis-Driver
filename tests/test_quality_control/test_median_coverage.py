@@ -1,36 +1,29 @@
-from analysis_driver.quality_control import GatkDepthofCoverage
+from analysis_driver.quality_control import SamtoolsDepth
+from tests.test_quality_control.qc_tester import QCTester
 from unittest.mock import patch
 
-class TestGatkDepthOfCoverage():
+class TestSamtoolsDepth(QCTester):
 
-    def test_get_gatk_depthofcoverage_command(self):
+    def test_get_samtools_depth_command(self):
         bam_file = 'testfile.bam'
         working_dir = 'test_sample'
-        g = GatkDepthofCoverage(bam_file = bam_file, working_dir = working_dir)
-        my_gatk_depthofcoverage_command, my_gatk_depthofcoverage_outfile = g._get_gatk_depthofcoverage_command()
-        assert my_gatk_depthofcoverage_command == 'java -jar GenomeAnalysisTK.jar ' \
-                                                  '-T DepthOfCoverage ' \
-                                                  '-R path/to/bcbio/genomes/Hsapiens/hg38/seq/hg38.fa ' \
-                                                  '-o testfile.depthofcoverage ' \
-                                                  '-I testfile.bam'
+        g = SamtoolsDepth(self.dataset, bam_file = bam_file, working_dir = working_dir)
+        my_samtools_depth_command, my_samtools_depth_outfile = g._get_samtools_depth_command()
+        assert my_samtools_depth_command == 'path/to/samtools depth -a -a -q 0 -Q 0 testfile.bam > testfile.depth'
 
-        assert my_gatk_depthofcoverage_outfile == 'testfile.depthofcoverage'
+        assert my_samtools_depth_outfile == 'testfile.depth'
 
 
     @patch('analysis_driver.executor.execute', autospec=True)
-    def test_run_gatk_depthofcoverage(self, mocked_execute):
+    def test_run_samtools_depth(self, mocked_execute):
         bam_file = 'testfile.bam'
         working_dir = 'test_sample'
-        g = GatkDepthofCoverage(bam_file = bam_file, working_dir = working_dir)
+        g = SamtoolsDepth(self.dataset, bam_file = bam_file, working_dir = working_dir)
         instance = mocked_execute.return_value
         instance.join.return_value = 0
-        run_gatk_depthofcoverage = g._run_gatk_depthofcoverage()
-        mocked_execute.assert_called_once_with(['java -jar GenomeAnalysisTK.jar '
-                                                  '-T DepthOfCoverage '
-                                                  '-R path/to/bcbio/genomes/Hsapiens/hg38/seq/hg38.fa '
-                                                  '-o testfile.depthofcoverage '
-                                                  '-I testfile.bam'],
-                                               job_name='depthofcoverage',
+        run_samtools_depth = g._run_samtools_depth()
+        mocked_execute.assert_called_once_with(['path/to/samtools depth -a -a -q 0 -Q 0 testfile.bam > testfile.depth'],
+                                               job_name='samtoolsdepth',
                                                working_dir='test_sample',
                                                cpus=2,
                                                mem=10

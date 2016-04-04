@@ -1,4 +1,4 @@
 from .genotype_validation import GenotypeValidation
 from .contamination_checks import ContaminationCheck
 from .gender_validation import GenderValidation
-from .median_coverage import GatkDepthofCoverage
+from .median_coverage import SamtoolsDepth
