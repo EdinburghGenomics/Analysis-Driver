@@ -4,7 +4,7 @@ import os
 import argparse
 import logging
 
-from analysis_driver.dataset_scanner import SampleScanner
+from analysis_driver.dataset_scanner import NoCommunicationDataset
 from analysis_driver.quality_control.gender_validation import GenderValidation
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -76,8 +76,6 @@ def run_genotype_validation(args):
     projects_source = cfg.query('output_dir')
     work_dir = os.path.join(cfg['jobs_dir'], args.sample_id)
     os.makedirs(work_dir, exist_ok=True)
-    dataset = SampleScanner(cfg).get_dataset(args.sample_id)
-
 
     # Hack to retrieve the fastq file from the CIFS share
     if is_remote_path(projects_source):
@@ -103,6 +101,7 @@ def run_genotype_validation(args):
             genotype_vcf = genotype_vcfs[0]
             fastq_files = []
 
+    dataset = NoCommunicationDataset(args.sample_id)
     geno_val = GenotypeValidation(dataset, work_dir, sorted(fastq_files), args.sample_id, vcf_file=genotype_vcf,
                                   check_neighbour=args.check_neighbour, check_project=args.check_project,
                                   list_samples=args.check_samples)
@@ -135,7 +134,7 @@ def run_species_contamination_check(args):
     else:
         work_dir = os.path.join(cfg['jobs_dir'], args.sample_id)
     os.makedirs(work_dir, exist_ok=True)
-    dataset = SampleScanner(cfg).get_dataset(args.sample_id)
+    dataset = NoCommunicationDataset(args.sample_id)
     species_contamination_check = ContaminationCheck(dataset, work_dir, sorted(args.fastq_files))
     species_contamination_check.start()
     expected_output_files = species_contamination_check.join()
@@ -149,7 +148,7 @@ def run_sample_contamination_check(args):
     else:
         work_dir = os.path.join(cfg['jobs_dir'], args.sample_id)
     os.makedirs(work_dir, exist_ok=True)
-    dataset = SampleScanner(cfg).get_dataset(args.sample_id)
+    dataset = NoCommunicationDataset(args.sample_id)
     sample_contamination_check = VerifyBamId(dataset, work_dir, args.bam_File)
     sample_contamination_check.start()
     exit_status = sample_contamination_check.join()
@@ -162,7 +161,7 @@ def run_gender_validation(args):
     else:
         work_dir = os.path.join(cfg['jobs_dir'], args.sample_id)
     os.makedirs(work_dir, exist_ok=True)
-    dataset = SampleScanner(cfg).get_dataset(args.sample_id)
+    dataset = NoCommunicationDataset(args.sample_id)
     s = GenderValidation(dataset, work_dir, args.vcf_file)
     s.start()
     return s.join()
