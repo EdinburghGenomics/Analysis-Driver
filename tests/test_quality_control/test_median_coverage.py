@@ -28,3 +28,14 @@ class TestSamtoolsDepth(QCTester):
                                                cpus=2,
                                                mem=10
                                                )
+
+    @patch('analysis_driver.quality_control.SamtoolsDepth._run_samtools_depth')
+    def test_get_depth_histogram_command(self, mocked_depthfile):
+        bam_file = 'testfile.bam'
+        working_dir = 'test_sample'
+        g = SamtoolsDepth(self.dataset, bam_file = bam_file, working_dir = working_dir)
+        mocked_depthfile.return_value = 'test_sample.depth'
+        depth_histogram_command, depth_histogram_outfile = g._get_depth_histogram_command()
+        assert depth_histogram_command == "awk -F '\t' '{print $3}' test_sample.depth | sort | uniq -c | sort -nr > test_sample.hist"
+
+
