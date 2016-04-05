@@ -136,26 +136,3 @@ def rsync_from_to(source, dest, exclude=None):
 
     command += '%s %s' % (source, dest)
     return command
-
-
-def verify_bam_id(bam_file, vcf_file, out_prefix):
-    return '%s --bam %s --vcf %s --out %s' % (
-        cfg.query('tools', 'verifybamid'), bam_file, vcf_file, out_prefix
-    )
-
-
-def remove_non_autosomes(vcf_in, vcf_out, keep_header=True):
-    zcat = 'zcat ' + vcf_in
-
-    awk = 'awk \'{ chr_id = $1; sub("chr", "", chr_id); if ( match(chr_id, "^[0-9]+$") '
-    if keep_header:
-        awk += '|| match(chr_id, "^#")'
-    awk += ' ) {print $0} }\''
-
-    output = 'gzip -c'
-    cmd = '%s | %s | %s > %s' % (zcat, awk, output, vcf_out)
-    app_logger.debug('Writing: ' + cmd)
-
-    return cmd
-
-

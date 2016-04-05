@@ -1,3 +1,5 @@
+import os
+
 from analysis_driver import executor
 from analysis_driver.config import default as cfg
 from .quality_control_base import QualityControl
@@ -81,3 +83,71 @@ class ContaminationCheck(QualityControl):
             raise self.exception
         return self.fastqscreen_expected_outfiles
 
+
+class VerifyBamId(QualityControl):
+    """This class runs verifyBamId on a subset of the provided bam file"""
+    def __init__(self, dataset, working_dir, bam_file):
+        super().__init__(dataset, working_dir)
+        self.input_bam = bam_file
+        self.exit_status = None
+
+    def _filter_bam(self):
+        self.filtered_bam = os.path.join(self.working_dir, self.dataset.name + '_chr22.bam')
+        cmd = cfg.query('tools', 'samtools') + ' view -b %s chr22 > %s' % (self.input_bam, self.filtered_bam)
+        return executor.execute(
+                [cmd],
+                job_name='filter_bam22',
+                working_dir=self.working_dir,
+                cpus=1,
+                mem=2,
+                log_commands=False
+        ).join()
+
+    def _index_filtered_bam(self):
+        cmd = cfg.query('tools', 'samtools') + ' index %s' % (self.filtered_bam)
+        return executor.execute(
+                [cmd],
+                job_name='index_bam22',
+                working_dir=self.working_dir,
+                cpus=1,
+                mem=2
+        ).join()
+
+    def _verify_bam_id(self):
+        population_vcf = cfg.query('contamination-check', 'population_vcf')
+        cmd = '%s --bam %s --vcf %s --out %s' % (
+            cfg.query('tools', 'verifybamid'),
+            self.filtered_bam,
+            population_vcf,
+            os.path.join(self.working_dir, self.dataset.name + '-chr22-vbi')
+        )
+        exit_status = executor.execute(
+            [cmd],
+            job_name='verify_bam_id',
+            run_id=self.working_dir,
+            cpus=1,
+            mem=4
+        ).join()
+
+        return exit_status
+
+    def _contamination_check(self):
+        exit_status = 0
+        self.dataset.start_stage('verify_bam_id')
+        exit_status += self._filter_bam()
+        exit_status += self._index_filtered_bam()
+        exit_status += self._verify_bam_id()
+        self.dataset.end_stage('verify_bam_id', exit_status)
+        return exit_status
+
+    def run(self):
+        try:
+            self.exit_status = self._contamination_check()
+        except Exception as e:
+            self.exception = e
+
+    def join(self, timeout=None):
+        super().join(timeout=timeout)
+        if self.exception:
+            raise self.exception
+        return self.exit_status
