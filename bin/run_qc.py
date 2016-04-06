@@ -14,6 +14,7 @@ from analysis_driver.util.bash_commands import rsync_from_to, is_remote_path
 from analysis_driver.config import default as cfg
 from analysis_driver.clarity import get_user_sample_name
 from analysis_driver.quality_control.contamination_checks import ContaminationCheck
+from analysis_driver.quality_control import SamtoolsDepth
 from analysis_driver.reader.demultiplexing_parsers import get_fastqscreen_results
 log_cfg.default_level = logging.DEBUG
 log_cfg.add_handler(logging.StreamHandler(stream=sys.stdout), logging.DEBUG)
@@ -41,6 +42,12 @@ def _parse_args():
     sp_contamination_parser.add_argument('--work_dir', required=True)
     sp_contamination_parser.add_argument('--sample_id', required=True)
     sp_contamination_parser.set_defaults(func=run_species_contamiantion_check)
+
+    coverage_parser = subparsers.add_parser('median_coverage')
+    coverage_parser.add_argument('--bam_file', required=True, nargs='+', help='the bam file')
+    coverage_parser.add_argument('--work_dir', required=True)
+    coverage_parser.add_argument('--sample_id', required=True)
+    coverage_parser.set_defaults(func=run_median_coverage)
 
     return parser.parse_args()
 
@@ -122,6 +129,11 @@ def run_species_contamiantion_check(args):
     expected_output_files = (''.join(expected_output_files))
     fastqscreen_result = get_fastqscreen_results(expected_output_files, args.sample_id)
     print(fastqscreen_result)
+
+def run_median_coverage(args):
+    work_dir = os.path.join(cfg['jobs_dir'], args.sample_id)
+    os.makedirs(work_dir,exist_ok=True)
+    median_coverage = SamtoolsDepth()
 
 if __name__ == '__main__':
     sys.exit(main())
