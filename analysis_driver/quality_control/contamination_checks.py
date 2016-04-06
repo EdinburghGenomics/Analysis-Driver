@@ -124,7 +124,7 @@ class VerifyBamId(QualityControl):
         exit_status = executor.execute(
             [cmd],
             job_name='verify_bam_id',
-            run_id=self.working_dir,
+            working_dir=self.working_dir,
             cpus=1,
             mem=4
         ).join()
