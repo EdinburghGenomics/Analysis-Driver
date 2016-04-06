@@ -6,6 +6,7 @@ import logging
 
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from analysis_driver.quality_control import SamtoolsDepth
 from analysis_driver.dataset_scanner import NoCommunicationDataset
 from analysis_driver.quality_control.gender_validation import GenderValidation
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -55,6 +56,12 @@ def _parse_args():
     gender_valid_parser.add_argument('--sample_id', type=str, help='sample ID for creating a Sample dataset object')
     gender_valid_parser.add_argument('-v', '--vcf_file', dest="vcf_file", type=str, help='the vcf file used to detect the gender')
     gender_valid_parser.add_argument('-s', '--working_dir', dest="working_dir", type=str, help='the working dir for execution')
+
+    median_coverage_parser = subparsers.add_parser('median_coverage')
+    median_coverage_parser.add_argument('--bam_file', required=True, help='the fastq file pairs')
+    median_coverage_parser.add_argument('--work_dir', required=False)
+    median_coverage_parser.add_argument('--sample_id', required=True)
+    median_coverage_parser.set_defaults(func=median_coverage)
 
     return parser.parse_args()
 
@@ -167,6 +174,14 @@ def run_gender_validation(args):
     s.start()
     return s.join()
 
+def median_coverage(args):
+    work_dir = os.path.join(cfg['jobs_dir'], args.sample_id)
+    os.makedirs(work_dir, exist_ok=True)
+    dataset = NoCommunicationDataset(args.sample_id)
+    c = SamtoolsDepth(dataset, work_dir, args.bam_file)
+    c.start()
+    coverage = c.join()
+    print(coverage)
 
 if __name__ == '__main__':
     sys.exit(main())
