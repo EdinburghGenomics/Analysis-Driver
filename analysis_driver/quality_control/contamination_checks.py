@@ -1,5 +1,7 @@
 import os
 
+import shutil
+
 from analysis_driver import executor
 from analysis_driver.config import default as cfg
 from .quality_control_base import QualityControl
@@ -128,7 +130,11 @@ class VerifyBamId(QualityControl):
             cpus=1,
             mem=4
         ).join()
-
+        sample_vbi_self = os.path.join(self.working_dir, self.dataset.name + '-chr22-vbi.selfSM')
+        if os.path.exists(sample_vbi_self):
+            bam_dir = os.path.dirname(self.input_bam)
+            dest = os.path.join(bam_dir, os.path.basename(sample_vbi_self))
+            shutil.copyfile(sample_vbi_self, dest)
         return exit_status
 
     def _contamination_check(self):
