@@ -88,7 +88,7 @@ class testVerifyBamId(QCTester):
         )
         mocked_execute.assert_any_call(
                 ['path/to/verifybamid --bam testSample/test_sample_chr22.bam --vcf path/to/population_vcf --out testSample/test_sample-chr22-vbi'],
-                run_id='testSample',
+                working_dir='testSample',
                 cpus=1,
                 job_name='verify_bam_id',
                 mem=4)
@@ -127,6 +127,6 @@ class testVerifyBamId(QCTester):
                 job_name='verify_bam_id',
                 mem=4,
                 cpus=1,
-                run_id='testSample'
+                working_dir='testSample'
         )
 

@@ -4,9 +4,6 @@ import os
 import argparse
 import logging
 
-from analysis_driver.dataset_scanner import NoCommunicationDataset
-from analysis_driver.quality_control.gender_validation import GenderValidation
-
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from analysis_driver.quality_control.genotype_validation import GenotypeValidation
 from analysis_driver.app_logging import logging_default as log_cfg
@@ -17,6 +14,9 @@ from analysis_driver.config import default as cfg
 from analysis_driver.clarity import get_user_sample_name
 from analysis_driver.quality_control.contamination_checks import ContaminationCheck, VerifyBamId
 from analysis_driver.reader.demultiplexing_parsers import get_fastqscreen_results
+from analysis_driver.dataset_scanner import NoCommunicationDataset
+from analysis_driver.quality_control.gender_validation import GenderValidation
+
 log_cfg.default_level = logging.DEBUG
 log_cfg.add_handler(logging.StreamHandler(stream=sys.stdout), logging.DEBUG)
 
@@ -129,6 +129,7 @@ def run_genotype_validation(args):
 
 
 def run_species_contamination_check(args):
+    cfg.merge(cfg['sample'])
     if args.work_dir:
         work_dir = args.work_dir
     else:
@@ -143,13 +144,14 @@ def run_species_contamination_check(args):
     print(fastqscreen_result)
 
 def run_sample_contamination_check(args):
+    cfg.merge(cfg['sample'])
     if args.work_dir:
         work_dir = args.work_dir
     else:
         work_dir = os.path.join(cfg['jobs_dir'], args.sample_id)
     os.makedirs(work_dir, exist_ok=True)
     dataset = NoCommunicationDataset(args.sample_id)
-    sample_contamination_check = VerifyBamId(dataset, work_dir, args.bam_File)
+    sample_contamination_check = VerifyBamId(dataset, work_dir, args.bam_file)
     sample_contamination_check.start()
     exit_status = sample_contamination_check.join()
     return exit_status
