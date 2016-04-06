@@ -4,6 +4,7 @@ import os
 import argparse
 import logging
 
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from analysis_driver.dataset_scanner import NoCommunicationDataset
 from analysis_driver.quality_control.gender_validation import GenderValidation
 from analysis_driver.quality_control import SamtoolsDepth
