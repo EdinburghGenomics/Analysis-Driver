@@ -38,6 +38,7 @@ default:
         bcftools: path/to/bcftools
         tabix: path/to/tabix
         fastqscreen: path/to/fastqscreen
+        verifybamid: path/to/verifybamid
 
 
     logging:
@@ -65,3 +66,4 @@ default:
 
     contamination-check:
       fastqscreen_conf: path/to/fastqscreen/conf
+      population_vcf:   path/to/population_vcf
