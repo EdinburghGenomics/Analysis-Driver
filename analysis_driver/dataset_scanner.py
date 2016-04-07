@@ -176,7 +176,7 @@ class NoCommunicationDataset(Dataset):
     def end_stage(self, stage_name, exit_status=0):
         pass
 
-    def _change_status(self):
+    def _change_status(self, status, finish=True):
         pass
 
     def _most_recent_proc(self):

@@ -226,8 +226,27 @@ def variant_calling_pipeline(dataset):
     # sort out exit statuses
     if bcbio_exit_status:
         return bcbio_exit_status
+
     exit_status += fastqc2_exit_status + bcbio_exit_status
-    exit_status += _output_data(dataset, sample_dir, sample_id, 'bcbio')
+
+    #link the bcbio file into the final directory
+    dir_with_linked_files = _link_results_files(sample_id, sample_dir, 'bcbio')
+
+    user_sample_id = clarity.get_user_sample_name(sample_id, lenient=True)
+    # gender detection
+    vcf_file = os.path.join(dir_with_linked_files, user_sample_id + '.vcf.gz')
+    gender_validation = qc.GenderValidation(dataset, sample_dir, vcf_file)
+    gender_validation.start()
+
+    #sample contamination check
+    bam_file = os.path.join(dir_with_linked_files, user_sample_id + '.bam')
+    sample_contam = qc.VerifyBamId(dataset, sample_dir, bam_file)
+    sample_contam.start()
+    exit_status += sample_contam.join()
+    exit_status += gender_validation.join()
+
+    exit_status += _output_data(dataset, sample_dir, sample_id, dir_with_linked_files)
+
     return exit_status
 
 
@@ -297,14 +316,15 @@ def qc_pipeline(dataset, species):
     dataset.end_stage('bamtools_stat', bamtools_exit_status)
 
     exit_status += fastqc_exit_status + bwa_exit_status + bamtools_exit_status
-    exit_status += _output_data(dataset, sample_dir, sample_id, 'non_human_qc')
+
+    #link the bcbio file into the final directory
+    dir_with_linked_files = _link_results_files(sample_id, sample_dir, 'non_human_qc')
+
+    exit_status += _output_data(dataset, sample_dir, sample_id, dir_with_linked_files)
 
     return exit_status
 
-
-def _output_data(dataset, sample_dir, sample_id, output_fileset):
-    exit_status = 0
-
+def _link_results_files(sample_id, sample_dir, output_fileset):
     dir_with_linked_files = os.path.join(sample_dir, 'linked_output_files')
     os.makedirs(dir_with_linked_files, exist_ok=True)
 
@@ -315,15 +335,10 @@ def _output_data(dataset, sample_dir, sample_id, output_fileset):
         output_files_config.query(output_fileset),
         dir_with_linked_files
     )
+    return dir_with_linked_files
 
-    if output_fileset == 'bcbio':
-        user_sample_id = clarity.get_user_sample_name(sample_id, lenient=True)
-    
-        # gender detection
-        vcf_file = os.path.join(dir_with_linked_files, user_sample_id + '.vcf.gz')
-        gender_validation = qc.GenderValidation(dataset, sample_dir, vcf_file)
-        gender_validation.start()
-        gender_validation.join()
+def _output_data(dataset, sample_dir, sample_id, dir_with_linked_files):
+    exit_status = 0
 
     # upload the data to the rest API
     project_id = clarity.find_project_from_sample(sample_id)
@@ -333,7 +348,7 @@ def _output_data(dataset, sample_dir, sample_id, output_fileset):
     # md5sum
     dataset.start_stage('md5sum')
     md5sum_exit_status = executor.execute(
-        [util.bash_commands.md5sum(f) for f in linked_files],
+        [util.bash_commands.md5sum(os.path.join(dir_with_linked_files, f)) for f in os.listdir(dir_with_linked_files)],
         job_name='md5sum',
         working_dir=sample_dir,
         cpus=1,

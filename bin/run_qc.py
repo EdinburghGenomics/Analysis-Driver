@@ -110,7 +110,7 @@ def run_genotype_validation(args):
             fastq_files = []
 
     dataset = NoCommunicationDataset(args.sample_id)
-    geno_val = GenotypeValidation(dataset, work_dir, sorted(fastq_files), args.sample_id, vcf_file=genotype_vcf,
+    geno_val = GenotypeValidation(dataset, work_dir, sorted(fastq_files), vcf_file=genotype_vcf,
                                   check_neighbour=args.check_neighbour, check_project=args.check_project,
                                   list_samples=args.check_samples)
     geno_val.start()
