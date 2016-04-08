@@ -214,3 +214,68 @@ def get_fastqscreen_results(filename, sample_id):
         fastqscreen_results = parse_fastqscreen_file(filename, myFocalSpecies)
         return fastqscreen_results
 
+def calculate_mean(histogram):
+    sumOfDepths = 0
+    numberOfDepths = 0
+    with open(histogram) as openfile:
+        lines = openfile.readlines()
+        for line in lines:
+            count = int(line.split()[0])
+            depth = int(line.split()[1])
+            sumOfDepths += int(count * depth)
+            numberOfDepths += int(count)
+    meanDepth = sumOfDepths/numberOfDepths
+    return meanDepth
+
+
+
+def calculate_median(histogram):
+
+    with open(histogram) as openfile:
+        numberOfDepths = 0
+        middleDepthIndex = 0
+        countRunningTotal = 0
+        medianDepth = 0
+
+        lines = openfile.readlines()
+
+        for line in lines:
+            count = int(line.split()[0])
+            numberOfDepths += int(count)
+        if numberOfDepths % 2 != 0:
+            middleDepthIndex = (numberOfDepths/2) + 0.5
+        elif numberOfDepths % 2 == 0:
+            middleDepthIndex = [(numberOfDepths/2), ((numberOfDepths/2) + 1)]
+
+        for line in lines:
+            count = int(line.split()[0])
+            depth = int(line.split()[1])
+            while all(m > countRunningTotal for m in middleDepthIndex):
+                countRunningTotal += count
+            medianDepth = depth
+    return medianDepth
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+def calculate_sd(histogram):
+
+
+
+def get_coverage_statistics(histogram_file):
+    coverage_mean = calculate_mean(histogram_file)
+    coverage_median = calculate_median(histogram_file)
+    coverage_sd = calculate_sd(histogram_file)

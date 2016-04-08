@@ -1,7 +1,9 @@
+import os
 from analysis_driver import executor
 from analysis_driver.config import default as cfg
 from analysis_driver.notification import default as ntf
 from .quality_control_base import QualityControl
+
 
 class SamtoolsDepth(QualityControl):
     def __init__(self, dataset, working_dir, bam_file):
@@ -57,12 +59,19 @@ class SamtoolsDepth(QualityControl):
         ntf.end_stage('run_depth_histogram', exit_status)
         return depth_histogram_outfile
 
+
+
+
+
+
     def _calculate_statistics(self):
-        histogram = self._run_depth_histogram_command()
-        mean = self._calculate_mean(histogram)
-        sd = self._calulate_sd(histogram)
-        median = self._calculate_median(histogram)
-        return(mean, sd, median)
+        histogram = os.path.join(self.working_dir, self._run_depth_histogram_command())
+
+        #mean = self._calculate_mean(histogram)
+        #sd = self._calculate_sd(histogram)
+        #median = self._calculate_median(histogram)
+        #return(mean, sd, median)
+        return(histogram)
 
 
 
