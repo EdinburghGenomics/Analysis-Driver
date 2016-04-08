@@ -7,7 +7,7 @@ from analysis_driver.exceptions import PipelineError
 from analysis_driver.reader import demultiplexing_parsers, mapping_stats_parsers
 from analysis_driver.reader.demultiplexing_parsers import get_fastqscreen_results
 from analysis_driver.rest_communication import post_or_patch as pp
-from analysis_driver.reader.mapping_stats_parsers import parse_and_aggregate_genotype_concordance
+from analysis_driver.reader.mapping_stats_parsers import parse_and_aggregate_genotype_concordance, parse_vbi_selfSM
 from analysis_driver.config import default as cfg
 from analysis_driver.constants import ELEMENT_RUN_NAME, ELEMENT_NUMBER_LANE, ELEMENT_RUN_ELEMENTS, \
     ELEMENT_BARCODE, ELEMENT_RUN_ELEMENT_ID, ELEMENT_SAMPLE_INTERNAL_ID, ELEMENT_LIBRARY_INTERNAL_ID, \
@@ -17,7 +17,7 @@ from analysis_driver.constants import ELEMENT_RUN_NAME, ELEMENT_NUMBER_LANE, ELE
     ELEMENT_NB_DUPLICATE_READS, ELEMENT_NB_PROPERLY_MAPPED, ELEMENT_MEDIAN_COVERAGE, ELEMENT_PC_BASES_CALLABLE, \
     ELEMENT_LANE_NUMBER, ELEMENT_CALLED_GENDER, ELEMENT_PROVIDED_GENDER, ELEMENT_NB_READS_CLEANED, ELEMENT_NB_Q30_R1_CLEANED, \
     ELEMENT_SPECIES_CONTAMINATION, ELEMENT_NB_BASE_R2_CLEANED, ELEMENT_NB_Q30_R2_CLEANED, ELEMENT_NB_BASE_R1_CLEANED, \
-    ELEMENT_GENOTYPE_VALIDATION
+    ELEMENT_GENOTYPE_VALIDATION, ELEMENT_FREEMIX, ELEMENT_SAMPLE_CONTAMINATION
 
 
 class Crawler(AppLogger):
@@ -329,6 +329,14 @@ class SampleCrawler(Crawler):
                 sample[ELEMENT_SPECIES_CONTAMINATION] = species_contamination_result
             else:
                 self.critical('Contamination check unavailable for %s', self.sample_id)
+
+        sample_contamination_path = self.search_file(sample_dir, '%s-chr22-vbi.selfSM' % external_sample_name)
+        if sample_contamination_path:
+            freemix = parse_vbi_selfSM(sample_contamination_path)
+            if freemix:
+                sample[ELEMENT_SAMPLE_CONTAMINATION] = {ELEMENT_FREEMIX: freemix}
+            else:
+                self.critical('freemix results from validateBamId are not available for %s', self.sample_id)
         return sample
 
     def send_data(self):

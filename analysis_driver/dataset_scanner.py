@@ -166,6 +166,22 @@ class Dataset:
     __repr__ = __str__
 
 
+class NoCommunicationDataset(Dataset):
+    """Dummy dataset that can be used in QC object but won't contact the API"""
+    type = "Notype"
+
+    def start_stage(self, stage_name):
+        pass
+
+    def end_stage(self, stage_name, exit_status=0):
+        pass
+
+    def _change_status(self, status, finish=True):
+        pass
+
+    def _most_recent_proc(self):
+        return {}
+
 class RunDataset(Dataset):
     type = 'run'
     endpoint = 'runs'
