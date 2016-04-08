@@ -36,6 +36,6 @@ class TestSamtoolsDepth(QCTester):
         g = SamtoolsDepth(self.dataset, bam_file = bam_file, working_dir = working_dir)
         mocked_depthfile.return_value = 'test_sample.depth'
         depth_histogram_command, depth_histogram_outfile = g._get_depth_histogram_command()
-        assert depth_histogram_command == "awk -F '\t' '{print $3}' test_sample.depth | sort | uniq -c | sort -nr > test_sample.hist"
+        assert depth_histogram_command == "awk -F '\t' '{print $3}' test_sample.depth | sort | uniq -c | sort -nr | sort -k2 -n > test_sample.hist"
 
 
