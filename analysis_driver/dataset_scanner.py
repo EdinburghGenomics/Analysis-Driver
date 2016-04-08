@@ -3,15 +3,106 @@ from datetime import datetime
 from collections import defaultdict
 from analysis_driver import rest_communication
 from analysis_driver.notification import default as ntf
-from analysis_driver.exceptions import AnalysisDriverError
+from analysis_driver.exceptions import AnalysisDriverError, RestCommunicationError
 from analysis_driver.app_logging import AppLogger
 from analysis_driver.clarity import get_expected_yield_for_sample
 from analysis_driver.constants import DATASET_NEW, DATASET_READY, DATASET_FORCE_READY, DATASET_PROCESSING,\
     DATASET_PROCESSED_SUCCESS, DATASET_PROCESSED_FAIL, DATASET_ABORTED, DATASET_REPROCESS, ELEMENT_RUN_NAME,\
-    ELEMENT_NB_Q30_R2_CLEANED, ELEMENT_NB_Q30_R1_CLEANED
+    ELEMENT_NB_Q30_R2_CLEANED, ELEMENT_NB_Q30_R1_CLEANED, DATASET_DELETED
 
-STATUS_VISIBLE = [DATASET_NEW, DATASET_READY, DATASET_FORCE_READY, DATASET_PROCESSING]
-STATUS_HIDDEN = [DATASET_PROCESSED_SUCCESS, DATASET_PROCESSED_FAIL, DATASET_ABORTED]
+STATUS_VISIBLE = [DATASET_NEW, DATASET_REPROCESS, DATASET_READY, DATASET_FORCE_READY, DATASET_PROCESSING]
+STATUS_HIDDEN = [DATASET_PROCESSED_SUCCESS, DATASET_PROCESSED_FAIL, DATASET_ABORTED, DATASET_DELETED]
+
+
+class MostRecentProc:
+    def __init__(self, dataset_type, dataset_name, initial_content=None):
+        self.dataset_type = dataset_type
+        self.dataset_name = dataset_name
+        self._rest_entity = initial_content
+        self.local_entity = {}
+
+    @property
+    def rest_entity(self):
+        if self._rest_entity is None:
+            procs = rest_communication.get_documents(
+                'analysis_driver_procs',
+                where={'dataset_type': self.dataset_type, 'dataset_name': self.dataset_name},
+                sort='-_created'
+            )
+            if procs:
+                self._rest_entity = procs[0]
+            else:
+                self.initialise_entity()
+        return self._rest_entity
+
+    def initialise_entity(self):
+        proc_id = '_'.join((self.dataset_type, self.dataset_name, self._now()))
+        entity = {
+            'proc_id': proc_id,
+            'dataset_type': self.dataset_type,
+            'dataset_name': self.dataset_name
+        }
+        rest_communication.post_entry('analysis_driver_procs', entity)
+        rest_communication.patch_entry(
+            self.dataset_type + 's',
+            {'analysis_driver_procs': [proc_id]},
+            id_field=self.dataset_type + '_id',
+            element_id=self.dataset_name,
+            update_lists=['analysis_driver_procs']
+        )
+        self._rest_entity = entity
+        self.local_entity = entity
+
+    def sync(self):
+        patch_content = {}
+        for k, v in self.local_entity.items():
+            if v != self.rest_entity.get(k):
+                patch_content[k] = v
+
+        if patch_content:
+            patch_success = rest_communication.patch_entry(
+                'analysis_driver_procs',
+                patch_content,
+                id_field='proc_id',
+                element_id=self.local_entity['proc_id']
+            )
+            if not patch_success:
+                raise RestCommunicationError('Sync failed: ' + str(patch_content))
+            self._rest_entity = self.local_entity
+
+    def update_entity(self, **kwargs):
+        self.local_entity.update(kwargs)
+        self.sync()
+
+    def change_status(self, status):
+        self.update_entity(status=status)
+
+    def start(self):
+        self.update_entity(status=DATASET_PROCESSING, pid=os.getpid())
+
+    def finish(self, status):
+        self.update_entity(status=status, pid=None, end_date=self._now())
+
+    def start_stage(self, stage_name):
+        stages = self.local_entity.get('stages', [])
+        new_stage = {'date_started': self._now(), 'stage_name': stage_name}
+        stages.append(new_stage)
+        self.update_entity(stages=stages)
+
+    def end_stage(self, stage_name, exit_status=0):
+        stages = self.local_entity['stages']
+        for s in stages:
+            if s['stage_name'] == stage_name:
+                s.update({'date_finished': self._now(), 'exit_status': exit_status})
+
+        self.update_entity(stages=stages)
+
+    def get(self, key, ret_default=None):
+        return self.local_entity.get(key, ret_default)
+
+    @staticmethod
+    def _now():
+        return datetime.utcnow().strftime('%d_%m_%Y_%H:%M:%S')
 
 
 class Dataset:
@@ -19,16 +110,16 @@ class Dataset:
     endpoint = None
     id_field = None
 
-    def __init__(self, name):
+    def __init__(self, name, most_recent_proc=None):
         self.name = name
-        most_recent_proc = self._most_recent_proc()
-        self.pid = most_recent_proc.get('pid')
-        self.proc_id = most_recent_proc.get('proc_id', '_'.join((self.type, self.name)))
+        if most_recent_proc:
+            self.most_recent_proc = most_recent_proc
+        else:
+            self.most_recent_proc = MostRecentProc(self.type, self.name)
 
     @property
     def dataset_status(self):
-        most_recent_proc = self._most_recent_proc()
-        db_proc_status = most_recent_proc.get('status')
+        db_proc_status = self.most_recent_proc.get('status')
         if db_proc_status in (DATASET_REPROCESS, None):
             if self._is_ready():
                 return DATASET_READY
@@ -39,126 +130,48 @@ class Dataset:
 
     @property
     def stages(self):
-        proc = self._most_recent_proc()
-        return [s['stage_name'] for s in proc.get('stages', []) if 'date_finished' not in s]
+        return [s['stage_name'] for s in self.most_recent_proc.get('stages', []) if 'date_finished' not in s]
 
     def start(self):
         assert self.dataset_status in (DATASET_READY, DATASET_FORCE_READY, DATASET_NEW)
-        self.pid = os.getpid()
-        start_time = self._now()
-        self.proc_id = '_'.join((self.type, self.name, start_time))
-        # proc_id is now different, so a new analysis_driver_proc will be created
+        self.most_recent_proc.initialise_entity()  # take a new entity
+        self.most_recent_proc.start()
         ntf.start_pipeline()
-        self._change_status(DATASET_PROCESSING, finish=False)
 
     def succeed(self, quiet=False):
         assert self.dataset_status == DATASET_PROCESSING
-        self._change_status(DATASET_PROCESSED_SUCCESS)
+        self.most_recent_proc.finish(DATASET_PROCESSED_SUCCESS)
         if not quiet:
             ntf.end_pipeline(0)
 
     def fail(self, exit_status):
         assert self.dataset_status == DATASET_PROCESSING
         ntf.end_pipeline(exit_status)
-        self._change_status(DATASET_PROCESSED_FAIL)
+        self.most_recent_proc.finish(DATASET_PROCESSED_FAIL)
 
     def abort(self):
-        self._change_status(DATASET_ABORTED)
+        self.most_recent_proc.finish(DATASET_ABORTED)
 
     def reset(self):
-        new_content = {'proc_id': self.proc_id, 'status': DATASET_REPROCESS}
-        rest_communication.post_or_patch('analysis_driver_procs', [new_content], id_field='proc_id')
+        self.most_recent_proc.change_status(DATASET_REPROCESS)
 
     def start_stage(self, stage_name):
         ntf.start_stage(stage_name)
-        now = self._now()
-        stages = self._most_recent_proc().get('stages', [])
-        new_stage = {
-            'date_started': now,
-            'stage_name': stage_name
-        }
-        stages.append(new_stage)
-        new_content = {'proc_id': self.proc_id, 'stages': stages}
-        rest_communication.post_or_patch('analysis_driver_procs', [new_content], id_field='proc_id')
+        self.most_recent_proc.start_stage(stage_name)
 
     def end_stage(self, stage_name, exit_status=0):
         ntf.end_stage(stage_name, exit_status)
-        stages = self._most_recent_proc().get('stages')
-        for s in stages:
-            if s['stage_name'] == stage_name:
-                s['date_finished'] = self._now()
-                s['exit_status'] = exit_status
-
-        new_content = {'proc_id': self.proc_id, 'stages': stages}
-        rest_communication.post_or_patch('analysis_driver_procs', [new_content], id_field='proc_id')
+        self.most_recent_proc.end_stage(stage_name, exit_status)
 
     @property
     def _is_ready(self):
         raise NotImplementedError
 
-    @staticmethod
-    def _now():
-        return datetime.utcnow().strftime('%d_%m_%Y_%H:%M:%S')
-
-    def _most_recent_proc(self):
-        procs = rest_communication.get_documents(
-            'analysis_driver_procs',
-            where={'dataset_type': self.type, 'dataset_name': self.name},
-            sort='-_created'
-        )
-        if procs:
-            return procs[0]
-        else:
-            return {}
-
-    def _create_process(self, status, end_date=None):
-        proc = {
-            'proc_id': self.proc_id,
-            'dataset_type': self.type,
-            'dataset_name': self.name,
-            'status': status
-        }
-        if end_date:
-            proc['end_date'] = end_date
-        if self.pid:
-            proc['pid'] = self.pid
-        rest_communication.post_entry('analysis_driver_procs', [proc])
-        dataset = {self.id_field: self.name, 'analysis_driver_procs': [self.proc_id]}
-        rest_communication.post_or_patch(
-            self.endpoint,
-            [dataset],
-            id_field=self.id_field,
-            update_lists=['analysis_driver_procs']
-        )
-        return proc
-
-    def _change_status(self, status, finish=True):
-        new_content = {
-            'dataset_type': self.type,
-            'dataset_name': self.name,
-            'status': status
-        }
-        if finish:
-            self.pid = 0
-            end_date = self._now()
-            new_content['pid'] = self.pid
-            new_content['end_date'] = end_date
-        else:
-            end_date = None
-
-        patch_success = rest_communication.patch_entry(
-            'analysis_driver_procs',
-            new_content,
-            'proc_id',
-            self.proc_id
-        )
-        if not patch_success:
-            self._create_process(status=status, end_date=end_date)
-
     def __str__(self):
         out = [self.name]
-        if self.pid:
-            out.append('(%s)' % self.pid)
+        pid = self.most_recent_proc.get('pid')
+        if pid:
+            out.append('(%s)' % pid)
         if self.stages:
             out.append('-- %s' % (', '.join(self.stages)))
         return ' '.join(out)
@@ -171,8 +184,8 @@ class RunDataset(Dataset):
     endpoint = 'runs'
     id_field = 'run_id'
 
-    def __init__(self, name, path, use_int_dir):
-        super().__init__(name)
+    def __init__(self, name, path, use_int_dir, most_recent_proc=None):
+        super().__init__(name, most_recent_proc)
         self.path = path
         self.use_int_dir = use_int_dir
 
@@ -188,13 +201,13 @@ class SampleDataset(Dataset):
     endpoint = 'samples'
     id_field = 'sample_id'
 
-    def __init__(self, name):
-        super().__init__(name)
+    def __init__(self, name, most_recent_proc=None):
+        super().__init__(name, most_recent_proc)
         self.run_elements = self._read_data()
         self._data_threshold = None
 
     def force(self):
-        self._change_status(DATASET_FORCE_READY, finish=False)
+        self.most_recent_proc.change_status(DATASET_FORCE_READY)
 
     def _read_data(self):
         return rest_communication.get_documents(
@@ -234,34 +247,28 @@ class SampleDataset(Dataset):
 
 
 class DatasetScanner(AppLogger):
+    endpoint = None
+    item_id = None
+
     def __init__(self, config):
         self.input_dir = config.get('input_dir')
+        self.__triggerignore = None
 
     def scan_datasets(self):
-        triggerignore = os.path.join(self.input_dir, '.triggerignore')
+        return self._datasets_by_status(*STATUS_VISIBLE)
 
-        ignorables = []
-        if os.path.isfile(triggerignore):
-            with open(triggerignore, 'r') as f:
-                for p in f.readlines():
-                    if not p.startswith('#'):
-                        ignorables.append(p.rstrip('\n'))
-        self.debug('Ignoring %s datasets', len(ignorables))
+    def scan_processable_datasets(self):
+        return self._datasets_by_status(
+            DATASET_NEW,
+            DATASET_REPROCESS,
+            DATASET_READY,
+            DATASET_FORCE_READY
+        )
 
-        n_datasets = 0
-        datasets = defaultdict(list)
-        for name in self._list_datasets():
-            if name not in ignorables and not name.startswith('.'):
-                d = self.get_dataset(name)
-                datasets[d.dataset_status].append(d)
-                n_datasets += 1
-        self.debug('Found %s datasets', n_datasets)
-        return datasets
+    def scan_hidden_datasets(self):
+        return self._datasets_by_status(*STATUS_HIDDEN)
 
-    def _list_datasets(self):
-        raise NotImplementedError
-
-    def get_dataset(self, dataset_path):
+    def get_dataset(self, dataset_path, most_recent_proc=None):
         raise NotImplementedError
 
     def report(self, all_datasets=False):
@@ -269,45 +276,93 @@ class DatasetScanner(AppLogger):
             '========= %s report =========' % self.__class__.__name__,
             'dataset location: ' + self.input_dir
         ]
-        datasets = self.scan_datasets()
-        for status in STATUS_VISIBLE:
-            ds = datasets.pop(status, [])
-            if ds:
-                out.append('=== ' + status + ' ===')
-                out.append('\n'.join((str(d) for d in ds)))
+        visible_datasets = self.scan_datasets()
+        for k in sorted(visible_datasets):
+            out.append('=== ' + k + ' ===')
+            out.append('\n'.join((str(d) for d in visible_datasets[k])))
 
-        if any((datasets[s] for s in datasets)):
-            if all_datasets:
-                for status in sorted(datasets):
-                    out.append('=== ' + status + ' ===')
-                    out.append('\n'.join((str(d) for d in datasets[status])))
-            else:
-                out.append('=== other datasets ===')
-                out.append('\n'.join(('other datasets present', 'use --report-all to show')))
+        if all_datasets:
+            hidden_datasets = self.scan_hidden_datasets()
+            for k in sorted(hidden_datasets):
+                out.append('=== ' + k + ' ===')
+                out.append('\n'.join((str(d) for d in hidden_datasets[k])))
 
         out.append('_' * 42)
         print('\n'.join(out))
 
+    def _get_datasets_for_status(self, status):
+        return [
+            self.get_dataset(d[self.item_id], d.get('most_recent_proc'))
+            for d in rest_communication.get_documents(
+                self.endpoint,
+                depaginate=True,
+                match={'most_recent_proc.status': status}
+            )
+            if d[self.item_id] not in self._triggerignore
+        ]
+
+    def _datasets_by_status(self, *statuses):
+        datasets = {}
+        for s in statuses:
+            datasets[s] = sorted(self._get_datasets_for_status(s))
+        return datasets
+
+    @property
+    def _triggerignore(self):
+        if self.__triggerignore is None:
+            triggerignore = os.path.join(self.input_dir, '.triggerignore')
+
+            ignorables = []
+            if os.path.isfile(triggerignore):
+                with open(triggerignore, 'r') as f:
+                    for p in f.readlines():
+                        if not p.startswith('#'):
+                            ignorables.append(p.rstrip('\n'))
+            self.debug('Ignoring %s datasets', len(ignorables))
+            self.__triggerignore = ignorables
+        return self.__triggerignore
+
+    def _list_datasets(self):
+        raise NotImplementedError
+
 
 class RunScanner(DatasetScanner):
+    endpoint = 'aggregate/all_runs'
+    item_id = 'run_id'
+    expected_bcl_subdirs = ('SampleSheet.csv', 'RunInfo.xml', 'Data')
+
     def __init__(self, config):
         super().__init__(config)
         self.use_int_dir = 'intermediate_dir' in config
 
-    def _list_datasets(self):
-        return os.listdir(self.input_dir)
-
-    def get_dataset(self, name):
+    def get_dataset(self, name, most_recent_proc=None):
         dataset_path = os.path.join(self.input_dir, name)
         if os.path.exists(dataset_path):
             return RunDataset(
-                name=os.path.basename(dataset_path),
-                path=dataset_path,
-                use_int_dir=self.use_int_dir
+                name,
+                os.path.join(self.input_dir, name),
+                use_int_dir=self.use_int_dir,
+                most_recent_proc=most_recent_proc
             )
+
+    def _get_datasets_for_status(self, status):
+        if status == DATASET_NEW:
+            return self._datasets_on_disk()
+        else:
+            return super()._get_datasets_for_status(status)
+
+    def _datasets_on_disk(self):
+        return [self.get_dataset(d) for d in os.listdir(self.input_dir) if self._is_valid_dataset(d)]
+
+    def _is_valid_dataset(self, directory):
+        observed = os.listdir(directory)
+        return all([d in observed for d in self.expected_bcl_subdirs]) and not directory.startswith('.')
 
 
 class SampleScanner(DatasetScanner):
+    endpoint = 'aggregate/samples'
+    item_id = 'sample_id'
+
     def __init__(self, config):
         super().__init__(config)
         self.data_threshold = config.get('data_threshold')
@@ -315,6 +370,5 @@ class SampleScanner(DatasetScanner):
     def _list_datasets(self, query=None):
         return [s['sample_id'] for s in rest_communication.get_documents('samples', depaginate=True)]
 
-    def get_dataset(self, name):
-        dataset_path = os.path.join(self.input_dir, name)
-        return SampleDataset(name=os.path.basename(dataset_path))
+    def get_dataset(self, name, most_recent_proc=None):
+        return SampleDataset(name, most_recent_proc)
