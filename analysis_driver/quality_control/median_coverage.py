@@ -61,20 +61,6 @@ class SamtoolsDepth(QualityControl):
 
 
 
-
-
-
-    def _calculate_statistics(self):
-        histogram = os.path.join(self.working_dir, self._run_depth_histogram_command())
-
-        #mean = self._calculate_mean(histogram)
-        #sd = self._calculate_sd(histogram)
-        #median = self._calculate_median(histogram)
-        #return(mean, sd, median)
-        return(histogram)
-
-
-
     def run(self):
         try:
             self.median_coverage_expected_outfiles = self._run_depth_histogram_command()
