@@ -3,10 +3,7 @@ import shutil
 import pytest
 from unittest.mock import patch, PropertyMock
 from tests.test_analysisdriver import TestAnalysisDriver
-from tests.test_rest_communication import FakeRestResponse
 from analysis_driver.exceptions import AnalysisDriverError
-from analysis_driver.rest_communication import api_url
-from analysis_driver.config import default as cfg
 from analysis_driver.dataset_scanner import DatasetScanner, RunScanner, SampleScanner, Dataset, RunDataset,\
     SampleDataset, MostRecentProc, STATUS_HIDDEN, STATUS_VISIBLE
 from analysis_driver.constants import DATASET_NEW, DATASET_READY, DATASET_PROCESSING, DATASET_PROCESSED_FAIL,\
@@ -487,7 +484,8 @@ class TestScanner(TestAnalysisDriver):
         self._setup_scanner()
         assert self.scanner.input_dir == self.base_dir
 
-        with open(os.path.join(self.scanner.input_dir, '.triggerignore'), 'w') as f:
+        self.triggerignore = os.path.join(self.scanner.input_dir, '.triggerignore')
+        with open(self.triggerignore, 'w') as f:
             f.write('ignored_dataset\n')
 
     def tearDown(self):
@@ -507,6 +505,9 @@ class TestScanner(TestAnalysisDriver):
     def test_scan_hidden_datasets(self, mocked_scan):
         self.scanner.scan_hidden_datasets()
         mocked_scan.assert_called_with(*STATUS_HIDDEN)
+
+    def test_get_datasets_for_status(self, *args):
+        pass
 
     @patched_datasets_by_status
     def test_report(self, mocked_scan):
@@ -534,44 +535,69 @@ class TestScanner(TestAnalysisDriver):
         print(expected)
         assert observed == expected
 
-    @patched_get([{None: 'this'}])
-    def test_get_datasets_for_status(self, mocked_get):
-        with pytest.raises(NotImplementedError):
-            self.scanner._get_datasets_for_status('a_status')
+    def test_triggerignore(self):
+        with open(self.triggerignore, 'r') as f:
+            assert f.readlines() == ['ignored_dataset\n']
+            assert os.path.isdir(os.path.join(self.base_dir, 'ignored_dataset'))
+            assert self.scanner._triggerignore == ['ignored_dataset']
 
     def _setup_scanner(self):
         self.scanner = DatasetScanner({'input_dir': self.base_dir})
 
-'''
+    def _assert_datasets_equal(self, obs, exp):
+        assert obs.name == exp.name
+        assert obs.path == exp.path
+        assert obs.use_int_dir == exp.use_int_dir
+
+
 class TestRunScanner(TestScanner):
-    def test_get_dataset(self, mocked_instance):
+    def test_get_dataset(self):
         test_dataset_path = os.path.join(self.base_dir, 'test_dataset')
         os.mkdir(test_dataset_path)
-        observed = self.scanner.get_dataset(test_dataset_path)
-        expected = RunDataset('test_dataset', test_dataset_path, self.scanner.use_int_dir)
-        for a in ('name', 'path', 'use_int_dir'):
-            assert observed.__getattribute__(a) == expected.__getattribute__(a)
+        self._assert_datasets_equal(
+            self.scanner.get_dataset('test_dataset'),
+            RunDataset('test_dataset', test_dataset_path, self.scanner.use_int_dir)
+        )
 
-    def test_list_datasets(self):
-        self.compare_lists(self.scanner._list_datasets(), os.listdir(self.base_dir))
+    def test_get_datasets_for_status(self):
+        for d in self.scanner.expected_bcl_subdirs:
+            os.makedirs(os.path.join(self.base_dir, 'test_dataset', d))
+        obs = self.scanner._get_datasets_for_status(DATASET_NEW)
+        assert obs[0].name == 'test_dataset'
 
-    @patched_most_recent_proc({})
-    def test_scan_datasets(self, mocked_instance):
-        datasets = self.scanner.scan_datasets()
-        print('datasets: ', datasets)
+        fake_data = {
+            'dataset_type': 'run',
+            'dataset_name': 'test_dataset',
+            'status': DATASET_ABORTED,
+            'run_id': 'test_dataset'
+        }
+        with patched_get([fake_data]):
+            assert self.scanner._get_datasets_for_status(DATASET_ABORTED)[0].name == 'test_dataset'
 
-        for status, expected in (
-            (DATASET_NEW, {'dataset_not_ready'}),
-            (DATASET_READY, {'dataset_ready'}),
-        ):
-            self.compare_lists(observed=self._dataset_names(datasets, status), expected=expected)
+    def test_datasets_on_disk(self):
+        for d in self.scanner.expected_bcl_subdirs:
+            os.makedirs(os.path.join(self.base_dir, 'test_dataset', d))
+        obs = self.scanner._datasets_on_disk()
+        exp = [RunDataset('test_dataset', os.path.join(self.base_dir, 'test_dataset'), False)]
+        self._assert_datasets_equal(obs[0], exp[0])
 
-    @patched_most_recent_proc()
-    def test_triggerignore(self, mocked_instance):
-        with open(self.triggerignore, 'r') as f:
-            assert f.readlines() == ['ignored_dataset\n']
-            assert os.path.isdir(os.path.join(self.base_dir, 'ignored_dataset'))
-            assert 'ignored_dataset' not in self._flatten(self.scanner.scan_datasets())
+    def test_datasets_by_status(self):
+        fake_datasets = []
+        for x in ('this', 'that', 'other'):
+            fake_datasets.append(RunDataset(x, os.path.join(self.base_dir, x), False))
+        with patch(ppath('DatasetScanner._get_datasets_for_status'), return_value=fake_datasets) as p:
+            obs = self.scanner._datasets_by_status(DATASET_NEW, DATASET_ABORTED, DATASET_REPROCESS)
+            # p.assert_any_call(DATASET_NEW)  # no NEW call to the superclass!
+            p.assert_any_call(DATASET_ABORTED)
+            p.assert_any_call(DATASET_REPROCESS)
+
+        exp = {
+            DATASET_NEW: '[]',  # no NEW call to the superclass
+            DATASET_ABORTED: '[other, that, this]',
+            DATASET_REPROCESS: '[other, that, this]'
+        }
+        for k in obs:
+            assert str(obs[k]) == exp[k]
 
     def _setup_scanner(self):
         self.scanner = RunScanner({'input_dir': self.base_dir})
@@ -581,30 +607,38 @@ class TestSampleScanner(TestScanner):
     def _setup_scanner(self):
         self.scanner = SampleScanner({'input_dir': self.base_dir})
 
-    @patched_request
-    def test_get_dataset(self, mocked_instance):
-        with patched_expected_yield:
-            observed = self.scanner.get_dataset(os.path.join(self.base_dir, 'test_dataset'))
+    def test_get_dataset(self):
+        with patched_expected_yield(), patched_get() as p:
+            observed = self.scanner.get_dataset('test_dataset')
             expected = SampleDataset('test_dataset')
             assert observed.name == expected.name
             assert observed.data_threshold == expected.data_threshold
+            p.assert_any_call('run_elements', where={'sample_id': 'test_dataset', 'useable': 'yes'})
 
-    @patched_depaginate
-    def test_list_datasets(self, mocked_depaginate):
-        assert self.scanner._list_datasets() == ['a_sample_id']
-        mocked_depaginate.assert_called_with('samples', depaginate=True)
+    @patched_get([{'sample_id': 'a_sample_id'}])
+    def test_get_datasets_for_status(self, mocked_get):
+        assert self.scanner._get_datasets_for_status(DATASET_NEW)[0].name == 'a_sample_id'
+        mocked_get.assert_any_call(
+            'aggregate/samples',
+            depaginate=True,
+            match={'most_recent_proc.status': DATASET_NEW}
+        )
+        mocked_get.assert_any_call('run_elements', where={'useable': 'yes', 'sample_id': 'a_sample_id'})
 
-    @patched_request
-    def test_scan_datasets(self, mocked_instance):
-        with patched_most_recent_proc(fake_analysis_driver_proc_no_status):
-            statuses = (
-                DATASET_ABORTED, DATASET_NEW, DATASET_READY, DATASET_FORCE_READY, DATASET_PROCESSED_FAIL,
-                DATASET_PROCESSED_SUCCESS, DATASET_PROCESSING, DATASET_REPROCESS
-            )
-            for status in statuses:
-                print(status)
-                with patched_dataset_status(status), patched_depaginate:
-                    datasets = self.scanner.scan_datasets()
-                    assert list(datasets.keys()) == [status]
-                    self.compare_lists([d.name for d in datasets[status]], ['a_sample_id'])
-'''
+    def test_datasets_by_status(self):
+        fake_datasets = []
+        for x in ('this', 'that', 'other'):
+            fake_datasets.append(RunDataset(x, os.path.join(self.base_dir, x), False))
+        with patch(ppath('DatasetScanner._get_datasets_for_status'), return_value=fake_datasets) as p:
+            obs = self.scanner._datasets_by_status(DATASET_NEW, DATASET_ABORTED, DATASET_REPROCESS)
+            p.assert_any_call(DATASET_NEW)
+            p.assert_any_call(DATASET_ABORTED)
+            p.assert_any_call(DATASET_REPROCESS)
+
+        exp = {
+            DATASET_NEW: '[other, that, this]',
+            DATASET_ABORTED: '[other, that, this]',
+            DATASET_REPROCESS: '[other, that, this]'
+        }
+        for k in obs:
+            assert str(obs[k]) == exp[k]

@@ -1,6 +1,5 @@
 import os
 from datetime import datetime
-from collections import defaultdict
 from analysis_driver import rest_communication
 from analysis_driver.notification import default as ntf
 from analysis_driver.exceptions import AnalysisDriverError, RestCommunicationError
@@ -18,8 +17,12 @@ class MostRecentProc:
     def __init__(self, dataset_type, dataset_name, initial_content=None):
         self.dataset_type = dataset_type
         self.dataset_name = dataset_name
-        self._rest_entity = initial_content
-        self.local_entity = {}
+        if initial_content:
+            self._rest_entity = dict(initial_content)
+            self.local_entity = dict(initial_content)
+        else:
+            self._rest_entity = None
+            self.local_entity = {}
 
     @property
     def rest_entity(self):
@@ -178,6 +181,12 @@ class Dataset:
 
     __repr__ = __str__
 
+    def __gt__(self, other):
+        return self.name > other.name
+
+    def __lt__(self, other):
+        return self.name < other.name
+
 
 class RunDataset(Dataset):
     type = 'run'
@@ -322,9 +331,6 @@ class DatasetScanner(AppLogger):
             self.__triggerignore = ignorables
         return self.__triggerignore
 
-    def _list_datasets(self):
-        raise NotImplementedError
-
 
 class RunScanner(DatasetScanner):
     endpoint = 'aggregate/all_runs'
@@ -354,9 +360,13 @@ class RunScanner(DatasetScanner):
     def _datasets_on_disk(self):
         return [self.get_dataset(d) for d in os.listdir(self.input_dir) if self._is_valid_dataset(d)]
 
-    def _is_valid_dataset(self, directory):
-        observed = os.listdir(directory)
-        return all([d in observed for d in self.expected_bcl_subdirs]) and not directory.startswith('.')
+    def _is_valid_dataset(self, dataset):
+        d = os.path.join(self.input_dir, dataset)
+        if os.path.isdir(d) and not d.startswith('.'):
+            observed = os.listdir(d)
+            return all([subdir in observed for subdir in self.expected_bcl_subdirs])
+        else:
+            return False
 
 
 class SampleScanner(DatasetScanner):
@@ -366,9 +376,6 @@ class SampleScanner(DatasetScanner):
     def __init__(self, config):
         super().__init__(config)
         self.data_threshold = config.get('data_threshold')
-
-    def _list_datasets(self, query=None):
-        return [s['sample_id'] for s in rest_communication.get_documents('samples', depaginate=True)]
 
     def get_dataset(self, name, most_recent_proc=None):
         return SampleDataset(name, most_recent_proc)
