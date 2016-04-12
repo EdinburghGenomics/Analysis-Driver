@@ -221,8 +221,8 @@ def calculate_mean(histogram):
     with open(histogram) as openfile:
         lines = openfile.readlines()
         for line in lines:
-            count = int(line.split()[0])
-            depth = int(line.split()[1])
+            count = int(line.split()[1])
+            depth = int(line.split()[2])
             sumOfDepths += int(count * depth)
             numberOfDepths += int(count)
     meanDepth = sumOfDepths/numberOfDepths
@@ -241,15 +241,15 @@ def calculate_median(histogram):
         lines = openfile.readlines()
 
         for line in lines:
-            count = int(line.split()[0])
+            count = int(line.split()[1])
             numberOfDepths += int(count)
         if numberOfDepths % 2 != 0:
             middleDepthIndex = [((numberOfDepths/2) + 0.5)]
         elif numberOfDepths % 2 == 0:
             middleDepthIndex = [(numberOfDepths/2), ((numberOfDepths/2) + 1)]
         for line in lines:
-            count = int(line.split()[0])
-            depth = int(line.split()[1])
+            count = int(line.split()[1])
+            depth = int(line.split()[2])
             countRunningTotal += count
             if middleDepthIndex:
                 for m in middleDepthIndex:
@@ -273,8 +273,8 @@ def calculate_sd(histogram):
         lines = openfile.readlines()
 
         for line in lines:
-            count = int(line.split()[0])
-            depth = int(line.split()[1])
+            count = int(line.split()[1])
+            depth = int(line.split()[2])
             numberOfDepths += int(count)
             sd = (depth - meanDepth) ** 2
             sd = sd * count
