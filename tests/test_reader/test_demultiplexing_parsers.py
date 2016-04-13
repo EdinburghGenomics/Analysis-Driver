@@ -2,6 +2,7 @@ import os
 from analysis_driver.reader.demultiplexing_parsers import parse_seqtk_fqchk_file, parse_conversion_stats
 from analysis_driver.reader.demultiplexing_parsers import parse_fastqscreen_file
 from analysis_driver.reader.demultiplexing_parsers import get_fastqscreen_results
+from analysis_driver.reader.demultiplexing_parsers import calculate_mean, calculate_median, calculate_sd
 from tests.test_analysisdriver import TestAnalysisDriver
 from analysis_driver.constants import ELEMENT_CONTAMINANT_UNIQUE_MAP, ELEMENT_PCNT_UNMAPPED_FOCAL, ELEMENT_PCNT_UNMAPPED, ELEMENT_TOTAL_READS_MAPPED
 from unittest.mock import patch
@@ -73,3 +74,19 @@ class TestDemultiplexingStats(TestAnalysisDriver):
         result = get_fastqscreen_results(testFile, 'testSampleID')
         assert result == {ELEMENT_PCNT_UNMAPPED: 1.06, ELEMENT_TOTAL_READS_MAPPED: 100000, ELEMENT_PCNT_UNMAPPED_FOCAL: 1.09, ELEMENT_CONTAMINANT_UNIQUE_MAP: {'Gallus gallus': 1, 'Felis catus': 4, 'Bos taurus': 1, 'Ovis aries': 2, 'Mus musculus': 4}}
 
+    #def test_calculate_mean(self):
+    #    hist_file = os.path.join(self.assets_path, 'test_sample.hist')
+    #    test_mean = calculate_mean(hist_file)
+    #    assert test_mean ==
+
+    #def test_calculate_median(self):
+    #    hist_file = os.path.join(self.assets_path, 'test_sample.hist')
+    #    test_median = calculate_median(hist_file)
+    #    assert test_median ==
+
+    #def test_calculate_sd(self):
+    #   hist_file = os.path.join(self.assets_path, 'test_sample.hist')
+    #    test_sd = calculate_sd(hist_file)
+    #    assert test_sd ==
+
+    #def test_get_coverage_statistics(self):
