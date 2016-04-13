@@ -39,7 +39,7 @@ class SamtoolsDepth(QualityControl):
     def _get_depth_histogram_command(self):
         samtools_depth_outfile = self._run_samtools_depth()
         depth_histogram_outfile = samtools_depth_outfile.rstrip('depth') + 'hist'
-        depth_histogram_command = "awk -F '\t' '{array[$1'\t'$3]+=1} END{for (val in array){print val'\t'array[val]}}' %s | sort -k 1,1 -nk 2,2 > %s" % (samtools_depth_outfile, depth_histogram_outfile)
+        depth_histogram_command = """awk -F "\t" '{array[$1"\t"$3]+=1} END{for (val in array){print val"\t"array[val]}}' %s  | sort -k 1,1 -nk 2,2 > %s""" % (samtools_depth_outfile, depth_histogram_outfile)
         return depth_histogram_command, depth_histogram_outfile
 
     def _run_depth_histogram_command(self):

@@ -36,7 +36,8 @@ class TestSamtoolsDepth(QCTester):
         g = SamtoolsDepth(self.dataset, bam_file = bam_file, working_dir = working_dir)
         mocked_depthfile.return_value = 'test_sample.depth'
         depth_histogram_command, depth_histogram_outfile = g._get_depth_histogram_command()
-        assert depth_histogram_command == "awk -F '\t' '{array[$1'\t'$3]+=1} END{for (val in array){print val'\t'array[val]}}' test_sample.depth | sort -k 1,1 -nk 2,2 > test_sample.hist"
+        assert depth_histogram_command == """awk -F "\t" '{array[$1"\t"$3]+=1} END{for (val in array){print val"\t"array[val]}}' test_sample.depth  | sort -k 1,1 -nk 2,2 > test_sample.hist"""
+
 
     @patch('analysis_driver.quality_control.SamtoolsDepth._get_depth_histogram_command')
     @patch('analysis_driver.executor.execute')
@@ -44,11 +45,11 @@ class TestSamtoolsDepth(QCTester):
         bam_file = 'testfile.bam'
         working_dir = 'test_sample'
         g = SamtoolsDepth(self.dataset, bam_file = bam_file, working_dir = working_dir)
-        mocked_histogram_command.return_value = "awk -F '\t' '{array[$1'\t'$3]+=1} END{for (val in array){print val'\t'array[val]}}' test_sample.depth | sort -k 1,1 -nk 2,2 > test_sample.hist", 'test_sample.hist'
+        mocked_histogram_command.return_value = """awk -F "\t" '{array[$1"\t"$3]+=1} END{for (val in array){print val"\t"array[val]}}' test_sample.depth  | sort -k 1,1 -nk 2,2 > test_sample.hist""", "test_sample.hist"
         instance = mocked_execute.return_value
         instance.join.return_value = 0
         runHistOutfile = g._run_depth_histogram_command()
-        mocked_execute.assert_called_once_with(["awk -F '\t' '{array[$1'\t'$3]+=1} END{for (val in array){print val'\t'array[val]}}' test_sample.depth | sort -k 1,1 -nk 2,2 > test_sample.hist"],
+        mocked_execute.assert_called_once_with(["""awk -F "\t" '{array[$1"\t"$3]+=1} END{for (val in array){print val"\t"array[val]}}' test_sample.depth  | sort -k 1,1 -nk 2,2 > test_sample.hist"""],
                                                job_name='depthhistogram',
                                                working_dir='test_sample',
                                                cpus=1,

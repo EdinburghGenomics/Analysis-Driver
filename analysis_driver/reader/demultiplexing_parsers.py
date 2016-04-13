@@ -221,12 +221,12 @@ def calculate_mean(histogram):
     with open(histogram) as openfile:
         lines = openfile.readlines()
         for line in lines:
-            count = int(line.split()[1])
-            depth = int(line.split()[2])
+            count = int(line.split()[2])
+            depth = int(line.split()[1])
             sumOfDepths += int(count * depth)
             numberOfDepths += int(count)
     meanDepth = sumOfDepths/numberOfDepths
-    return meanDepth
+    return math.floor(meanDepth)
 
 
 
@@ -241,15 +241,15 @@ def calculate_median(histogram):
         lines = openfile.readlines()
 
         for line in lines:
-            count = int(line.split()[1])
+            count = int(line.split()[2])
             numberOfDepths += int(count)
         if numberOfDepths % 2 != 0:
             middleDepthIndex = [((numberOfDepths/2) + 0.5)]
         elif numberOfDepths % 2 == 0:
             middleDepthIndex = [(numberOfDepths/2), ((numberOfDepths/2) + 1)]
         for line in lines:
-            count = int(line.split()[1])
-            depth = int(line.split()[2])
+            count = int(line.split()[2])
+            depth = int(line.split()[1])
             countRunningTotal += count
             if middleDepthIndex:
                 for m in middleDepthIndex:
@@ -261,7 +261,7 @@ def calculate_median(histogram):
         if len(medianDepth) == 2:
             return(sum(medianDepth)/len(medianDepth))
         elif len(medianDepth) == 1:
-            return medianDepth
+            return int(''.join(map(str,medianDepth)))
 
 def calculate_sd(histogram):
 
@@ -273,14 +273,14 @@ def calculate_sd(histogram):
         lines = openfile.readlines()
 
         for line in lines:
-            count = int(line.split()[1])
-            depth = int(line.split()[2])
+            count = int(line.split()[2])
+            depth = int(line.split()[1])
             numberOfDepths += int(count)
             sd = (depth - meanDepth) ** 2
             sd = sd * count
             sumOfSquaredDifference += sd
 
-    standardDeviation = math.sqrt(sumOfSquaredDifference/numberOfDepths)
+    standardDeviation = math.floor(math.sqrt(sumOfSquaredDifference/numberOfDepths))
     return standardDeviation
 
 def get_coverage_statistics(histogram_file):
