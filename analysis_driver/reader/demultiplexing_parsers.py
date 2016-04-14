@@ -171,7 +171,7 @@ def parse_fastqscreen_file(filename, myFocalSpecies):
     :return float: % reads with no hits to any of the genomes provided
     :return int: number of reads mapped in total
     """
-    contaminantsUniquelyMapped = {}
+    uniquelyMapped = {}
     focalSpeciesPercentUnmapped = ''
     speciesList = []
     with open(filename) as open_file:
@@ -190,13 +190,13 @@ def parse_fastqscreen_file(filename, myFocalSpecies):
             speciesName = speciesName.replace('_',' ')
             speciesResults = result.split('\t')[1:12]
 
-            if speciesName != myFocalSpecies:
-                numberUniquelyMapped = int(result.split('\t')[4]) + int(result.split('\t')[6])
-                contaminantsUniquelyMapped[speciesName] = numberUniquelyMapped
-            elif speciesName == myFocalSpecies:
+
+            numberUniquelyMapped = int(result.split('\t')[4]) + int(result.split('\t')[6])
+            uniquelyMapped[speciesName] = numberUniquelyMapped
+            if speciesName == myFocalSpecies:
                 focalSpeciesPercentUnmapped = float(speciesResults[2])
-        contaminantsUniquelyMapped = {k:v for k,v in contaminantsUniquelyMapped.items() if v != 0}
-        fastqscreen_result = {ELEMENT_CONTAMINANT_UNIQUE_MAP:contaminantsUniquelyMapped,
+        uniquelyMapped = {k:v for k,v in uniquelyMapped.items() if v != 0}
+        fastqscreen_result = {ELEMENT_CONTAMINANT_UNIQUE_MAP:uniquelyMapped,
                                          ELEMENT_TOTAL_READS_MAPPED:total_reads_mapped,
                                          ELEMENT_PCNT_UNMAPPED_FOCAL:focalSpeciesPercentUnmapped,
                                          ELEMENT_PCNT_UNMAPPED:Hit_no_genomes}
