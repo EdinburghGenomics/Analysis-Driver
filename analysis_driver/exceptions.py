@@ -8,3 +8,7 @@ class PipelineError(AnalysisDriverError):
 
 class SequencingRunError(AnalysisDriverError):
     pass
+
+
+class RestCommunicationError(AnalysisDriverError):
+    pass

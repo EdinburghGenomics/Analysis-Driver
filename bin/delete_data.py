@@ -12,7 +12,7 @@ from analysis_driver.config import default as cfg
 from analysis_driver.app_logging import AppLogger, logging_default as log_cfg
 from analysis_driver.constants import ELEMENT_PROJECT_ID, ELEMENT_SAMPLE_INTERNAL_ID, ELEMENT_RUN_ELEMENTS,\
     ELEMENT_PROCS, ELEMENT_RUN_NAME, ELEMENT_STATUS, ELEMENT_PROC_ID, ELEMENT_USEABLE, ELEMENT_FASTQS_DELETED,\
-    ELEMENT_DELIVERED, ELEMENT_LANE
+    ELEMENT_DELIVERED, ELEMENT_LANE, DATASET_DELETED
 from analysis_driver import rest_communication, executor, clarity, util
 
 
@@ -111,7 +111,7 @@ class RawDataDeleter(Deleter):
         if not self.dry_run:
             rest_communication.patch_entry(
                 ELEMENT_PROCS,
-                {ELEMENT_STATUS: 'deleted'},
+                {ELEMENT_STATUS: DATASET_DELETED},
                 ELEMENT_PROC_ID,
                 run[ELEMENT_PROCS][-1][ELEMENT_PROC_ID]
             )
