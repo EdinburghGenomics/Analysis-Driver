@@ -85,7 +85,7 @@ class TestSampleCrawler(TestCrawler):
         'mapped_reads': 975587288,
         'called_gender': 'male',
         'provided_gender': 'female',
-        "species_contamination": {"contaminant_unique_mapped": {"Bos taurus": 1, "Felis catus": 4, "Gallus gallus": 1, "Mus musculus": 4, "Ovis aries": 2},
+        "species_contamination": {"contaminant_unique_mapped": {"Bos taurus": 1, "Felis catus": 4, "Gallus gallus": 1, "Mus musculus": 4, "Ovis aries": 2, 'Homo sapiens': 74144},
                                   "percent_unmapped": 1.06,
                                   "percent_unmapped_focal": 1.09,
                                   "total_reads_mapped": 100000}

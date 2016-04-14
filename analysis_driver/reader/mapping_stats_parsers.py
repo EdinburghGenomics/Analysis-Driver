@@ -127,6 +127,14 @@ def aggregate_genotype_concordance(headers, lines):
     return samples
 
 
+def parse_vbi_selfSM(input_file):
+    freemix = None
+    with open(input_file) as open_file:
+        headers = open_file.readline().strip().split()
+        if 'FREEMIX' in headers:
+            values = open_file.readline().strip().split()
+            freemix = float(values[headers.index('FREEMIX')])
+    return freemix
 
 def get_nb_sequence_from_fastqc_html(html_file):
     with open(html_file) as open_file:

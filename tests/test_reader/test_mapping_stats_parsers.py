@@ -1,5 +1,6 @@
 import os
-from analysis_driver.reader.mapping_stats_parsers import parse_genotype_concordance, aggregate_genotype_concordance
+from analysis_driver.reader.mapping_stats_parsers import parse_genotype_concordance, aggregate_genotype_concordance, \
+    parse_vbi_selfSM
 from tests.test_analysisdriver import TestAnalysisDriver
 
 __author__ = 'tcezard'
@@ -8,6 +9,7 @@ __author__ = 'tcezard'
 class TestMappingStats(TestAnalysisDriver):
     def setUp(self):
         self.geno_val_file = os.path.join(self.assets_path, 'sample_data', 'T00001P001A01-validation.txt')
+        self.vbi_selfSM_file = os.path.join(self.assets_path, 'sample_data', 'test_sample-chr22-vbi.selfSM')
 
     def test_parse_genotype_concordance(self):
         expected_headers = '\t'.join(
@@ -60,3 +62,7 @@ class TestMappingStats(TestAnalysisDriver):
         assert dict(samples['T00001P001A01']) == {
             'matching_snps': 28, 'no_call_chip': 4, 'no_call_seq': 0, 'mismatching_snps': 0
         }
+
+    def test_parse_vbi_selfSM(self):
+        freemix = parse_vbi_selfSM(self.vbi_selfSM_file)
+        assert freemix == 0.00605

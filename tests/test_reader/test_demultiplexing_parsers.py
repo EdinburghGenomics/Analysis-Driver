@@ -52,7 +52,7 @@ class TestDemultiplexingStats(TestAnalysisDriver):
     def test_parse_fastqscreen_file1(self):
         testFile = os.path.join(self.assets_path, "test_sample_R1_screen.txt")
         result = parse_fastqscreen_file(testFile, 'Homo sapiens')
-        assert result == {ELEMENT_PCNT_UNMAPPED: 1.06, ELEMENT_PCNT_UNMAPPED_FOCAL: 1.09, ELEMENT_TOTAL_READS_MAPPED: 100000, ELEMENT_CONTAMINANT_UNIQUE_MAP: {'Gallus gallus': 1, 'Felis catus': 4, 'Bos taurus': 1, 'Ovis aries': 2, 'Mus musculus': 4}}
+        assert result == {ELEMENT_PCNT_UNMAPPED: 1.06, ELEMENT_PCNT_UNMAPPED_FOCAL: 1.09, ELEMENT_TOTAL_READS_MAPPED: 100000, ELEMENT_CONTAMINANT_UNIQUE_MAP: {'Gallus gallus': 1, 'Felis catus': 4, 'Bos taurus': 1, 'Ovis aries': 2, 'Mus musculus': 4, 'Homo sapiens': 74144}}
 
     def test_parse_fastqscreen_file2(self):
         testFile = os.path.join(self.assets_path, "test_sample_R1_screen.txt")
@@ -71,5 +71,5 @@ class TestDemultiplexingStats(TestAnalysisDriver):
         testFile = os.path.join(self.assets_path, "test_sample_R1_screen.txt")
         mocked_species_sample.return_value = 'Homo sapiens'
         result = get_fastqscreen_results(testFile, 'testSampleID')
-        assert result == {ELEMENT_PCNT_UNMAPPED: 1.06, ELEMENT_TOTAL_READS_MAPPED: 100000, ELEMENT_PCNT_UNMAPPED_FOCAL: 1.09, ELEMENT_CONTAMINANT_UNIQUE_MAP: {'Gallus gallus': 1, 'Felis catus': 4, 'Bos taurus': 1, 'Ovis aries': 2, 'Mus musculus': 4}}
+        assert result == {ELEMENT_PCNT_UNMAPPED: 1.06, ELEMENT_TOTAL_READS_MAPPED: 100000, ELEMENT_PCNT_UNMAPPED_FOCAL: 1.09, ELEMENT_CONTAMINANT_UNIQUE_MAP: {'Gallus gallus': 1, 'Felis catus': 4, 'Bos taurus': 1, 'Ovis aries': 2, 'Mus musculus': 4, 'Homo sapiens': 74144}}
 
