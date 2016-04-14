@@ -1,4 +1,3 @@
-import os
 from analysis_driver import executor
 from analysis_driver.config import default as cfg
 from analysis_driver.notification import default as ntf
@@ -34,26 +33,6 @@ class SamtoolsDepth(QualityControl):
         exit_status = samtools_depth_executor.join()
         ntf.end_stage('run_samtools_depth', exit_status)
         return samtools_depth_out_file
-
-    #def _get_depth_histogram_command(self):
-    #    samtools_depth_outfile = self._run_samtools_depth()
-    #    depth_histogram_outfile = samtools_depth_outfile.rstrip('depth') + 'hist'
-    #    depth_histogram_command = """awk -F "\t" '{array[$1"\t"$3]+=1} END{for (val in array){print val"\t"array[val]}}' %s  | sort -k 1,1 -nk 2,2 > %s""" % (samtools_depth_outfile, depth_histogram_outfile)
-    #    return depth_histogram_command, depth_histogram_outfile
-
-    #def _run_depth_histogram_command(self):
-    #    depth_histogram_command, depth_histogram_outfile = self._get_depth_histogram_command()
-    #    ntf.start_stage('run_depth_histogram')
-    #    depth_histogram_executor = executor.execute(
-    #        [depth_histogram_command],
-    #        job_name='depthhistogram',
-    #        working_dir=self.working_dir,
-    #        cpus=1,
-    #        mem=10
-    #    )
-    #    exit_status = depth_histogram_executor.join()
-    #    ntf.end_stage('run_depth_histogram', exit_status)
-    #    return depth_histogram_outfile
 
 
 
