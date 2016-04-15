@@ -72,7 +72,8 @@ def patched_datetime(time='now'):
 
 class TestMostRecentProc(TestAnalysisDriver):
     def setUp(self):
-        self.proc = MostRecentProc('test', 'test')
+        with patched_get():
+            self.proc = MostRecentProc('test', 'test')
 
     def init_proc_with_fake_data(self):
         self.proc._rest_entity = dict(fake_proc)
@@ -86,7 +87,7 @@ class TestMostRecentProc(TestAnalysisDriver):
     @patched_initialise
     def test_rest_entity_not_pre_existing(self, mocked_initialise, mocked_get):
         with patched_datetime():
-            assert self.proc._rest_entity is None
+            self.proc._rest_entity = None
             x = self.proc.rest_entity
             assert x == fake_proc
             mocked_get.assert_called_with(
@@ -109,8 +110,7 @@ class TestMostRecentProc(TestAnalysisDriver):
     @patched_post
     @patched_patch
     def test_initialise_entity(self, mocked_patch, mocked_post):
-        assert self.proc._rest_entity is None
-
+        assert self.proc._rest_entity == fake_proc
         with patched_datetime():
             self.proc.initialise_entity()
         mocked_post.assert_called_with(
@@ -310,14 +310,15 @@ class TestDataset(TestAnalysisDriver):
             assert str(self.dataset) == 'test_dataset -- this, that, other'
 
     def setup_dataset(self):
-        self.dataset = _TestDataset(
-            'test_dataset',
-            MostRecentProc(
-                'test',
-                'test',
-                initial_content={'date_started': 'now', 'dataset_name': 'None', 'dataset_type': 'None'}
+        with patched_get():
+            self.dataset = _TestDataset(
+                'test_dataset',
+                MostRecentProc(
+                    'test',
+                    'test',
+                    initial_content={'date_started': 'now', 'dataset_name': 'None', 'dataset_type': 'None'}
+                )
             )
-        )
 
 
 class _TestDataset(Dataset):
@@ -335,9 +336,10 @@ class TestRunDataset(TestDataset):
             ('dataset_ready', True),
             ('dataset_not_ready', False)
         )
-        for d_name, rta_complete in datasets:
-            d = RunDataset(d_name, os.path.join(self.base_dir, d_name), use_int_dir=False)
-            assert d._is_ready() == rta_complete
+        with patched_get():
+            for d_name, rta_complete in datasets:
+                d = RunDataset(d_name, os.path.join(self.base_dir, d_name), use_int_dir=False)
+                assert d._is_ready() == rta_complete
 
     def test_dataset_status(self):
         super().test_dataset_status()
@@ -404,15 +406,11 @@ class TestSampleDataset(TestDataset):
         assert not self.dataset._is_ready()
         self.dataset.run_elements = [
             {
-                'clean_bases_r1': 1300000000,
                 'clean_q30_bases_r1': 1200000000,
-                'clean_bases_r2': 1250000000,
                 'clean_q30_bases_r2': 1150000000
             },
             {
-                'clean_bases_r1': 1200000000,
                 'clean_q30_bases_r1': 1100000000,
-                'clean_bases_r2': 1450000000,
                 'clean_q30_bases_r2': 1350000000
             }
         ]
@@ -439,35 +437,13 @@ class TestSampleDataset(TestDataset):
             )
         self.dataset.run_elements = [
             {
-                'run_element_id': 'a_run_element_id',
                 'run_id': 'a_run_id',
-                'lane': 1,
-                'barcode': 'TACGTACG',
-                'project_id': 'a_project_id',
-                'library_id': 'a_library_id',
-                'sample_id': 'a_sample_id',
-                'total_reads': 1337,
-                'passing_filter_reads': 1000,
-                'pc_reads_in_lane': 80,
-                'clean_bases_r1': 130,
                 'clean_q30_bases_r1': 120,
-                'clean_bases_r2': 125,
                 'clean_q30_bases_r2': 115
             },
             {
-                'run_element_id': 'a_run_element_id',
                 'run_id': 'another_run_id',
-                'lane': 1,
-                'barcode': 'ATGCATGC',
-                'project_id': 'a_project_id',
-                'library_id': 'a_library_id',
-                'sample_id': 'a_sample_id',
-                'total_reads': 1338,
-                'passing_filter_reads': 980,
-                'pc_reads_in_lane': 79,
-                'clean_bases_r1': 120,
                 'clean_q30_bases_r1': 110,
-                'clean_bases_r2': 145,
                 'clean_q30_bases_r2': 135
             }
         ]
@@ -554,16 +530,17 @@ class TestRunScanner(TestScanner):
     def test_get_dataset(self):
         test_dataset_path = os.path.join(self.base_dir, 'test_dataset')
         os.mkdir(test_dataset_path)
-        self._assert_datasets_equal(
-            self.scanner.get_dataset('test_dataset'),
-            RunDataset('test_dataset', test_dataset_path, self.scanner.use_int_dir)
-        )
+        with patched_get():
+            obs = self.scanner.get_dataset('test_dataset')
+            exp = RunDataset('test_dataset', test_dataset_path, self.scanner.use_int_dir)
+        self._assert_datasets_equal(obs, exp)
 
-    def test_get_datasets_for_status(self):
+    def test_get_dataset_records_for_status(self):
         for d in self.scanner.expected_bcl_subdirs:
             os.makedirs(os.path.join(self.base_dir, 'test_dataset', d))
-        obs = self.scanner._get_datasets_for_status(DATASET_NEW)
-        assert obs[0].name == 'test_dataset'
+        with patched_get([{'run_id': 'test_dataset'}]):
+            obs = self.scanner._get_dataset_records_for_status(DATASET_NEW)
+        assert obs[0]['run_id'] == 'test_dataset'
 
         fake_data = {
             'dataset_type': 'run',
@@ -572,32 +549,26 @@ class TestRunScanner(TestScanner):
             'run_id': 'test_dataset'
         }
         with patched_get([fake_data]):
-            assert self.scanner._get_datasets_for_status(DATASET_ABORTED)[0].name == 'test_dataset'
+            assert self.scanner._get_dataset_records_for_status(DATASET_ABORTED)[0]['run_id'] == 'test_dataset'
 
     def test_datasets_on_disk(self):
         for d in self.scanner.expected_bcl_subdirs:
             os.makedirs(os.path.join(self.base_dir, 'test_dataset', d))
         obs = self.scanner._datasets_on_disk()
-        exp = [RunDataset('test_dataset', os.path.join(self.base_dir, 'test_dataset'), False)]
-        self._assert_datasets_equal(obs[0], exp[0])
+        exp = ['test_dataset']
+        assert obs == exp
 
     def test_datasets_by_status(self):
         fake_datasets = []
-        for x in ('this', 'that', 'other'):
-            fake_datasets.append(RunDataset(x, os.path.join(self.base_dir, x), False))
+        with patched_get():
+            for x in ('this', 'that', 'other'):
+                fake_datasets.append(RunDataset(x, os.path.join(self.base_dir, x), False))
         with patch(ppath('DatasetScanner._get_datasets_for_status'), return_value=fake_datasets) as p:
-            obs = self.scanner._datasets_by_status(DATASET_NEW, DATASET_ABORTED, DATASET_REPROCESS)
-            # p.assert_any_call(DATASET_NEW)  # no NEW call to the superclass!
-            p.assert_any_call(DATASET_ABORTED)
-            p.assert_any_call(DATASET_REPROCESS)
+            obs = self.scanner._datasets_by_status(DATASET_NEW)
+            p.assert_any_call(DATASET_NEW)
 
-        exp = {
-            DATASET_NEW: '[]',  # no NEW call to the superclass
-            DATASET_ABORTED: '[other, that, this]',
-            DATASET_REPROCESS: '[other, that, this]'
-        }
-        for k in obs:
-            assert str(obs[k]) == exp[k]
+        exp = {DATASET_NEW: '[other, that, this]'}
+        assert str(obs[DATASET_NEW]) == exp[DATASET_NEW]
 
     def _setup_scanner(self):
         self.scanner = RunScanner({'input_dir': self.base_dir})
@@ -616,29 +587,29 @@ class TestSampleScanner(TestScanner):
             p.assert_any_call('run_elements', where={'sample_id': 'test_dataset', 'useable': 'yes'})
 
     @patched_get([{'sample_id': 'a_sample_id'}])
-    def test_get_datasets_for_status(self, mocked_get):
-        assert self.scanner._get_datasets_for_status(DATASET_NEW)[0].name == 'a_sample_id'
+    def test_get_dataset_records_for_status(self, mocked_get):
+        assert self.scanner._get_dataset_records_for_status(DATASET_NEW)[0] == {'sample_id': 'a_sample_id'}
         mocked_get.assert_any_call(
             'aggregate/samples',
-            depaginate=True,
-            match={'most_recent_proc.status': DATASET_NEW}
+            match={'proc_status': DATASET_NEW}
         )
+
+    @patched_get([{'sample_id': 'a_sample_id'}])
+    def test_test_datasets_for_status(self, mocked_get):
+        assert self.scanner._get_datasets_for_status(DATASET_NEW)[0].name == 'a_sample_id'
         mocked_get.assert_any_call('run_elements', where={'useable': 'yes', 'sample_id': 'a_sample_id'})
 
-    def test_datasets_by_status(self):
-        fake_datasets = []
-        for x in ('this', 'that', 'other'):
-            fake_datasets.append(RunDataset(x, os.path.join(self.base_dir, x), False))
-        with patch(ppath('DatasetScanner._get_datasets_for_status'), return_value=fake_datasets) as p:
-            obs = self.scanner._datasets_by_status(DATASET_NEW, DATASET_ABORTED, DATASET_REPROCESS)
-            p.assert_any_call(DATASET_NEW)
-            p.assert_any_call(DATASET_ABORTED)
-            p.assert_any_call(DATASET_REPROCESS)
+    @patched_expected_yield()
+    def test_datasets_by_status(self, mocked_expected_yield):
+        fake_datasets = {DATASET_NEW: []}
+        with patched_get():
+            for x in ('other', 'that', 'this'):
+                fake_datasets[DATASET_NEW].append(SampleDataset(x))
 
-        exp = {
-            DATASET_NEW: '[other, that, this]',
-            DATASET_ABORTED: '[other, that, this]',
-            DATASET_REPROCESS: '[other, that, this]'
-        }
-        for k in obs:
-            assert str(obs[k]) == exp[k]
+        def fake_get_datasets(self, status):
+            return fake_datasets[status]
+
+        with patch(ppath('DatasetScanner._get_datasets_for_status'), new=fake_get_datasets):
+            obs = self.scanner._datasets_by_status(DATASET_NEW)
+
+        assert obs == fake_datasets
