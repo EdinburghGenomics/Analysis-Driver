@@ -17,7 +17,8 @@ from analysis_driver.constants import ELEMENT_RUN_NAME, ELEMENT_NUMBER_LANE, ELE
     ELEMENT_NB_DUPLICATE_READS, ELEMENT_NB_PROPERLY_MAPPED, ELEMENT_MEDIAN_COVERAGE, ELEMENT_PC_BASES_CALLABLE, \
     ELEMENT_LANE_NUMBER, ELEMENT_CALLED_GENDER, ELEMENT_PROVIDED_GENDER, ELEMENT_NB_READS_CLEANED, ELEMENT_NB_Q30_R1_CLEANED, \
     ELEMENT_SPECIES_CONTAMINATION, ELEMENT_NB_BASE_R2_CLEANED, ELEMENT_NB_Q30_R2_CLEANED, ELEMENT_NB_BASE_R1_CLEANED, \
-    ELEMENT_GENOTYPE_VALIDATION, ELEMENT_FREEMIX, ELEMENT_SAMPLE_CONTAMINATION
+    ELEMENT_GENOTYPE_VALIDATION, ELEMENT_FREEMIX, ELEMENT_SAMPLE_CONTAMINATION, ELEMENT_GENDER_VALIDATION, \
+    ELEMENT_GENDER_HETX
 
 
 class Crawler(AppLogger):
@@ -308,10 +309,11 @@ class SampleCrawler(Crawler):
         sex_file_path = self.search_file(sample_dir, '%s.sex' % external_sample_name)
         if sex_file_path:
             with open(sex_file_path) as f:
-                gender = f.read().strip()
+                gender, hetX = f.read().strip().split()
                 gender_from_lims = get_sex_from_lims(self.sample_id)
                 sample[ELEMENT_PROVIDED_GENDER] = self._gender_alias(gender_from_lims)
                 sample[ELEMENT_CALLED_GENDER] = self._gender_alias(gender)
+                sample[ELEMENT_GENDER_VALIDATION] = {ELEMENT_GENDER_HETX:hetX}
 
         genotype_validation_path = self.search_file(sample_dir, '%s_genotype_validation.txt' % external_sample_name)
         if genotype_validation_path:
