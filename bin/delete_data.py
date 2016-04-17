@@ -47,10 +47,11 @@ class Deleter(AppLogger):
 class RawDataDeleter(Deleter):
     deletable_sub_dirs = ('Data', 'Logs', 'Thumbnail_Images')
 
-    def __init__(self, work_dir, dry_run=False, deletion_limit=None):
+    def __init__(self, work_dir, dry_run=False, deletion_limit=None, list_runs=None):
         super().__init__(work_dir, dry_run, deletion_limit)
         self.data_dir = cfg['data_deletion']['raw_data']
         self.archive_dir = cfg['data_deletion']['raw_archives']
+        self.list_runs = list_runs
 
     def deletable_runs(self):
         runs = rest_communication.get_documents(
@@ -64,13 +65,16 @@ class RawDataDeleter(Deleter):
 
         deletable_runs = []
         for r in runs:
-            review_statuses = r.get('review_statuses')
-            most_recent_proc = r.get(ELEMENT_PROCS, [{}])[-1]
-            if type(review_statuses) is list:
-                review_statuses = [s for s in review_statuses if s]
-            if review_statuses and 'not reviewed' not in review_statuses:
-                if most_recent_proc.get(ELEMENT_STATUS) in ('finished', 'aborted'):  # i.e. not 'deleted'
-                    deletable_runs.append(r)
+            if self.list_runs and r[ELEMENT_RUN_NAME] in self.list_runs:
+                deletable_runs.append(r)
+            else:
+                review_statuses = r.get('review_statuses')
+                most_recent_proc = r.get(ELEMENT_PROCS, [{}])[-1]
+                if type(review_statuses) is list:
+                    review_statuses = [s for s in review_statuses if s]
+                if review_statuses and 'not reviewed' not in review_statuses:
+                    if most_recent_proc.get(ELEMENT_STATUS) in ('finished', 'aborted'):  # i.e. not 'deleted'
+                        deletable_runs.append(r)
 
         return deletable_runs[:self.deletion_limit]
 
@@ -302,6 +306,7 @@ def main():
     p.add_argument('--work_dir', default=expanduser('~'))
     p.add_argument('--deletion_limit', type=int, default=None)
     p.add_argument('--project_id', type=str)
+    p.add_argument('--list_runs', type=str, nargs='+')
     args = p.parse_args()
 
     if args.__dict__.pop('debug', False):
