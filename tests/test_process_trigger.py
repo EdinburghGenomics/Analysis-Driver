@@ -7,6 +7,11 @@ from analysis_driver.dataset_scanner import RunDataset
 from analysis_driver.util.bash_commands import rsync_from_to
 from analysis_driver.config import default as cfg
 
+patched_get = patch(
+    'analysis_driver.dataset_scanner.rest_communication.get_documents',
+    return_value=[{'run_id': 'test_dataset'}]
+)
+
 
 class TestProcessTrigger(TestAnalysisDriver):
 
@@ -24,11 +29,12 @@ class TestProcessTrigger(TestAnalysisDriver):
         return patch('analysis_driver.transfer_data.rsync_from_to', return_value=cmd)
 
     def setUp(self):
-        self.dataset = RunDataset(
-            name='test_dataset',
-            path=os.path.join(self.from_dir, 'test_dataset'),
-            use_int_dir=False
-        )
+        with patched_get:
+            self.dataset = RunDataset(
+                name='test_dataset',
+                path=os.path.join(self.from_dir, 'test_dataset'),
+                use_int_dir=False
+            )
         self.old_job_dir = cfg['jobs_dir']
         cfg.content['jobs_dir'] = self.data_transfer
         os.makedirs(os.path.join(self.data_transfer, self.dataset.name), exist_ok=True)

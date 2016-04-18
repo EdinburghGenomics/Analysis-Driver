@@ -1,5 +1,6 @@
 import os
 from datetime import datetime
+from collections import defaultdict
 from analysis_driver import rest_communication
 from analysis_driver.notification import default as ntf
 from analysis_driver.exceptions import AnalysisDriverError, RestCommunicationError
@@ -22,7 +23,7 @@ class MostRecentProc:
             self.local_entity = dict(initial_content)
         else:
             self._rest_entity = None
-            self.local_entity = {}
+            self.local_entity = dict(self.rest_entity)
 
     @property
     def rest_entity(self):
@@ -53,8 +54,8 @@ class MostRecentProc:
             element_id=self.dataset_name,
             update_lists=['analysis_driver_procs']
         )
-        self._rest_entity = entity
-        self.local_entity = entity
+        self._rest_entity = dict(entity)
+        self.local_entity = dict(entity)
 
     def sync(self):
         patch_content = {}
@@ -71,7 +72,7 @@ class MostRecentProc:
             )
             if not patch_success:
                 raise RestCommunicationError('Sync failed: ' + str(patch_content))
-            self._rest_entity = self.local_entity
+            self._rest_entity = dict(self.local_entity)
 
     def update_entity(self, **kwargs):
         self.local_entity.update(kwargs)
@@ -181,9 +182,6 @@ class Dataset:
 
     __repr__ = __str__
 
-    def __gt__(self, other):
-        return self.name > other.name
-
     def __lt__(self, other):
         return self.name < other.name
 
@@ -201,8 +199,9 @@ class NoCommunicationDataset(Dataset):
     def _change_status(self, status, finish=True):
         pass
 
-    def _most_recent_proc(self):
-        return {}
+    def _is_ready(self):
+        pass
+
 
 class RunDataset(Dataset):
     type = 'run'
@@ -293,7 +292,7 @@ class DatasetScanner(AppLogger):
     def scan_hidden_datasets(self):
         return self._datasets_by_status(*STATUS_HIDDEN)
 
-    def get_dataset(self, dataset_path, most_recent_proc=None):
+    def get_dataset(self, name, most_recent_proc=None):
         raise NotImplementedError
 
     def report(self, all_datasets=False):
@@ -303,33 +302,45 @@ class DatasetScanner(AppLogger):
         ]
         visible_datasets = self.scan_datasets()
         for k in sorted(visible_datasets):
-            out.append('=== ' + k + ' ===')
-            out.append('\n'.join((str(d) for d in visible_datasets[k])))
+            datasets = [str(d) for d in visible_datasets[k]]
+            if datasets:
+                out.append('=== ' + k + ' ===')
+                out.append('\n'.join(datasets))
 
         if all_datasets:
             hidden_datasets = self.scan_hidden_datasets()
             for k in sorted(hidden_datasets):
-                out.append('=== ' + k + ' ===')
-                out.append('\n'.join((str(d) for d in hidden_datasets[k])))
+                datasets = [str(d) for d in hidden_datasets[k]]
+                if datasets:
+                    out.append('=== ' + k + ' ===')
+                    out.append('\n'.join(datasets))
 
         out.append('_' * 42)
         print('\n'.join(out))
 
-    def _get_datasets_for_status(self, status):
+    def _get_dataset_records_for_status(self, status):
         return [
-            self.get_dataset(d[self.item_id], d.get('most_recent_proc'))
-            for d in rest_communication.get_documents(
+            d for d in rest_communication.get_documents(
                 self.endpoint,
-                depaginate=True,
-                match={'most_recent_proc.status': status}
+                match={'proc_status': status}
             )
             if d[self.item_id] not in self._triggerignore
         ]
 
-    def _datasets_by_status(self, *statuses):
-        datasets = {}
-        for s in statuses:
-            datasets[s] = sorted(self._get_datasets_for_status(s))
+    def _get_datasets_for_status(self, status):
+        return [
+            self.get_dataset(d[self.item_id], d.get('most_recent_proc'))
+            for d in self._get_dataset_records_for_status(status)
+        ]
+
+    def _datasets_by_status(self, *rest_api_statuses):
+        datasets = defaultdict(list)
+        for s in rest_api_statuses:
+            for d in self._get_datasets_for_status(s):
+                datasets[d.dataset_status].append(d)
+
+        for k in datasets:
+            datasets[k].sort()
         return datasets
 
     @property
@@ -367,14 +378,21 @@ class RunScanner(DatasetScanner):
                 most_recent_proc=most_recent_proc
             )
 
-    def _get_datasets_for_status(self, status):
+    def _get_dataset_records_for_status(self, status):
         if status == DATASET_NEW:
-            return self._datasets_on_disk()
+            datasets = rest_communication.get_documents(self.endpoint)
+            for d in self._datasets_on_disk():
+                if d not in datasets:
+                    datasets.append({self.item_id: d})
+            return datasets
         else:
-            return super()._get_datasets_for_status(status)
+            return super()._get_dataset_records_for_status(status)
 
     def _datasets_on_disk(self):
-        return [self.get_dataset(d) for d in os.listdir(self.input_dir) if self._is_valid_dataset(d)]
+        return [
+            d for d in os.listdir(self.input_dir)
+            if self._is_valid_dataset(d) and d not in self._triggerignore
+        ]
 
     def _is_valid_dataset(self, dataset):
         d = os.path.join(self.input_dir, dataset)

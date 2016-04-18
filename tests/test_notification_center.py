@@ -9,6 +9,10 @@ from analysis_driver.config import default as cfg
 from analysis_driver.exceptions import AnalysisDriverError
 from tests.test_analysisdriver import TestAnalysisDriver
 
+patched_get = patch(
+    'analysis_driver.dataset_scanner.rest_communication.get_documents',
+    return_value=[{'run_id': 'test_dataset'}]
+)
 
 class FakeSMTP(Mock):
     def __init__(self, host, port):
@@ -30,11 +34,12 @@ class FakeSMTP(Mock):
 class TestNotificationCenter(TestAnalysisDriver):
     def setUp(self):
         base_dir = os.path.join(self.assets_path, 'dataset_scanner')
-        dataset = RunDataset(
-            name='test_run_id',
-            path=os.path.join(base_dir, 'that'),
-            use_int_dir=False
-        )
+        with patched_get:
+            dataset = RunDataset(
+                name='test_run_id',
+                path=os.path.join(base_dir, 'that'),
+                use_int_dir=False
+            )
         self.notification_center = NotificationCenter()
         self.notification_center.add_subscribers(
             (LogNotification, dataset, cfg.query('notification', 'log_notification')),
