@@ -1,3 +1,4 @@
+import os
 from analysis_driver import executor
 from analysis_driver.config import default as cfg
 from analysis_driver.notification import default as ntf
@@ -12,7 +13,7 @@ class SamtoolsDepth(QualityControl):
 
     def _get_samtools_depth_command(self):
         samtools_bin = cfg['tools']['samtools']
-        samtools_depth_out_file = self.bam_file.rstrip('bam') + 'depth'
+        samtools_depth_out_file = os.path.join(self.working_dir, os.path.basename(self.bam_file).rstrip('bam') + 'depth')
         samtools_depth_command = """%s depth -a -a -q 0 -Q 0 %s | awk -F "\t" '{array[$1"\t"$3]+=1} END{for (val in array){print val"\t"array[val]}}' | sort -k 1,1 -nk 2,2 > %s""" % (samtools_bin, self.bam_file, samtools_depth_out_file)
         return samtools_depth_command, samtools_depth_out_file
 
