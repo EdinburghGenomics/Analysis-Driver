@@ -127,10 +127,14 @@ def is_remote_path(fp):
     return (':' in fp) and ('@' in fp)
 
 
-def rsync_from_to(source, dest, exclude=None):
-    command = 'rsync -ruLD '
+def rsync_from_to(source, dest, exclude=None, size_only=False):
+    command = 'rsync -rLD '
     if exclude:
         command += '--exclude=%s ' % exclude
+    if size_only:
+        command += '--size-only '
+    else:
+        command += '--update '
     if is_remote_path(source) or is_remote_path(dest):
         command += '-e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -c arcfour" '
 
