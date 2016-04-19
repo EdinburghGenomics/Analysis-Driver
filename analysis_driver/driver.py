@@ -323,7 +323,8 @@ def qc_pipeline(dataset, species):
     dataset.end_stage('bamtools_stat', bamtools_exit_status)
 
     dataset.start_stage('coverage statistics')
-    coverage_statistics_histogram = qc.SamtoolsDepth(dataset, sample_dir, expected_output_bam)
+    bam_file = os.path.join(sample_dir, expected_output_bam)
+    coverage_statistics_histogram = qc.SamtoolsDepth(dataset, sample_dir, bam_file)
     coverage_statistics_histogram.start()
     coverage_statistics_histogram.join()
     dataset.end_stage('coverage statistics', coverage_statistics_histogram.exit_status)
