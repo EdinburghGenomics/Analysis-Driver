@@ -69,7 +69,8 @@ bcbio:
     basename: '{sample_id}_R1_screen.txt'
 
   - location: ['']
-    basename: '{sample_id}.depth'
+    basename: '{runfolder}.depth'
+    new_name: '{sample_id}.depth'
 
 
 non_human_qc:
