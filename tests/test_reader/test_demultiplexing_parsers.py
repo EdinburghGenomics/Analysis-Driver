@@ -77,7 +77,7 @@ class TestDemultiplexingStats(TestAnalysisDriver):
     def test_calculate_mean(self):
         hist_file = os.path.join(self.assets_path, 'test_sample.depth')
         test_mean = calculate_mean(hist_file)
-        assert test_mean == 438
+        assert test_mean == 438.8514851485148
 
     def test_calculate_median(self):
         hist_file = os.path.join(self.assets_path, 'test_sample.depth')
@@ -87,11 +87,11 @@ class TestDemultiplexingStats(TestAnalysisDriver):
     def test_calculate_sd(self):
         hist_file = os.path.join(self.assets_path, 'test_sample.depth')
         test_sd = calculate_sd(hist_file)
-        assert test_sd == 189
+        assert test_sd == 189.1911391390011
 
     def test_get_coverage_statistics(self):
         hist_file = os.path.join(self.assets_path, 'test_sample.depth')
         mean, median, sd = get_coverage_statistics(hist_file)
-        assert mean == 438
+        assert mean == 438.8514851485148
         assert median == 478
-        assert sd == 189
+        assert sd == 189.1911391390011
