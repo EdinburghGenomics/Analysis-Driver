@@ -36,7 +36,7 @@ class GenderValidation(QualityControl):
             "grep '^chrX'",
             "awk '{split($10,a,\":\"); count[a[1]]++; total++} END{for (g in count){print g\" \"count[g]/total}}'",
             "grep '0/1'",
-            "awk '{if ($2>.35){gender=\"FEMALE\"}else{if ($2<.15){gender=\"MALE\"}else{gender=\"UNKNOWN\"}} print gender}'",
+            "awk '{if ($2>.35){gender=\"FEMALE\"}else{if ($2<.15){gender=\"MALE\"}else{gender=\"UNKNOWN\"}} print gender, $2}'",
             separator=' | '
         ) + ' > ' + gender_call_file
         self.info(command)

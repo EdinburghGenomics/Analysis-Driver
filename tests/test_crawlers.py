@@ -88,6 +88,8 @@ class TestSampleCrawler(TestCrawler):
         "species_contamination": {"contaminant_unique_mapped": {"Bos taurus": 1, "Felis catus": 4, "Gallus gallus": 1, "Mus musculus": 4, "Ovis aries": 2, 'Homo sapiens': 74144},
                                   "percent_unmapped": 1.06,
                                   "percent_unmapped_focal": 1.09,
+                                  "total_reads_mapped": 100000},
+        "gender_validation": {"hetX": "0.10"}
                                   "total_reads_mapped": 100000
                                   },
         'coverage': {'mean': 438, 'median': 478, 'std_dev': 189}
