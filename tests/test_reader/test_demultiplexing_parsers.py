@@ -75,22 +75,22 @@ class TestDemultiplexingStats(TestAnalysisDriver):
         assert result == {ELEMENT_PCNT_UNMAPPED: 1.06, ELEMENT_TOTAL_READS_MAPPED: 100000, ELEMENT_PCNT_UNMAPPED_FOCAL: 1.09, ELEMENT_CONTAMINANT_UNIQUE_MAP: {'Gallus gallus': 1, 'Felis catus': 4, 'Bos taurus': 1, 'Ovis aries': 2, 'Mus musculus': 4, 'Homo sapiens': 74144}}
 
     def test_calculate_mean(self):
-        hist_file = os.path.join(self.assets_path, 'test_sample.depth')
+        hist_file = os.path.join(self.assets_path, 'samtoolsdepth.txt')
         test_mean = calculate_mean(hist_file)
         assert test_mean == 438
 
     def test_calculate_median(self):
-        hist_file = os.path.join(self.assets_path, 'test_sample.depth')
+        hist_file = os.path.join(self.assets_path, 'samtoolsdepth.txt')
         test_median = calculate_median(hist_file)
         assert test_median == 478
 
     def test_calculate_sd(self):
-        hist_file = os.path.join(self.assets_path, 'test_sample.depth')
+        hist_file = os.path.join(self.assets_path, 'samtoolsdepth.txt')
         test_sd = calculate_sd(hist_file)
         assert test_sd == 189
 
     def test_get_coverage_statistics(self):
-        hist_file = os.path.join(self.assets_path, 'test_sample.depth')
+        hist_file = os.path.join(self.assets_path, 'samtoolsdepth.txt')
         mean, median, sd = get_coverage_statistics(hist_file)
         assert mean == 438
         assert median == 478

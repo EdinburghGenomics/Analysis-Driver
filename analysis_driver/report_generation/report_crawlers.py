@@ -339,7 +339,7 @@ class SampleCrawler(Crawler):
             else:
                 self.critical('freemix results from validateBamId are not available for %s', self.sample_id)
 
-        coverage_statistics_path = self.search_file(sample_dir, '%s.depth' % external_sample_name)
+        coverage_statistics_path = self.search_file(sample_dir, 'samtoolsdepth.txt')
         if coverage_statistics_path:
             mean, median, sd = get_coverage_statistics(coverage_statistics_path)
             coverage_statistics = {ELEMENT_MEAN_COVERAGE: mean, ELEMENT_MEDIAN_COVERAGE_SAMTOOLS: median, ELEMENT_COVERAGE_SD: sd}
