@@ -91,6 +91,7 @@ class TestSampleCrawler(TestCrawler):
                                   "total_reads_mapped": 100000
                                   },
         'coverage': {'mean': 438, 'median': 478, 'std_dev': 189}
+
     }
 
     def setUp(self):
