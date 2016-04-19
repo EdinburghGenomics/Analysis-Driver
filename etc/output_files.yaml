@@ -68,6 +68,10 @@ bcbio:
   - location: ['merged']
     basename: '{sample_id}_R1_screen.txt'
 
+  - location: ['']
+    basename: '{runfolder}.depth'
+    new_name: '{sample_id}.depth'
+
 
 non_human_qc:
   - location: ['']
@@ -93,3 +97,7 @@ non_human_qc:
 
   - location: ['merged']
     basename: '{sample_id}_R1_screen.txt'
+
+  - location: ['']
+    basename: '{runfolder}.depth'
+    new_name: '{sample_id}.depth'

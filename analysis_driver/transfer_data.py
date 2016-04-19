@@ -92,7 +92,8 @@ def _transfer_run_to_int_dir(dataset, from_dir, to_dir, repeat_delay):
     rsync_cmd = rsync_from_to(
         os.path.join(from_dir, dataset.name),
         to_dir,
-        exclude='Thumbnail_Images'
+        exclude='Thumbnail_Images',
+        size_only=True
     )
 
     while not dataset.rta_complete():

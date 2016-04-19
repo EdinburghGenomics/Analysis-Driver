@@ -1,0 +1,10 @@
+#!/bin/bash
+
+#PBS -l ncpus=1,mem=2gb
+#PBS -N data_output
+#PBS -q uv2000
+#PBS -j oe
+#PBS -o /Users/mwham/workspace/EdGen_Analysis_Driver/Applications/Analysis-Driver/tests/assets/data_output/jobs/10015AT0001/data_output.log
+#PBS -W block=true
+
+rsync -rLD --size-only /Users/mwham/workspace/EdGen_Analysis_Driver/Applications/Analysis-Driver/tests/assets/data_output/pseudo_links/ /Users/mwham/workspace/EdGen_Analysis_Driver/Applications/Analysis-Driver/tests/assets/data_output/to/proj_10015AT0001/10015AT0001
