@@ -226,7 +226,7 @@ def calculate_mean(histogram):
             sumOfDepths += int(count * depth)
             numberOfDepths += int(count)
     meanDepth = sumOfDepths/numberOfDepths
-    return math.floor(meanDepth)
+    return meanDepth
 
 
 
@@ -280,7 +280,7 @@ def calculate_sd(histogram):
             sd = sd * count
             sumOfSquaredDifference += sd
 
-    standardDeviation = math.floor(math.sqrt(sumOfSquaredDifference/numberOfDepths))
+    standardDeviation = math.sqrt(sumOfSquaredDifference/numberOfDepths)
     return standardDeviation
 
 def get_coverage_statistics(histogram_file):
