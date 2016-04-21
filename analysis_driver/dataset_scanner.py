@@ -403,10 +403,13 @@ class SampleScanner(DatasetScanner):
         for r in self._get_dataset_records_for_status(status):
             datasets[r[self.item_id]] = {'record': r}
 
-        for sample in get_list_of_samples(list(datasets)):
-            datasets[sanitize_user_id(sample.name)]['threshold'] = sample.udf.get('Yield for Quoted Coverage (Gb)')
+        if datasets:
+            for sample in get_list_of_samples(list(datasets)):
+                req_yield = sample.udf.get('Yield for Quoted Coverage (Gb)') * 1000000000
+                datasets[sanitize_user_id(sample.name)]['threshold'] = req_yield
 
         return [
-            self.get_dataset(k, v['record'].get('most_recent_proc'), v['threshold'])
+            self.get_dataset(k, v['record'].get('most_recent_proc'), v.get('threshold'))
             for k, v in datasets.items()
         ]
+
