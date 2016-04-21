@@ -5,7 +5,7 @@ from analysis_driver import rest_communication
 from analysis_driver.notification import default as ntf
 from analysis_driver.exceptions import AnalysisDriverError, RestCommunicationError
 from analysis_driver.app_logging import AppLogger
-from analysis_driver.clarity import get_expected_yield_for_sample
+from analysis_driver.clarity import get_expected_yield_for_sample, get_list_of_samples, sanitize_user_id
 from analysis_driver.constants import DATASET_NEW, DATASET_READY, DATASET_FORCE_READY, DATASET_PROCESSING,\
     DATASET_PROCESSED_SUCCESS, DATASET_PROCESSED_FAIL, DATASET_ABORTED, DATASET_REPROCESS, ELEMENT_RUN_NAME,\
     ELEMENT_NB_Q30_R2_CLEANED, ELEMENT_NB_Q30_R1_CLEANED, DATASET_DELETED
@@ -225,13 +225,19 @@ class SampleDataset(Dataset):
     endpoint = 'samples'
     id_field = 'sample_id'
 
-    def __init__(self, name, most_recent_proc=None):
+    def __init__(self, name, most_recent_proc=None, data_threshold=None):
         super().__init__(name, most_recent_proc)
-        self.run_elements = self._read_data()
-        self._data_threshold = None
+        self._run_elements = None
+        self._data_threshold = data_threshold
 
     def force(self):
         self.most_recent_proc.change_status(DATASET_FORCE_READY)
+
+    @property
+    def run_elements(self):
+        if self._run_elements is None:
+            self._run_elements = self._read_data()
+        return self._run_elements
 
     def _read_data(self):
         return rest_communication.get_documents(
@@ -292,7 +298,7 @@ class DatasetScanner(AppLogger):
     def scan_hidden_datasets(self):
         return self._datasets_by_status(*STATUS_HIDDEN)
 
-    def get_dataset(self, name, most_recent_proc=None):
+    def get_dataset(self, *args, **kwargs):
         raise NotImplementedError
 
     def report(self, all_datasets=False):
@@ -320,10 +326,7 @@ class DatasetScanner(AppLogger):
 
     def _get_dataset_records_for_status(self, status):
         return [
-            d for d in rest_communication.get_documents(
-                self.endpoint,
-                match={'proc_status': status}
-            )
+            d for d in rest_communication.get_documents(self.endpoint, match={'proc_status': status})
             if d[self.item_id] not in self._triggerignore
         ]
 
@@ -407,9 +410,18 @@ class SampleScanner(DatasetScanner):
     endpoint = 'aggregate/samples'
     item_id = 'sample_id'
 
-    def __init__(self, config):
-        super().__init__(config)
-        self.data_threshold = config.get('data_threshold')
+    def get_dataset(self, name, most_recent_proc=None, data_threshold=None):
+        return SampleDataset(name, most_recent_proc, data_threshold)
 
-    def get_dataset(self, name, most_recent_proc=None):
-        return SampleDataset(name, most_recent_proc)
+    def _get_datasets_for_status(self, status):
+        datasets = {}
+        for r in self._get_dataset_records_for_status(status):
+            datasets[r[self.item_id]] = {'record': r}
+
+        for sample in get_list_of_samples(list(datasets)):
+            datasets[sanitize_user_id(sample.name)]['threshold'] = sample.udf.get('Yield for Quoted Coverage (Gb)')
+
+        return [
+            self.get_dataset(k, v['record'].get('most_recent_proc'), v['threshold'])
+            for k, v in datasets.items()
+        ]

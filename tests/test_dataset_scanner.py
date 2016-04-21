@@ -3,6 +3,7 @@ import shutil
 import pytest
 from unittest.mock import patch, PropertyMock
 from tests.test_analysisdriver import TestAnalysisDriver
+from tests.test_clarity import FakeEntity
 from analysis_driver.exceptions import AnalysisDriverError
 from analysis_driver.dataset_scanner import DatasetScanner, RunScanner, SampleScanner, Dataset, RunDataset,\
     SampleDataset, MostRecentProc, STATUS_HIDDEN, STATUS_VISIBLE
@@ -404,7 +405,7 @@ class TestSampleDataset(TestDataset):
     def test_is_ready(self, mocked_instance):
         self.dataset._data_threshold = None
         assert not self.dataset._is_ready()
-        self.dataset.run_elements = [
+        self.dataset._run_elements = [
             {
                 'clean_q30_bases_r1': 1200000000,
                 'clean_q30_bases_r2': 1150000000
@@ -435,7 +436,7 @@ class TestSampleDataset(TestDataset):
                     initial_content={'date_started': 'now', 'dataset_name': 'None', 'dataset_type': 'None'}
                 )
             )
-        self.dataset.run_elements = [
+        self.dataset._run_elements = [
             {
                 'run_id': 'a_run_id',
                 'clean_q30_bases_r1': 120,
@@ -584,7 +585,8 @@ class TestSampleScanner(TestScanner):
             expected = SampleDataset('test_dataset')
             assert observed.name == expected.name
             assert observed.data_threshold == expected.data_threshold
-            p.assert_any_call('run_elements', where={'sample_id': 'test_dataset', 'useable': 'yes'})
+            assert observed.run_elements == [fake_proc]
+            p.assert_called_with('run_elements', where={'sample_id': 'test_dataset', 'useable': 'yes'})
 
     @patched_get([{'sample_id': 'a_sample_id'}])
     def test_get_dataset_records_for_status(self, mocked_get):
@@ -594,10 +596,13 @@ class TestSampleScanner(TestScanner):
             match={'proc_status': DATASET_NEW}
         )
 
+    @patch(ppath('get_list_of_samples'), return_value=[FakeEntity('a_sample_id', udf={'Yield for Quoted Coverage (Gb)': 1})])
     @patched_get([{'sample_id': 'a_sample_id'}])
-    def test_test_datasets_for_status(self, mocked_get):
-        assert self.scanner._get_datasets_for_status(DATASET_NEW)[0].name == 'a_sample_id'
-        mocked_get.assert_any_call('run_elements', where={'useable': 'yes', 'sample_id': 'a_sample_id'})
+    def test_get_datasets_for_status(self, mocked_get, mocked_list_samples):
+        d = self.scanner._get_datasets_for_status(DATASET_NEW)[0]
+        assert d.name == 'a_sample_id'
+        assert d._data_threshold == 1
+        # mocked_get.assert_any_call('run_elements', where={'useable': 'yes', 'sample_id': 'a_sample_id'})
 
     @patched_expected_yield()
     def test_datasets_by_status(self, mocked_expected_yield):
@@ -609,7 +614,8 @@ class TestSampleScanner(TestScanner):
         def fake_get_datasets(self, status):
             return fake_datasets[status]
 
-        with patch(ppath('DatasetScanner._get_datasets_for_status'), new=fake_get_datasets):
-            obs = self.scanner._datasets_by_status(DATASET_NEW)
+        with patch(ppath('SampleDataset._amount_data'), return_value=0):
+            with patch(ppath('SampleScanner._get_datasets_for_status'), new=fake_get_datasets):
+                obs = self.scanner._datasets_by_status(DATASET_NEW)
 
         assert obs == fake_datasets
