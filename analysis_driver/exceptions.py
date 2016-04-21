@@ -12,3 +12,7 @@ class SequencingRunError(AnalysisDriverError):
 
 class RestCommunicationError(AnalysisDriverError):
     pass
+
+
+class LimsCommunicationError(AnalysisDriverError):
+    pass

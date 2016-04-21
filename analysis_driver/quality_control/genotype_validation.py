@@ -1,8 +1,5 @@
 import os
-from analysis_driver import executor
-from analysis_driver.clarity import get_genotype_information_from_lims, \
-    find_project_from_sample, get_sample_names_from_project_from_lims, \
-    get_samples_arrived_with, get_samples_genotyped_with, get_samples_sequenced_with
+from analysis_driver import executor, clarity
 from analysis_driver.exceptions import PipelineError
 from analysis_driver.config import default as cfg
 from analysis_driver.reader.mapping_stats_parsers import parse_genotype_concordance
@@ -133,7 +130,7 @@ class GenotypeValidation(QualityControl):
     def _vcf_validation(self, sample2genotype):
         """
         Validate SNPs against genotype data found in the genotypes_repository
-        :param vcf_file: The vcf file containing the SNPs to validate.
+        :param sample2genotype:
         :rtype: list
         :return list of files containing the results of the validation.
         """
@@ -207,18 +204,18 @@ class GenotypeValidation(QualityControl):
                 table_type, headers, lines = parse_genotype_concordance(genotype_validation)
                 for line in lines:
                     sp_line = line.split()
-                    all_sample_lines[sp_line[0]]=line
+                    all_sample_lines[sp_line[0]] = line
             else:
                 genotype_validation = sample2genotype_validation.get(sample)
                 table_type, headers, lines = parse_genotype_concordance(genotype_validation)
                 sp_line = lines[1].split()
                 sp_line[0] = sample
                 all_sample_lines[sample] = '\t'.join(sp_line)
-        with open(os.path.join(self.working_dir, self.sample_id + '_genotype_validation.txt'), 'w') as open_file:
-            open_file.write(table_type + '\n')
-            open_file.write('\t'.join(headers.split()) + '\n')
+        with open(os.path.join(self.working_dir, self.sample_id + '_genotype_validation.txt'), 'w') as f:
+            f.write(table_type + '\n')
+            f.write('\t'.join(headers.split()) + '\n')
             for sample in sorted(all_sample_lines):
-                open_file.write(all_sample_lines.get(sample) + '\n')
+                f.write(all_sample_lines.get(sample) + '\n')
 
     def _genotype_validation(self):
         """
@@ -234,12 +231,12 @@ class GenotypeValidation(QualityControl):
         # Compare against the sample or the plate
         samples_names = {self.sample_id}
         if self.check_neighbour:
-            samples_names.update(get_samples_arrived_with(self.sample_id))
-            samples_names.update(get_samples_genotyped_with(self.sample_id))
-            samples_names.update(get_samples_sequenced_with(self.sample_id))
+            samples_names.update(clarity.get_samples_arrived_with(self.sample_id))
+            samples_names.update(clarity.get_samples_genotyped_with(self.sample_id))
+            samples_names.update(clarity.get_samples_sequenced_with(self.sample_id))
         if self.check_project:
-            project_id = find_project_from_sample(self.sample_id)
-            samples_names.update(get_sample_names_from_project_from_lims(project_id))
+            project_id = clarity.find_project_name_from_sample(self.sample_id)
+            samples_names.update(clarity.get_sample_names_from_project(project_id))
         if self.list_samples:
             samples_names.update(self.list_samples)
         # Get the expected genotype from the LIMS
@@ -247,7 +244,7 @@ class GenotypeValidation(QualityControl):
         # TODO: Change to use batch calls which should be much faster
         for sample_name in samples_names:
             genotype_vcf = os.path.join(self.working_dir, sample_name + '_expected_genotype.vcf')
-            genotype_vcf = get_genotype_information_from_lims(sample_name, genotype_vcf)
+            genotype_vcf = clarity.get_sample_genotype(sample_name, genotype_vcf)
             if genotype_vcf:
                 sample2genotype[sample_name] = genotype_vcf
 
