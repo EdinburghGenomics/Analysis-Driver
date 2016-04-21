@@ -284,20 +284,6 @@ class DatasetScanner(AppLogger):
         self.input_dir = config.get('input_dir')
         self.__triggerignore = None
 
-    def scan_datasets(self):
-        return self._datasets_by_status(*STATUS_VISIBLE)
-
-    def scan_processable_datasets(self):
-        return self._datasets_by_status(
-            DATASET_NEW,
-            DATASET_REPROCESS,
-            DATASET_READY,
-            DATASET_FORCE_READY
-        )
-
-    def scan_hidden_datasets(self):
-        return self._datasets_by_status(*STATUS_HIDDEN)
-
     def get_dataset(self, *args, **kwargs):
         raise NotImplementedError
 
@@ -306,20 +292,16 @@ class DatasetScanner(AppLogger):
             '========= %s report =========' % self.__class__.__name__,
             'dataset location: ' + self.input_dir
         ]
-        visible_datasets = self.scan_datasets()
-        for k in sorted(visible_datasets):
-            datasets = [str(d) for d in visible_datasets[k]]
+        if all_datasets:
+            scan = self._datasets_by_status(*STATUS_VISIBLE + STATUS_HIDDEN)
+        else:
+            scan = self._datasets_by_status(*STATUS_VISIBLE)
+
+        for k in sorted(scan):
+            datasets = [str(d) for d in scan[k]]
             if datasets:
                 out.append('=== ' + k + ' ===')
                 out.append('\n'.join(datasets))
-
-        if all_datasets:
-            hidden_datasets = self.scan_hidden_datasets()
-            for k in sorted(hidden_datasets):
-                datasets = [str(d) for d in hidden_datasets[k]]
-                if datasets:
-                    out.append('=== ' + k + ' ===')
-                    out.append('\n'.join(datasets))
 
         out.append('_' * 42)
         print('\n'.join(out))
@@ -340,10 +322,12 @@ class DatasetScanner(AppLogger):
         datasets = defaultdict(list)
         for s in rest_api_statuses:
             for d in self._get_datasets_for_status(s):
-                datasets[d.dataset_status].append(d)
+                if d.name not in [d.name for d in datasets[d.dataset_status]]:
+                    datasets[d.dataset_status].append(d)
 
         for k in datasets:
             datasets[k].sort()
+
         return datasets
 
     @property
@@ -383,9 +367,10 @@ class RunScanner(DatasetScanner):
 
     def _get_dataset_records_for_status(self, status):
         if status == DATASET_NEW:
-            datasets = rest_communication.get_documents(self.endpoint)
+            datasets = []
+            rest_api_datasets = rest_communication.get_documents(self.endpoint)
             for d in self._datasets_on_disk():
-                if d not in datasets:
+                if d not in rest_api_datasets:
                     datasets.append({self.item_id: d})
             return datasets
         else:

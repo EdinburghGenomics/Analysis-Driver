@@ -6,7 +6,7 @@ from tests.test_analysisdriver import TestAnalysisDriver
 from tests.test_clarity import FakeEntity
 from analysis_driver.exceptions import AnalysisDriverError
 from analysis_driver.dataset_scanner import DatasetScanner, RunScanner, SampleScanner, Dataset, RunDataset,\
-    SampleDataset, MostRecentProc, STATUS_HIDDEN, STATUS_VISIBLE
+    SampleDataset, MostRecentProc
 from analysis_driver.constants import DATASET_NEW, DATASET_READY, DATASET_PROCESSING, DATASET_PROCESSED_FAIL,\
     DATASET_PROCESSED_SUCCESS, DATASET_ABORTED, DATASET_REPROCESS, DATASET_FORCE_READY
 
@@ -468,21 +468,6 @@ class TestScanner(TestAnalysisDriver):
     def tearDown(self):
         clean(self.base_dir)
 
-    @patched_datasets_by_status
-    def test_scan_datasets(self, mocked_scan):
-        self.scanner.scan_datasets()
-        mocked_scan.assert_called_with(*STATUS_VISIBLE)
-
-    @patched_datasets_by_status
-    def test_scan_processable_datasets(self, mocked_scan):
-        self.scanner.scan_processable_datasets()
-        mocked_scan.assert_called_with(DATASET_NEW, DATASET_REPROCESS, DATASET_READY, DATASET_FORCE_READY)
-
-    @patched_datasets_by_status
-    def test_scan_hidden_datasets(self, mocked_scan):
-        self.scanner.scan_hidden_datasets()
-        mocked_scan.assert_called_with(*STATUS_HIDDEN)
-
     def test_get_datasets_for_status(self, *args):
         pass
 
@@ -490,7 +475,7 @@ class TestScanner(TestAnalysisDriver):
     def test_report(self, mocked_scan):
         dsets = {'new': ['this'], 'ready': ['that', 'other'], 'failed': ['another']}
         captured_stdout = []
-        with patch('analysis_driver.dataset_scanner.DatasetScanner.scan_datasets', return_value=dsets):
+        with patch('analysis_driver.dataset_scanner.DatasetScanner._datasets_by_status', return_value=dsets):
             with patch('builtins.print', new=captured_stdout.append):
                 self.scanner.report(all_datasets=True)
 
