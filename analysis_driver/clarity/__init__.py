@@ -100,7 +100,7 @@ def get_species_information_from_ncbi(species):
             all_species_names.append((taxid, scientific_name, common_name))
     nspecies = len(all_species_names)
     if nspecies != 1:
-        app_logger.error('%s taxons found for %s', (nspecies, species))
+        app_logger.error('%s taxons found for %s', nspecies, species)
         return None, None, None
 
     return all_species_names[0]
