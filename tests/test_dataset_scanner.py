@@ -586,7 +586,7 @@ class TestSampleScanner(TestScanner):
     def test_get_datasets_for_status(self, mocked_get, mocked_list_samples):
         d = self.scanner._get_datasets_for_status(DATASET_NEW)[0]
         assert d.name == 'a_sample_id'
-        assert d._data_threshold == 1
+        assert d._data_threshold == 1000000000
         # mocked_get.assert_any_call('run_elements', where={'useable': 'yes', 'sample_id': 'a_sample_id'})
 
     @patched_expected_yield()
