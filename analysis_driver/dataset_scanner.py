@@ -19,11 +19,11 @@ class MostRecentProc:
         self.dataset_type = dataset_type
         self.dataset_name = dataset_name
         if initial_content:
-            self._rest_entity = dict(initial_content)
-            self.local_entity = dict(initial_content)
+            self._rest_entity = initial_content.copy()
+            self.local_entity = initial_content.copy()
         else:
             self._rest_entity = None
-            self.local_entity = dict(self.rest_entity)
+            self.local_entity = self.rest_entity.copy()
 
     @property
     def rest_entity(self):
@@ -54,8 +54,8 @@ class MostRecentProc:
             element_id=self.dataset_name,
             update_lists=['analysis_driver_procs']
         )
-        self._rest_entity = dict(entity)
-        self.local_entity = dict(entity)
+        self._rest_entity = entity.copy()
+        self.local_entity = entity.copy()
 
     def sync(self):
         patch_content = {}
@@ -72,7 +72,7 @@ class MostRecentProc:
             )
             if not patch_success:
                 raise RestCommunicationError('Sync failed: ' + str(patch_content))
-            self._rest_entity = dict(self.local_entity)
+            self._rest_entity = self.local_entity.copy()
 
     def update_entity(self, **kwargs):
         self.local_entity.update(kwargs)
@@ -293,9 +293,9 @@ class DatasetScanner(AppLogger):
             'dataset location: ' + self.input_dir
         ]
         if all_datasets:
-            scan = self._datasets_by_status(*STATUS_VISIBLE + STATUS_HIDDEN)
+            scan = self.scan_datasets(*STATUS_VISIBLE + STATUS_HIDDEN)
         else:
-            scan = self._datasets_by_status(*STATUS_VISIBLE)
+            scan = self.scan_datasets(*STATUS_VISIBLE)
 
         for k in sorted(scan):
             datasets = [str(d) for d in scan[k]]
@@ -318,7 +318,7 @@ class DatasetScanner(AppLogger):
             for d in self._get_dataset_records_for_status(status)
         ]
 
-    def _datasets_by_status(self, *rest_api_statuses):
+    def scan_datasets(self, *rest_api_statuses, flatten=False):
         datasets = defaultdict(list)
         for s in rest_api_statuses:
             for d in self._get_datasets_for_status(s):
@@ -327,6 +327,9 @@ class DatasetScanner(AppLogger):
 
         for k in datasets:
             datasets[k].sort()
+
+        if flatten:
+            datasets = sorted(sum(datasets.values(), []))  # concatenate datasets.values() into a flat list
 
         return datasets
 

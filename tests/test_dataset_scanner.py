@@ -77,8 +77,8 @@ class TestMostRecentProc(TestAnalysisDriver):
             self.proc = MostRecentProc('test', 'test')
 
     def init_proc_with_fake_data(self):
-        self.proc._rest_entity = dict(fake_proc)
-        self.proc.local_entity = dict(fake_proc)
+        self.proc._rest_entity = fake_proc.copy()
+        self.proc.local_entity = fake_proc.copy()
 
     def test_rest_entity_pre_existing(self):
         self.init_proc_with_fake_data()
@@ -144,7 +144,11 @@ class TestMostRecentProc(TestAnalysisDriver):
     def test_sync(self, mocked_patch):
         self.init_proc_with_fake_data()
         self.proc.sync()
-        assert self.proc._rest_entity == {'proc_id': 'test_test_now', 'dataset_type': 'test', 'dataset_name': 'test'}
+        assert self.proc._rest_entity == {
+            'proc_id': 'test_test_now',
+            'dataset_type': 'test',
+            'dataset_name': 'test'
+        }
         assert self.proc.local_entity == self.proc.rest_entity
 
         self.proc.local_entity.update({'this': 'that'})
@@ -155,13 +159,23 @@ class TestMostRecentProc(TestAnalysisDriver):
             id_field='proc_id',
             element_id='test_test_now'
         )
-        assert self.proc._rest_entity == {'proc_id': 'test_test_now', 'dataset_type': 'test', 'dataset_name': 'test', 'this': 'that'}
+        assert self.proc._rest_entity == {
+            'proc_id': 'test_test_now',
+            'dataset_type': 'test',
+            'dataset_name': 'test',
+            'this': 'that'
+        }
 
     @patch(ppath('MostRecentProc.sync'))
     def test_update_entity(self, mocked_sync):
         self.init_proc_with_fake_data()
         self.proc.update_entity(other='another')
-        assert self.proc.local_entity == {'proc_id': 'test_test_now', 'dataset_type': 'test', 'dataset_name': 'test', 'other': 'another'}
+        assert self.proc.local_entity == {
+            'proc_id': 'test_test_now',
+            'dataset_type': 'test',
+            'dataset_name': 'test',
+            'other': 'another'
+        }
         mocked_sync.assert_called()
 
     @patched_update
@@ -207,17 +221,17 @@ class TestMostRecentProc(TestAnalysisDriver):
             assert str(e) == 'stages'
 
         self.proc.local_entity['stages'] = [
-            {'date_started': 'now', 'stage_name': 'test_stage'},
-            {'date_started': 'then', 'stage_name': 'test_stage'},
-            {'date_started': 'later', 'stage_name': 'another_stage'}
+            {'date_started': 'now', 'stage_name': 'this'},
+            {'date_started': 'then', 'stage_name': 'this'},
+            {'date_started': 'later', 'stage_name': 'that'}
         ]
         with patched_datetime('finally'):
-            self.proc.end_stage('test_stage')
+            self.proc.end_stage('this')
         mocked_update.assert_called_with(
             stages=[
-                {'date_started': 'now', 'stage_name': 'test_stage', 'date_finished': 'finally', 'exit_status': 0},
-                {'date_started': 'then', 'stage_name': 'test_stage', 'date_finished': 'finally', 'exit_status': 0},
-                {'date_started': 'later', 'stage_name': 'another_stage'}
+                {'date_started': 'now', 'stage_name': 'this', 'date_finished': 'finally', 'exit_status': 0},
+                {'date_started': 'then', 'stage_name': 'this', 'date_finished': 'finally', 'exit_status': 0},
+                {'date_started': 'later', 'stage_name': 'that'}
             ]
         )
 
@@ -451,9 +465,6 @@ class TestSampleDataset(TestDataset):
         self.dataset._data_threshold = 1000000000
 
 
-patched_datasets_by_status = patch(ppath('DatasetScanner._datasets_by_status'))
-
-
 class TestScanner(TestAnalysisDriver):
     def setUp(self):
         self.base_dir = os.path.join(self.assets_path, 'dataset_scanner')
@@ -471,13 +482,12 @@ class TestScanner(TestAnalysisDriver):
     def test_get_datasets_for_status(self, *args):
         pass
 
-    @patched_datasets_by_status
-    def test_report(self, mocked_scan):
+    def test_report(self):
         dsets = {'new': ['this'], 'ready': ['that', 'other'], 'failed': ['another']}
         captured_stdout = []
-        with patch('analysis_driver.dataset_scanner.DatasetScanner._datasets_by_status', return_value=dsets):
-            with patch('builtins.print', new=captured_stdout.append):
-                self.scanner.report(all_datasets=True)
+        patched_scan = patch(ppath('DatasetScanner.scan_datasets'), return_value=dsets)
+        with patched_scan, patch('builtins.print', new=captured_stdout.append):
+            self.scanner.report(all_datasets=True)
 
         expected = [
             '========= ' + self.scanner.__class__.__name__ + ' report =========',
@@ -535,7 +545,8 @@ class TestRunScanner(TestScanner):
             'run_id': 'test_dataset'
         }
         with patched_get([fake_data]):
-            assert self.scanner._get_dataset_records_for_status(DATASET_ABORTED)[0]['run_id'] == 'test_dataset'
+            obs = self.scanner._get_dataset_records_for_status(DATASET_ABORTED)[0]['run_id']
+            assert obs == 'test_dataset'
 
     def test_datasets_on_disk(self):
         for d in self.scanner.expected_bcl_subdirs:
@@ -544,17 +555,19 @@ class TestRunScanner(TestScanner):
         exp = ['test_dataset']
         assert obs == exp
 
-    def test_datasets_by_status(self):
+    def test_scan_datasets(self):
         fake_datasets = []
         with patched_get():
             for x in ('this', 'that', 'other'):
                 fake_datasets.append(RunDataset(x, os.path.join(self.base_dir, x), False))
         with patch(ppath('DatasetScanner._get_datasets_for_status'), return_value=fake_datasets) as p:
-            obs = self.scanner._datasets_by_status(DATASET_NEW)
+            obs = self.scanner.scan_datasets(DATASET_NEW)
             p.assert_any_call(DATASET_NEW)
+            exp = {DATASET_NEW: '[other, that, this]'}
+            assert str(obs[DATASET_NEW]) == exp[DATASET_NEW]
 
-        exp = {DATASET_NEW: '[other, that, this]'}
-        assert str(obs[DATASET_NEW]) == exp[DATASET_NEW]
+            obs = self.scanner.scan_datasets(DATASET_NEW, flatten=True)
+            assert str(obs) == '[other, that, this]'
 
     def _setup_scanner(self):
         self.scanner = RunScanner({'input_dir': self.base_dir})
@@ -581,26 +594,31 @@ class TestSampleScanner(TestScanner):
             match={'proc_status': DATASET_NEW}
         )
 
-    @patch(ppath('get_list_of_samples'), return_value=[FakeEntity('a_sample_id', udf={'Yield for Quoted Coverage (Gb)': 1})])
     @patched_get([{'sample_id': 'a_sample_id'}])
-    def test_get_datasets_for_status(self, mocked_get, mocked_list_samples):
-        d = self.scanner._get_datasets_for_status(DATASET_NEW)[0]
+    def test_get_datasets_for_status(self, mocked_get):
+        patched_list_samples = patch(
+            ppath('get_list_of_samples'),
+            return_value=[FakeEntity('a_sample_id', udf={'Yield for Quoted Coverage (Gb)': 1})]
+        )
+        with patched_list_samples:
+            d = self.scanner._get_datasets_for_status(DATASET_NEW)[0]
         assert d.name == 'a_sample_id'
         assert d._data_threshold == 1000000000
-        # mocked_get.assert_any_call('run_elements', where={'useable': 'yes', 'sample_id': 'a_sample_id'})
+        mocked_get.assert_any_call('aggregate/samples', match={'proc_status': 'new'})
+        assert d.run_elements == [{'sample_id': 'a_sample_id'}]
+        mocked_get.assert_any_call('run_elements', where={'useable': 'yes', 'sample_id': 'a_sample_id'})
 
-    @patched_expected_yield()
-    def test_datasets_by_status(self, mocked_expected_yield):
+    def test_scan_datasets(self):
         fake_datasets = {DATASET_NEW: []}
         with patched_get():
             for x in ('other', 'that', 'this'):
                 fake_datasets[DATASET_NEW].append(SampleDataset(x))
 
-        def fake_get_datasets(self, status):
-            return fake_datasets[status]
+        def fake_get_datasets(*args):
+            return fake_datasets[args[1]]
 
-        with patch(ppath('SampleDataset._amount_data'), return_value=0):
-            with patch(ppath('SampleScanner._get_datasets_for_status'), new=fake_get_datasets):
-                obs = self.scanner._datasets_by_status(DATASET_NEW)
-
-        assert obs == fake_datasets
+        patched_is_ready = patch(ppath('SampleDataset._is_ready'), return_value=False)
+        patched_get_datasets = patch(ppath('SampleScanner._get_datasets_for_status'), new=fake_get_datasets)
+        with patched_is_ready, patched_get_datasets:
+            assert self.scanner.scan_datasets(DATASET_NEW) == fake_datasets
+            assert self.scanner.scan_datasets(DATASET_NEW, flatten=True) == fake_datasets[DATASET_NEW]
