@@ -116,10 +116,7 @@ class Dataset:
 
     def __init__(self, name, most_recent_proc=None):
         self.name = name
-        if most_recent_proc:
-            self.most_recent_proc = most_recent_proc
-        else:
-            self.most_recent_proc = MostRecentProc(self.type, self.name)
+        self.most_recent_proc = MostRecentProc(self.type, self.name, most_recent_proc)
 
     @property
     def dataset_status(self):
@@ -137,19 +134,19 @@ class Dataset:
         return [s['stage_name'] for s in self.most_recent_proc.get('stages', []) if 'date_finished' not in s]
 
     def start(self):
-        assert self.dataset_status in (DATASET_READY, DATASET_FORCE_READY, DATASET_NEW)
+        self._assert_status(DATASET_READY, DATASET_FORCE_READY, DATASET_NEW, method='start')
         self.most_recent_proc.initialise_entity()  # take a new entity
         self.most_recent_proc.start()
         ntf.start_pipeline()
 
     def succeed(self, quiet=False):
-        assert self.dataset_status == DATASET_PROCESSING
+        self._assert_status(DATASET_PROCESSING, method='succeed')
         self.most_recent_proc.finish(DATASET_PROCESSED_SUCCESS)
         if not quiet:
             ntf.end_pipeline(0)
 
     def fail(self, exit_status):
-        assert self.dataset_status == DATASET_PROCESSING
+        self._assert_status(DATASET_PROCESSING, method='fail')
         ntf.end_pipeline(exit_status)
         self.most_recent_proc.finish(DATASET_PROCESSED_FAIL)
 
@@ -166,6 +163,10 @@ class Dataset:
     def end_stage(self, stage_name, exit_status=0):
         ntf.end_stage(stage_name, exit_status)
         self.most_recent_proc.end_stage(stage_name, exit_status)
+
+    def _assert_status(self, *allowed_statuses, method=None):
+        status = self.dataset_status
+        assert status in allowed_statuses, 'Tried to %s a %s %s' % (method, status, self.type)
 
     @property
     def _is_ready(self):
@@ -329,7 +330,7 @@ class DatasetScanner(AppLogger):
             datasets[k].sort()
 
         if flatten:
-            datasets = sorted(sum(datasets.values(), []))  # concatenate datasets.values() into a flat list
+            datasets = sorted(sum([datasets[k] for k in rest_api_statuses], []))
 
         return datasets
 
@@ -369,7 +370,7 @@ class RunScanner(DatasetScanner):
             )
 
     def _get_dataset_records_for_status(self, status):
-        if status == DATASET_NEW:
+        if status in (DATASET_NEW, DATASET_READY):
             datasets = []
             rest_api_datasets = rest_communication.get_documents(self.endpoint)
             for d in self._datasets_on_disk():
@@ -415,4 +416,3 @@ class SampleScanner(DatasetScanner):
             self.get_dataset(k, v['record'].get('most_recent_proc'), v.get('threshold'))
             for k, v in datasets.items()
         ]
-

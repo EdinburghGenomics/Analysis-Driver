@@ -328,11 +328,7 @@ class TestDataset(TestAnalysisDriver):
         with patched_get():
             self.dataset = _TestDataset(
                 'test_dataset',
-                MostRecentProc(
-                    'test',
-                    'test',
-                    initial_content={'date_started': 'now', 'dataset_name': 'None', 'dataset_type': 'None'}
-                )
+                {'date_started': 'now', 'dataset_name': 'None', 'dataset_type': 'None'}
             )
 
 
@@ -371,11 +367,7 @@ class TestRunDataset(TestDataset):
             'test_dataset',
             os.path.join(self.base_dir, 'test_dataset'),
             use_int_dir=False,
-            most_recent_proc=MostRecentProc(
-                'test',
-                'test',
-                initial_content={'date_started': 'now', 'dataset_name': 'None', 'dataset_type': 'None'}
-            )
+            most_recent_proc={'date_started': 'now', 'dataset_name': 'None', 'dataset_type': 'None'}
         )
 
 
@@ -444,11 +436,7 @@ class TestSampleDataset(TestDataset):
         with patched_get():
             self.dataset = SampleDataset(
                 'test_dataset',
-                most_recent_proc=MostRecentProc(
-                    'test',
-                    'test',
-                    initial_content={'date_started': 'now', 'dataset_name': 'None', 'dataset_type': 'None'}
-                )
+                most_recent_proc={'date_started': 'now', 'dataset_name': 'None', 'dataset_type': 'None'}
             )
         self.dataset._run_elements = [
             {

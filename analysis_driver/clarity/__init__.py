@@ -222,10 +222,11 @@ def get_expected_yield_for_sample(sample_name):
 
 def get_run(run_id):
     runs = connection().get_processes(type='AUTOMATED - Sequence', udf={'RunID': run_id})
-    if len(runs) == 1:
-        return runs[0]
-    else:
+    if not runs:
+        return None
+    elif len(runs) != 1:
         app_logger.error('%s runs found for %s', len(runs), run_id)
+    return runs[0]
 
 
 def route_samples_to_delivery_workflow(sample_names):

@@ -11,13 +11,9 @@ class QCTester(TestAnalysisDriver):
         with patch(sample_read_data):
             self.dataset = SampleDataset(
                 'test_sample',
-                MostRecentProc(
-                    'sample',
-                    'test_sample',
-                    initial_content={
-                        'dataset_type': 'sample',
-                        'dataset_name': 'test_sample',
-                        'proc_id': 'sample_test_sample_now'
-                    }
-                )
+                most_recent_proc={
+                    'dataset_type': 'sample',
+                    'dataset_name': 'test_sample',
+                    'proc_id': 'sample_test_sample_now'
+                }
             )
