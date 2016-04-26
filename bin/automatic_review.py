@@ -5,14 +5,20 @@ class SampleReview():
 
     def __init__(self, name):
         self.name = name
-        self.run_elements = self._read_data()
+        self.run_elements = self.read_data()
 
-    def _read_data(self):
+    def read_data(self):
         return rest_communication.get_documents(
-                'run_elements',
-                where={'sample_id': self.name}
-            )
+            'aggregate/samples',
+            depaginate=True,
+            max_results=100,
+            embedded={"run_elements":1},
+            match={"sample_id":self.name}
+        )
 
     def print_data(self):
         for r in self.run_elements:
             print(r)
+
+s = SampleReview("10015AT0009")
+s.print_data()
