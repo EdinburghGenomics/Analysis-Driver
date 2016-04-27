@@ -2,6 +2,7 @@ __author__ = 'tcezard'
 
 import os
 import sys
+import math
 from xml.etree import ElementTree
 
 sys.path.append('../..')
@@ -214,3 +215,77 @@ def get_fastqscreen_results(filename, sample_id):
         fastqscreen_results = parse_fastqscreen_file(filename, myFocalSpecies)
         return fastqscreen_results
 
+def calculate_mean(histogram):
+    sumOfDepths = 0
+    numberOfDepths = 0
+    with open(histogram) as openfile:
+        lines = openfile.readlines()
+        for line in lines:
+            count = int(line.split()[2])
+            depth = int(line.split()[1])
+            sumOfDepths += int(count * depth)
+            numberOfDepths += int(count)
+    meanDepth = sumOfDepths/numberOfDepths
+    return meanDepth
+
+
+
+def calculate_median(histogram):
+
+    with open(histogram) as openfile:
+        numberOfDepths = 0
+        middleDepthIndex = []
+        countRunningTotal = 0
+        medianDepth = []
+
+        lines = openfile.readlines()
+
+        for line in lines:
+            count = int(line.split()[2])
+            numberOfDepths += int(count)
+        if numberOfDepths % 2 != 0:
+            middleDepthIndex = [((numberOfDepths/2) + 0.5)]
+        elif numberOfDepths % 2 == 0:
+            middleDepthIndex = [(numberOfDepths/2), ((numberOfDepths/2) + 1)]
+        for line in lines:
+            count = int(line.split()[2])
+            depth = int(line.split()[1])
+            countRunningTotal += count
+            if middleDepthIndex:
+                for m in middleDepthIndex:
+                    if m > countRunningTotal:
+                        continue
+                    else:
+                        medianDepth.append(int(depth))
+                        middleDepthIndex.remove(m)
+        if len(medianDepth) == 2:
+            return(sum(medianDepth)/len(medianDepth))
+        elif len(medianDepth) == 1:
+            return int(''.join(map(str,medianDepth)))
+
+def calculate_sd(histogram):
+
+    meanDepth = int(calculate_mean(histogram))
+    numberOfDepths = 0
+    sumOfSquaredDifference = 0
+
+    with open(histogram) as openfile:
+        lines = openfile.readlines()
+
+        for line in lines:
+            count = int(line.split()[2])
+            depth = int(line.split()[1])
+            numberOfDepths += int(count)
+            sd = (depth - meanDepth) ** 2
+            sd = sd * count
+            sumOfSquaredDifference += sd
+
+    standardDeviation = math.sqrt(sumOfSquaredDifference/numberOfDepths)
+    return standardDeviation
+
+def get_coverage_statistics(histogram_file):
+    coverage_mean = calculate_mean(histogram_file)
+    coverage_median = calculate_median(histogram_file)
+    coverage_sd = calculate_sd(histogram_file)
+
+    return coverage_mean, coverage_median, coverage_sd

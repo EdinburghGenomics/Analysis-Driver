@@ -15,6 +15,8 @@ default:
       raw_archives: tests/assets/data_deletion/archive
       fastqs: tests/assets/data_deletion/fastqs
 
+    genome: hg38
+
     tt_agent_delay: 20
     job_execution: pbs  # pbs or None
     job_queue: uv2000

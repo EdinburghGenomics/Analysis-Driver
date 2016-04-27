@@ -246,6 +246,13 @@ def variant_calling_pipeline(dataset):
     exit_status += sample_contam.join()
     exit_status += gender_validation.join()
 
+    dataset.start_stage('coverage statistics')
+    bam_file = os.path.join(dir_with_linked_files, user_sample_id + '.bam')
+    coverage_statistics_histogram = qc.SamtoolsDepth(dataset, sample_dir, bam_file)
+    coverage_statistics_histogram.start()
+    coverage_statistics_histogram.join()
+    dataset.end_stage('coverage statistics', coverage_statistics_histogram.exit_status)
+
     exit_status += _output_data(dataset, sample_dir, sample_id, dir_with_linked_files)
 
     return exit_status
@@ -315,6 +322,13 @@ def qc_pipeline(dataset, species):
         log_commands=False
     ).join()
     dataset.end_stage('bamtools_stat', bamtools_exit_status)
+
+    dataset.start_stage('coverage statistics')
+    bam_file = os.path.join(sample_dir, expected_output_bam)
+    coverage_statistics_histogram = qc.SamtoolsDepth(dataset, sample_dir, bam_file)
+    coverage_statistics_histogram.start()
+    coverage_statistics_histogram.join()
+    dataset.end_stage('coverage statistics', coverage_statistics_histogram.exit_status)
 
     exit_status += fastqc_exit_status + bwa_exit_status + bamtools_exit_status
 
