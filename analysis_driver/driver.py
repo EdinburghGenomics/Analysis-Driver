@@ -205,20 +205,21 @@ def variant_calling_pipeline(dataset):
     dataset.start_stage('species contamination check')
     species_contamination_check = qc.ContaminationCheck(dataset, sample_dir, [fastq_pair[0]])
     species_contamination_check.start()
-    species_contamination_check.join()
-    dataset.end_stage('species contamination check', species_contamination_check.exit_status)
 
     # bcbio
     dataset.start_stage('bcbio')
     bcbio_executor = _run_bcbio(sample_id, sample_dir, fastq_pair)
 
-    # wait for genotype_validation fastqc and bcbio to finish
+    # wait for genotype_validation, fastqc, species_contamination and bcbio to finish
     geno_valid_vcf_file, geno_valid_results = genotype_validation.join()
     app_logger.info('Written files: ' + str(geno_valid_vcf_file) + ' ' + str(geno_valid_results))
     dataset.end_stage('genotype validation', genotype_validation.exit_status)
 
     fastqc2_exit_status = fastqc2_executor.join()
     dataset.end_stage('sample_fastqc', fastqc2_exit_status)
+
+    species_contamination_check.join()
+    dataset.end_stage('species contamination check', species_contamination_check.exit_status)
 
     bcbio_exit_status = bcbio_executor.join()
     dataset.end_stage('bcbio', bcbio_exit_status)
