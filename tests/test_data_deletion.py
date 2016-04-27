@@ -30,6 +30,13 @@ class TestDeleter(TestAnalysisDriver):
         self.deleter._execute('a test command')
         mocked_execute.assert_called_with(['a test command'], 'local')
 
+    def tearDown(self):
+        deletion_script = p_join(self.assets_deletion, 'data_deletion.pbs')
+        if os.path.isfile(deletion_script):
+            os.remove(deletion_script)
+        for tmpdir in find_files(self.assets_deletion, '*', '.data_deletion_*'):
+            shutil.rmtree(tmpdir)
+
 
 finished_proc = {'status': 'finished'}
 aborted_proc = {'status': 'aborted'}
@@ -129,14 +136,11 @@ class TestRawDataDeleter(TestDeleter):
         os.makedirs(p_join(self.assets_deletion, 'archive'), exist_ok=True)
 
     def tearDown(self):
+        super().tearDown()
         delete_data.cfg.content['input_dir'] = self.original_input_dir
         shutil.rmtree(p_join(self.assets_deletion, 'raw', 'deletable_run'), ignore_errors=True)
         for d in os.listdir(p_join(self.assets_deletion, 'archive')):
             shutil.rmtree(p_join(self.assets_deletion, 'archive', d))
-
-        deletion_script = p_join(self.assets_deletion, 'data_deletion.pbs')
-        if os.path.isfile(deletion_script):
-            os.remove(deletion_script)
 
     def test_deletable_runs(self):
         patch_target = 'analysis_driver.rest_communication.get_documents'
@@ -163,25 +167,21 @@ class TestRawDataDeleter(TestDeleter):
             assert runs == fake_run_elements_procs_complete[1:]
 
     def test_setup_run_for_deletion(self):
-        deletion_dir = p_join(self.assets_deletion, 'raw', '.deletion')
-        subdirs_to_delete = self.deleter._setup_run_for_deletion(
-            'deletable_run',
-            deletion_dir=deletion_dir
-        )
+        subdirs_to_delete = self.deleter._setup_run_for_deletion('deletable_run')
         self.compare_lists(subdirs_to_delete, self.deleter.deletable_sub_dirs)
-        shutil.rmtree(deletion_dir)
+        shutil.rmtree(self.deleter.deletion_dir)
 
     def test_setup_runs_for_deletion(self):
         with patched_deletable_runs:
-            deletion_dir = self.deleter.setup_runs_for_deletion(self.deleter.deletable_runs())
-            assert os.listdir(deletion_dir) == ['deletable_run']
-        shutil.rmtree(deletion_dir)
+            self.deleter.setup_runs_for_deletion(self.deleter.deletable_runs())
+            assert os.listdir(self.deleter.deletion_dir) == ['deletable_run']
+        shutil.rmtree(self.deleter.deletion_dir)
 
     def test_delete_runs(self):
         with patched_deletable_runs:
-            deletion_dir = self.deleter.setup_runs_for_deletion(self.deleter.deletable_runs())
-            self.deleter.delete_dir(deletion_dir)
-            assert not os.path.isdir(deletion_dir)
+            self.deleter.setup_runs_for_deletion(self.deleter.deletable_runs())
+            self.deleter.delete_dir(self.deleter.deletion_dir)
+            assert not os.path.isdir(self.deleter.deletion_dir)
 
     @patched_patch_entry
     def test_mark_run_as_deleted(self, mocked_patch):
@@ -292,15 +292,10 @@ class TestFastqDeleter(TestDeleter):
                 self._setup_fastqs(run_id, 'a_project', sample_id)
 
     def tearDown(self):
+        super().tearDown()
+
         for r in ('a_run', 'another_run'):
             shutil.rmtree(p_join(self.assets_deletion, 'fastqs', r), ignore_errors=True)
-
-        deletion_script = p_join(self.assets_deletion, 'data_deletion.pbs')
-        if os.path.isfile(deletion_script):
-            os.remove(deletion_script)
-
-        for tmpdir in find_files(self.assets_deletion, 'fastqs', '.data_deletion_*'):
-            shutil.rmtree(tmpdir)
 
     def test_samples_released_in_lims(self):
         with patched_clarity_get_samples:
@@ -331,8 +326,7 @@ class TestFastqDeleter(TestDeleter):
         self.compare_lists(obs, exp)
 
     def test_setup_record_for_deletion(self):
-        deletion_dir = p_join(self.assets_deletion, 'fastqs', '.test_setup_record')
-        os.makedirs(deletion_dir, exist_ok=True)
+        os.makedirs(self.deleter.deletion_dir, exist_ok=True)
         e = {
             'run_id': 'a_run',
             'project_id': 'a_project',
@@ -341,15 +335,15 @@ class TestFastqDeleter(TestDeleter):
         }
         fqs = self.deleter.find_fastqs_for_run_element(e)
         record = delete_data._FastqDeletionRecord(e, fqs)
-        self.deleter._setup_record_for_deletion(deletion_dir, record)
+        self.deleter._setup_record_for_deletion(record)
 
-        self.compare_lists(os.listdir(deletion_dir), ['a_run'])
-        self.compare_lists(os.listdir(p_join(deletion_dir, 'a_run', 'fastq', 'a_project')), ['deletable_sample'])
+        self.compare_lists(os.listdir(self.deleter.deletion_dir), ['a_run'])
+        self.compare_lists(os.listdir(p_join(self.deleter.deletion_dir, 'a_run', 'fastq', 'a_project')), ['deletable_sample'])
         self.compare_lists(
-            os.listdir(p_join(deletion_dir, 'a_run', 'fastq', 'a_project', 'deletable_sample')),
+            os.listdir(p_join(self.deleter.deletion_dir, 'a_run', 'fastq', 'a_project', 'deletable_sample')),
             [os.path.basename(fq) for fq in fqs]
         )
-        shutil.rmtree(deletion_dir)
+        shutil.rmtree(self.deleter.deletion_dir)
 
     def setup_deletion_records(self):  # test set() intersection between lims and app
         with patched_clarity_get_samples, patched_deletable_samples:
@@ -407,3 +401,97 @@ class TestFastqDeleter(TestDeleter):
                     os.listdir(p_join(self.assets_deletion, 'fastqs', run, 'fastq', 'a_project', 'deletable_sample')),
                     [f for f in basenames if f.endswith('fastqc.html')]
                 )
+
+
+class TestDeliveredDataDeleter(TestDeleter):
+    samples = [
+        {
+            'sample_id': 'a_sample',
+            'release_dir': 'release_1',
+            'project_id': 'a_project',
+            'most_recent_proc': {'proc_id': 'a_proc_id'}
+        },
+        {
+            'sample_id': 'yet_another_sample',
+            'release_dir': 'release_1',
+            'project_id': 'another_project',
+            'most_recent_proc': {'proc_id': 'yet_another_proc_id'}
+        },
+        {
+            'sample_id': 'another_sample',
+            'release_dir': 'release_2',
+            'project_id': 'a_project',
+            'most_recent_proc': {'proc_id': 'another_proc_id'}
+        }
+    ]
+    file_exts = (
+        'bam', 'bam.bai', 'vcf.gz', 'vcf.gz.tbi', 'g.vcf.gz', 'g.vcf.gz.tbi', 'R1.fastq.gz', 'R2.fastq.gz',
+        'R1_fastqc.html', 'R2_fastqc.html'
+    )
+
+    def setUp(self):
+        for s in self.samples:
+            for x in self.file_exts:
+                d = p_join(
+                    self.assets_deletion,
+                    'delivered_data',
+                    s['project_id'],
+                    s['release_dir'],
+                    s['sample_id']
+                )
+                os.makedirs(d, exist_ok=True)
+                self.touch(p_join(d, s['sample_id'] + '.' + x))
+        patched_get = patch('bin.delete_data.rest_communication.get_documents', return_value=self.samples[0:2])
+        patched_now = patch('bin.delete_data.Deleter._now', return_value='t')
+        with patched_get, patched_now:
+            self.deleter = delete_data.DeliveredDataDeleter(['a_sample', 'yet_another_sample'], self.assets_deletion)
+
+    def tearDown(self):
+        super().tearDown()
+        for p in ('a_project', 'another_project'):
+            shutil.rmtree(p_join(self.assets_deletion, 'delivered_data', p))
+
+        deletion_script = p_join(self.assets_deletion, 'data_deletion.pbs')
+        if os.path.isfile(deletion_script):
+            os.remove(deletion_script)
+
+    @patch('bin.delete_data.DeliveredDataDeleter.warning')
+    @patched_patch_entry
+    def test_mark_sample_as_deleted(self, mocked_patch, mocked_warning):
+        self.deleter.mark_sample_as_deleted('a_sample_id', None)
+        assert len(mocked_patch.call_args_list) == 0
+        mocked_warning.assert_called_with('No pipeline process found for ' + 'a_sample_id')
+        self.deleter.mark_sample_as_deleted('a_sample_id', 'a_proc_id')
+        mocked_patch.assert_called_with('analysis_driver_procs', {'status': 'deleted'}, 'proc_id', 'a_proc_id')
+
+    def test_setup_sample_for_deletion(self):
+        deletable_data = p_join(self.assets_deletion, 'delivered_data', '.data_deletion_t', 'a_project', 'a_sample')
+        assert not os.path.isdir(deletable_data)
+        self.deleter._setup_sample_for_deletion('a_project', 'a_sample')
+        assert os.path.isdir(deletable_data)
+        assert sorted(os.listdir(deletable_data)) == sorted(['a_sample.' + x for x in self.file_exts])
+
+    @patch('bin.delete_data.DeliveredDataDeleter.mark_sample_as_deleted')
+    def test_delete_data(self, mocked_mark):
+        self.deleter.dry_run = True
+        assert self.deleter.delete_data() == 0
+        self.deleter.dry_run = False
+        
+        for s in self.samples:
+            assert os.listdir(
+                p_join(
+                    self.assets_deletion,
+                    'delivered_data',
+                    s['project_id'],
+                    s['release_dir'],
+                    s['sample_id']
+                )
+            )
+        assert not os.path.isdir(p_join(self.assets_deletion, '.data_deletion_t'))
+        self.deleter.delete_data()
+        mocked_mark.assert_any_call('a_sample', 'a_proc_id')
+        mocked_mark.assert_any_call('yet_another_sample', 'yet_another_proc_id')
+        assert not os.path.isdir(p_join(self.assets_deletion, 'delivered_data', 'another_project'))
+        assert not os.path.isdir(p_join(self.assets_deletion, 'delivered_data', 'a_project', 'release_1'))
+        assert os.path.isdir(p_join(self.assets_deletion, 'delivered_data', 'a_project', 'release_2', 'another_sample'))
+        os.makedirs(p_join(self.assets_deletion, 'delivered_data', 'another_project'))
