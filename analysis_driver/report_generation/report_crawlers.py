@@ -334,6 +334,8 @@ class SampleCrawler(Crawler):
                 self.critical('Contamination check unavailable for %s', self.sample_id)
 
         sample_contamination_path = self.search_file(sample_dir, '%s-chr22-vbi.selfSM' % external_sample_name)
+        if not sample_contamination_path:
+            sample_contamination_path = self.search_file(sample_dir, '%s-chr22-vbi.selfSM' % self.sample_id)
         if sample_contamination_path:
             freemix = parse_vbi_selfSM(sample_contamination_path)
             if freemix:
