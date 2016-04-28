@@ -62,7 +62,7 @@ class GenotypeValidation(QualityControl):
 
         command_samblaster = '%s --removeDups' % (cfg.query('tools', 'samblaster', ret_default='samblaster'))
         command_samtools = '%s view -F 4 -Sb -' % (cfg.query('tools', 'samtools', ret_default='samtools'))
-        command_sambamba = '%s sort -t 16 -o  %s /dev/stdin' % (
+        command_sambamba = '%s sort -t 16 -o %s /dev/stdin' % (
             cfg.query('tools', 'sambamba', ret_default='sambamba'), expected_output_bam
         )
 
