@@ -7,13 +7,13 @@ import logging
 import sys
 from os.path import dirname, abspath
 sys.path.append(dirname(dirname(abspath(__file__))))
+from analysis_driver import rest_communication, executor, clarity, util
+from analysis_driver.app_logging import AppLogger, logging_default as log_cfg
 from analysis_driver.exceptions import AnalysisDriverError
 from analysis_driver.config import default as cfg
-from analysis_driver.app_logging import AppLogger, logging_default as log_cfg
-from analysis_driver.constants import ELEMENT_PROJECT_ID, ELEMENT_SAMPLE_INTERNAL_ID, ELEMENT_RUN_ELEMENTS,\
-    ELEMENT_PROCS, ELEMENT_RUN_NAME, ELEMENT_STATUS, ELEMENT_PROC_ID, ELEMENT_USEABLE, ELEMENT_FASTQS_DELETED,\
+from analysis_driver.constants import ELEMENT_PROJECT_ID, ELEMENT_SAMPLE_INTERNAL_ID, ELEMENT_PROCS,\
+    ELEMENT_RUN_NAME, ELEMENT_STATUS, ELEMENT_PROC_ID, ELEMENT_USEABLE, ELEMENT_FASTQS_DELETED,\
     ELEMENT_DELIVERED, ELEMENT_LANE
-from analysis_driver import rest_communication, executor, clarity, util
 
 
 class Deleter(AppLogger):
@@ -60,15 +60,7 @@ class RawDataDeleter(Deleter):
         self.archive_dir = cfg['data_deletion']['raw_archives']
 
     def deletable_runs(self):
-        runs = rest_communication.get_documents(
-            'runs',
-            depaginate=True,
-            max_results=100,
-            embedded={ELEMENT_RUN_ELEMENTS: 1, ELEMENT_PROCS: 1},
-            sort=ELEMENT_RUN_NAME,
-            aggregate=True
-        )
-
+        runs = rest_communication.get_documents('aggregate/all_runs', quiet=True, sort=ELEMENT_RUN_NAME)
         deletable_runs = []
         for r in runs:
             review_statuses = r.get('review_statuses')

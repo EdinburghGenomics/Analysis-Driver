@@ -144,26 +144,20 @@ class TestRawDataDeleter(TestDeleter):
 
     def test_deletable_runs(self):
         patch_target = 'analysis_driver.rest_communication.get_documents'
-        expected_rest_query = {
-            'max_results': 100,
-            'embedded': {'run_elements': 1, 'analysis_driver_procs': 1},
-            'aggregate': True,
-            'sort': 'run_id'
-        }
 
         with patch(patch_target, return_value=fake_run_elements_no_procs) as p:
             runs = self.deleter.deletable_runs()
-            p.assert_called_with('runs', depaginate=True, **expected_rest_query)
+            p.assert_called_with('aggregate/all_runs', quiet=True, sort='run_id')
             assert runs == []
 
         with patch(patch_target, return_value=fake_run_elements_procs_running) as p:
             runs = self.deleter.deletable_runs()
-            p.assert_called_with('runs', depaginate=True, **expected_rest_query)
+            p.assert_called_with('aggregate/all_runs', quiet=True, sort='run_id')
             assert runs == []
 
         with patch(patch_target, return_value=fake_run_elements_procs_complete) as p:
             runs = self.deleter.deletable_runs()
-            p.assert_called_with('runs', depaginate=True, **expected_rest_query)
+            p.assert_called_with('aggregate/all_runs', quiet=True, sort='run_id')
             assert runs == fake_run_elements_procs_complete[1:]
 
     def test_setup_run_for_deletion(self):
