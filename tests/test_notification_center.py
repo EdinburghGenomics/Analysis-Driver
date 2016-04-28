@@ -57,7 +57,8 @@ class TestNotificationCenter(TestAnalysisDriver):
         self.email_ntf = EmailNotification(dataset, email_config)
 
     @patch('smtplib.SMTP', new=FakeSMTP)
-    def test_retries(self):
+    @patch('analysis_driver.notification.email_notification.sleep')
+    def test_retries(self, mocked_time):
         assert self.email_ntf._try_send(self.email_ntf._prepare_message('this is a test')) is True
         assert self.email_ntf._try_send(self.email_ntf._prepare_message('dodgy')) is False
 
