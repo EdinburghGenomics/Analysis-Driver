@@ -47,30 +47,25 @@ class Deleter(AppLogger):
 class RawDataDeleter(Deleter):
     deletable_sub_dirs = ('Data', 'Logs', 'Thumbnail_Images')
 
-    def __init__(self, work_dir, dry_run=False, deletion_limit=None):
+    def __init__(self, work_dir, dry_run=False, deletion_limit=None, list_runs=None):
         super().__init__(work_dir, dry_run, deletion_limit)
         self.data_dir = cfg['data_deletion']['raw_data']
         self.archive_dir = cfg['data_deletion']['raw_archives']
+        self.list_runs = list_runs
 
     def deletable_runs(self):
-        runs = rest_communication.get_documents(
-            'runs',
-            depaginate=True,
-            max_results=100,
-            embedded={ELEMENT_RUN_ELEMENTS: 1, ELEMENT_PROCS: 1},
-            sort=ELEMENT_RUN_NAME,
-            aggregate=True
-        )
-
+        runs = rest_communication.get_documents('aggregate/all_runs', sort=ELEMENT_RUN_NAME)
         deletable_runs = []
         for r in runs:
-            review_statuses = r.get('review_statuses')
-            most_recent_proc = r.get(ELEMENT_PROCS, [{}])[-1]
-            if type(review_statuses) is list:
-                review_statuses = [s for s in review_statuses if s]
-            if review_statuses and 'not reviewed' not in review_statuses:
-                if most_recent_proc.get(ELEMENT_STATUS) in ('finished', 'aborted'):  # i.e. not 'deleted'
-                    deletable_runs.append(r)
+            if self.list_runs and r[ELEMENT_RUN_NAME] in self.list_runs:
+                deletable_runs.append(r)
+            else:
+                review_statuses = r.get('review_statuses')
+                if type(review_statuses) is list:
+                    review_statuses = [s for s in review_statuses if s]
+                if review_statuses and 'not reviewed' not in review_statuses:
+                    if r.get('most_recent_proc', {}).get('status') in ('finished', 'aborted'):
+                        deletable_runs.append(r)  # i.e. not 'deleted'
 
         return deletable_runs[:self.deletion_limit]
 
@@ -113,7 +108,7 @@ class RawDataDeleter(Deleter):
                 ELEMENT_PROCS,
                 {ELEMENT_STATUS: 'deleted'},
                 ELEMENT_PROC_ID,
-                run[ELEMENT_PROCS][-1][ELEMENT_PROC_ID]
+                run['most_recent_proc'][ELEMENT_PROC_ID]
             )
 
     def archive_run(self, run_id):
@@ -302,10 +297,11 @@ def main():
     p.add_argument('--work_dir', default=expanduser('~'))
     p.add_argument('--deletion_limit', type=int, default=None)
     p.add_argument('--project_id', type=str)
+    p.add_argument('--list_runs', type=str, nargs='+')
     args = p.parse_args()
 
     if args.__dict__.pop('debug', False):
-        log_cfg.default_level = logging.DEBUG
+        log_cfg.set_log_level(logging.DEBUG)
         log_cfg.add_handler(logging.StreamHandler(stream=sys.stdout), logging.DEBUG)
 
     deleter_type = args.__dict__.pop('deleter')
