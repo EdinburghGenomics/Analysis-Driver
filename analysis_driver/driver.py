@@ -243,14 +243,16 @@ def variant_calling_pipeline(dataset):
     bam_file = os.path.join(dir_with_linked_files, user_sample_id + '.bam')
     sample_contam = qc.VerifyBamId(dataset, sample_dir, bam_file)
     sample_contam.start()
-    exit_status += sample_contam.join()
-    exit_status += gender_validation.join()
 
+    #coverage statistics
     dataset.start_stage('coverage statistics')
-    bam_file = os.path.join(dir_with_linked_files, user_sample_id + '.bam')
     coverage_statistics_histogram = qc.SamtoolsDepth(dataset, sample_dir, bam_file)
     coverage_statistics_histogram.start()
+
+    exit_status += sample_contam.join()
+    exit_status += gender_validation.join()
     coverage_statistics_histogram.join()
+    exit_status += coverage_statistics_histogram.exit_status
     dataset.end_stage('coverage statistics', coverage_statistics_histogram.exit_status)
 
     exit_status += _output_data(dataset, sample_dir, sample_id, dir_with_linked_files)
