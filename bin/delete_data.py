@@ -169,6 +169,7 @@ class FastqDeleter(Deleter):
                 where[ELEMENT_PROJECT_ID] = self.project_id
             self._samples_released_in_app = rest_communication.get_documents(
                 'samples',
+                quiet=True,
                 where=where,  # TODO: do we want useable only?
                 projection={ELEMENT_SAMPLE_INTERNAL_ID: 1},
                 depaginate=True
@@ -193,7 +194,10 @@ class FastqDeleter(Deleter):
 
         for s in deletable_samples:
             n_samples += 1
-            for e in rest_communication.get_documents('run_elements', where={ELEMENT_SAMPLE_INTERNAL_ID: s}):
+            run_elements = rest_communication.get_documents(
+                'run_elements', quiet=True, where={ELEMENT_SAMPLE_INTERNAL_ID: s}
+            )
+            for e in run_elements:
                 assert e[ELEMENT_SAMPLE_INTERNAL_ID] == s
                 fastqs = self.find_fastqs_for_run_element(e)
                 if fastqs:
@@ -263,6 +267,7 @@ class DeliveredDataDeleter(Deleter):
         super().__init__(work_dir, dry_run, deletion_limit)
         self.sample_records = rest_communication.get_documents(
             'aggregate/samples',
+            quiet=True,
             match={'$or': [{'sample_id': s} for s in sample_ids]}
         )
 
