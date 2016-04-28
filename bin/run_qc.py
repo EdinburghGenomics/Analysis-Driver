@@ -157,7 +157,7 @@ def run_sample_contamination_check(args):
         work_dir = os.path.join(cfg['jobs_dir'], args.sample_id)
     os.makedirs(work_dir, exist_ok=True)
     dataset = NoCommunicationDataset(args.sample_id)
-    sample_contamination_check = VerifyBamId(dataset, work_dir, args.bam_File)
+    sample_contamination_check = VerifyBamId(dataset, work_dir, args.bam_file)
     sample_contamination_check.start()
     exit_status = sample_contamination_check.join()
     return exit_status

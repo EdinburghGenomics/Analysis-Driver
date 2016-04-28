@@ -13,7 +13,8 @@ class SamtoolsDepth(QualityControl):
 
     def _get_samtools_depth_command(self):
         samtools_bin = cfg['tools']['samtools']
-        samtools_depth_out_file = os.path.join(self.working_dir, self.dataset.name + '.depth')
+        name, ext = os.path.splitext(self.bam_file)
+        samtools_depth_out_file = name + '.depth'
         samtools_depth_command = """%s depth -a -a -q 0 -Q 0 %s | awk -F "\t" '{array[$1"\t"$3]+=1} END{for (val in array){print val"\t"array[val]}}' | sort -k 1,1 -nk 2,2 > %s""" % (samtools_bin, self.bam_file, samtools_depth_out_file)
         return samtools_depth_command, samtools_depth_out_file
 
