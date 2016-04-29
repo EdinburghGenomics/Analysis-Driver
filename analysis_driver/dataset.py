@@ -182,25 +182,23 @@ class MostRecentProc:
         self.dataset_type = dataset_type
         self.dataset_name = dataset_name
         if initial_content:
-            self._rest_entity = initial_content.copy()
-            self.local_entity = initial_content.copy()
+            self._entity = initial_content.copy()
         else:
-            self._rest_entity = None
-            self.local_entity = self.rest_entity.copy()
+            self._entity = None
 
     @property
-    def rest_entity(self):
-        if self._rest_entity is None:
+    def entity(self):
+        if self._entity is None:
             procs = rest_communication.get_documents(
                 'analysis_driver_procs',
                 where={'dataset_type': self.dataset_type, 'dataset_name': self.dataset_name},
                 sort='-_created'
             )
             if procs:
-                self._rest_entity = procs[0]
+                self._entity = procs[0]
             else:
                 self.initialise_entity()
-        return self._rest_entity
+        return self._entity
 
     def initialise_entity(self):
         proc_id = '_'.join((self.dataset_type, self.dataset_name, self._now()))
@@ -217,28 +215,22 @@ class MostRecentProc:
             element_id=self.dataset_name,
             update_lists=['analysis_driver_procs']
         )
-        self._rest_entity = entity.copy()
-        self.local_entity = entity.copy()
+        self._entity = entity
 
     def sync(self):
-        patch_content = {}
-        for k, v in self.local_entity.items():
-            if v != self.rest_entity.get(k):
-                patch_content[k] = v
-
-        if patch_content:
-            patch_success = rest_communication.patch_entry(
-                'analysis_driver_procs',
-                patch_content,
-                id_field='proc_id',
-                element_id=self.local_entity['proc_id']
-            )
-            if not patch_success:
-                raise RestCommunicationError('Sync failed: ' + str(patch_content))
-            self._rest_entity = self.local_entity.copy()
+        patch_content = self.entity.copy()
+        element_id = patch_content.pop('proc_id')
+        patch_success = rest_communication.patch_entry(
+            'analysis_driver_procs',
+            patch_content,
+            id_field='proc_id',
+            element_id=element_id
+        )
+        if not patch_success:
+            raise RestCommunicationError('Sync failed: ' + str(patch_content))
 
     def update_entity(self, **kwargs):
-        self.local_entity.update(kwargs)
+        self.entity.update(kwargs)
         self.sync()
 
     def change_status(self, status):
@@ -251,13 +243,13 @@ class MostRecentProc:
         self.update_entity(status=status, pid=None, end_date=self._now())
 
     def start_stage(self, stage_name):
-        stages = self.local_entity.get('stages', [])
+        stages = self.entity.get('stages', [])
         new_stage = {'date_started': self._now(), 'stage_name': stage_name}
         stages.append(new_stage)
         self.update_entity(stages=stages)
 
     def end_stage(self, stage_name, exit_status=0):
-        stages = self.local_entity['stages']
+        stages = self.entity['stages']
         for s in stages:
             if s['stage_name'] == stage_name:
                 s.update({'date_finished': self._now(), 'exit_status': exit_status})
@@ -265,7 +257,7 @@ class MostRecentProc:
         self.update_entity(stages=stages)
 
     def get(self, key, ret_default=None):
-        return self.local_entity.get(key, ret_default)
+        return self.entity.get(key, ret_default)
 
     @staticmethod
     def _now():

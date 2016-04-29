@@ -77,15 +77,15 @@ class TestDataset(TestAnalysisDriver):
         clean(self.base_dir)
 
     def test_dataset_status(self):
-        assert self.dataset.most_recent_proc.local_entity.get('status') is None
+        assert self.dataset.most_recent_proc.entity.get('status') is None
         assert self.dataset.dataset_status == c.DATASET_NEW
 
-        self.dataset.most_recent_proc.local_entity['status'] = 'a_status'
+        self.dataset.most_recent_proc.entity['status'] = 'a_status'
         assert self.dataset.dataset_status == 'a_status'
 
     def test_stages(self):
         assert self.dataset.stages == []
-        self.dataset.most_recent_proc.local_entity['stages'] = [
+        self.dataset.most_recent_proc.entity['stages'] = [
             {'stage_name': 'a_stage', 'date_started': 'now', 'date_finished': 'finally'},
             {'stage_name': 'another_stage', 'date_started': 'then'},
             {'stage_name': 'yet_another_stage', 'date_started': 'finally'}
@@ -96,11 +96,11 @@ class TestDataset(TestAnalysisDriver):
     @patched_initialise
     @patch(ppath('MostRecentProc.start'))
     def test_start(self, mocked_start, mocked_update, mocked_ntf):
-        self.dataset.most_recent_proc.local_entity['status'] = c.DATASET_PROCESSING
+        self.dataset.most_recent_proc.entity['status'] = c.DATASET_PROCESSING
         with pytest.raises(AssertionError):
             self.dataset.start()
 
-        del self.dataset.most_recent_proc.local_entity['status']
+        del self.dataset.most_recent_proc.entity['status']
         self.dataset.start()
         for m in (mocked_update, mocked_ntf, mocked_start):
             assert m.call_count == 1
@@ -111,7 +111,7 @@ class TestDataset(TestAnalysisDriver):
         with pytest.raises(AssertionError):
             self.dataset.succeed()
 
-        self.dataset.most_recent_proc.local_entity['status'] = c.DATASET_PROCESSING
+        self.dataset.most_recent_proc.entity['status'] = c.DATASET_PROCESSING
         self.dataset.succeed()
         mocked_ntf.assert_called_with(0)
         mocked_finish.assert_called_with(c.DATASET_PROCESSED_SUCCESS)
@@ -122,7 +122,7 @@ class TestDataset(TestAnalysisDriver):
         with pytest.raises(AssertionError):
             self.dataset.succeed()
 
-        self.dataset.most_recent_proc.local_entity['status'] = c.DATASET_PROCESSING
+        self.dataset.most_recent_proc.entity['status'] = c.DATASET_PROCESSING
         self.dataset.fail(1)
         mocked_ntf.assert_called_with(1)
         mocked_finish.assert_called_with(c.DATASET_PROCESSED_FAIL)
@@ -185,7 +185,7 @@ class TestRunDataset(TestDataset):
 
     def test_dataset_status(self):
         super().test_dataset_status()
-        del self.dataset.most_recent_proc.local_entity['status']
+        del self.dataset.most_recent_proc.entity['status']
         assert not self.dataset.rta_complete()
         assert self.dataset.dataset_status == c.DATASET_NEW
         os.mkdir(os.path.join(self.base_dir, self.dataset.name))
@@ -290,19 +290,18 @@ class TestMostRecentProc(TestAnalysisDriver):
             self.proc = MostRecentProc('test', 'test')
 
     def init_proc_with_fake_data(self):
-        self.proc._rest_entity = fake_proc.copy()
-        self.proc.local_entity = fake_proc.copy()
+        self.proc._entity = fake_proc.copy()
 
     def test_rest_entity_pre_existing(self):
         self.init_proc_with_fake_data()
-        assert self.proc.rest_entity == fake_proc
+        assert self.proc.entity == fake_proc
 
     @patched_get()
     @patched_initialise
     def test_rest_entity_not_pre_existing(self, mocked_initialise, mocked_get):
         with patched_datetime():
-            self.proc._rest_entity = None
-            x = self.proc.rest_entity
+            self.proc._entity = None
+            x = self.proc.entity
             assert x == fake_proc
             mocked_get.assert_called_with(
                 'analysis_driver_procs',
@@ -310,9 +309,9 @@ class TestMostRecentProc(TestAnalysisDriver):
                 sort='-_created'
             )
 
-        self.proc._rest_entity = None
+        self.proc._entity = None
         with patched_get([]):
-            y = self.proc.rest_entity
+            y = self.proc.entity
             assert y is None
             mocked_get.assert_called_with(
                 'analysis_driver_procs',
@@ -324,7 +323,7 @@ class TestMostRecentProc(TestAnalysisDriver):
     @patched_post
     @patched_patch
     def test_initialise_entity(self, mocked_patch, mocked_post):
-        assert self.proc._rest_entity == fake_proc
+        assert self.proc._entity is None
         with patched_datetime():
             self.proc.initialise_entity()
         mocked_post.assert_called_with(
@@ -357,22 +356,25 @@ class TestMostRecentProc(TestAnalysisDriver):
     def test_sync(self, mocked_patch):
         self.init_proc_with_fake_data()
         self.proc.sync()
-        assert self.proc._rest_entity == {
+        assert self.proc._entity == {
             'proc_id': 'test_test_now',
             'dataset_type': 'test',
             'dataset_name': 'test'
         }
-        assert self.proc.local_entity == self.proc.rest_entity
 
-        self.proc.local_entity.update({'this': 'that'})
+        self.proc.entity.update({'this': 'that'})
         self.proc.sync()
         mocked_patch.assert_called_with(
             'analysis_driver_procs',
-            {'this': 'that'},
+            {
+                'this': 'that',
+                'dataset_type': 'test',
+                'dataset_name': 'test'
+            },
             id_field='proc_id',
             element_id='test_test_now'
         )
-        assert self.proc._rest_entity == {
+        assert self.proc._entity == {
             'proc_id': 'test_test_now',
             'dataset_type': 'test',
             'dataset_name': 'test',
@@ -383,7 +385,7 @@ class TestMostRecentProc(TestAnalysisDriver):
     def test_update_entity(self, mocked_sync):
         self.init_proc_with_fake_data()
         self.proc.update_entity(other='another')
-        assert self.proc.local_entity == {
+        assert self.proc.entity == {
             'proc_id': 'test_test_now',
             'dataset_type': 'test',
             'dataset_name': 'test',
@@ -416,7 +418,7 @@ class TestMostRecentProc(TestAnalysisDriver):
             ]
         )
 
-        self.proc.local_entity['stages'] = [{'date_started': 'then', 'stage_name': 'test_stage'}]
+        self.proc.entity['stages'] = [{'date_started': 'then', 'stage_name': 'test_stage'}]
         with patched_datetime('later'):
             self.proc.start_stage('another_stage')
         mocked_update.assert_called_with(
@@ -433,7 +435,7 @@ class TestMostRecentProc(TestAnalysisDriver):
             self.proc.end_stage('test_stage')
             assert str(e) == 'stages'
 
-        self.proc.local_entity['stages'] = [
+        self.proc.entity['stages'] = [
             {'date_started': 'now', 'stage_name': 'this'},
             {'date_started': 'then', 'stage_name': 'this'},
             {'date_started': 'later', 'stage_name': 'that'}
