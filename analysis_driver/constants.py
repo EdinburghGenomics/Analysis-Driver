@@ -65,10 +65,10 @@ ELEMENT_DELIVERED = 'delivered'
 ELEMENT_USEABLE = 'useable'
 ELEMENT_FASTQS_DELETED = 'input_fastqs_deleted'
 
-
 ELEMENT_PROCS = 'analysis_driver_procs'
 ELEMENT_PROC_ID = 'proc_id'
 ELEMENT_STATUS = 'status'
+
 DATASET_NEW = 'new'
 DATASET_READY = 'ready'
 DATASET_FORCE_READY = 'force_ready'
@@ -77,3 +77,4 @@ DATASET_PROCESSED_SUCCESS = 'finished'
 DATASET_PROCESSED_FAIL = 'failed'
 DATASET_ABORTED = 'aborted'
 DATASET_REPROCESS = 'reprocess'
+DATASET_DELETED = 'deleted'

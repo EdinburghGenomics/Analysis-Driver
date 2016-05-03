@@ -174,7 +174,7 @@ def output_run_data(fastq_dir, run_id):
 
 
 def output_sample_data(sample_id, source_dir, output_dir):
-    project_id = clarity.find_project_from_sample(sample_id)
+    project_id = clarity.find_project_name_from_sample(sample_id)
     output_dir = os.path.join(output_dir, project_id, sample_id)
 
     return _output_data(

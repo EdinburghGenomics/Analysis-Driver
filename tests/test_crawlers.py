@@ -1,4 +1,3 @@
-__author__ = 'mwham'
 import os.path
 import json
 from unittest.mock import patch
@@ -85,18 +84,27 @@ class TestSampleCrawler(TestCrawler):
         'mapped_reads': 975587288,
         'called_gender': 'male',
         'provided_gender': 'female',
-        "species_contamination": {"contaminant_unique_mapped": {"Bos taurus": 1, "Felis catus": 4, "Gallus gallus": 1, "Mus musculus": 4, "Ovis aries": 2, 'Homo sapiens': 74144},
-                                  "percent_unmapped": 1.06,
-                                  "percent_unmapped_focal": 1.09,
-                                  "total_reads_mapped": 100000},
-        "gender_validation": {"hetX": "0.10"},
+        'species_contamination': {
+            'contaminant_unique_mapped': {
+                'Bos taurus': 1,
+                'Felis catus': 4,
+                'Gallus gallus': 1,
+                'Mus musculus': 4,
+                'Ovis aries': 2,
+                'Homo sapiens': 74144
+            },
+            'percent_unmapped': 1.06,
+            'percent_unmapped_focal': 1.09,
+            'total_reads_mapped': 100000
+        },
+        'gender_validation': {'hetX': '0.10'},
         'coverage': {'mean': 438.8514851485148, 'median': 478, 'std_dev': 189.1911391390011}
     }
 
     def setUp(self):
         with patch('analysis_driver.report_generation.report_crawlers.get_user_sample_name',
                    return_value='test_sample'):
-            with patch('analysis_driver.report_generation.report_crawlers.get_sex_from_lims',
+            with patch('analysis_driver.report_generation.report_crawlers.get_sample_gender',
                        return_value='female'):
                 with patch('analysis_driver.reader.demultiplexing_parsers.get_species_from_sample',
                            return_value='Homo sapiens'):

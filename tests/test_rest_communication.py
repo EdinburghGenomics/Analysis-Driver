@@ -1,4 +1,3 @@
-__author__ = 'mwham'
 from unittest.mock import patch, Mock
 import json
 from tests import test_analysisdriver
@@ -10,7 +9,10 @@ helper = test_analysisdriver.TestAnalysisDriver()
 
 class FakeRestResponse(Mock):
     def __init__(self, *args, **kwargs):
-        content = json.dumps(kwargs.pop('content', None)).encode()
+        content = kwargs.pop('content', None)
+        if type(content) in (list, dict):
+            content = json.dumps(content)
+        content = content.encode()
         super().__init__(*args, **kwargs)
         self.content = content
         self.request = Mock(method='a method', path_url='a url')
@@ -19,6 +21,10 @@ class FakeRestResponse(Mock):
 
     def json(self):
         return json.loads(self.content.decode('utf-8'))
+
+    @property
+    def text(self):
+        return self.content.decode('utf-8')
 
 
 def rest_url(endpoint):
