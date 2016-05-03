@@ -1,4 +1,3 @@
-__author__ = 'mwham'
 import pytest
 import os
 import shutil
@@ -6,10 +5,9 @@ import sys
 import logging
 import subprocess
 from tests.test_analysisdriver import TestAnalysisDriver
-from analysis_driver import executor
-from analysis_driver.executor import script_writers
+from analysis_driver.executor import script_writers, Executor, StreamExecutor, ArrayExecutor
+from analysis_driver.executor.executor import ClusterExecutor
 from analysis_driver.exceptions import AnalysisDriverError
-from analysis_driver.config import default as cfg
 
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 
@@ -31,19 +29,6 @@ class TestScriptWriter(TestAnalysisDriver):
             [l.rstrip('\n') for l in self.script_writer.lines],
             [l.rstrip('\n') for l in self.exp_header + expected]
         )
-
-    def test_get_script_writer(self):
-        old_job_execution = cfg['job_execution']
-        assert isinstance(
-            script_writers.get_script_writer('a_job', os.path.join(cfg['jobs_dir'], 'a_run_id')),
-            script_writers.PBSWriter
-        )
-        cfg.content['job_execution'] = 'local'
-        assert isinstance(
-            script_writers.get_script_writer('a_job', os.path.join(cfg['jobs_dir'], 'a_run_id')),
-            script_writers.ScriptWriter
-        )
-        cfg.content['job_execution'] = old_job_execution
 
     def test_write_line(self):
         self.script_writer.write_line('a_line')
@@ -124,20 +109,22 @@ class TestPBSWriter(TestScriptWriter):
             'a_job_name',
             self.working_dir,
             'a_job_queue',
+            walltime=3,
             cpus=2,
             mem=1,
-            walltime=3,
-            jobs=1
+            jobs=1,
+            log_commands=True
         )
         self.exp_header = [
             '#!/bin/bash\n',
             '#PBS -l ncpus=2,mem=1gb',
-            '#PBS -l walltime=3:00:00',
-            '#PBS -N a_job_name',
             '#PBS -q a_job_queue',
             '#PBS -j oe',
             '#PBS -o ' + os.path.join(self.working_dir, 'a_job_name.log'),
             '#PBS -W block=true',
+            '#PBS -l walltime=3:00:00',
+            '#PBS -N a_job_name',
+            'cd $PBS_O_WORKDIR',
             ''
         ]
 
@@ -149,18 +136,21 @@ class TestPBSWriter(TestScriptWriter):
             'a_job_name',
             self.working_dir,
             'a_job_queue',
+            walltime=None,
             cpus=2,
             mem=1,
-            jobs=1
+            jobs=1,
+            log_commands=True
         )
-        exp_header = self.exp_header = [
+        exp_header = [
             '#!/bin/bash\n',
             '#PBS -l ncpus=2,mem=1gb',
-            '#PBS -N a_job_name',
             '#PBS -q a_job_queue',
             '#PBS -j oe',
             '#PBS -o ' + os.path.join(self.working_dir, 'a_job_name.log'),
             '#PBS -W block=true',
+            '#PBS -N a_job_name',
+            'cd $PBS_O_WORKDIR',
             ''
         ]
         self.compare_lists(script_writer.lines, exp_header)
@@ -178,7 +168,7 @@ class TestPBSWriter(TestScriptWriter):
 
 class TestExecutor(TestAnalysisDriver):
     def _get_executor(self, cmd):
-        return executor.Executor(cmd)
+        return Executor(cmd)
 
     def test_cmd(self):
         e = self._get_executor('ls ' + os.path.join(self.assets_path, '..'))
@@ -200,7 +190,7 @@ class TestExecutor(TestAnalysisDriver):
 
 class TestStreamExecutor(TestExecutor):
     def _get_executor(self, cmd):
-        return executor.StreamExecutor(cmd)
+        return StreamExecutor(cmd)
 
     def test_cmd(self):
         e = self._get_executor(os.path.join(self.assets_path, 'countdown.sh'))
@@ -222,7 +212,7 @@ class TestStreamExecutor(TestExecutor):
 
 class TestArrayExecutor(TestExecutor):
     def _get_executor(self, cmds):
-        return executor.ArrayExecutor(cmds, stream=True)
+        return ArrayExecutor(cmds, stream=True)
 
     def test_cmd(self):
         e = self._get_executor(['ls', 'ls -lh', 'pwd'])
@@ -238,22 +228,24 @@ class TestArrayExecutor(TestExecutor):
             assert 'Commands failed' in str(err)
 
 
-class TestClusterExecutor(TestExecutor):
+class TestClusterExecutor(TestAnalysisDriver):
     def setUp(self):
         os.makedirs(os.path.join(self.assets_path, 'a_run_id'), exist_ok=True)
 
     def tearDown(self):
         shutil.rmtree(os.path.join(self.assets_path, 'a_run_id'))
 
+    def test_get_stdout(self):
+        assert ClusterExecutor._get_stdout('ls -d ' + self.assets_path).endswith('tests/assets\n')
+
     def _get_executor(self, cmd):
-        return executor.ClusterExecutor(
-            [cmd],
-            qsub=cfg.query('tools', 'qsub'),
+        return ClusterExecutor(
+            cmd,
             job_name='test_job',
             working_dir=os.path.join(self.assets_path, 'a_run_id')
         )
 
-    def test_cmd(self):
+    '''def test_cmd(self):
         e = self._get_executor(os.path.join(self.assets_path, 'countdown.sh'))
         e.start()
         assert e.join() == 0
@@ -261,10 +253,4 @@ class TestClusterExecutor(TestExecutor):
     def test_dodgy_cmd(self):
         e = self._get_executor(os.path.join(self.assets_path, 'non_existent_script.sh'))
         e.start()
-        assert e.join() == 127
-
-    def test_process(self):
-        e = self._get_executor(os.path.join(self.assets_path, 'countdown.sh'))
-        proc = e._process()
-        assert type(proc) is subprocess.Popen
-        assert proc.args == [cfg['tools']['qsub'], os.path.join(self.assets_path, 'a_run_id', 'test_job.pbs')]
+        assert e.join() == 127'''
