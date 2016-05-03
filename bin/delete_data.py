@@ -61,7 +61,7 @@ class RawDataDeleter(Deleter):
         self.list_runs = list_runs
 
     def deletable_runs(self):
-        runs = rest_communication.get_documents('aggregate/all_runs', quiet=True, sort=ELEMENT_RUN_NAME)
+        runs = rest_communication.get_documents('aggregate/all_runs', depaginate=True, quiet=True, sort=ELEMENT_RUN_NAME)
         deletable_runs = []
         for r in runs:
             if self.list_runs and r[ELEMENT_RUN_NAME] in self.list_runs:
