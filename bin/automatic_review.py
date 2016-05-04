@@ -10,23 +10,6 @@ class RunReview():
     def __init__(self, run_element_by_lane):
         self.run_element_by_lane = run_element_by_lane
 
-    #def read_run(self):
-    #    return rest_communication.get_documents(
-    #        'aggregate/all_runs',
-    #        match={"run_id":self.run_name}
-    #    )
-
-    #def read_lanes(self):
-    #    return rest_communication.get_documents(
-    #        'aggregate/run_elements',
-    #        match={"run_id":self.run_name}
-    #    )
-
-    #def run_metrics(self):
-    #    for r in self.run:
-    #        proc_status = str(r.get("proc_status"))
-    #        return proc_status
-
     def lanes_metrics(self):
         lane_metrics = {}
         for r in self.run_element_by_lane:
@@ -75,12 +58,6 @@ class SampleReview():
 
     def __init__(self, sample):
         self.sample = sample
-
-    #def read_sample(self):
-    #    return rest_communication.get_documents(
-    #        'aggregate/samples',
-    #        match={"sample_id":self.sample_name}
-    #    )
 
     def sample_metrics(self):
         for r in self.sample:
@@ -229,7 +206,4 @@ class AutomaticSampleReview(SampleReview):
 
 
 
-
-#s = AutomaticSampleReview('LP1251551__C_04')
-#sample_review = s.patch_entry()
 

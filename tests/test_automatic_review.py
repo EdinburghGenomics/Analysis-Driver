@@ -1,7 +1,4 @@
-import os
-from unittest.mock import patch
 from bin import automatic_review
-
 
 class TestAutomaticReview():
 
@@ -137,15 +134,8 @@ class TestAutomaticReview():
 
 
 
-    @property
-    def assets_path(self):
-        assets_path = os.path.join(os.path.dirname(__file__), 'assets')
-        return assets_path
-
-
     def test_lanes_metrics(self):
-        run_elements_by_lane = self.run_elements_by_lane
-        r = automatic_review.RunReview(run_elements_by_lane)
+        r = automatic_review.RunReview(self.run_elements_by_lane)
         lanes_metrics = r.lanes_metrics()
         assert lanes_metrics == {'1': {'pc_pass_filter': '71.8279444985581', 'pc_q30': '88.72861682758966', 'yield_in_gb': '133.8609501'},
                                  '8': {'pc_pass_filter': '78.96388535900994', 'pc_q30': '88.3062505602416', 'yield_in_gb': '147.1597272'},
@@ -156,10 +146,8 @@ class TestAutomaticReview():
                                  '3': {'pc_pass_filter': '75.88250499141111', 'pc_q30': '88.23926437017273', 'yield_in_gb': '141.4171641'},
                                  '2': {'pc_pass_filter': '75.21335243228363', 'pc_q30': '88.39428342072968', 'yield_in_gb': '140.1701091'}}
 
-
     def test_run_review(self):
-        run_elements_by_lane = self.run_elements_by_lane
-        r = automatic_review.RunReview(run_elements_by_lane)
+        r = automatic_review.RunReview(self.run_elements_by_lane)
         run_review  = r.run_review()
         assert run_review == {'8': ['fail', ['yield_in_gb']],
                               '4': ['fail', ['yield_in_gb']],
@@ -170,5 +158,31 @@ class TestAutomaticReview():
                               '3': ['fail', ['yield_in_gb']],
                               '2': ['fail', ['yield_in_gb']]}
 
+
+    def test_sample_metrics(self):
+        s = automatic_review.SampleReview(self.samples)
+        sample_metrics = s.sample_metrics()
+        assert sample_metrics == ('LP1251551__C_04',
+                                  '114.3112086',
+                                  '89.332777716',
+                                  '97.18554753953777',
+                                  '30.156',
+                                  '16.20116410973783',
+                                  '3',
+                                  '0',
+                                  'male',
+                                  'male')
+
+    def test_sample_review(self):
+        s = automatic_review.SampleReview(self.samples)
+        sample_review = s.sample_review()
+        sample_id = (list(sample_review.keys())[0])
+        sample_review = (list(sample_review.values())[0])
+        review_status = (sample_review[0])
+        failed_fields = (sample_review[1])
+
+        assert sample_id == 'LP1251551__C_04'
+        assert review_status == 'fail'
+        assert set(failed_fields) == {'clean_yield_q30', 'clean_yield_in_gb'}
 
 
