@@ -50,28 +50,28 @@ fake_run_elements_procs_running = [
         'run_element_id': 'unreviewed_run_element',
         'run_id': 'unreviewed_run',
         'review_statuses': ['not reviewed'],
-        'analysis_driver_procs': [running_proc]
+        'most_recent_proc': running_proc
     },
     {
         # not deletable
         'run_element_id': 'partially_unreviewed_run_element',
         'run_id': 'partially_unreviewed_run',
         'review_statuses': ['not reviewed', 'pass'],
-        'analysis_driver_procs': [running_proc]
+        'most_recent_proc': running_proc
     },
     {
         # not deletable
         'run_element_id': 'passed_run_element',
         'run_id': 'passed_run',
         'review_statuses': ['pass'],
-        'analysis_driver_procs': [running_proc]
+        'most_recent_proc': running_proc
     },
     {
         # not deletable
         'run_element_id': 'failed_run_element',
         'run_id': 'failed_run',
         'review_statuses': ['fail'],
-        'analysis_driver_procs': [running_proc]
+        'most_recent_proc': running_proc
     }
 ]
 
@@ -82,21 +82,21 @@ fake_run_elements_procs_complete = [
         'run_element_id': 'unreviewed_run_element',
         'run_id': 'unreviewed_run',
         'review_statuses': ['not reviewed', 'pass'],
-        'analysis_driver_procs': [running_proc, finished_proc]
+        'most_recent_proc': finished_proc
     },
     {
         # deletable
         'run_element_id': 'passed_run_element',
         'run_id': 'passed_run',
         'review_statuses': ['pass'],
-        'analysis_driver_procs': [running_proc, finished_proc]
+        'most_recent_proc': finished_proc
     },
     {
         # deletable
         'run_element_id': 'failed_run_element',
         'run_id': 'failed_run',
         'review_statuses': ['fail'],
-        'analysis_driver_procs': [running_proc, aborted_proc]
+        'most_recent_proc': aborted_proc
     }
 
 ]
@@ -104,15 +104,7 @@ fake_run_elements_procs_complete = [
 patched_patch_entry = patch('bin.delete_data.rest_communication.patch_entry')
 patched_deletable_runs = patch(
     'bin.delete_data.RawDataDeleter.deletable_runs',
-    return_value=[
-        {
-            'run_id': 'deletable_run',
-            'analysis_driver_procs': [
-                {'proc_id': 'first_proc'},
-                {'proc_id': 'most_recent_proc'}
-            ]
-        }
-    ]
+    return_value=[{'run_id': 'deletable_run', 'most_recent_proc': {'proc_id': 'most_recent_proc'}}]
 )
 
 
@@ -149,17 +141,17 @@ class TestRawDataDeleter(TestDeleter):
 
         with patch(patch_target, return_value=fake_run_elements_no_procs) as p:
             runs = self.deleter.deletable_runs()
-            p.assert_called_with('runs', depaginate=True, **expected_rest_query)
+            p.assert_called_with('aggregate/all_runs', sort='run_id')
             assert runs == []
 
         with patch(patch_target, return_value=fake_run_elements_procs_running) as p:
             runs = self.deleter.deletable_runs()
-            p.assert_called_with('runs', depaginate=True, **expected_rest_query)
+            p.assert_called_with('aggregate/all_runs', sort='run_id')
             assert runs == []
 
         with patch(patch_target, return_value=fake_run_elements_procs_complete) as p:
             runs = self.deleter.deletable_runs()
-            p.assert_called_with('runs', depaginate=True, **expected_rest_query)
+            p.assert_called_with('aggregate/all_runs', sort='run_id')
             assert runs == fake_run_elements_procs_complete[1:]
 
     def test_setup_run_for_deletion(self):
@@ -187,17 +179,14 @@ class TestRawDataDeleter(TestDeleter):
     def test_mark_run_as_deleted(self, mocked_patch):
         run_object = {
             'run_id': 'a_run',
-            'analysis_driver_procs': [
-                {'proc_id': 'first_proc'},
-                {'proc_id': 'most_recent_proc'}
-            ]
+            'most_recent_proc': {'proc_id': 'a_most_recent_proc'}
         }
         self.deleter.mark_run_as_deleted(run_object)
         mocked_patch.assert_called_with(
             'analysis_driver_procs',
             {'status': 'deleted'},
             'proc_id',
-            'most_recent_proc'
+            'a_most_recent_proc'
         )
 
     def test_archive_run(self):

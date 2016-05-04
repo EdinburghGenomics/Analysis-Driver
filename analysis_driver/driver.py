@@ -205,20 +205,21 @@ def variant_calling_pipeline(dataset):
     dataset.start_stage('species contamination check')
     species_contamination_check = qc.ContaminationCheck(dataset, sample_dir, [fastq_pair[0]])
     species_contamination_check.start()
-    species_contamination_check.join()
-    dataset.end_stage('species contamination check', species_contamination_check.exit_status)
 
     # bcbio
     dataset.start_stage('bcbio')
     bcbio_executor = _run_bcbio(sample_id, sample_dir, fastq_pair)
 
-    # wait for genotype_validation fastqc and bcbio to finish
+    # wait for genotype_validation, fastqc, species_contamination and bcbio to finish
     geno_valid_vcf_file, geno_valid_results = genotype_validation.join()
     app_logger.info('Written files: ' + str(geno_valid_vcf_file) + ' ' + str(geno_valid_results))
     dataset.end_stage('genotype validation', genotype_validation.exit_status)
 
     fastqc2_exit_status = fastqc2_executor.join()
     dataset.end_stage('sample_fastqc', fastqc2_exit_status)
+
+    species_contamination_check.join()
+    dataset.end_stage('species contamination check', species_contamination_check.exit_status)
 
     bcbio_exit_status = bcbio_executor.join()
     dataset.end_stage('bcbio', bcbio_exit_status)
@@ -229,7 +230,7 @@ def variant_calling_pipeline(dataset):
 
     exit_status += fastqc2_exit_status + bcbio_exit_status
 
-    #link the bcbio file into the final directory
+    # link the bcbio file into the final directory
     dir_with_linked_files = _link_results_files(sample_id, sample_dir, 'bcbio')
 
     user_sample_id = clarity.get_user_sample_name(sample_id, lenient=True)
@@ -238,18 +239,20 @@ def variant_calling_pipeline(dataset):
     gender_validation = qc.GenderValidation(dataset, sample_dir, vcf_file)
     gender_validation.start()
 
-    #sample contamination check
+    # sample contamination check
     bam_file = os.path.join(dir_with_linked_files, user_sample_id + '.bam')
     sample_contam = qc.VerifyBamId(dataset, sample_dir, bam_file)
     sample_contam.start()
-    exit_status += sample_contam.join()
-    exit_status += gender_validation.join()
 
+    #coverage statistics
     dataset.start_stage('coverage statistics')
-    bam_file = os.path.join(dir_with_linked_files, user_sample_id + '.bam')
     coverage_statistics_histogram = qc.SamtoolsDepth(dataset, sample_dir, bam_file)
     coverage_statistics_histogram.start()
+
+    exit_status += sample_contam.join()
+    exit_status += gender_validation.join()
     coverage_statistics_histogram.join()
+    exit_status += coverage_statistics_histogram.exit_status
     dataset.end_stage('coverage statistics', coverage_statistics_histogram.exit_status)
 
     exit_status += _output_data(dataset, sample_dir, sample_id, dir_with_linked_files)
@@ -331,19 +334,20 @@ def qc_pipeline(dataset, species):
 
     exit_status += fastqc_exit_status + bwa_exit_status + bamtools_exit_status
 
-    #link the bcbio file into the final directory
+    # link the bcbio file into the final directory
     dir_with_linked_files = _link_results_files(sample_id, sample_dir, 'non_human_qc')
 
     exit_status += _output_data(dataset, sample_dir, sample_id, dir_with_linked_files)
 
     return exit_status
 
+
 def _link_results_files(sample_id, sample_dir, output_fileset):
     dir_with_linked_files = os.path.join(sample_dir, 'linked_output_files')
     os.makedirs(dir_with_linked_files, exist_ok=True)
 
     # Create the links from the bcbio output to one directory
-    linked_files = create_links_from_bcbio(
+    create_links_from_bcbio(
         sample_id,
         sample_dir,
         output_files_config.query(output_fileset),
@@ -351,11 +355,12 @@ def _link_results_files(sample_id, sample_dir, output_fileset):
     )
     return dir_with_linked_files
 
+
 def _output_data(dataset, sample_dir, sample_id, dir_with_linked_files):
     exit_status = 0
 
     # upload the data to the rest API
-    project_id = clarity.find_project_from_sample(sample_id)
+    project_id = clarity.find_project_name_from_sample(sample_id)
     c = SampleCrawler(sample_id, project_id, dir_with_linked_files)
     c.send_data()
 
