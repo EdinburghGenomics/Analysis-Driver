@@ -5,7 +5,8 @@ from analysis_driver.clarity import get_sample_gender, get_user_sample_name
 from analysis_driver.app_logging import AppLogger
 from analysis_driver.exceptions import PipelineError
 from analysis_driver.reader import demultiplexing_parsers, mapping_stats_parsers
-from analysis_driver.reader.demultiplexing_parsers import get_fastqscreen_results, get_coverage_statistics
+from analysis_driver.reader.demultiplexing_parsers import get_fastqscreen_results, get_coverage_statistics, \
+    parse_welldup_file
 from analysis_driver.rest_communication import post_or_patch as pp
 from analysis_driver.reader.mapping_stats_parsers import parse_and_aggregate_genotype_concordance,\
     parse_vbi_selfSM
@@ -20,7 +21,7 @@ from analysis_driver.constants import ELEMENT_RUN_NAME, ELEMENT_NUMBER_LANE, ELE
     ELEMENT_SPECIES_CONTAMINATION, ELEMENT_NB_BASE_R2_CLEANED, ELEMENT_NB_Q30_R2_CLEANED, ELEMENT_NB_BASE_R1_CLEANED, \
     ELEMENT_GENOTYPE_VALIDATION, ELEMENT_COVERAGE_STATISTICS, ELEMENT_MEAN_COVERAGE, ELEMENT_MEDIAN_COVERAGE_SAMTOOLS, ELEMENT_COVERAGE_SD, \
     ELEMENT_FREEMIX, ELEMENT_SAMPLE_CONTAMINATION, ELEMENT_GENDER_VALIDATION, \
-    ELEMENT_GENDER_HETX
+    ELEMENT_GENDER_HETX, ELEMENT_LANE_PC_OPT_DUP
 
 
 class Crawler(AppLogger):
@@ -41,6 +42,10 @@ class RunCrawler(Crawler):
             self._populate_barcode_info_from_conversion_file(conversion_xml_file)
         if run_dir:
             self._populate_barcode_info_from_seqtk_fqchk_files(run_dir)
+        if run_dir:
+            welldup_file = util.find_files(run_dir, 'fastq', run_id + '.wellduplicate')
+            if welldup_file:
+                self._populate_barcode_info_from_well_dup(welldup_file)
 
     @staticmethod
     def _update_doc_list(d, k, v):
@@ -173,6 +178,13 @@ class RunCrawler(Crawler):
                 barcode_info[ELEMENT_NB_Q30_R2_CLEANED] = 0
             else:
                 raise PipelineError('%s fqchk files found in %s for %s' % (len(fq_chk_files), run_dir, run_element_id))
+
+    def _populate_barcode_info_from_well_dup(self, welldup_file):
+        dup_per_lane = parse_welldup_file(welldup_file)
+        for run_element_id in self.barcodes_info:
+            barcode_info = self.barcodes_info.get(run_element_id)
+            lane = barcode_info.get(ELEMENT_LANE)
+            barcode_info[ELEMENT_LANE_PC_OPT_DUP] = dup_per_lane[int(lane)]
 
     def _populate_barcode_info_from_conversion_file(self, conversion_xml):
         all_barcodes, top_unknown_barcodes, all_barcodeless = demultiplexing_parsers.parse_conversion_stats(conversion_xml, self.samplesheet.has_barcode)
