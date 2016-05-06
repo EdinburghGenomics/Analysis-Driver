@@ -195,7 +195,8 @@ class MostRecentProc:
                 sort='-_created'
             )
             if procs:
-                self._entity = procs[0]
+                #Remove the private (starting with _ ) fields from the dict
+                self._entity = {k: v for k, v in procs[0].items() if not k.startswith('_')}
             else:
                 self.initialise_entity()
         return self._entity
