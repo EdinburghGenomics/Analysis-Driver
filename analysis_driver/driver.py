@@ -87,6 +87,7 @@ def demultiplexing_pipeline(dataset):
     # well duplicates
     # This could be executed at the same time as bcl2fastq but I need the fastq directory to exist
     well_dup_exec = WellDuplicates(dataset, job_dir, fastq_dir, input_run_folder)
+    well_dup_exec.start()
 
     # Filter the adapter dimer from fastq with sickle
     dataset.start_stage('sickle_filter')
