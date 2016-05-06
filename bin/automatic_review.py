@@ -14,10 +14,10 @@ class RunReview():
         lane_metrics = {}
         for r in self.run_element_by_lane:
             metrics_per_lane = {}
-            lane = str(r.get('lane_number'))
-            metrics_per_lane['yield_in_gb'] = str(r.get('yield_in_gb'))
-            metrics_per_lane['pc_q30'] = str(r.get('pc_q30'))
-            metrics_per_lane['pc_pass_filter'] = str(r.get('pc_pass_filter'))
+            lane = (r.get('lane_number'))
+            metrics_per_lane['yield_in_gb'] = r.get('yield_in_gb')
+            metrics_per_lane['pc_q30'] = r.get('pc_q30')
+            metrics_per_lane['pc_pass_filter'] = r.get('pc_pass_filter')
             lane_metrics[lane] = metrics_per_lane
         return lane_metrics
 
@@ -58,7 +58,6 @@ class SampleReview():
 
     def __init__(self, sample):
         self.sample = sample
-
     def sample_metrics(self):
         for r in self.sample:
             sample_id = str(r.get('sample_id'))
@@ -169,19 +168,19 @@ class AutomaticRunReview(RunReview):
                     patch_review['reviewed'] = 'pass'
                     rest_communication.patch_entries('run_elements', payload=patch_review, update_lists=None, where={"run_id":self.run_name, "lane": lane})
                 elif review == 'fail':
-                    review_comments = ('lane ' + lane + ' failed due to ' + ' '.join(run_review[lane][1]))
-
+                    review_comments = ('lane ' + str(lane) + ' failed due to ' + ' '.join(run_review[lane][1]))
                     patch_review['reviewed'] = 'fail'
                     patch_comments[ELEMENT_REVIEW_COMMENTS] = review_comments
-                    rest_communication.patch_entries('run_elements', payload=patch_review, update_lists=None, where={"run_id":self.run_name, "lane": lane})
-                    rest_communication.patch_entries('run_elements', payload=patch_comments, update_lists=None, where={"run_id":self.run_name, "lane": lane})
+                    rest_communication.patch_entries('run_elements', payload=patch_review, update_lists=None, where={"run_id":self.run_name, "lane": (lane)})
+                    rest_communication.patch_entries('run_elements', payload=patch_comments, update_lists=None, where={"run_id":self.run_name, "lane": (lane)})
 
 
 
 class AutomaticSampleReview(SampleReview):
-    def __init__(self, sample_name):
+    def __init__(self, sample_name, sample):
+        self.sample = sample
         self.sample_name = sample_name
-        super().__init__(sample_name)
+        super().__init__(sample)
 
     def patch_entry(self):
         sample_review = self.sample_review()
@@ -194,7 +193,7 @@ class AutomaticSampleReview(SampleReview):
 
             if review == 'pass':
                 patch_review['reviewed'] = 'pass'
-                rest_communication.patch_entries('samples', payload=patch_review, update_lists=None, where={"sample_id": self.sample_name})
+                rest_communication.patch_entries('samples', payload=patch_review, update_lists=None, where={"sample_id": self.sample})
 
             else:
                 patch_review['reviewed'] = 'fail'
@@ -203,7 +202,6 @@ class AutomaticSampleReview(SampleReview):
                 rest_communication.patch_entries('samples', payload=patch_comments, update_lists=None, where={"sample_id": self.sample_name})
 
 
-
-
-
+run_name = '160415_E00375_0091_BHFHWFCCXX'
+runs = rest_communication.get_documents('aggregate/run_elements_by_lane', match={"run_id":run_name})
 
