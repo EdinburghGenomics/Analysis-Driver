@@ -68,10 +68,6 @@ def demultiplexing_pipeline(dataset):
         app_logger.error('Run status is \'%s\'. Stopping.', run_status)
         raise SequencingRunError(run_status)
 
-    # well duplicates
-    well_dup_exec = WellDuplicates(dataset, fastq_dir, input_run_folder)
-
-
     # bcl2fastq
     mask = sample_sheet.generate_mask(run_info.mask)
     app_logger.info('bcl2fastq mask: ' + mask)  # e.g: mask = 'y150n,i6,y150n'
