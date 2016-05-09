@@ -43,9 +43,9 @@ class RunCrawler(Crawler):
         if run_dir:
             self._populate_barcode_info_from_seqtk_fqchk_files(run_dir)
         if run_dir:
-            welldup_file = util.find_files(run_dir, 'fastq', run_id + '.wellduplicate')
-            if welldup_file:
-                self._populate_barcode_info_from_well_dup(welldup_file)
+            welldup_files = util.find_files(run_dir, 'fastq', run_id + '.wellduplicate')
+            if welldup_files:
+                self._populate_barcode_info_from_well_dup(welldup_files[0])
 
     @staticmethod
     def _update_doc_list(d, k, v):
