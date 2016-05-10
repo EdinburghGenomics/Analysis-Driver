@@ -1,4 +1,5 @@
 import os
+import threading
 from datetime import datetime
 from analysis_driver import rest_communication
 from analysis_driver.notification import default as ntf
@@ -179,6 +180,7 @@ class SampleDataset(Dataset):
 
 class MostRecentProc:
     def __init__(self, dataset_type, dataset_name, initial_content=None):
+        self.lock = threading.Lock()
         self.dataset_type = dataset_type
         self.dataset_name = dataset_name
         if initial_content:
@@ -195,7 +197,8 @@ class MostRecentProc:
                 sort='-_created'
             )
             if procs:
-                self._entity = procs[0]
+                #Remove the private (starting with _ ) fields from the dict
+                self._entity = {k: v for k, v in procs[0].items() if not k.startswith('_')}
             else:
                 self.initialise_entity()
         return self._entity
@@ -230,8 +233,9 @@ class MostRecentProc:
             raise RestCommunicationError('Sync failed: ' + str(patch_content))
 
     def update_entity(self, **kwargs):
-        self.entity.update(kwargs)
-        self.sync()
+        with self.lock:
+            self.entity.update(kwargs)
+            self.sync()
 
     def change_status(self, status):
         self.update_entity(status=status)

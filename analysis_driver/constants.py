@@ -24,6 +24,7 @@ ELEMENT_NB_BASE_R1_CLEANED = 'clean_bases_r1'
 ELEMENT_NB_BASE_R2_CLEANED = 'clean_bases_r2'
 ELEMENT_NB_Q30_R1_CLEANED = 'clean_q30_bases_r1'
 ELEMENT_NB_Q30_R2_CLEANED = 'clean_q30_bases_r2'
+ELEMENT_LANE_PC_OPT_DUP = 'lane_pc_optical_dups'
 ELEMENT_FASTQC_REPORT_R1 = 'fastqc_report_r1'
 ELEMENT_FASTQC_REPORT_R2 = 'fastqc_report_r2'
 

@@ -39,7 +39,7 @@ default:
         tabix: path/to/tabix
         fastqscreen: path/to/fastqscreen
         verifybamid: path/to/verifybamid
-
+        well_duplicate: path/to/well_duplicate
 
     logging:
         format: '[%(asctime)s][%(name)s][%(levelname)s] %(message)s'
@@ -67,3 +67,6 @@ default:
     contamination-check:
       fastqscreen_conf: path/to/fastqscreen/conf
       population_vcf:   path/to/population_vcf
+
+    well_duplicate:
+      coord_file: path/to/coord_file

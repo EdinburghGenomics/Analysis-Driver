@@ -7,6 +7,7 @@ from analysis_driver.dataset_scanner import RunDataset, SampleDataset
 from analysis_driver.exceptions import PipelineError, SequencingRunError
 from analysis_driver.app_logging import logging_default as log_cfg
 from analysis_driver.config import output_files_config, default as cfg
+from analysis_driver.quality_control.lane_duplicates import WellDuplicates
 from analysis_driver.report_generation.report_crawlers import RunCrawler, SampleCrawler
 from analysis_driver.transfer_data import prepare_run_data, prepare_sample_data, output_sample_data,\
     output_run_data, create_links_from_bcbio
@@ -83,6 +84,11 @@ def demultiplexing_pipeline(dataset):
     if exit_status:
         return exit_status
 
+    # well duplicates
+    # This could be executed at the same time as bcl2fastq but I need the fastq directory to exist
+    well_dup_exec = WellDuplicates(dataset, job_dir, fastq_dir, input_run_folder)
+    well_dup_exec.start()
+
     # Filter the adapter dimer from fastq with sickle
     dataset.start_stage('sickle_filter')
     exit_status = executor.execute(
@@ -93,6 +99,11 @@ def demultiplexing_pipeline(dataset):
         mem=2
     ).join()
     dataset.end_stage('sickle_filter', exit_status)
+    if exit_status:
+        return exit_status
+
+
+    exit_status += well_dup_exec.join()
     if exit_status:
         return exit_status
 
