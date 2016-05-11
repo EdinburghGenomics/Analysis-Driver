@@ -111,3 +111,4 @@ default = EnvConfiguration(
 )
 output_files_config = Configuration([_etc_config('output_files.yaml')])
 sample_sheet_config = Configuration([_etc_config('sample_sheet_cfg.yaml')])
+review_thresholds_config = Configuration([_etc_config('review_thresholds.yaml')])

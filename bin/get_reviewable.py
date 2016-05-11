@@ -4,4 +4,4 @@ from bin import automatic_review
 from analysis_driver import rest_communication
 
 def get_reviewable_runs():
-    runs = rest_communication.get_documents('aggregate/all_runs', match={"proc_status":"finished"})
+    runs = rest_communication.get_documents('aggregate/all_runs', match={"proc_status":"finished","review_statuses":"not_reviewed"})

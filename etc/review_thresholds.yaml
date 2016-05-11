@@ -1,13 +1,13 @@
 run:
-   'yield_in_gb' : { min: 960 }
-    'pc_q30': { min: 75 }
-    'pc_pass_filter': { min: 50}
+    yield_in_gb:         120
+    pc_q30:              75
+    pc_pass_filter:      50
 
 sample:
-    'clean_yield_in_gb': { min: 120}
-    'clean_yield_q30': { min: 95}
-    'pc_mapped_reads': { min: 90}
-    'median_coverage': { min: 30}
-    'pc_duplicate_reads': { max: 35}
-    'mismatching_snps': { max: 5}
-    'no_call_seq': { max: 10}
+    clean_yield_in_gb:   120
+    clean_yield_q30:     95
+    pc_mapped_reads:     90
+    median_coverage:     30
+    pc_duplicate_reads:  35
+    mismatching_snps:    5
+    no_call_seq:         10
