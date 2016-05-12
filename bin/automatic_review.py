@@ -8,16 +8,18 @@ from analysis_driver.config import review_thresholds_config as cfg
 
 def main():
     args = _parse_args()
-    args.func(args)
+    if args.run_review:
+        get_reviewable_runs()
+    elif args.sample_review:
+        get_reviewable_samples()
+
 
 def _parse_args():
     parser = argparse.ArgumentParser()
-    subparsers = parser.add_subparsers()
-    run_parser = subparsers.add_parser('run_review')
-    run_parser.set_defaults(func=get_reviewable_runs)
-
-    sample_parser = subparsers.add_parser('sample_review')
-    sample_parser.set_defaults(func=get_reviewable_samples)
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument('--run_review', action='store_true')
+    group.add_argument('--sample_review', action='store_true')
+    return parser.parse_args()
 
 class RunReview():
     def __init__(self, run_element_by_lane):
