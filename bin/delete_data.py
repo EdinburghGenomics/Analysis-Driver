@@ -7,7 +7,6 @@ import logging
 import sys
 from os.path import dirname, abspath
 sys.path.append(dirname(dirname(abspath(__file__))))
-from analysis_driver import rest_communication, executor, clarity, util
 from analysis_driver.exceptions import AnalysisDriverError
 from analysis_driver.config import default as cfg
 from analysis_driver.app_logging import AppLogger, logging_default as log_cfg
@@ -287,7 +286,7 @@ class DeliveredDataDeleter(Deleter):
             self._setup_sample_for_deletion(s['project_id'], s['sample_id'])
 
     def _setup_sample_for_deletion(self, project_id, sample_id):
-        release_folders = util.find_files(cfg['data_deletion']['delivered_data'], project_id, '*', sample_id)
+        release_folders = util.find_files(self.data_dir, project_id, '*', sample_id)
         if len(release_folders) != 1:
             self.warning(
                 'Found %s deletable directories for sample %s: %s',
@@ -305,7 +304,7 @@ class DeliveredDataDeleter(Deleter):
             self._execute('rm -r ' + d)
 
     def _cleanup_empty_dirs(self, project_id):
-        project_folder = p_join(cfg['data_deletion']['delivered_data'], project_id)
+        project_folder = p_join(self.data_dir, project_id)
         for release_dir in listdir(project_folder):
             self._try_delete_empty_dir(p_join(project_folder, release_dir))
         self._try_delete_empty_dir(project_folder)
