@@ -211,7 +211,7 @@ class AutomaticSampleReview(SampleReview):
                 rest_communication.patch_entries('samples', payload=patch_comments, update_lists=None, where={"sample_id": self.sample_name})
 
 def get_reviewable_runs():
-    runs = rest_communication.get_documents('aggregate/all_runs', match={"proc_status":"finished","review_statuses":"fail"})
+    runs = rest_communication.get_documents('aggregate/all_runs', depaginate=True, match={"proc_status":"finished","review_statuses":"not%20reviewed"})
     for run in runs:
         run_id = run.get('run_id')
         run_elements_by_lane = rest_communication.get_documents('aggregate/run_elements_by_lane', match={"run_id":run_id})
@@ -219,7 +219,7 @@ def get_reviewable_runs():
         run_review = r.patch_entry()
 
 def get_reviewable_samples():
-    samples = rest_communication.get_documents('aggregate/samples', match={"proc_status":"finished","reviewed":"not%20reviewed"})
+    samples = rest_communication.get_documents('aggregate/samples', depaginate=True,  match={"proc_status":"finished","reviewed":"not%20reviewed"})
     for sp in samples:
         sample_id = sp.get('sample_id')
         sample = rest_communication.get_documents('aggregate/samples', match={"sample_id":sample_id})
