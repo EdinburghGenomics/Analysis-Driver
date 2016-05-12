@@ -1,16 +1,28 @@
 import os
 import sys
+import argparse
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from analysis_driver import rest_communication
 from analysis_driver.constants import ELEMENT_REVIEW_COMMENTS
 from analysis_driver.config import review_thresholds_config as cfg
 
+def main():
+    args = _parse_args()
+    args.func(args)
+
+def _parse_args():
+    parser = argparse.ArgumentParser()
+    subparsers = parser.add_subparsers()
+    run_parser = subparsers.add_parser('run_review')
+    run_parser.set_defaults(func=get_reviewable_runs)
+
+    sample_parser = subparsers.add_parser('sample_review')
+    sample_parser.set_defaults(func=get_reviewable_samples)
+
 class RunReview():
     def __init__(self, run_element_by_lane):
         self.run_element_by_lane = run_element_by_lane
         self.run_config = cfg.get('run')
-
-
 
     def lanes_metrics(self):
         lane_metrics = {}
@@ -54,8 +66,6 @@ class RunReview():
                 run_review[lane] = ['fail', failed_metrics]
         return run_review
 
-
-
 class SampleReview():
 
     def __init__(self, sample):
@@ -81,10 +91,6 @@ class SampleReview():
                    genotype_validation, \
                    called_gender, \
                    provided_gender
-
-
-
-
 
     def sample_review(self):
         sample_id,\
@@ -149,7 +155,6 @@ class SampleReview():
             sample_review[sample_id] = ['fail', failed_metrics]
         return sample_review
 
-
 class AutomaticRunReview(RunReview):
     def __init__(self, run_name, run_element_by_lane):
         self.run_name = run_name
@@ -175,15 +180,11 @@ class AutomaticRunReview(RunReview):
                     rest_communication.patch_entries('run_elements', payload=patch_review, update_lists=None, where={"run_id":self.run_name, "lane": (lane)})
                     rest_communication.patch_entries('run_elements', payload=patch_comments, update_lists=None, where={"run_id":self.run_name, "lane": (lane)})
 
-
-
 class AutomaticSampleReview(SampleReview):
     def __init__(self, sample_name, sample):
         self.sample = sample
         self.sample_name = sample_name
         super().__init__(sample)
-
-
 
     def patch_entry(self):
         sample_review = self.sample_review()
@@ -207,8 +208,6 @@ class AutomaticSampleReview(SampleReview):
                 rest_communication.patch_entries('samples', payload=patch_review, update_lists=None, where={"sample_id": self.sample_name})
                 rest_communication.patch_entries('samples', payload=patch_comments, update_lists=None, where={"sample_id": self.sample_name})
 
-
-
 def get_reviewable_runs():
     runs = rest_communication.get_documents('aggregate/all_runs', match={"proc_status":"finished","review_statuses":"fail"})
     for run in runs:
@@ -224,4 +223,8 @@ def get_reviewable_samples():
         sample = rest_communication.get_documents('aggregate/samples', match={"sample_id":sample_id})
         s = AutomaticSampleReview(sample_id, sample)
         sample_review = s.patch_entry()
+
+
+if __name__ == '__main__':
+    sys.exit(main())
 
