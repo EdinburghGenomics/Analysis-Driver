@@ -147,23 +147,24 @@ class ClusterExecutor(AppLogger):
         """
         self.job_queue = cfg['job_queue']
         self.job_id = None
-        w = self._get_script_writer(jobs=len(cmds), **cluster_config)
+        w = self._get_writer(jobs=len(cmds), **cluster_config)
         w.write_jobs(cmds, prelim_cmds)
         qsub = cfg.query('tools', 'qsub', ret_default='qsub')
         self.cmd = qsub + ' ' + w.script_name
 
     def start(self):
         self.info('Executing: ' + self.cmd)
-        self.job_id = self._get_stdout(self.cmd)
+        self.job_id = self._get_stdout(self.cmd).strip()
+        self.info('Submitted job ' + self.job_id)
 
     def join(self):
         while not self._job_finished():
             sleep(60)
         return self.finished_statuses.index(self._job_status())
 
-    @staticmethod
-    def _get_script_writer(job_name, working_dir, **kwargs):
-        raise NotImplementedError
+    @classmethod
+    def _get_writer(cls, job_name, working_dir, walltime=None, cpus=1, mem=2, jobs=1, log_commands=True):
+        return cls.script_writer(job_name, working_dir, cfg['job_queue'], cpus, mem, walltime, jobs, log_commands)
 
     def _job_status(self):
         raise NotImplementedError
@@ -181,10 +182,7 @@ class ClusterExecutor(AppLogger):
 class PBSExecutor(ClusterExecutor):
     unfinished_statuses = 'BEHQRSTUW'
     finished_statuses = 'FXM'
-
-    @staticmethod
-    def _get_script_writer(job_name, working_dir, walltime=None, cpus=1, mem=2, jobs=1, log_commands=True):
-        return script_writers.PBSWriter(job_name, working_dir, cfg['job_queue'], cpus, mem, walltime, jobs, log_commands)
+    script_writer = script_writers.PBSWriter
 
     def _job_finished(self):
         status = self._job_status()
@@ -204,10 +202,7 @@ class PBSExecutor(ClusterExecutor):
 class SlurmExecutor(ClusterExecutor):
     unfinished_statuses = ('PD', 'R', 'CF', 'CG')
     finished_statuses = ('CA', 'CD', 'F', 'TO', 'NF', 'SE')
-
-    @staticmethod
-    def _get_script_writer(job_name, working_dir, walltime=None, cpus=1, mem=2, jobs=1, log_commands=True):
-        return script_writers.SlurmWriter(job_name, working_dir, cfg['job_queue'], cpus, mem, walltime, jobs, log_commands)
+    script_writer = script_writers.SlurmWriter
 
     def _job_status(self):
         return self._get_stdout('squeue -h -j {j} -o "%t"'.format(j=self.job_id))
