@@ -1,7 +1,11 @@
 import os
 import sys
 import argparse
+import logging
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from analysis_driver.app_logging import logging_default as log_cfg
+log_cfg.default_level = logging.DEBUG
+log_cfg.add_handler(logging.StreamHandler(stream=sys.stdout), logging.DEBUG)
 from analysis_driver import rest_communication
 from analysis_driver.constants import ELEMENT_REVIEW_COMMENTS
 from analysis_driver.config import review_thresholds_config as cfg
@@ -178,18 +182,20 @@ class AutomaticSampleReview(SampleReview):
 
 def get_reviewable_runs():
     runs = rest_communication.get_documents('aggregate/all_runs', depaginate=True, match={"proc_status":"finished","review_statuses":"not%20reviewed"})
-    for run in runs:
-        run_id = run.get('run_id')
-        run_elements_by_lane = rest_communication.get_documents('aggregate/run_elements_by_lane', match={"run_id":run_id})
-        r = AutomaticRunReview(run_id, run_elements_by_lane)
-        run_review = r.patch_entry()
+    if runs:
+        for run in runs:
+            run_id = run.get('run_id')
+            run_elements_by_lane = rest_communication.get_documents('aggregate/run_elements_by_lane', match={"run_id":run_id})
+            r = AutomaticRunReview(run_id, run_elements_by_lane)
+            run_review = r.patch_entry()
 
 def get_reviewable_samples():
     samples = rest_communication.get_documents('aggregate/samples', depaginate=True,  match={"proc_status":"finished","reviewed":"not%20reviewed"})
-    for sample in samples:
-        sample_id = sample.get('sample_id')
-        s = AutomaticSampleReview(sample, sample_id)
-        sample_review = s.patch_entry()
+    if samples:
+        for sample in samples:
+            sample_id = sample.get('sample_id')
+            s = AutomaticSampleReview(sample, sample_id)
+            sample_review = s.patch_entry()
 
 
 if __name__ == '__main__':
