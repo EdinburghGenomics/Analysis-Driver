@@ -34,6 +34,8 @@ class RunReview():
         for lane in self.run_element_by_lane:
             lane_review = {}
             lane_id = lane['lane_number']
+            #print(lane_id)
+            print(type(lane))
 
             if float(lane['yield_in_gb']) > self.run_config.get('yield_in_gb'):
                 lane_review['yield_in_gb'] = 'pass'
@@ -181,7 +183,7 @@ def get_reviewable_runs():
     runs = rest_communication.get_documents('aggregate/all_runs', depaginate=True, match={"proc_status":"finished","review_statuses":"not%20reviewed"})
     for run in runs:
         run_id = run.get('run_id')
-        run_elements_by_lane = rest_communication.get_document('aggregate/run_elements_by_lane', match={"run_id":run_id})
+        run_elements_by_lane = rest_communication.get_documents('aggregate/run_elements_by_lane', match={"run_id":run_id})
         r = AutomaticRunReview(run_id, run_elements_by_lane)
         run_review = r.patch_entry()
 
