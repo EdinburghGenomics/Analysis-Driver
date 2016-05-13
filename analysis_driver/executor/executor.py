@@ -140,6 +140,7 @@ class ArrayExecutor(StreamExecutor):
 
 class ClusterExecutor(AppLogger):
     finished_statuses = None
+    script_writer = None
 
     def __init__(self, *cmds, prelim_cmds=None, **cluster_config):
         """
@@ -154,8 +155,8 @@ class ClusterExecutor(AppLogger):
 
     def start(self):
         self.info('Executing: ' + self.cmd)
-        self.job_id = self._get_stdout(self.cmd).strip()
-        self.info('Submitted job ' + self.job_id)
+        self.job_id = self._get_stdout(self.cmd)
+        self.info('Submitted job %s' % self.job_id)
 
     def join(self):
         while not self._job_finished():
@@ -174,9 +175,12 @@ class ClusterExecutor(AppLogger):
 
     @staticmethod
     def _get_stdout(cmd):
-        p = subprocess.PIPE
-        out, err = subprocess.Popen(cmd.split(' '), stdout=p, stderr=p).communicate()
-        return out.decode('utf-8')
+        pipe = subprocess.PIPE
+        p = subprocess.Popen(cmd.split(' '), stdout=pipe, stderr=pipe)
+        if p.wait():
+            return None
+        else:
+            return p.stdout.read().decode('utf-8').strip()
 
 
 class PBSExecutor(ClusterExecutor):

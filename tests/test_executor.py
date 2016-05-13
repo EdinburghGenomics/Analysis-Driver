@@ -4,9 +4,10 @@ import shutil
 import sys
 import logging
 import subprocess
+from unittest.mock import patch, Mock
 from tests.test_analysisdriver import TestAnalysisDriver
 from analysis_driver.executor import script_writers, Executor, StreamExecutor, ArrayExecutor
-from analysis_driver.executor.executor import ClusterExecutor
+from analysis_driver.executor.executor import ClusterExecutor, PBSExecutor, SlurmExecutor
 from analysis_driver.exceptions import AnalysisDriverError
 
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
@@ -229,28 +230,95 @@ class TestArrayExecutor(TestExecutor):
 
 
 class TestClusterExecutor(TestAnalysisDriver):
+    e_cls = ClusterExecutor
+
+    @property
+    def script(self):
+        return os.path.join(self.assets_path, 'countdown.sh')
+
     def setUp(self):
         os.makedirs(os.path.join(self.assets_path, 'a_run_id'), exist_ok=True)
+        self.executor = self._get_executor(self.script)
 
     def tearDown(self):
         shutil.rmtree(os.path.join(self.assets_path, 'a_run_id'))
 
-    def test_get_stdout(self):
-        assert ClusterExecutor._get_stdout('ls -d ' + self.assets_path).endswith('tests/assets\n')
-
     def _get_executor(self, cmd):
-        return ClusterExecutor(
-            cmd,
-            job_name='test_job',
-            working_dir=os.path.join(self.assets_path, 'a_run_id')
-        )
+        get_writer = 'analysis_driver.executor.executor.ClusterExecutor._get_writer'
+        with patch(get_writer, return_value=Mock(script_name='a_script_name')):
+            return self.e_cls(
+                cmd,
+                job_name='test_job',
+                working_dir=os.path.join(self.assets_path, 'a_run_id')
+            )
 
-    '''def test_cmd(self):
-        e = self._get_executor(os.path.join(self.assets_path, 'countdown.sh'))
-        e.start()
-        assert e.join() == 0
+    def test_get_stdout(self):
+        popen = 'analysis_driver.executor.executor.subprocess.Popen'
+        with patch(popen, return_value=Mock(wait=Mock(return_value=None))) as p:
+            assert ClusterExecutor._get_stdout('ls -d ' + self.assets_path).endswith('tests/assets')
+            p.assert_called_with(['ls', '-d', self.assets_path], stdout=-1, stderr=-1)
+
+    def test_cmd(self):
+        assert self.executor.cmd == '/bin/sh a_script_name'
 
     def test_dodgy_cmd(self):
         e = self._get_executor(os.path.join(self.assets_path, 'non_existent_script.sh'))
         e.start()
-        assert e.join() == 127'''
+        assert e.job_id is None
+
+    def test_join(self):
+        job_finished = 'analysis_driver.executor.executor.' + self.e_cls.__name__ + '._job_finished'
+        job_status = 'analysis_driver.executor.executor.' + self.e_cls.__name__ + '._job_status'
+        self.executor.finished_statuses = 'FXM'
+        with patch(job_finished, return_value=True):
+            with patch(job_status, return_value='F'):
+                assert self.executor.join() == 0
+            with patch(job_status, return_value='M'):
+                assert self.executor.join() == 2
+
+
+class TestPBSExecutor(TestClusterExecutor):
+    e_cls = PBSExecutor
+
+    def test_job_report(self):
+        get_stdout = 'analysis_driver.executor.executor.ClusterExecutor._get_stdout'
+        with patch(get_stdout) as p:
+            self.executor.job_id = '1337'
+            self.executor._job_report()
+            p.assert_called_with('qstat -x 1337')
+
+    def test_job_status(self):
+        job_report = 'analysis_driver.executor.executor.PBSExecutor._job_report'
+        fake_report = [
+            'Job id  Name  User  Time  Use  S  Queue',
+            '------  ----  ----  ----  ---  -  -----',
+            '1337    a_job a_user 10:00:00  R  q'
+        ]
+        with patch(job_report, return_value=fake_report) as p:
+            self.executor.job_id = '1337'
+            assert self.executor._job_status() == 'R'
+
+    def test_job_finished(self):
+        job_status = 'analysis_driver.executor.executor.PBSExecutor._job_status'
+        with patch(job_status, return_value='B'):
+            assert not self.executor._job_finished()
+        with patch(job_status, return_value='F'):
+            assert self.executor._job_finished()
+
+
+class TestSlurmExecutor(TestClusterExecutor):
+    e_cls = SlurmExecutor
+
+    def test_job_status(self):
+        get_stdout = 'analysis_driver.executor.executor.ClusterExecutor._get_stdout'
+        self.executor.job_id = '1337'
+        with patch(get_stdout, return_value='F') as p:
+            assert self.executor._job_status() == 'F'
+            p.assert_called_with('squeue -h -j 1337 -o "%t"')
+
+    def test_job_finished(self):
+        job_status = 'analysis_driver.executor.executor.SlurmExecutor._job_status'
+        with patch(job_status, return_value='PD'):
+            assert not self.executor._job_finished()
+        with patch(job_status, return_value='CA'):
+            assert self.executor._job_finished()
