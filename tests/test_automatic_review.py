@@ -137,8 +137,7 @@ class TestAutomaticReview():
         return samples
 
     def test_run_review(self):
-        r = automatic_review.RunReview(self.run_elements_by_lane)
-        run_review = r.run_review()
+        run_review = automatic_review.run_metrics(self.run_elements_by_lane)
         assert run_review == {1: ['pass'],
                               2: ['pass'],
                               3: ['pass'],
@@ -150,8 +149,7 @@ class TestAutomaticReview():
 
 
     def test_sample_review(self):
-        s_failed = automatic_review.SampleReview(self.samples, 'LP1251551__C_04')
-        sample_review = s_failed.sample_review()
+        sample_review = automatic_review.sample_metrics(self.samples, 'LP1251551__C_04')
         sample_id = (list(sample_review.keys())[0])
         sample_review = (list(sample_review.values())[0])
         review_status = (sample_review[0])

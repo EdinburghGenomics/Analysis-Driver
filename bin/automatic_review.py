@@ -26,118 +26,101 @@ def _parse_args():
     return parser.parse_args()
 
 
+def run_metrics(run_element_by_lane):
+    metrics = {}
+    run_config = cfg.get('run')
+    for lane in run_element_by_lane:
+        lane_review = {}
+        lane_id = lane['lane_number']
 
-class RunReview():
-    def __init__(self, run_element_by_lane):
-        self.run_element_by_lane = run_element_by_lane
-        self.run_config = cfg.get('run')
-
-
-    def run_review(self):
-        run_metrics = {}
-        for lane in self.run_element_by_lane:
-            lane_review = {}
-            lane_id = lane['lane_number']
-
-            if float(lane['yield_in_gb']) > self.run_config.get('yield_in_gb'):
-                lane_review['yield_in_gb'] = 'pass'
-            else:
-                lane_review['yield_in_gb'] = 'fail'
-
-            if float(lane['pc_q30']) > self.run_config.get('pc_q30'):
-                lane_review['pc_q30'] = 'pass'
-            else:
-                lane_review['pc_q30'] = 'fail'
-
-            if float(lane['pc_pass_filter']) > self.run_config.get('pc_pass_filter'):
-                lane_review['pc_pass_filter'] = 'pass'
-            else:
-                lane_review['pc_pass_filter'] = 'fail'
-
-            if all(value == 'pass' for value in lane_review.values()):
-                run_metrics[lane_id] = ['pass']
-            else:
-                failed_metrics = ([v for v in lane_review if lane_review[v] == 'fail'])
-                run_metrics[lane_id] = ['fail', failed_metrics]
-        return run_metrics
-
-
-
-
-
-
-
-
-class SampleReview():
-
-    def __init__(self, sample, sample_name):
-        self.s = sample
-        self.sample_name = sample_name
-        self.sample_cfg = cfg.get('sample')
-
-    def sample_review(self):
-        sample_metrics = {}
-        sample_review = {}
-        if self.s.get('clean_yield_in_gb') and float(self.s.get('clean_yield_in_gb')) > self.sample_cfg.get('clean_yield_in_gb'):
-            sample_metrics['clean_yield_in_gb'] = 'pass'
+        if float(lane['yield_in_gb']) > run_config.get('yield_in_gb'):
+            lane_review['yield_in_gb'] = 'pass'
         else:
-            sample_metrics['clean_yield_in_gb'] = 'fail'
+            lane_review['yield_in_gb'] = 'fail'
 
-        if self.s.get('clean_yield_q30') and float(self.s.get('clean_yield_q30')) > self.sample_cfg.get('clean_yield_q30'):
-            sample_metrics['clean_yield_q30'] = 'pass'
+        if float(lane['pc_q30']) > run_config.get('pc_q30'):
+            lane_review['pc_q30'] = 'pass'
         else:
-            sample_metrics['clean_yield_q30'] = 'fail'
+            lane_review['pc_q30'] = 'fail'
 
-        if self.s.get('pc_mapped_reads') and float(self.s.get('pc_mapped_reads')) > self.sample_cfg.get('pc_mapped_reads'):
-            sample_metrics['pc_mapped_reads'] = 'pass'
+        if float(lane['pc_pass_filter']) > run_config.get('pc_pass_filter'):
+            lane_review['pc_pass_filter'] = 'pass'
         else:
-            sample_metrics['pc_mapped_reads'] = 'fail'
+            lane_review['pc_pass_filter'] = 'fail'
 
-        if self.s.get('median_coverage') and float(self.s.get('median_coverage')) > self.sample_cfg.get('median_coverage'):
-            sample_metrics['median_coverage'] = 'pass'
+        if all(value == 'pass' for value in lane_review.values()):
+            metrics[lane_id] = ['pass']
         else:
-            sample_metrics['median_coverage'] = 'fail'
+            failed_metrics = ([v for v in lane_review if lane_review[v] == 'fail'])
+            metrics[lane_id] = ['fail', failed_metrics]
+    return metrics
 
-        if self.s.get('pc_duplicate_reads') and float(self.s.get('pc_duplicate_reads')) < self.sample_cfg.get('pc_duplicate_reads'):
-            sample_metrics['pc_duplicate_reads'] = 'pass'
+
+def sample_metrics(s, sample_name):
+    metric_values = {}
+    metrics = {}
+    sample_cfg = cfg.get('sample')
+
+    if s.get('clean_yield_in_gb') and float(s.get('clean_yield_in_gb')) > sample_cfg.get('clean_yield_in_gb'):
+        metric_values['clean_yield_in_gb'] = 'pass'
+    else:
+        metric_values['clean_yield_in_gb'] = 'fail'
+
+    if s.get('clean_yield_q30') and float(s.get('clean_yield_q30')) > sample_cfg.get('clean_yield_q30'):
+        metric_values['clean_yield_q30'] = 'pass'
+    else:
+        metric_values['clean_yield_q30'] = 'fail'
+
+    if s.get('pc_mapped_reads') and float(s.get('pc_mapped_reads')) > sample_cfg.get('pc_mapped_reads'):
+        metric_values['pc_mapped_reads'] = 'pass'
+    else:
+        metric_values['pc_mapped_reads'] = 'fail'
+
+    if s.get('median_coverage') and float(s.get('median_coverage')) > sample_cfg.get('median_coverage'):
+        metric_values['median_coverage'] = 'pass'
+    else:
+        metric_values['median_coverage'] = 'fail'
+
+    if s.get('pc_duplicate_reads') and float(s.get('pc_duplicate_reads')) < sample_cfg.get('pc_duplicate_reads'):
+        metric_values['pc_duplicate_reads'] = 'pass'
+    else:
+        metric_values['pc_duplicate_reads'] = 'fail'
+
+    if s.get('provided_gender') == 'unknown' or s.get('provided_gender') == s.get('called_gender'):
+        metric_values['gender_validation'] = 'pass'
+    else:
+        metric_values['gender_validation'] = 'fail'
+
+    genotype_validation = s.get('genotype_validation')
+    if genotype_validation != None:
+        mismatching_snps = str(genotype_validation.get('mismatching_snps'))
+        if mismatching_snps != 'null' and int(mismatching_snps) < sample_cfg.get('mismatching_snps'):
+            metric_values['mismatching_snps'] = 'pass'
         else:
-            sample_metrics['pc_duplicate_reads'] = 'fail'
+            metric_values['mismatching_snps'] = 'fail'
 
-        if self.s.get('provided_gender') == 'unknown' or self.s.get('provided_gender') == self.s.get('called_gender'):
-            sample_metrics['gender_validation'] = 'pass'
+        no_call_seq = str(genotype_validation.get('no_call_seq'))
+        if no_call_seq != 'null' and int(no_call_seq) < sample_cfg.get('no_call_seq'):
+            metric_values['no_call_seq'] = 'pass'
         else:
-            sample_metrics['gender_validation'] = 'fail'
-
-        genotype_validation = self.s.get('genotype_validation')
-        if genotype_validation != None:
-            mismatching_snps = str(genotype_validation.get('mismatching_snps'))
-            if mismatching_snps != 'null' and int(mismatching_snps) < self.sample_cfg.get('mismatching_snps'):
-                sample_metrics['mismatching_snps'] = 'pass'
-            else:
-                sample_metrics['mismatching_snps'] = 'fail'
-
-            no_call_seq = str(genotype_validation.get('no_call_seq'))
-            if no_call_seq != 'null' and int(no_call_seq) < self.sample_cfg.get('no_call_seq'):
-                sample_metrics['no_call_seq'] = 'pass'
-            else:
-                sample_metrics['no_call_seq'] = 'fail'
+            metric_values['no_call_seq'] = 'fail'
 
 
-        if all(value == 'pass' for value in sample_metrics.values()):
-            return 'pass'
-        else:
-            failed_metrics = ([value for value in sample_metrics if sample_metrics[value] == 'fail'])
-            sample_review[self.sample_name] = ['fail', failed_metrics]
-        return sample_review
+    if all(value == 'pass' for value in metric_values.values()):
+        return 'pass'
+    else:
+        failed_metrics = ([value for value in metric_values if metric_values[value] == 'fail'])
+        metrics[sample_name] = ['fail', failed_metrics]
+    return metrics
 
 
-class AutomaticRunReview(RunReview):
+class AutomaticRunReview():
     def __init__(self, run_name, run_element_by_lane):
         self.run_name = run_name
-        super().__init__(run_element_by_lane)
+        self.run_element_by_lane = run_element_by_lane
 
     def patch_entry(self):
-        run_review = self.run_review()
+        run_review = run_metrics(self.run_element_by_lane)
         if run_review:
             for lane in run_review:
                 patch_review = {}
@@ -155,12 +138,13 @@ class AutomaticRunReview(RunReview):
                     rest_communication.patch_entries('run_elements', payload=patch_review, update_lists=None, where={"run_id":self.run_name, "lane": (lane)})
                     rest_communication.patch_entries('run_elements', payload=patch_comments, update_lists=None, where={"run_id":self.run_name, "lane": (lane)})
 
-class AutomaticSampleReview(SampleReview):
+class AutomaticSampleReview():
     def __init__(self, sample, sample_name):
-        super().__init__(sample, sample_name)
+        self.sample = sample
+        self.sample_name = sample_name
 
     def patch_entry(self):
-        sample_review = self.sample_review()
+        sample_review = sample_metrics(self.sample, self.sample_name)
         review = ''
         if sample_review:
             if sample_review == 'pass':
