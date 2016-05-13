@@ -10,15 +10,15 @@ class SlurmWriter(ClusterWriter):
         """Write a base PBS header. If multiple jobs, split them into a job array."""
         self.write_lines(
             '#!/bin/bash\n',
-            '#SBATCH --mem=%sgb' % mem,
-            '#SBATCH -l ncpus=%s' % cpus,
-            '#SBATCH -q ' + queue,
-            '#SBATCH --output ' + self.log_file
+            '#SBATCH --mem=%sg' % mem,
+            '#SBATCH --cpus=%s' % cpus,
+            '#SBATCH --partition=' + queue,
+            '#SBATCH --output=' + self.log_file
         )
         if walltime:
-            self.write_line('#SBATCH -t %s:00:00' % walltime)
+            self.write_line('#SBATCH --time=%s:00:00' % walltime)
         if job_name:
-            self.write_line('#SBATCH --job-name="%s"' % self._trim_field(job_name, 15))
+            self.write_line('#SBATCH --job-name="%s"' % job_name)
         if jobs > 1:
             # specify a job array
             self.write_line('#SBATCH --array=1-' + str(jobs))
