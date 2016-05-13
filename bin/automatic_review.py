@@ -34,8 +34,6 @@ class RunReview():
         for lane in self.run_element_by_lane:
             lane_review = {}
             lane_id = lane['lane_number']
-            #print(lane_id)
-            print(type(lane))
 
             if float(lane['yield_in_gb']) > self.run_config.get('yield_in_gb'):
                 lane_review['yield_in_gb'] = 'pass'
@@ -165,7 +163,6 @@ class AutomaticSampleReview(SampleReview):
                 review = sample_review
             else:
                 review = list(sample_review.values())[0][0]
-            print(review)
             patch_review = {}
             patch_comments = {}
 
