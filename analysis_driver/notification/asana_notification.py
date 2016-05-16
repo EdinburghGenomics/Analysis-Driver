@@ -45,11 +45,3 @@ class AsanaNotification(Notification):
 
     def _create_task(self):
         return self.client.tasks.create_in_workspace(self.workspace_id, self.task_template)
-
-
-if __name__ == '__main__':
-    from analysis_driver.dataset_scanner import NoCommunicationDataset
-    from analysis_driver.config import default as cfg
-    n = AsanaNotification(NoCommunicationDataset('a_test_run'), cfg['notification']['asana'])
-    n.end_pipeline(1337)
-    n.crash_report('Some\n  stacktrace\n  lines\n')
