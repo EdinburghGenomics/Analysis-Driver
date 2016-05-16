@@ -1,5 +1,6 @@
 import os
-from analysis_driver.reader.demultiplexing_parsers import parse_seqtk_fqchk_file, parse_conversion_stats
+from analysis_driver.reader.demultiplexing_parsers import parse_seqtk_fqchk_file, parse_conversion_stats, \
+    parse_welldup_file
 from analysis_driver.reader.demultiplexing_parsers import parse_fastqscreen_file
 from analysis_driver.reader.demultiplexing_parsers import get_fastqscreen_results
 from analysis_driver.reader.demultiplexing_parsers import calculate_mean, calculate_median, calculate_sd, get_coverage_statistics
@@ -95,3 +96,9 @@ class TestDemultiplexingStats(TestAnalysisDriver):
         assert mean == 438.8514851485148
         assert median == 478
         assert sd == 189.1911391390011
+
+
+    def test_parse_welldup_file(self):
+        welldup_file = os.path.join(self.assets_path, 'test_crawlers', 'test_run.well_dup')
+        dup_per_lane = parse_welldup_file(welldup_file)
+        assert dup_per_lane == {1: 11.747, 2: 14.576, 3: 12.5, 4: 20.496, 5: 5.981, 6: 10.917, 7: 14.611, 8: 26.416}

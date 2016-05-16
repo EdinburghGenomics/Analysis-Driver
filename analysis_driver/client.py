@@ -45,11 +45,7 @@ def main():
             scanner.report(all_datasets=True)
         return 0
 
-    all_datasets = scanner.scan_datasets()
-    ready_datasets = []
-    for status in (DATASET_FORCE_READY, DATASET_READY):
-        ready_datasets += all_datasets.get(status, [])
-
+    ready_datasets = scanner.scan_datasets(DATASET_READY, DATASET_FORCE_READY, flatten=True)
     if not ready_datasets:
         return 0
     else:
@@ -72,7 +68,7 @@ def setup_dataset_logging(d):
 
 def _process_dataset(d):
     """
-    :param d: Name of a dataset (not a full path!) to process
+    :param Dataset d: Run or Sample to process
     :return: exit status (9 if stacktrace)
     """
     app_logger = log_cfg.get_logger('client')

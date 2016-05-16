@@ -7,6 +7,7 @@ from analysis_driver.dataset_scanner import RunDataset, SampleDataset
 from analysis_driver.exceptions import PipelineError, SequencingRunError
 from analysis_driver.app_logging import logging_default as log_cfg
 from analysis_driver.config import output_files_config, default as cfg
+from analysis_driver.quality_control.lane_duplicates import WellDuplicates
 from analysis_driver.report_generation.report_crawlers import RunCrawler, SampleCrawler
 from analysis_driver.transfer_data import prepare_run_data, prepare_sample_data, output_sample_data,\
     output_run_data, create_links_from_bcbio
@@ -83,6 +84,11 @@ def demultiplexing_pipeline(dataset):
     if exit_status:
         return exit_status
 
+    # well duplicates
+    # This could be executed at the same time as bcl2fastq but I need the fastq directory to exist
+    well_dup_exec = WellDuplicates(dataset, job_dir, fastq_dir, input_run_folder)
+    well_dup_exec.start()
+
     # Filter the adapter dimer from fastq with sickle
     dataset.start_stage('sickle_filter')
     exit_status = executor.execute(
@@ -93,6 +99,11 @@ def demultiplexing_pipeline(dataset):
         mem=2
     ).join()
     dataset.end_stage('sickle_filter', exit_status)
+    if exit_status:
+        return exit_status
+
+
+    exit_status += well_dup_exec.join()
     if exit_status:
         return exit_status
 
@@ -230,7 +241,7 @@ def variant_calling_pipeline(dataset):
 
     exit_status += fastqc2_exit_status + bcbio_exit_status
 
-    #link the bcbio file into the final directory
+    # link the bcbio file into the final directory
     dir_with_linked_files = _link_results_files(sample_id, sample_dir, 'bcbio')
 
     user_sample_id = clarity.get_user_sample_name(sample_id, lenient=True)
@@ -239,7 +250,7 @@ def variant_calling_pipeline(dataset):
     gender_validation = qc.GenderValidation(dataset, sample_dir, vcf_file)
     gender_validation.start()
 
-    #sample contamination check
+    # sample contamination check
     bam_file = os.path.join(dir_with_linked_files, user_sample_id + '.bam')
     sample_contam = qc.VerifyBamId(dataset, sample_dir, bam_file)
     sample_contam.start()
@@ -334,19 +345,20 @@ def qc_pipeline(dataset, species):
 
     exit_status += fastqc_exit_status + bwa_exit_status + bamtools_exit_status
 
-    #link the bcbio file into the final directory
+    # link the bcbio file into the final directory
     dir_with_linked_files = _link_results_files(sample_id, sample_dir, 'non_human_qc')
 
     exit_status += _output_data(dataset, sample_dir, sample_id, dir_with_linked_files)
 
     return exit_status
 
+
 def _link_results_files(sample_id, sample_dir, output_fileset):
     dir_with_linked_files = os.path.join(sample_dir, 'linked_output_files')
     os.makedirs(dir_with_linked_files, exist_ok=True)
 
     # Create the links from the bcbio output to one directory
-    linked_files = create_links_from_bcbio(
+    create_links_from_bcbio(
         sample_id,
         sample_dir,
         output_files_config.query(output_fileset),
@@ -354,11 +366,12 @@ def _link_results_files(sample_id, sample_dir, output_fileset):
     )
     return dir_with_linked_files
 
+
 def _output_data(dataset, sample_dir, sample_id, dir_with_linked_files):
     exit_status = 0
 
     # upload the data to the rest API
-    project_id = clarity.find_project_from_sample(sample_id)
+    project_id = clarity.find_project_name_from_sample(sample_id)
     c = SampleCrawler(sample_id, project_id, dir_with_linked_files)
     c.send_data()
 

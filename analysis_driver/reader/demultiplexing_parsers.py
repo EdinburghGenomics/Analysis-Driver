@@ -289,3 +289,23 @@ def get_coverage_statistics(histogram_file):
     coverage_sd = calculate_sd(histogram_file)
 
     return coverage_mean, coverage_median, coverage_sd
+
+
+def parse_welldup_file(welldup_file):
+    dup_per_lane = {}
+    in_summary = 0
+    with open(welldup_file) as open_file:
+        for line in open_file:
+            if line.startswith('LaneSummary:'):
+                lane = int(line.split()[1])
+                in_summary=3
+            elif in_summary == 1:
+                pc_dup = line.split()[12].strip('(').rstrip(')')
+                dup_per_lane[lane]=round(float(pc_dup)*100,3)
+                in_summary-=1
+            else:
+                in_summary-=1
+    return dup_per_lane
+
+
+

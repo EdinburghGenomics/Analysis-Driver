@@ -8,6 +8,10 @@ from analysis_driver.config import default as cfg
 from analysis_driver.exceptions import AnalysisDriverError
 from tests.test_analysisdriver import TestAnalysisDriver
 
+patched_get = patch(
+    'analysis_driver.dataset_scanner.rest_communication.get_documents',
+    return_value=[{'run_id': 'test_dataset'}]
+)
 
 class FakeSMTP(Mock):
     def __init__(self, host, port):
@@ -29,6 +33,13 @@ class FakeSMTP(Mock):
 class TestNotificationCenter(TestAnalysisDriver):
     def setUp(self):
         dataset = NoCommunicationDataset('test_run_id')
+        base_dir = os.path.join(self.assets_path, 'dataset_scanner')
+        with patched_get:
+            dataset = RunDataset(
+                name='test_run_id',
+                path=os.path.join(base_dir, 'that'),
+                use_int_dir=False
+            )
         self.notification_center = NotificationCenter()
         self.notification_center.add_subscribers(
             (LogNotification, dataset, cfg.query('notification', 'log_notification')),
@@ -50,7 +61,7 @@ class TestNotificationCenter(TestAnalysisDriver):
 
     @patch('smtplib.SMTP', new=FakeSMTP)
     @patch('analysis_driver.notification.email_notification.sleep')
-    def test_retries(self, mocked_time):
+    def test_retries(self, mocked_sleep):
         assert self.email_ntf._try_send(self.email_ntf._prepare_message('this is a test')) is True
         assert self.email_ntf._try_send(self.email_ntf._prepare_message('dodgy')) is False
 
