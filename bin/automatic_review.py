@@ -160,7 +160,7 @@ class AutomaticSampleReview():
 
             else:
                 patch_review['reviewed'] = 'fail'
-                patch_comments[ELEMENT_REVIEW_COMMENTS] = 'sample ' + self.sample_name + ' failed due to ' + ' '.join(list(sample_review.values())[0])[1]
+                patch_comments[ELEMENT_REVIEW_COMMENTS] = 'sample ' + self.sample_name + ' failed due to ' + ' '.join((list(sample_review.values())[0])[1])
                 rest_communication.patch_entries('samples', payload=patch_review, update_lists=None, where={"sample_id": self.sample_name})
                 rest_communication.patch_entries('samples', payload=patch_comments, update_lists=None, where={"sample_id": self.sample_name})
 
