@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import Mock, patch
 from smtplib import SMTPException
-from analysis_driver.dataset_scanner import NoCommunicationDataset
+from analysis_driver.dataset import NoCommunicationDataset
 from analysis_driver.notification.notification_center import NotificationCenter
 from analysis_driver.notification import EmailNotification, LogNotification, AsanaNotification
 from analysis_driver.config import default as cfg
@@ -33,13 +33,6 @@ class FakeSMTP(Mock):
 class TestNotificationCenter(TestAnalysisDriver):
     def setUp(self):
         dataset = NoCommunicationDataset('test_run_id')
-        base_dir = os.path.join(self.assets_path, 'dataset_scanner')
-        with patched_get:
-            dataset = RunDataset(
-                name='test_run_id',
-                path=os.path.join(base_dir, 'that'),
-                use_int_dir=False
-            )
         self.notification_center = NotificationCenter()
         self.notification_center.add_subscribers(
             (LogNotification, dataset, cfg.query('notification', 'log_notification')),
