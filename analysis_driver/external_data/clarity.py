@@ -1,9 +1,9 @@
 import re
-import requests
 from genologics.lims import Lims
 from analysis_driver.config import default as cfg
 from analysis_driver.app_logging import logging_default as log_cfg
 from analysis_driver.exceptions import LimsCommunicationError
+from .ncbi import get_species_name
 
 app_logger = log_cfg.get_logger('clarity')
 
@@ -67,45 +67,6 @@ def find_run_elements_from_sample(sample_name):
                     yield run_id, lane
 
 
-def get_species_information_from_ncbi(species):
-    """
-    Query NCBI taxomomy database to get the taxomoy id scientific name and common name
-    Documentation available at http://www.ncbi.nlm.nih.gov/books/NBK25499/
-    :param str species: A search term for esearch, e.g. Human, Mouse, etc.
-    """
-    esearch_url = 'http://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi'
-    payload = {'db': 'Taxonomy', 'term': species, 'retmode': 'JSON'}
-    r = requests.get(esearch_url, params=payload)
-    results = r.json()
-    taxid_list = results.get('esearchresult').get('idlist')
-    all_species_names = []
-    for taxid in taxid_list:
-        efetch_url = 'http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi'
-        payload = {'db': 'Taxonomy', 'id': taxid}
-        r = requests.get(efetch_url, params=payload)
-        match = re.search('<Rank>(.+?)</Rank>', r.text, re.MULTILINE)
-        rank = None
-        if match:
-            rank = match.group(1)
-        if rank == 'species':
-            scientific_name = common_name = None
-            match = re.search('<ScientificName>(.+?)</ScientificName>', r.text, re.MULTILINE)
-            if match:
-                scientific_name = match.group(1)
-            match = re.search('<GenbankCommonName>(.+?)</GenbankCommonName>', r.text, re.MULTILINE)
-            if not match:
-                match = re.search('<CommonName>(.+?)</CommonName>', r.text, re.MULTILINE)
-            if match:
-                common_name = match.group(1)
-            all_species_names.append((taxid, scientific_name, common_name))
-    nspecies = len(all_species_names)
-    if nspecies != 1:
-        app_logger.error('%s taxons found for %s', nspecies, species)
-        return None, None, None
-
-    return all_species_names[0]
-
-
 def get_species_from_sample(sample_name):
     samples = get_samples(sample_name)
     if samples:
@@ -116,9 +77,7 @@ def get_species_from_sample(sample_name):
             return None
         species_string = species_strings.pop()
         if species_string:
-            taxid, scientific_name, common_name = get_species_information_from_ncbi(species_string)
-            if taxid:
-                return scientific_name
+            return get_species_name(species_string)
 
 
 def sanitize_user_id(user_id):

@@ -1,13 +1,13 @@
-from collections import Counter, defaultdict
 import json
+from collections import Counter, defaultdict
 from analysis_driver import util
-from analysis_driver.clarity import get_sample_gender, get_user_sample_name
 from analysis_driver.app_logging import AppLogger
 from analysis_driver.exceptions import PipelineError
+from analysis_driver.external_data.rest_communication import post_or_patch as pp
+from analysis_driver.external_data.clarity import get_sample_gender, get_user_sample_name
 from analysis_driver.reader import demultiplexing_parsers, mapping_stats_parsers
 from analysis_driver.reader.demultiplexing_parsers import get_fastqscreen_results, get_coverage_statistics, \
     parse_welldup_file
-from analysis_driver.rest_communication import post_or_patch as pp
 from analysis_driver.reader.mapping_stats_parsers import parse_and_aggregate_genotype_concordance,\
     parse_vbi_selfSM
 from analysis_driver.config import default as cfg

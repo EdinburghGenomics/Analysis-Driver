@@ -1,8 +1,8 @@
-from unittest.mock import patch, Mock
 import json
-from tests import test_analysisdriver
-from analysis_driver import rest_communication
+from unittest.mock import patch, Mock
 
+from analysis_driver.external_data import rest_communication
+from tests import test_analysisdriver
 
 helper = test_analysisdriver.TestAnalysisDriver()
 
