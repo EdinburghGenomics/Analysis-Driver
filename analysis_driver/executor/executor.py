@@ -139,7 +139,6 @@ class ArrayExecutor(StreamExecutor):
 
 
 class ClusterExecutor(AppLogger):
-    finished_statuses = None
     script_writer = None
 
     def __init__(self, *cmds, prelim_cmds=None, **cluster_config):
@@ -161,7 +160,6 @@ class ClusterExecutor(AppLogger):
     def join(self):
         while not self._job_finished():
             sleep(60)
-        return self.finished_statuses.index(self._job_status())
 
     @classmethod
     def _get_writer(cls, job_name, working_dir, walltime=None, cpus=1, mem=2, jobs=1, log_commands=True):
@@ -188,6 +186,10 @@ class PBSExecutor(ClusterExecutor):
     finished_statuses = 'FXM'
     script_writer = script_writers.PBSWriter
 
+    def join(self):
+        super().join()
+        return self.finished_statuses.index(self._job_status())
+
     def _job_finished(self):
         status = self._job_status()
         if status in self.unfinished_statuses:
@@ -204,12 +206,16 @@ class PBSExecutor(ClusterExecutor):
 
 
 class SlurmExecutor(ClusterExecutor):
-    unfinished_statuses = ('PD', 'R', 'CF', 'CG')
-    finished_statuses = ('CA', 'CD', 'F', 'TO', 'NF', 'SE')
+    unfinished_statuses = ('RUNNING', 'RESIZING', 'SUSPENDED')
+    finished_statuses = ('COMPLETED', 'CANCELLED', 'FAILED', 'TIMEOUT', 'NODE_FAIL')
     script_writer = script_writers.SlurmWriter
 
+    def join(self):
+        super().join()
+        return self._get_stdout('sacct -n -j {j} -o ExitCode'.format(j=self.job_id)).split(':')[0]
+
     def _job_status(self):
-        return self._get_stdout('squeue -h -j {j} -o "%t"'.format(j=self.job_id))
+        return self._get_stdout('sacct -n -j {j} -o State'.format(j=self.job_id))
 
     def _job_finished(self):
         status = self._job_status()
