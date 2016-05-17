@@ -25,7 +25,7 @@ def get_species_name(query_species):
 
 
 def _fetch_from_cache(query_species):
-    cursor.execute('SELECT * FROM aliases NATURAL JOIN species WHERE query_name=?', query_species)
+    cursor.execute('SELECT * FROM aliases NATURAL JOIN species WHERE query_name=?', (query_species,))
     return cursor.fetchone()
 
 

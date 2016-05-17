@@ -2,7 +2,8 @@ import os
 import time
 import shutil
 import yaml
-from analysis_driver import reader, util, executor, clarity, quality_control as qc
+from analysis_driver import reader, util, executor, quality_control as qc
+from analysis_driver.external_data import clarity
 from analysis_driver.dataset_scanner import RunDataset, SampleDataset
 from analysis_driver.exceptions import PipelineError, SequencingRunError
 from analysis_driver.app_logging import logging_default as log_cfg

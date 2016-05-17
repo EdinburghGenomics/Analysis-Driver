@@ -1,16 +1,13 @@
-__author__ = 'tcezard'
-
-import os
 import sys
 import math
 from xml.etree import ElementTree
 
 sys.path.append('../..')
-from analysis_driver.clarity import get_species_from_sample
-from analysis_driver.constants import ELEMENT_SPECIES_CONTAMINATION, ELEMENT_CONTAMINANT_UNIQUE_MAP, ELEMENT_PCNT_UNMAPPED_FOCAL, ELEMENT_PCNT_UNMAPPED, ELEMENT_TOTAL_READS_MAPPED
+from analysis_driver.external_data.clarity import get_species_from_sample
+from analysis_driver.constants import ELEMENT_CONTAMINANT_UNIQUE_MAP, ELEMENT_PCNT_UNMAPPED_FOCAL,\
+    ELEMENT_PCNT_UNMAPPED, ELEMENT_TOTAL_READS_MAPPED
 from analysis_driver.app_logging import logging_default
 app_logger = logging_default.get_logger(__name__)
-
 
 
 def parse_demultiplexing_stats(xml_file):

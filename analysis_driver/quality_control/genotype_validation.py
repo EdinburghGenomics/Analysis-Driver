@@ -1,5 +1,6 @@
 import os
-from analysis_driver import executor, clarity
+from analysis_driver import executor
+from analysis_driver.external_data import clarity
 from analysis_driver.exceptions import PipelineError
 from analysis_driver.config import default as cfg
 from analysis_driver.reader.mapping_stats_parsers import parse_genotype_concordance
