@@ -268,57 +268,54 @@ class TestClusterExecutor(TestAnalysisDriver):
 
     def test_join(self):
         job_finished = 'analysis_driver.executor.executor.' + self.e_cls.__name__ + '._job_finished'
-        job_status = 'analysis_driver.executor.executor.' + self.e_cls.__name__ + '._job_status'
+        exit_code = 'analysis_driver.executor.executor.' + self.e_cls.__name__ + '._job_exit_code'
         self.executor.finished_statuses = 'FXM'
-        with patch(job_finished, return_value=True):
-            with patch(job_status, return_value='F'):
-                assert self.executor.join() == 0
-            with patch(job_status, return_value='M'):
-                assert self.executor.join() == 2
+        with patch(job_finished, return_value=True), patch(exit_code, return_value=0):
+            assert self.executor.join() == 0
 
 
 class TestPBSExecutor(TestClusterExecutor):
     e_cls = PBSExecutor
 
-    def test_job_report(self):
+    def test_qstat(self):
         get_stdout = 'analysis_driver.executor.executor.ClusterExecutor._get_stdout'
-        with patch(get_stdout) as p:
-            self.executor.job_id = '1337'
-            self.executor._job_report()
-            p.assert_called_with('qstat -x 1337')
+        with patch(get_stdout, return_value='this\nthat\nother') as p:
+            assert self.executor._qstat() == 'other'.split()
+            p.assert_called_with('qstat -x None')
 
     def test_job_status(self):
-        job_report = 'analysis_driver.executor.executor.PBSExecutor._job_report'
-        fake_report = [
-            'Job id  Name  User  Time  Use  S  Queue',
-            '------  ----  ----  ----  ---  -  -----',
-            '1337    a_job a_user 10:00:00  R  q'
-        ]
-        with patch(job_report, return_value=fake_report) as p:
-            self.executor.job_id = '1337'
+        qstat = 'analysis_driver.executor.executor.PBSExecutor._qstat'
+        fake_report = ('1337', 'a_job', 'a_user', '10:00:00', 'R',  'q')
+        with patch(qstat, return_value=fake_report) as p:
             assert self.executor._job_status() == 'R'
 
     def test_job_finished(self):
-        job_status = 'analysis_driver.executor.executor.PBSExecutor._job_status'
-        with patch(job_status, return_value='B'):
+        job_status = 'analysis_driver.executor.executor.PBSExecutor._qstat'
+        with patch(job_status, return_value=(1, '1', 'user', 'time', 'B', 'queue')):
             assert not self.executor._job_finished()
-        with patch(job_status, return_value='F'):
+        with patch(job_status, return_value=(1, '1', 'user', 'time', 'F', 'queue')):
             assert self.executor._job_finished()
 
 
 class TestSlurmExecutor(TestClusterExecutor):
     e_cls = SlurmExecutor
 
-    def test_job_status(self):
+    def test_sacct(self):
         get_stdout = 'analysis_driver.executor.executor.ClusterExecutor._get_stdout'
-        self.executor.job_id = '1337'
-        with patch(get_stdout, return_value='F') as p:
-            assert self.executor._job_status() == 'F'
-            p.assert_called_with('squeue -h -j 1337 -o "%t"')
+        with patch(get_stdout, return_value='   1:0 ') as p:
+            assert self.executor._sacct('ExitCode') == '1:0'
+            p.assert_called_with('sacct -n -j None -o ExitCode')
 
     def test_job_finished(self):
-        job_status = 'analysis_driver.executor.executor.SlurmExecutor._job_status'
-        with patch(job_status, return_value='PD'):
+        sacct = 'analysis_driver.executor.executor.SlurmExecutor._sacct'
+        with patch(sacct, return_value='RUNNING'):
             assert not self.executor._job_finished()
-        with patch(job_status, return_value='CA'):
+        with patch(sacct, return_value='COMPLETED'):
             assert self.executor._job_finished()
+
+    def test_job_exit_code(self):
+        sacct = 'analysis_driver.executor.executor.SlurmExecutor._sacct'
+        with patch(sacct, return_value='CANCELLED 0:0'):
+            assert self.executor._job_exit_code() == 9
+        with patch(sacct, return_value='COMPLETED 0:x'):
+            assert self.executor._job_exit_code() == 0

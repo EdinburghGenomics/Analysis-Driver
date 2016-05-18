@@ -140,6 +140,8 @@ class ArrayExecutor(StreamExecutor):
 
 class ClusterExecutor(AppLogger):
     script_writer = None
+    finished_statuses = None
+    unfinished_statuses = None
 
     def __init__(self, *cmds, prelim_cmds=None, **cluster_config):
         """
@@ -160,6 +162,7 @@ class ClusterExecutor(AppLogger):
     def join(self):
         while not self._job_finished():
             sleep(60)
+        return self._job_exit_code()
 
     @classmethod
     def _get_writer(cls, job_name, working_dir, walltime=None, cpus=1, mem=2, jobs=1, log_commands=True):
@@ -168,8 +171,16 @@ class ClusterExecutor(AppLogger):
     def _job_status(self):
         raise NotImplementedError
 
-    def _job_finished(self):
+    def _job_exit_code(self):
         raise NotImplementedError
+
+    def _job_finished(self):
+        status = self._job_status()
+        if status in self.unfinished_statuses:
+            return False
+        elif status in self.finished_statuses:
+            return True
+        raise AnalysisDriverError('Bad job status: ' + status)
 
     @staticmethod
     def _get_stdout(cmd):
@@ -186,23 +197,16 @@ class PBSExecutor(ClusterExecutor):
     finished_statuses = 'FXM'
     script_writer = script_writers.PBSWriter
 
-    def join(self):
-        super().join()
-        return self.finished_statuses.index(self._job_status())
-
-    def _job_finished(self):
-        status = self._job_status()
-        if status in self.unfinished_statuses:
-            return False
-        elif status in self.finished_statuses:
-            return True
-        raise AnalysisDriverError('Bad job report: ' + str(self._job_report()))
-
-    def _job_report(self):
-        return self._get_stdout('qstat -x ' + self.job_id).split('\n')
+    def _qstat(self):
+        h1, h2, data = self._get_stdout('qstat -x {j}'.format(j=self.job_id)).split('\n')
+        return data.split()
 
     def _job_status(self):
-        return self._job_report()[2].split()[4]
+        job_id, job_name, user, time, status, queue = self._qstat()
+        return status
+
+    def _job_exit_code(self):
+        return self.finished_statuses.index(self._job_status())
 
 
 class SlurmExecutor(ClusterExecutor):
@@ -210,17 +214,15 @@ class SlurmExecutor(ClusterExecutor):
     finished_statuses = ('COMPLETED', 'CANCELLED', 'FAILED', 'TIMEOUT', 'NODE_FAIL')
     script_writer = script_writers.SlurmWriter
 
-    def join(self):
-        super().join()
-        return self._get_stdout('sacct -n -j {j} -o ExitCode'.format(j=self.job_id)).split(':')[0]
+    def _sacct(self, output_format):
+        return self._get_stdout('sacct -n -j {j} -o {o}'.format(j=self.job_id, o=output_format)).strip()
 
     def _job_status(self):
-        return self._get_stdout('sacct -n -j {j} -o State'.format(j=self.job_id))
+        return self._sacct('State')
 
-    def _job_finished(self):
-        status = self._job_status()
-        if status in self.unfinished_statuses:
-            return False
-        elif status in self.finished_statuses:
-            return True
-        raise AnalysisDriverError('Bad job status: ' + status)
+    def _job_exit_code(self):
+        state, exit_code = self._sacct('State,ExitCode').split()
+        if state == 'CANCELLED':  # cancelled jobs can still be exit status 0
+            return 9
+        return int(exit_code.split(':')[0])
+
