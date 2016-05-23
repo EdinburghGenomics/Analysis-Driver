@@ -140,8 +140,7 @@ def get_list_of_samples(sample_names, sub=0):
         _sample_names = [pattern.sub(repl, s) for s in _sample_names]
 
     lims = connection()
-    samples = lims.get_samples(name=_sample_names)
-    lims.get_batch(samples)
+    samples = lims.get_samples(name=_sample_names, resolve=True)
 
     if len(samples) != len(sample_names):  # haven't got all the samples because some had _01/__L:01
         if sub < len(substitutions):
