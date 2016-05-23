@@ -33,7 +33,7 @@ class DatasetScanner(AppLogger):
         scan = self.scan_datasets(*statuses)
 
         for status in statuses:
-            datasets = [str(d) for d in scan[status] if d is not None]
+            datasets = [str(d) for d in scan.get(status, [])]
             if datasets:
                 out.append('=== ' + status + ' ===')
                 out.append('\n'.join(datasets))

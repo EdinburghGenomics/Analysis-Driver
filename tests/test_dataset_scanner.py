@@ -45,16 +45,15 @@ class TestScanner(TestAnalysisDriver):
         expected = [
             '========= ' + self.scanner.__class__.__name__ + ' report =========',
             'dataset location: ' + self.base_dir,
-            '=== failed ===',
-            'another',
             '=== new ===',
             'this',
             '=== ready ===',
             'that',
             'other',
+            '=== failed ===',
+            'another',
             '__________________________________________'
         ]
-
         observed = captured_stdout[0].split('\n')
         print(observed)
         print(expected)
