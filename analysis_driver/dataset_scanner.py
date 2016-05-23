@@ -46,7 +46,7 @@ class DatasetScanner(AppLogger):
         if status == DATASET_NEW:
             status = None
         return [
-            d for d in rest_communication.get_documents(self.endpoint, match={'proc_status': status})
+            d for d in rest_communication.get_documents(self.endpoint, match={'proc_status': status}, paginate=False)
             if d[self.item_id] not in self._triggerignore
         ]
 
