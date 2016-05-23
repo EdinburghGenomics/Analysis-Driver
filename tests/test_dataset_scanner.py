@@ -120,9 +120,6 @@ class TestRunScanner(TestScanner):
             exp = {DATASET_NEW: '[other, that, this]'}
             assert str(obs[DATASET_NEW]) == exp[DATASET_NEW]
 
-            obs = self.scanner.scan_datasets(DATASET_NEW, flatten=True)
-            assert str(obs) == '[other, that, this]'
-
     def _setup_scanner(self):
         self.scanner = RunScanner({'input_dir': self.base_dir})
 
@@ -178,4 +175,3 @@ class TestSampleScanner(TestScanner):
         patched_get_datasets = patch(ppath('SampleScanner._get_datasets_for_status'), new=fake_get_datasets)
         with patched_is_ready, patched_get_datasets:
             assert self.scanner.scan_datasets(DATASET_NEW) == fake_datasets
-            assert self.scanner.scan_datasets(DATASET_NEW, flatten=True) == fake_datasets[DATASET_NEW]

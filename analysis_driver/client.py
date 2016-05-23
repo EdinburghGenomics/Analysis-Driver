@@ -3,6 +3,7 @@ import logging
 import os
 from analysis_driver.app_logging import logging_default as log_cfg
 from analysis_driver.config import default as cfg
+from analysis_driver.constants import DATASET_NEW, DATASET_REPROCESS
 from analysis_driver.notification import default as ntf, LogNotification, EmailNotification
 from analysis_driver import exceptions
 from analysis_driver.dataset_scanner import RunScanner, SampleScanner, DATASET_READY, DATASET_FORCE_READY
@@ -45,7 +46,8 @@ def main():
             scanner.report(all_datasets=True)
         return 0
 
-    ready_datasets = scanner.scan_datasets(DATASET_READY, DATASET_FORCE_READY, flatten=True)
+    datasets = scanner.scan_datasets(DATASET_NEW, DATASET_REPROCESS, DATASET_READY, DATASET_FORCE_READY)
+    ready_datasets = datasets.get(DATASET_FORCE_READY, []) + datasets.get(DATASET_READY, [])
     if not ready_datasets:
         return 0
     else:

@@ -68,9 +68,6 @@ class DatasetScanner(AppLogger):
         for k in datasets:
             datasets[k].sort()
 
-        if flatten:
-            datasets = sorted(sum([datasets[k] for k in rest_api_statuses], []))
-
         return datasets
 
     @property
