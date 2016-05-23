@@ -32,10 +32,10 @@ class DatasetScanner(AppLogger):
             statuses += self.status_hidden
         scan = self.scan_datasets(*statuses)
 
-        for k in sorted(scan):
-            datasets = [str(d) for d in scan[k]]
+        for status in statuses:
+            datasets = [str(d) for d in scan[status] if d is not None]
             if datasets:
-                out.append('=== ' + k + ' ===')
+                out.append('=== ' + status + ' ===')
                 out.append('\n'.join(datasets))
 
         out.append('_' * 42)
