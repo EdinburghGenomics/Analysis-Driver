@@ -130,10 +130,17 @@ class SampleDataset(Dataset):
     def __init__(self, name, most_recent_proc=None, data_threshold=None):
         super().__init__(name, most_recent_proc)
         self._run_elements = None
+        self._non_useable_run_elements = None
         self._data_threshold = data_threshold
 
     def force(self):
         self.most_recent_proc.change_status(DATASET_FORCE_READY)
+
+    @property
+    def non_useable_run_elements(self):
+        if self._non_useable_run_elements is None:
+            self._non_useable_run_elements = self._read_non_useable_data()
+        return self._non_useable_run_elements
 
     @property
     def run_elements(self):
@@ -147,6 +154,12 @@ class SampleDataset(Dataset):
             where={'sample_id': self.name, 'useable': 'yes'}
         )
 
+    def _read_non_useable_data(self):
+        return rest_communication.get_documents(
+            'run_elements',
+            where={'sample_id': self.name, 'useable': {'$ne': 'yes'}}
+        )
+
     def _amount_data(self):
         return sum(
             [
@@ -157,6 +170,10 @@ class SampleDataset(Dataset):
 
     def _runs(self):
         return sorted(set([r.get(ELEMENT_RUN_NAME) for r in self.run_elements]))
+
+    def _non_useable_runs(self):
+        return sorted(set([r.get(ELEMENT_RUN_NAME) for r in self.non_useable_run_elements]))
+
 
     @property
     def data_threshold(self):
@@ -170,11 +187,12 @@ class SampleDataset(Dataset):
         return self.data_threshold and int(self._amount_data()) > int(self.data_threshold)
 
     def __str__(self):
-        return '%s  (%s / %s  from %s) ' % (
+        return '%s  (%s / %s  from %s) (non useable in %s)' % (
             super().__str__(),
             self._amount_data(),
             self.data_threshold,
-            ', '.join(self._runs())
+            ', '.join(self._runs()),
+            ', '.join(self._non_useable_runs())
         )
 
 
