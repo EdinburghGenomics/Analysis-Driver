@@ -43,6 +43,8 @@ class DatasetScanner(AppLogger):
 
     def _get_dataset_records_for_status(self, status):
         self.debug('Querying Rest API for status %s', status)
+        if status == DATASET_NEW:
+            status = None
         return [
             d for d in rest_communication.get_documents(self.endpoint, match={'proc_status': status})
             if d[self.item_id] not in self._triggerignore
