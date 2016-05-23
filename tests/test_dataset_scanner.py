@@ -3,7 +3,7 @@ from unittest.mock import patch
 from tests.test_clarity import FakeEntity
 from tests.test_analysisdriver import TestAnalysisDriver
 from tests.test_dataset import patched_expected_yield, fake_proc, seed_directories, clean
-from analysis_driver.constants import DATASET_NEW, DATASET_ABORTED
+from analysis_driver.constants import DATASET_NEW, DATASET_PROCESSED_SUCCESS, DATASET_ABORTED
 from analysis_driver.dataset_scanner import DatasetScanner, RunScanner, SampleScanner
 from analysis_driver.dataset import RunDataset, SampleDataset
 
@@ -145,7 +145,8 @@ class TestSampleScanner(TestScanner):
         assert self.scanner._get_dataset_records_for_status(DATASET_NEW)[0] == {'sample_id': 'a_sample_id'}
         mocked_get.assert_any_call(
             'aggregate/samples',
-            match={'proc_status': DATASET_NEW}
+            match={'proc_status': None},
+            paginate=False
         )
 
     @patched_get([{'sample_id': 'a_sample_id'}])
@@ -158,7 +159,7 @@ class TestSampleScanner(TestScanner):
             d = self.scanner._get_datasets_for_status(DATASET_NEW)[0]
         assert d.name == 'a_sample_id'
         assert d._data_threshold == 1000000000
-        mocked_get.assert_any_call('aggregate/samples', match={'proc_status': 'new'})
+        mocked_get.assert_any_call('aggregate/samples', match={'proc_status': None}, paginate=False)
         assert d.run_elements == [{'sample_id': 'a_sample_id'}]
         mocked_get.assert_any_call('run_elements', where={'useable': 'yes', 'sample_id': 'a_sample_id'})
 
