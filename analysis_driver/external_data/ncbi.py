@@ -30,7 +30,9 @@ def _fetch_from_cache(query_species):
 
 
 def _cache_species(query_species, taxid, scientific_name, common_name):
-    cursor.execute('INSERT INTO species VALUES (?, ?, ?)', (taxid, scientific_name, common_name))
+    cursor.execute('SELECT taxid FROM species WHERE taxid=?', (taxid,))
+    if not cursor.fetchone():
+        cursor.execute('INSERT INTO species VALUES (?, ?, ?)', (taxid, scientific_name, common_name))
     cursor.execute('INSERT INTO aliases VALUES (?, ?)', (query_species, taxid))
     data_cache.commit()
 
