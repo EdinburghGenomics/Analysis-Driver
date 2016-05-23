@@ -137,6 +137,7 @@ def get_list_of_samples(sample_names):
     results = []
     for start in range(0,len(sample_names), max_query):
         results.extend(_get_list_of_samples(sample_names[start:start+max_query]))
+    return results
 
 def _get_list_of_samples(sample_names, sub=0):
     pattern, repl = substitutions[sub]
