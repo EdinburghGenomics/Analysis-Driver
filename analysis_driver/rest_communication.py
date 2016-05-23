@@ -15,7 +15,7 @@ def api_url(endpoint, **query_args):
         base_url=cfg.query('rest_api', 'url').rstrip('/'), endpoint=endpoint
     )
     if query_args:
-        url += '?' + '&'.join(['%s=%s' % (k, v) for k, v in query_args.items()]).replace(' ', '').replace('\'', '"')
+        url += '?' + '&'.join(['%s=%s' % (k, v) for k, v in query_args.items()]).replace(' ', '').replace('\'', '"').replace('None', 'null')
 
     return url
 
