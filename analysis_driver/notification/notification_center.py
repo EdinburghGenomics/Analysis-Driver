@@ -12,9 +12,7 @@ class _Method:
 
 
 class NotificationCenter(AppLogger):
-    """
-    Object dispatching notification methods to subscribers
-    """
+    """Object dispatching notification methods to subscribers"""
     def __init__(self):
         self.subscribers = []
 
@@ -29,9 +27,7 @@ class NotificationCenter(AppLogger):
                 self.subscribers.append(notifier(run_id, config))
 
     def _pass_to_subscriber(self, method_name, *args, **kwargs):
-        """
-        Take method_name and try to invoke it on each subscriber with *args, **kwargs.
-        """
+        """Take method_name and try to invoke it on each subscriber with *args, **kwargs."""
         for subscriber in self.subscribers:
             f = getattr(subscriber, method_name)
             if f and callable(f):
@@ -62,7 +58,7 @@ class Notification(AppLogger):
     def end_pipeline(self, exit_status):
         pass
 
-    def crash_report(self, exit_status, stacktrace):
+    def crash_report(self, stacktrace):
         pass
 
 

@@ -1,10 +1,10 @@
-import argparse
-import logging
 import os
-from analysis_driver.app_logging import logging_default as log_cfg
-from analysis_driver.config import default as cfg
-from analysis_driver.notification import default as ntf, LogNotification, EmailNotification
+import logging
+import argparse
 from analysis_driver import exceptions
+from analysis_driver.config import default as cfg
+from analysis_driver.app_logging import logging_default as log_cfg
+from analysis_driver.notification import default as ntf, LogNotification, EmailNotification, AsanaNotification
 from analysis_driver.dataset_scanner import RunScanner, SampleScanner, DATASET_READY, DATASET_FORCE_READY
 
 
@@ -90,7 +90,8 @@ def _process_dataset(d):
 
     ntf.add_subscribers(
         (LogNotification, d, cfg.query('notification', 'log_notification')),
-        (EmailNotification, d, cfg.query('notification', 'email_notification'))
+        (EmailNotification, d, cfg.query('notification', 'email_notification')),
+        (AsanaNotification, d, cfg.query('notification', 'asana'))
     )
 
     exit_status = 9
@@ -111,7 +112,7 @@ def _process_dataset(d):
         stacktrace = traceback.format_exc()
         app_logger.info('Stack trace below:\n' + stacktrace)
         d.fail(exit_status)
-        ntf.crash_report(exit_status, stacktrace)
+        ntf.crash_report(stacktrace)
 
     else:
         if exit_status == 0:
