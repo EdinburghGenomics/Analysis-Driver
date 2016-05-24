@@ -7,12 +7,16 @@ from analysis_driver.util.bash_commands import sickle_paired_end_in_place
 from analysis_driver.config import default as cfg
 
 
+def ppath(*parts):
+    return 'analysis_driver.external_data.clarity.' + '.'.join(parts)
+
+
 def patched_get_user_sample_name(sample_id):
-    return patch('analysis_driver.clarity.get_user_sample_name', return_value=sample_id)
+    return patch(ppath('get_user_sample_name'), return_value=sample_id)
 
 
 def patched_find_project_from_sample(sample_id):
-    return patch('analysis_driver.clarity.find_project_name_from_sample', return_value='proj_' + sample_id)
+    return patch(ppath('find_project_name_from_sample'), return_value='proj_' + sample_id)
 
 
 class TestUtil(TestAnalysisDriver):

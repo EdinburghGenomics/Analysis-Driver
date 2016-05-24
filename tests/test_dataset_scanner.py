@@ -6,6 +6,10 @@ from tests.test_dataset import patched_expected_yield, fake_proc, seed_directori
 from analysis_driver.constants import DATASET_NEW, DATASET_PROCESSED_SUCCESS, DATASET_ABORTED
 from analysis_driver.dataset_scanner import DatasetScanner, RunScanner, SampleScanner
 from analysis_driver.dataset import RunDataset, SampleDataset
+from analysis_driver.dataset_scanner import DatasetScanner, RunScanner, SampleScanner
+from tests.test_analysisdriver import TestAnalysisDriver
+from tests.test_dataset import patched_expected_yield, fake_proc, seed_directories, clean
+from tests.test_external_data.test_clarity import FakeEntity
 
 
 def ppath(*parts):

@@ -16,6 +16,7 @@ default:
       fastqs: tests/assets/data_deletion/fastqs
 
     genome: hg38
+    ncbi_cache: ':memory:'
 
     tt_agent_delay: 20
     job_execution: pbs  # pbs or None

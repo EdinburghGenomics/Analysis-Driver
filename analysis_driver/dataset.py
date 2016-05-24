@@ -1,9 +1,9 @@
 import os
 import threading
 from datetime import datetime
-from analysis_driver import rest_communication
 from analysis_driver.notification import default as ntf
-from analysis_driver.clarity import get_expected_yield_for_sample
+from analysis_driver.external_data import rest_communication
+from analysis_driver.external_data.clarity import get_expected_yield_for_sample
 from analysis_driver.exceptions import AnalysisDriverError, RestCommunicationError
 from analysis_driver.constants import DATASET_NEW, DATASET_READY, DATASET_FORCE_READY, DATASET_REPROCESS,\
     DATASET_PROCESSING, DATASET_PROCESSED_SUCCESS, DATASET_PROCESSED_FAIL, DATASET_ABORTED, ELEMENT_RUN_NAME,\
