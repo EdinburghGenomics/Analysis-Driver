@@ -15,7 +15,7 @@ def api_url(endpoint, **query_args):
         base_url=cfg.query('rest_api', 'url').rstrip('/'), endpoint=endpoint
     )
     if query_args:
-        url += '?' + '&'.join(['%s=%s' % (k, v) for k, v in query_args.items()]).replace(' ', '').replace('\'', '"')
+        url += '?' + '&'.join(['%s=%s' % (k, v) for k, v in query_args.items()]).replace(' ', '').replace('\'', '"').replace('None', 'null')
 
     return url
 
@@ -45,10 +45,14 @@ def _req(method, url, **kwargs):
     return r
 
 
-def get_documents(endpoint, depaginate=False, **query_args):
-    page_size = query_args.pop('max_results', 100)  # default to page size of 100
-    page = query_args.pop('page', 1)
-    url = api_url(endpoint, max_results=page_size, page=page, **query_args)
+def get_documents(endpoint, paginate=True, depaginate=False, **query_args):
+    if paginate:
+        page_size = query_args.pop('max_results', 100)  # default to page size of 100
+        page = query_args.pop('page', 1)
+        url = api_url(endpoint, max_results=page_size, page=page, **query_args)
+    else:
+        url = api_url(endpoint, **query_args)
+
     content = _req('GET', url).json()
     elements = content['data']
 

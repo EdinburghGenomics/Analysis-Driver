@@ -91,8 +91,14 @@ substitutions = (
     (re.compile('__(\w):(\d{2})'), ' _\g<1>:\g<2>')
 )
 
+def get_list_of_samples(sample_names):
+    max_query = 100
+    results = []
+    for start in range(0,len(sample_names), max_query):
+        results.extend(_get_list_of_samples(sample_names[start:start+max_query]))
+    return results
 
-def get_list_of_samples(sample_names, sub=0):
+def _get_list_of_samples(sample_names, sub=0):
     pattern, repl = substitutions[sub]
     _sample_names = list(sample_names)
     if pattern and repl:
@@ -105,7 +111,7 @@ def get_list_of_samples(sample_names, sub=0):
     if len(samples) != len(sample_names):  # haven't got all the samples because some had _01/__L:01
         if sub < len(substitutions):
             remainder = sorted(set(_sample_names).difference(set([s.name for s in samples])))
-            samples.extend(get_list_of_samples(remainder, sub + 1))
+            samples.extend(_get_list_of_samples(remainder, sub + 1))
         else:
             raise LimsCommunicationError('Expected %s back, got %s' % (_sample_names, len(samples)))
 

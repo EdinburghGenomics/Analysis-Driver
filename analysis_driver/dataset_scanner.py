@@ -32,10 +32,10 @@ class DatasetScanner(AppLogger):
             statuses += self.status_hidden
         scan = self.scan_datasets(*statuses)
 
-        for k in sorted(scan):
-            datasets = [str(d) for d in scan[k]]
+        for status in statuses:
+            datasets = [str(d) for d in scan.get(status, [])]
             if datasets:
-                out.append('=== ' + k + ' ===')
+                out.append('=== ' + status + ' ===')
                 out.append('\n'.join(datasets))
 
         out.append('_' * 42)
@@ -43,8 +43,10 @@ class DatasetScanner(AppLogger):
 
     def _get_dataset_records_for_status(self, status):
         self.debug('Querying Rest API for status %s', status)
+        if status == DATASET_NEW:
+            status = None
         return [
-            d for d in rest_communication.get_documents(self.endpoint, match={'proc_status': status})
+            d for d in rest_communication.get_documents(self.endpoint, match={'proc_status': status}, paginate=False)
             if d[self.item_id] not in self._triggerignore
             ]
 
@@ -55,7 +57,7 @@ class DatasetScanner(AppLogger):
             for d in self._get_dataset_records_for_status(status)
         ]
 
-    def scan_datasets(self, *rest_api_statuses, flatten=False):
+    def scan_datasets(self, *rest_api_statuses):
         datasets = defaultdict(list)
         for s in rest_api_statuses:
             self.debug('Scanning for datasets with status %s', s)
@@ -65,9 +67,6 @@ class DatasetScanner(AppLogger):
 
         for k in datasets:
             datasets[k].sort()
-
-        if flatten:
-            datasets = sorted(sum([datasets[k] for k in rest_api_statuses], []))
 
         return datasets
 
