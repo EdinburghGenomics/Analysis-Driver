@@ -22,7 +22,7 @@ class AsanaNotification(Notification):
             tasks = list(self.client.tasks.find_all(project=self.project_id, completed=False))
             task_ent = self._get_entity(tasks, self.dataset.name)
             if task_ent is None:
-                self.debug('Creating new Asana task')
+                self.debug('Asana task for %s not found - creating', self.dataset.name)
                 task_ent = self._create_task()
             self._task = self.client.tasks.find_by_id(task_ent['id'])
         return self._task
@@ -37,11 +37,11 @@ class AsanaNotification(Notification):
     def _add_comment(self, text):
         self.client.tasks.add_comment(self.task['id'], text=text)
 
-    def _get_entity(self, collection, name):
+    @staticmethod
+    def _get_entity(collection, name):
         for e in collection:
             if e['name'] == name:
                 return e
-        self.warning('Task not found: %s' % name)
 
     def _create_task(self):
         return self.client.tasks.create_in_workspace(self.workspace_id, self.task_template)
