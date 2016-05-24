@@ -57,7 +57,7 @@ class DatasetScanner(AppLogger):
             for d in self._get_dataset_records_for_status(status)
         ]
 
-    def scan_datasets(self, *rest_api_statuses, flatten=False):
+    def scan_datasets(self, *rest_api_statuses):
         datasets = defaultdict(list)
         for s in rest_api_statuses:
             self.debug('Scanning for datasets with status %s', s)
