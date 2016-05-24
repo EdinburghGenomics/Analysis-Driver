@@ -131,13 +131,7 @@ class TestRawDataDeleter(TestDeleter):
             os.remove(deletion_script)
 
     def test_deletable_runs(self):
-        patch_target = 'analysis_driver.rest_communication.get_documents'
-        expected_rest_query = {
-            'max_results': 100,
-            'embedded': {'run_elements': 1, 'analysis_driver_procs': 1},
-            'aggregate': True,
-            'sort': 'run_id'
-        }
+        patch_target = 'analysis_driver.external_data.rest_communication.get_documents'
 
         with patch(patch_target, return_value=fake_run_elements_no_procs) as p:
             runs = self.deleter.deletable_runs()

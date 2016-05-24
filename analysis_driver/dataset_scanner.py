@@ -1,9 +1,9 @@
 import os
 from collections import defaultdict
-from analysis_driver import rest_communication
 from analysis_driver.app_logging import AppLogger
+from analysis_driver.external_data import rest_communication
 from analysis_driver.dataset import RunDataset, SampleDataset
-from analysis_driver.clarity import get_list_of_samples, sanitize_user_id
+from analysis_driver.external_data.clarity import get_list_of_samples, sanitize_user_id
 from analysis_driver.constants import DATASET_NEW, DATASET_READY, DATASET_FORCE_READY, DATASET_PROCESSING,\
     DATASET_PROCESSED_SUCCESS, DATASET_PROCESSED_FAIL, DATASET_ABORTED, DATASET_REPROCESS, DATASET_DELETED
 
@@ -46,7 +46,7 @@ class DatasetScanner(AppLogger):
         return [
             d for d in rest_communication.get_documents(self.endpoint, match={'proc_status': status})
             if d[self.item_id] not in self._triggerignore
-        ]
+            ]
 
     def _get_datasets_for_status(self, status):
         self.debug('Creating Datasets for status %s', status)

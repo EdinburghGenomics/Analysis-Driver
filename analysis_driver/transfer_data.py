@@ -1,6 +1,7 @@
 import os
 from time import sleep
-from analysis_driver import executor, clarity, util
+from analysis_driver import executor, util
+from analysis_driver.external_data import clarity
 from analysis_driver.exceptions import PipelineError
 from analysis_driver.util.bash_commands import rsync_from_to, is_remote_path
 from analysis_driver.app_logging import logging_default as log_cfg
