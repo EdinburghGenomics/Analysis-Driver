@@ -155,13 +155,13 @@ class ClusterExecutor(AppLogger):
         self.cmd = qsub + ' ' + w.script_name
 
     def start(self):
-        self.info('Executing: ' + self.cmd)
-        self.job_id = self._get_stdout(self.cmd)
-        self.info('Submitted job %s' % self.job_id)
+        self.job_id = self._submit_job()
+        self.info('Submitted "%s" as job %s' % (self.cmd, self.job_id))
 
     def join(self):
+        sleep(10)
         while not self._job_finished():
-            sleep(60)
+            sleep(30)
         return self._job_exit_code()
 
     @classmethod
@@ -174,28 +174,35 @@ class ClusterExecutor(AppLogger):
     def _job_exit_code(self):
         raise NotImplementedError
 
+    def _submit_job(self):
+        raise NotImplementedError
+
     def _job_finished(self):
         status = self._job_status()
         if status in self.unfinished_statuses:
             return False
         elif status in self.finished_statuses:
             return True
-        raise AnalysisDriverError('Bad job status: ' + status)
+        self.debug('Bad job status: %s', status)
 
-    @staticmethod
-    def _get_stdout(cmd):
-        pipe = subprocess.PIPE
-        p = subprocess.Popen(cmd.split(' '), stdout=pipe, stderr=pipe)
-        if p.wait():
+    def _get_stdout(self, cmd):
+        p = subprocess.Popen(cmd.split(' '), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        exit_status = p.wait()
+        o, e = p.stdout.read(), p.stderr.read()
+        self.debug('%s -> (%s, %s, %s)', cmd, exit_status, o, e)
+        if exit_status:
             return None
         else:
-            return p.stdout.read().decode('utf-8').strip()
+            return o.decode('utf-8').strip()
 
 
 class PBSExecutor(ClusterExecutor):
     unfinished_statuses = 'BEHQRSTUW'
     finished_statuses = 'FXM'
     script_writer = script_writers.PBSWriter
+
+    def _submit_job(self):
+        return self._get_stdout(self.cmd)
 
     def _qstat(self):
         h1, h2, data = self._get_stdout('qstat -x {j}'.format(j=self.job_id)).split('\n')
@@ -210,15 +217,28 @@ class PBSExecutor(ClusterExecutor):
 
 
 class SlurmExecutor(ClusterExecutor):
-    unfinished_statuses = ('RUNNING', 'RESIZING', 'SUSPENDED')
+    unfinished_statuses = ('RUNNING', 'RESIZING', 'SUSPENDED', 'PENDING')
     finished_statuses = ('COMPLETED', 'CANCELLED', 'FAILED', 'TIMEOUT', 'NODE_FAIL')
     script_writer = script_writers.SlurmWriter
 
+    def _submit_job(self):
+        # sbatch stdout: "Submitted batch job {job_id}"
+        return self._get_stdout(self.cmd).split()[-1].strip()
+
     def _sacct(self, output_format):
-        return self._get_stdout('sacct -n -j {j} -o {o}'.format(j=self.job_id, o=output_format)).strip()
+        return self._get_stdout('sacct -n -j {j} -o {o}'.format(j=self.job_id, o=output_format))
+
+    def _squeue(self):
+        s = self._get_stdout('squeue -j {j} -o %T'.format(j=self.job_id)).split('\n')
+        if len(s) < 2:
+            return None
+        return sorted(set(s[1:]))
 
     def _job_status(self):
-        return self._sacct('State')
+        state = self._squeue()
+        if not state:
+            state = self._sacct('State')
+        return state
 
     def _job_exit_code(self):
         state, exit_code = self._sacct('State,ExitCode').split()

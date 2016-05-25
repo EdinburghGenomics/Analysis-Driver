@@ -11,7 +11,7 @@ class SlurmWriter(ClusterWriter):
         self.write_lines(
             '#!/bin/bash\n',
             '#SBATCH --mem=%sg' % mem,
-            '#SBATCH --cpus=%s' % cpus,
+            '#SBATCH --cpus-per-task=%s' % cpus,
             '#SBATCH --partition=' + queue,
             '#SBATCH --output=' + self.log_file
         )
@@ -22,5 +22,5 @@ class SlurmWriter(ClusterWriter):
         if jobs > 1:
             # specify a job array
             self.write_line('#SBATCH --array=1-' + str(jobs))
-        self.write_line('cd $SLURM_SUBMIT_DIR')
+        self.write_line('cd ' + self.working_dir)
         self._line_break()

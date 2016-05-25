@@ -17,7 +17,8 @@ class ScriptWriter(AppLogger):
         """
         self.script_name = os.path.join(working_dir, job_name + self.suffix)
         self.log_commands = log_commands
-        self.log_file = os.path.join(working_dir, job_name + '.log')
+        self.working_dir = working_dir
+        self.log_file = os.path.join(self.working_dir, job_name + '.log')
         self.queue = job_queue
         self.info('Writing: ' + self.script_name)
         self.info('Log file: ' + self.log_file)

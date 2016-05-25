@@ -23,5 +23,5 @@ class PBSWriter(ClusterWriter):
         if jobs > 1:
             # specify a job array
             self.write_line('#PBS -J 1-' + str(jobs))
-        self.write_line('cd $PBS_O_WORKDIR')
+        self.write_line('cd ' + self.working_dir)
         self._line_break()
