@@ -3,6 +3,8 @@ from collections import Counter
 import csv
 import yaml
 import re
+from analysis_driver.constants import ELEMENT_NO_CALL_CHIP, ELEMENT_NO_CALL_SEQ, ELEMENT_MISMATCHING, \
+    ELEMENT_MATCHING
 
 
 def parse_bamtools_stats(bamtools_stats):
@@ -16,14 +18,14 @@ def parse_bamtools_stats(bamtools_stats):
         for line in open_file:
             sp_line = line.strip().split()
             if line.startswith('Total reads:'):
-                total_reads = int(sp_line[2])
+                total_reads = sp_line[2]
             elif line.startswith('Mapped reads:'):
-                mapped_reads = int(sp_line[2])
+                mapped_reads = sp_line[2]
             elif line.startswith('Duplicates:'):
-                duplicate_reads = int(sp_line[1])
+                duplicate_reads = sp_line[1]
             elif line.startswith("'Proper-pairs':"):
-                proper_pairs = int(sp_line[1])
-    return total_reads, mapped_reads, duplicate_reads, proper_pairs
+                proper_pairs = sp_line[1]
+    return int(total_reads), int(mapped_reads), int(duplicate_reads), int(proper_pairs)
 
 
 def parse_callable_bed_file(bed_file):
@@ -74,6 +76,65 @@ def parse_validate_csv(csv_file):
                 indel_disc += int(row.get('value'))
     return snp_conc, indel_conc, snp_disc, indel_disc
 
+
+
+def parse_and_aggregate_genotype_concordance(genotype_concordance_file):
+    table_type, header,lines = parse_genotype_concordance(genotype_concordance_file)
+    return aggregate_genotype_concordance(header,lines)
+
+def parse_genotype_concordance(genotype_concordance_file):
+    lines = []
+    table_type = None
+    with open(genotype_concordance_file) as open_file:
+        inside = False
+        for line in open_file:
+            if not line.strip():
+                inside = False
+            if inside:
+                lines.append(line.strip())
+            if line.startswith('#'):
+                #header
+                if 'GenotypeConcordance_Counts' in  line:
+                    table_type = line.strip()
+                    inside = True
+    return table_type, lines[0], lines[1:]
+
+
+def aggregate_genotype_concordance(headers, lines):
+    header_mapping = {}
+    ignore_keys = []
+    headers = headers.split()
+    for key in headers:
+        if key.endswith('UNAVAILABLE'):
+            ignore_keys.append(key)
+        elif key.endswith('NO_CALL') or key.endswith('MIXED'):
+            header_mapping[key] = ELEMENT_NO_CALL_CHIP
+        elif key.startswith('NO_CALL') or key.startswith('UNAVAILABLE') or key.startswith('MIXED'):
+            header_mapping[key] = ELEMENT_NO_CALL_SEQ
+        elif key[:int((len(key)-1)/2)] == key[int((len(key)+1)/2):]:
+            header_mapping[key] = ELEMENT_MATCHING
+        else:
+            header_mapping[key] = ELEMENT_MISMATCHING
+
+    samples = {}
+    for sample_line in lines:
+        sp_line = sample_line.split()
+        sample_dict = Counter()
+        for i in range(1, len(headers)):
+            if headers[i] in header_mapping:
+                sample_dict[header_mapping[headers[i]]] += int(sp_line[i])
+        samples[sp_line[0]] = sample_dict
+    return samples
+
+
+def parse_vbi_selfSM(input_file):
+    freemix = None
+    with open(input_file) as open_file:
+        headers = open_file.readline().strip().split()
+        if 'FREEMIX' in headers:
+            values = open_file.readline().strip().split()
+            freemix = float(values[headers.index('FREEMIX')])
+    return freemix
 
 def get_nb_sequence_from_fastqc_html(html_file):
     with open(html_file) as open_file:

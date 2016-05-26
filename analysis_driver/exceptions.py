@@ -1,9 +1,18 @@
-__author__ = 'mwham'
-
-
 class AnalysisDriverError(Exception):
     pass
 
 
-class ProcessTriggerError(Exception):
+class PipelineError(AnalysisDriverError):
+    pass
+
+
+class SequencingRunError(AnalysisDriverError):
+    pass
+
+
+class RestCommunicationError(AnalysisDriverError):
+    pass
+
+
+class LimsCommunicationError(AnalysisDriverError):
     pass

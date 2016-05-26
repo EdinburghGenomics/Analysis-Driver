@@ -1,4 +1,3 @@
-__author__ = 'tcezard'
 from analysis_driver.app_logging import AppLogger
 
 
@@ -13,9 +12,7 @@ class _Method:
 
 
 class NotificationCenter(AppLogger):
-    """
-    Object dispatching notification methods to subscribers
-    """
+    """Object dispatching notification methods to subscribers"""
     def __init__(self):
         self.subscribers = []
 
@@ -30,9 +27,7 @@ class NotificationCenter(AppLogger):
                 self.subscribers.append(notifier(run_id, config))
 
     def _pass_to_subscriber(self, method_name, *args, **kwargs):
-        """
-        Take method_name and try to invoke it on each subscriber with *args, **kwargs.
-        """
+        """Take method_name and try to invoke it on each subscriber with *args, **kwargs."""
         for subscriber in self.subscribers:
             f = getattr(subscriber, method_name)
             if f and callable(f):
@@ -60,16 +55,11 @@ class Notification(AppLogger):
     def end_stage(self, stage_name, exit_status=0):
         pass
 
-    def end_pipeline(self, exit_status, stacktrace=None):
+    def end_pipeline(self, exit_status):
         pass
 
-    @staticmethod
-    def _format_error_message(**kwargs):
-        msg = ' '.join(('Run failed.', kwargs.get('message', '')))
-        if kwargs.get('stacktrace'):
-            msg += '\nStack trace below:\n\n'
-            msg += kwargs['stacktrace']
-        return msg
+    def crash_report(self, stacktrace):
+        pass
 
 
 default = NotificationCenter()

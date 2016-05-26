@@ -7,19 +7,41 @@ default:
 
     input_dir: tests/assets/data_transfer/from/
     intermediate_dir: tests/assets/data_transfer/to/
-    lock_file_dir: tests/assets/data_transfer/from/
     jobs_dir : path/to/jobs
     output_dir: path/to/output_data
 
+    data_deletion:
+      raw_data: tests/assets/data_deletion/raw
+      raw_archives: tests/assets/data_deletion/archive
+      fastqs: tests/assets/data_deletion/fastqs
+
+    genome: hg38
+    ncbi_cache: ':memory:'
+
     tt_agent_delay: 20
-    job_execution: local  # pbs or None
+    job_execution: pbs  # pbs or None
     job_queue: uv2000
 
-    qsub:      path/to/qsub
-    bcl2fastq: path/to/bcl2fastq
-    fastqc:    path/to/fastqc
-    bcbio:     path/to/bcbio
-    jdk:       path/to/jdk
+    tools:
+        qsub:      /bin/sh
+        bcl2fastq: path/to/bcl2fastq
+        fastqc:    path/to/fastqc
+        bcbio:     path/to/bcbio
+        seqtk:     path/to/seqtk
+        jdk:       path/to/jdk
+        bwa: path/to/bwa
+        gatk: path/to/GenomeAnalysisTK.jar
+        samblaster: path/to/samblaster
+        samtools: path/to/samtools
+        bamtools: path/to/bamtools
+        sambamba: path/to/sambamba
+        sickle: path/to/sickle
+        bcftools: path/to/bcftools
+        tabix: path/to/tabix
+        fastqscreen: path/to/fastqscreen
+        verifybamid: path/to/verifybamid
+        well_duplicate: path/to/well_duplicate
+
     logging:
         format: '[%(asctime)s][%(name)s][%(levelname)s] %(message)s'
         datefmt: '%Y-%b-%d %H:%M:%S'
@@ -42,8 +64,10 @@ default:
     genotype-validation:
         reference: path/to/genotype_validation/genotype_32_SNPS_genome_600bp.fa
         genotypes_repository: path/to/genotype_validation/genotypes
-        bwa: path/to/bwa
-        gatk: path/to/GenomeAnalysisTK.jar
-        samblaster: path/to/samblaster
-        samtools: path/to/samtools
-        sambamba: path/to/sambamba
+
+    contamination-check:
+      fastqscreen_conf: path/to/fastqscreen/conf
+      population_vcf:   path/to/population_vcf
+
+    well_duplicate:
+      coord_file: path/to/coord_file

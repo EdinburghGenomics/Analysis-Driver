@@ -1,24 +1,18 @@
 import argparse
 import os
-from threading import Thread
 import sys
-from analysis_driver.app_logging import AppLogger
-from analysis_driver import executor
-from analysis_driver.config import default as cfg
+from analysis_driver import executor, util
+from .quality_control_base import QualityControl
 
 
-class GenderValidation(AppLogger, Thread):
+class GenderValidation(QualityControl):
     """
     This class will perform the Gender validation steps. It subclasses Thread, allowing it to run in the
     background.
     """
-    def __init__(self, sample_id , vcf_file):
-        """
-        """
+    def __init__(self, dataset, working_dir, vcf_file):
+        super().__init__(dataset, working_dir)
         self.vcf_file = vcf_file
-        self.sample_id = sample_id
-        self.exception = None
-        Thread.__init__(self)
 
     def _gender_call(self):
         """
@@ -26,32 +20,42 @@ class GenderValidation(AppLogger, Thread):
         :rtype: list
         :return list of file containing the results of the validation.
         """
+        self.dataset.start_stage('gender_validation')
 
-        name, ext  = os.path.splitext(self.vcf_file)
+        name, ext = os.path.splitext(self.vcf_file)
         if ext == '.gz':
-            open = 'zcat'
-            name, dummy  = os.path.splitext(name)
+            file_opener = 'zcat'
+            name, dummy = os.path.splitext(name)
         else:
-            open = 'cat'
+            file_opener = 'cat'
 
         gender_call_file = name + '.sex'
 
-        command =  '''%s %s | grep '^chrX' | awk '{split($10,a,":"); count[a[1]]++; total++} END{for (g in count){print g" "count[g]/total}}' | grep '0/1' | awk '{if ($2>.35){gender="FEMALE"}else{if ($2<.15){gender="MALE"}else{gender="UNKNOWN"}} print gender}' > %s'''
+        command = util.str_join(
+            '%s %s' % (file_opener, self.vcf_file),
+            "grep '^chrX'",
+            "awk '{split($10,a,\":\"); count[a[1]]++; total++} END{for (g in count){print g\" \"count[g]/total}}'",
+            "grep '0/1'",
+            "awk '{if ($2>.35){gender=\"FEMALE\"}else{if ($2<.15){gender=\"MALE\"}else{gender=\"UNKNOWN\"}} print gender, $2}'",
+            separator=' | '
+        ) + ' > ' + gender_call_file
         self.info(command)
-        command = command%(open, self.vcf_file, gender_call_file)
 
-        return_code = executor.execute([command],
-                                       job_name='sex_dection',
-                                       run_id=self.sample_id,
-                                       walltime=6,
-                                       cpus=1,
-                                       mem=2,
-                                       log_command=False).join()
-        return return_code
+        exit_status = executor.execute(
+            [command],
+            job_name='sex_detection',
+            working_dir=self.working_dir,
+            walltime=6,
+            cpus=1,
+            mem=2,
+            log_commands=False
+        ).join()
+        self.dataset.end_stage('gender_validation', exit_status)
+        return exit_status
 
     def run(self):
         try:
-            self.return_value = self._gender_call()
+            self.exit_status = self._gender_call()
         except Exception as e:
             self.exception = e
 
@@ -59,21 +63,25 @@ class GenderValidation(AppLogger, Thread):
         super().join(timeout=timeout)
         if self.exception:
             raise self.exception
-        return self.return_value
+        return self.exit_status
+
 
 def main():
+    from analysis_driver.config import default as cfg
+    from analysis_driver.dataset_scanner import SampleScanner
     args = _parse_args()
-    os.makedirs(os.path.join(cfg['jobs_dir'], args.sample_id), exist_ok=True)
-    s = GenderValidation(args.sample_id,args.vcf_file)
+    os.makedirs(args.working_dir, exist_ok=True)
+    dataset = SampleScanner(cfg).get_dataset(args.sample_id)
+    s = GenderValidation(dataset, args.working_dir, args.vcf_file)
     s.start()
     return s.join()
 
+
 def _parse_args():
     p = argparse.ArgumentParser()
+    p.add_argument('--sample_id', type=str, help='sample ID for creating a Sample dataset object')
     p.add_argument('-v', '--vcf_file', dest="vcf_file", type=str, help='the vcf file used to detect the gender')
-    p.add_argument('-s', '--sample_id', dest="sample_id", type=str, help='the sample id to be used as job directory')
-
-
+    p.add_argument('-s', '--working_dir', dest="working_dir", type=str, help='the working dir for execution')
     return p.parse_args()
 
 if __name__ == "__main__":

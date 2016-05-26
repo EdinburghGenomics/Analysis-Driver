@@ -1,17 +1,17 @@
 import os
 import yaml
-import logging
 from .exceptions import AnalysisDriverError
 
 
 class Configuration:
     def __init__(self, cfg_search_path):
         self.cfg_search_path = cfg_search_path
-        self.config_file = self._find_config_file()
+        self.config_file = self._find_config_file(self.cfg_search_path)
         self.content = yaml.safe_load(open(self.config_file, 'r'))
 
-    def _find_config_file(self):
-        for p in self.cfg_search_path:
+    @staticmethod
+    def _find_config_file(search_path):
+        for p in search_path:
             if p and os.path.isfile(p):
                 return p
         raise AnalysisDriverError('Could not find config file in self.cfg_search_path')
@@ -92,44 +92,6 @@ class EnvConfiguration(Configuration):
         self.content = dict(self._merge_dicts(self.content, override_dict))
 
 
-class LoggingConfiguration:
-    """
-    Stores logging Formatters and Handlers.
-    """
-    def __init__(self):
-        self.default_formatter = logging.Formatter(
-            fmt=default.query(
-                'logging',
-                'format',
-                ret_default='[%(asctime)s][%(name)s][%(levelname)s] %(message)s'
-            ),
-            datefmt=default.query('logging', 'datefmt', ret_default='%Y-%b-%d %H:%M:%S')
-        )
-        self.blank_formatter = logging.Formatter()
-        self.formatter = self.default_formatter
-        self.handlers = {}
-        self.default_level = logging.INFO
-
-    def add_handler(self, name, handler, level=None):
-        """
-        :param str name: A name or id to assign the Handler
-        :param logging.FileHandler handler:
-        """
-        if level is None:
-            level = self.default_level
-        handler.setFormatter(self.formatter)
-        handler.setLevel(level)
-        self.handlers[name] = handler
-
-    def switch_formatter(self, formatter):
-        """
-        Set all handlers to formatter
-        """
-        self.formatter = formatter
-        for name in self.handlers:
-            self.handlers[name].setFormatter(self.formatter)
-
-
 def _dir_path():
     """Find the absolute path of 2 dirs above this file (should be Analysis-Driver)"""
     return os.path.dirname(os.path.abspath(os.path.dirname(__file__)))
@@ -143,9 +105,9 @@ def _etc_config(config_file):
 default = EnvConfiguration(
     [
         os.getenv('ANALYSISDRIVERCONFIG'),
-        os.path.expanduser('~/.analysisdriver.yaml')
+        os.path.expanduser('~/.analysisdriver.yaml'),
+        os.path.join(os.path.dirname(os.path.dirname(__file__)), 'etc', 'example_analysisdriver.yaml')
     ]
 )
 output_files_config = Configuration([_etc_config('output_files.yaml')])
 sample_sheet_config = Configuration([_etc_config('sample_sheet_cfg.yaml')])
-logging_default = LoggingConfiguration()
