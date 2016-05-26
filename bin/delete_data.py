@@ -29,9 +29,9 @@ class Deleter(AppLogger):
 
     def _execute(self, cmd, cluster_execution=False):
         if cluster_execution:
-            status = executor.execute([cmd], job_name='data_deletion', working_dir=self.work_dir).join()
+            status = executor.execute(cmd, job_name='data_deletion', working_dir=self.work_dir).join()
         else:
-            status = executor.execute([cmd], 'local').join()
+            status = executor.execute(cmd, env='local').join()
         if status:
             raise AnalysisDriverError('Command failed: ' + cmd)
 
