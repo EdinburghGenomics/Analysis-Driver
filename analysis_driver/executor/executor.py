@@ -175,7 +175,10 @@ class ClusterExecutor(AppLogger):
         raise NotImplementedError
 
     def _submit_job(self):
-        raise NotImplementedError
+        p = self._get_stdout(self.cmd)
+        if p is None:
+            raise AnalysisDriverError('Job submissions failed')
+        return p
 
     def _job_finished(self):
         status = self._job_status()
@@ -201,9 +204,6 @@ class PBSExecutor(ClusterExecutor):
     finished_statuses = 'FXM'
     script_writer = script_writers.PBSWriter
 
-    def _submit_job(self):
-        return self._get_stdout(self.cmd)
-
     def _qstat(self):
         h1, h2, data = self._get_stdout('qstat -x {j}'.format(j=self.job_id)).split('\n')
         return data.split()
@@ -223,7 +223,7 @@ class SlurmExecutor(ClusterExecutor):
 
     def _submit_job(self):
         # sbatch stdout: "Submitted batch job {job_id}"
-        return self._get_stdout(self.cmd).split()[-1].strip()
+        return super()._submit_job().split()[-1].strip()
 
     def _sacct(self, output_format):
         return self._get_stdout('sacct -n -j {j} -o {o}'.format(j=self.job_id, o=output_format))
