@@ -4,19 +4,17 @@ import os
 import argparse
 import logging
 
-
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from analysis_driver.quality_control import SamtoolsDepth
-from analysis_driver.dataset_scanner import NoCommunicationDataset
-from analysis_driver.quality_control.gender_validation import GenderValidation
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from analysis_driver.quality_control.genotype_validation import GenotypeValidation
-from analysis_driver.app_logging import logging_default as log_cfg
 from analysis_driver import executor
-from analysis_driver.exceptions import AnalysisDriverError
-from analysis_driver.util.bash_commands import rsync_from_to, is_remote_path
 from analysis_driver.config import default as cfg
-from analysis_driver.clarity import get_user_sample_name
+from analysis_driver.exceptions import AnalysisDriverError
+from analysis_driver.quality_control import SamtoolsDepth
+from analysis_driver.dataset import NoCommunicationDataset
+from analysis_driver.app_logging import logging_default as log_cfg
+from analysis_driver.external_data.clarity import get_user_sample_name
+from analysis_driver.util.bash_commands import rsync_from_to, is_remote_path
+from analysis_driver.quality_control.gender_validation import GenderValidation
+from analysis_driver.quality_control.genotype_validation import GenotypeValidation
 from analysis_driver.quality_control.contamination_checks import ContaminationCheck, VerifyBamId
 from analysis_driver.reader.demultiplexing_parsers import get_fastqscreen_results
 log_cfg.default_level = logging.DEBUG
@@ -34,7 +32,7 @@ def _parse_args():
 
     geno_val_parser = subparsers.add_parser('genotype_validation')
     geno_val_parser.add_argument('--project_id', required=True)
-    geno_val_parser.add_argument('--sample_id', required = True)
+    geno_val_parser.add_argument('--sample_id', required=True)
     geno_val_parser.add_argument('--check_neighbour', action='store_true', default=False)
     geno_val_parser.add_argument('--check_project', action='store_true', default=False)
     geno_val_parser.add_argument('--check_samples', nargs='*')
@@ -150,6 +148,7 @@ def run_species_contamination_check(args):
     fastqscreen_result = get_fastqscreen_results(expected_output_files, args.sample_id)
     print(fastqscreen_result)
 
+
 def run_sample_contamination_check(args):
     if args.work_dir:
         work_dir = args.work_dir
@@ -173,6 +172,7 @@ def run_gender_validation(args):
     s = GenderValidation(dataset, work_dir, args.vcf_file)
     s.start()
     return s.join()
+
 
 def median_coverage(args):
     work_dir = os.path.join(cfg['jobs_dir'], args.sample_id)

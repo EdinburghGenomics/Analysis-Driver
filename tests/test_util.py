@@ -1,20 +1,22 @@
-from analysis_driver.util.bash_commands import sickle_paired_end_in_place
-
-__author__ = 'mwham'
+import shutil
+import os.path
 from unittest.mock import patch
 from tests.test_analysisdriver import TestAnalysisDriver
 from analysis_driver import util, transfer_data
+from analysis_driver.util.bash_commands import sickle_paired_end_in_place
 from analysis_driver.config import default as cfg
-import shutil
-import os.path
+
+
+def ppath(*parts):
+    return 'analysis_driver.external_data.clarity.' + '.'.join(parts)
 
 
 def patched_get_user_sample_name(sample_id):
-    return patch('analysis_driver.clarity.get_user_sample_name', return_value=sample_id)
+    return patch(ppath('get_user_sample_name'), return_value=sample_id)
 
 
 def patched_find_project_from_sample(sample_id):
-    return patch('analysis_driver.clarity.find_project_from_sample', return_value='proj_' + sample_id)
+    return patch(ppath('find_project_name_from_sample'), return_value='proj_' + sample_id)
 
 
 class TestUtil(TestAnalysisDriver):
@@ -40,13 +42,12 @@ class TestUtil(TestAnalysisDriver):
                 self.fastq_path, '10015AT', '10015AT0001', file_name
             ) in fastqs
 
-
     def test_find_all_fastq_pairs(self):
         fastqs = util.find_all_fastq_pairs(self.fastq_path)
         for f1, f2 in [('10015AT0001_S6_L004_R1_001.fastq.gz', '10015AT0001_S6_L004_R2_001.fastq.gz'),
                        ('10015AT0001_S6_L005_R1_001.fastq.gz', '10015AT0001_S6_L005_R2_001.fastq.gz')]:
-            fp1 = os.path.join(self.fastq_path, '10015AT', '10015AT0001', f1 )
-            fp2 = os.path.join(self.fastq_path, '10015AT', '10015AT0001', f2 )
+            fp1 = os.path.join(self.fastq_path, '10015AT', '10015AT0001', f1)
+            fp2 = os.path.join(self.fastq_path, '10015AT', '10015AT0001', f2)
             assert (fp1, fp2) in fastqs
 
     def test_sickle_paired_end_in_place(self):
@@ -59,6 +60,7 @@ class TestUtil(TestAnalysisDriver):
                            "(exit $EXIT_CODE) && rm fastqfile1_R1.fastq_sickle_single.gz\n(exit $EXIT_CODE)"
         cmd = sickle_paired_end_in_place(('fastqfile1_R1.fastq.gz', 'fastqfile1_R2.fastq.gz'))
         assert cmd == expected_command
+
 
 class TestTransferData(TestAnalysisDriver):
     sample_id = '10015AT0001'

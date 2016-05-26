@@ -1,6 +1,5 @@
-from analysis_driver.quality_control.contamination_checks import VerifyBamId
 from tests.test_quality_control.qc_tester import QCTester
-from analysis_driver.quality_control import ContaminationCheck
+from analysis_driver.quality_control import ContaminationCheck, VerifyBamId
 from unittest.mock import patch
 
 
@@ -29,7 +28,7 @@ class TestContaminationCheck(QCTester):
         assert fastqscreen_expected_outfiles_se == ['fastqFile1_screen.txt']
         assert fastqscreen_expected_outfiles_pe == ['fastqFile1_screen.txt', 'fastqFile2_screen.txt']
 
-    @patch('analysis_driver.dataset_scanner.rest_communication')
+    @patch('analysis_driver.dataset.rest_communication')
     @patch('analysis_driver.executor.execute')
     def test_run_fastqscreen(self, mocked_execute, mocked_rest):
         instance = mocked_execute.return_value
@@ -59,25 +58,24 @@ class TestContaminationCheck(QCTester):
         )
 
 
-
-class testVerifyBamId(QCTester):
+class TestVerifyBamId(QCTester):
     def setUp(self):
         super().setUp()
         self.working_dir = 'testSample'
         self.vbi = VerifyBamId(self.dataset, self.working_dir, 'test_bam_file.bam')
 
-    @patch('analysis_driver.dataset_scanner.rest_communication')
+    @patch('analysis_driver.dataset.rest_communication')
     @patch('analysis_driver.executor.execute')
     def test_contamination_check(self, mocked_execute, mocked_rest):
         self.vbi._contamination_check()
         assert mocked_execute.call_count == 3
         mocked_execute.assert_any_call(
-                'path/to/samtools view -b test_bam_file.bam chr22 > testSample/test_sample_chr22.bam',
-                mem=2,
-                job_name='filter_bam22',
-                working_dir='testSample',
-                cpus=1,
-                log_commands=False
+            'path/to/samtools view -b test_bam_file.bam chr22 > testSample/test_sample_chr22.bam',
+            mem=2,
+            job_name='filter_bam22',
+            working_dir='testSample',
+            cpus=1,
+            log_commands=False
         )
         mocked_execute.assert_any_call(
                 'path/to/samtools index testSample/test_sample_chr22.bam',
@@ -87,46 +85,46 @@ class testVerifyBamId(QCTester):
                 job_name='index_bam22'
         )
         mocked_execute.assert_any_call(
-                'path/to/verifybamid --bam testSample/test_sample_chr22.bam --vcf path/to/population_vcf --out testSample/test_sample-chr22-vbi',
-                working_dir='testSample',
-                cpus=1,
-                job_name='verify_bam_id',
-                mem=4)
+            'path/to/verifybamid --bam testSample/test_sample_chr22.bam --vcf path/to/population_vcf --out testSample/test_sample-chr22-vbi',
+            working_dir='testSample',
+            cpus=1,
+            job_name='verify_bam_id',
+            mem=4
+        )
 
 
     @patch('analysis_driver.executor.execute')
     def test_filter_bam(self, mocked_execute):
         self.vbi._filter_bam()
         mocked_execute.assert_called_once_with(
-                'path/to/samtools view -b test_bam_file.bam chr22 > testSample/test_sample_chr22.bam',
-                job_name='filter_bam22',
-                mem=2,
-                working_dir='testSample',
-                cpus=1,
-                log_commands=False
+            'path/to/samtools view -b test_bam_file.bam chr22 > testSample/test_sample_chr22.bam',
+            job_name='filter_bam22',
+            mem=2,
+            working_dir='testSample',
+            cpus=1,
+            log_commands=False
         )
 
     @patch('analysis_driver.executor.execute')
     def test_index_filtered_bam(self, mocked_execute):
-        self.vbi.filtered_bam='test_filtered_bam.bam'
+        self.vbi.filtered_bam = 'test_filtered_bam.bam'
         self.vbi._index_filtered_bam()
         mocked_execute.assert_called_once_with(
-                'path/to/samtools index test_filtered_bam.bam',
-                mem=2,
-                job_name='index_bam22',
-                working_dir='testSample',
-                cpus=1
+            'path/to/samtools index test_filtered_bam.bam',
+            mem=2,
+            job_name='index_bam22',
+            working_dir='testSample',
+            cpus=1
         )
 
     @patch('analysis_driver.executor.execute')
     def test_verify_bam_id(self, mocked_execute):
-        self.vbi.filtered_bam='test_filtered_bam.bam'
+        self.vbi.filtered_bam = 'test_filtered_bam.bam'
         self.vbi._verify_bam_id()
         mocked_execute.assert_called_once_with(
-                'path/to/verifybamid --bam test_filtered_bam.bam --vcf path/to/population_vcf --out testSample/test_sample-chr22-vbi',
-                job_name='verify_bam_id',
-                mem=4,
-                cpus=1,
-                working_dir='testSample'
+            'path/to/verifybamid --bam test_filtered_bam.bam --vcf path/to/population_vcf --out testSample/test_sample-chr22-vbi',
+            job_name='verify_bam_id',
+            mem=4,
+            cpus=1,
+            working_dir='testSample'
         )
-

@@ -1,15 +1,17 @@
-import os
 import pytest
 from unittest.mock import Mock, patch
 from smtplib import SMTPException
-from analysis_driver.dataset_scanner import RunDataset
+from analysis_driver.dataset import NoCommunicationDataset
 from analysis_driver.notification.notification_center import NotificationCenter
-from analysis_driver.notification import EmailNotification, LogNotification
+from analysis_driver.notification import EmailNotification, LogNotification, AsanaNotification
 from analysis_driver.config import default as cfg
 from analysis_driver.exceptions import AnalysisDriverError
 from tests.test_analysisdriver import TestAnalysisDriver
-from tests.test_dataset_scanner import patched_request
 
+patched_get = patch(
+    'analysis_driver.dataset_scanner.rest_communication.get_documents',
+    return_value=[{'run_id': 'test_dataset'}]
+)
 
 class FakeSMTP(Mock):
     def __init__(self, host, port):
@@ -30,13 +32,7 @@ class FakeSMTP(Mock):
 
 class TestNotificationCenter(TestAnalysisDriver):
     def setUp(self):
-        base_dir = os.path.join(self.assets_path, 'dataset_scanner')
-        with patched_request:
-            dataset = RunDataset(
-                name='test_run_id',
-                path=os.path.join(base_dir, 'that'),
-                use_int_dir=False
-            )
+        dataset = NoCommunicationDataset('test_run_id')
         self.notification_center = NotificationCenter()
         self.notification_center.add_subscribers(
             (LogNotification, dataset, cfg.query('notification', 'log_notification')),
@@ -58,10 +54,43 @@ class TestNotificationCenter(TestAnalysisDriver):
 
     @patch('smtplib.SMTP', new=FakeSMTP)
     @patch('analysis_driver.notification.email_notification.sleep')
-    def test_retries(self, mocked_time):
+    def test_retries(self, mocked_sleep):
         assert self.email_ntf._try_send(self.email_ntf._prepare_message('this is a test')) is True
         assert self.email_ntf._try_send(self.email_ntf._prepare_message('dodgy')) is False
 
         with pytest.raises(AnalysisDriverError) as e:
             self.email_ntf._send_mail('dodgy')
             assert 'Failed to send message: dodgy' in str(e)
+
+
+class TestAsanaNotification(TestAnalysisDriver):
+    def setUp(self):
+        self.ntf = AsanaNotification(
+            NoCommunicationDataset('test_dataset'),
+            {'access_token': 'an_access_token', 'workspace_id': 1337, 'project_id': 1338}
+        )
+        self.ntf.client = Mock(
+            tasks=Mock(
+                find_all=Mock(return_value=[{'name': 'this'}]),
+                create_in_workspace=Mock(return_value={'id': 1337}),
+                find_by_id=Mock(return_value={'name': 'this', 'id': 1337})
+            )
+        )
+
+    def test_task(self):
+        assert self.ntf._task is None
+        assert self.ntf.task == {'id': 1337, 'name': 'this'}
+        self.ntf.client.tasks.find_by_id.assert_called_with(1337)
+
+    def test_add_comment(self):
+        self.ntf._add_comment('a comment')
+        self.ntf.client.tasks.add_comment.assert_called_with(1337, text='a comment')
+
+    def test_get_entity(self):
+        collection = [{'name': 'this'}, {'name': 'that'}]
+        assert self.ntf._get_entity(collection, 'that') == {'name': 'that'}
+        assert self.ntf._get_entity(collection, 'other') is None
+
+    def test_create_task(self):
+        assert self.ntf._create_task() == {'id': 1337}
+        self.ntf.client.tasks.create_in_workspace.assert_called_with(1337, self.ntf.task_template)

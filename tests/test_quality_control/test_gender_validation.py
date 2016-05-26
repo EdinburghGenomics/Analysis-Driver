@@ -1,11 +1,10 @@
 from unittest.mock import patch
 from analysis_driver.quality_control.gender_validation import GenderValidation
 from tests.test_quality_control.qc_tester import QCTester
-__author__ = 'tcezard'
 
 
 class TestGenderValidation(QCTester):
-    @patch('analysis_driver.dataset_scanner.rest_communication')
+    @patch('analysis_driver.dataset.rest_communication')
     @patch('analysis_driver.executor.execute')
     def test__gender_call(self, mocked_execute, mocked_rest):
         validator = GenderValidation(self.dataset, working_dir='test_sample', vcf_file='path/to/test/vcf')

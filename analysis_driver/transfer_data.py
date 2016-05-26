@@ -1,6 +1,7 @@
 import os
 from time import sleep
-from analysis_driver import executor, clarity, util
+from analysis_driver import executor, util
+from analysis_driver.external_data import clarity
 from analysis_driver.exceptions import PipelineError
 from analysis_driver.util.bash_commands import rsync_from_to, is_remote_path
 from analysis_driver.app_logging import logging_default as log_cfg
@@ -174,7 +175,7 @@ def output_run_data(fastq_dir, run_id):
 
 
 def output_sample_data(sample_id, source_dir, output_dir):
-    project_id = clarity.find_project_from_sample(sample_id)
+    project_id = clarity.find_project_name_from_sample(sample_id)
     output_dir = os.path.join(output_dir, project_id, sample_id)
 
     return _output_data(
