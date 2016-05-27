@@ -1,12 +1,13 @@
-__author__ = 'mwham'
 import threading
 import subprocess
 import select  # asynchronous IO
 import os.path
 import shlex
+from time import sleep
 from analysis_driver.app_logging import AppLogger
 from analysis_driver.exceptions import AnalysisDriverError
-from .script_writers import get_script_writer
+from analysis_driver.config import default as cfg
+from . import script_writers
 
 
 class Executor(AppLogger):
@@ -97,33 +98,11 @@ class StreamExecutor(threading.Thread, Executor):
                         read_set.remove(stream)
 
 
-class ClusterExecutor(StreamExecutor):
-    def __init__(self, cmds, **kwargs):
-        """
-        :param list cmds: Full path to a PBS script (for example)
-        """
-        self.qsub = kwargs.pop('qsub', 'qsub')
-        prelim_cmds = kwargs.pop('prelim_cmds', None)
-        w = get_script_writer(jobs=len(cmds), **kwargs)
-        w.write_jobs(cmds, prelim_cmds=prelim_cmds)
-        super().__init__(w.script_name)
-
-    def _process(self):
-        """
-        As the superclass, but with a qsub call to a PBS script.
-        :rtype: subprocess.Popen
-        """
-        cmd = self.qsub + ' ' + self.cmd
-        self.info('Executing: ' + cmd)
-        self.proc = subprocess.Popen(cmd.split(' '), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        return self.proc
-
-
 class ArrayExecutor(StreamExecutor):
     def __init__(self, cmds, stream):
         """
-        :param list cmds:
-        :param bool simple:
+        :param cmds:
+        :param bool stream: Whether to run all commands in parallel or one after another
         """
         super().__init__(cmds)
         self.executors = []
@@ -156,7 +135,114 @@ class ArrayExecutor(StreamExecutor):
         return sum(self.exit_statuses)
 
     def _validate_file_paths(self):
-        for cmd in self.cmd:
-            for arg in cmd.split(' '):
-                if arg.startswith('/') and not os.path.exists(arg):
-                    self.debug('Could not find file: ' + arg + '. Will the executed command create it?')
+        pass
+
+
+class ClusterExecutor(AppLogger):
+    script_writer = None
+    finished_statuses = None
+    unfinished_statuses = None
+
+    def __init__(self, *cmds, prelim_cmds=None, **cluster_config):
+        """
+        :param list cmds: Full path to a job submission script
+        """
+        self.job_queue = cfg['job_queue']
+        self.job_id = None
+        w = self._get_writer(jobs=len(cmds), **cluster_config)
+        w.write_jobs(cmds, prelim_cmds)
+        qsub = cfg.query('tools', 'qsub', ret_default='qsub')
+        self.cmd = qsub + ' ' + w.script_name
+
+    def start(self):
+        self.job_id = self._submit_job()
+        self.info('Submitted "%s" as job %s' % (self.cmd, self.job_id))
+
+    def join(self):
+        sleep(10)
+        while not self._job_finished():
+            sleep(30)
+        return self._job_exit_code()
+
+    @classmethod
+    def _get_writer(cls, job_name, working_dir, walltime=None, cpus=1, mem=2, jobs=1, log_commands=True):
+        return cls.script_writer(job_name, working_dir, cfg['job_queue'], cpus, mem, walltime, jobs, log_commands)
+
+    def _job_status(self):
+        raise NotImplementedError
+
+    def _job_exit_code(self):
+        raise NotImplementedError
+
+    def _submit_job(self):
+        p = self._get_stdout(self.cmd)
+        if p is None:
+            raise AnalysisDriverError('Job submissions failed')
+        return p
+
+    def _job_finished(self):
+        status = self._job_status()
+        if status in self.unfinished_statuses:
+            return False
+        elif status in self.finished_statuses:
+            return True
+        self.debug('Bad job status: %s', status)
+
+    def _get_stdout(self, cmd):
+        p = subprocess.Popen(cmd.split(' '), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        exit_status = p.wait()
+        o, e = p.stdout.read(), p.stderr.read()
+        self.debug('%s -> (%s, %s, %s)', cmd, exit_status, o, e)
+        if exit_status:
+            return None
+        else:
+            return o.decode('utf-8').strip()
+
+
+class PBSExecutor(ClusterExecutor):
+    unfinished_statuses = 'BEHQRSTUW'
+    finished_statuses = 'FXM'
+    script_writer = script_writers.PBSWriter
+
+    def _qstat(self):
+        h1, h2, data = self._get_stdout('qstat -x {j}'.format(j=self.job_id)).split('\n')
+        return data.split()
+
+    def _job_status(self):
+        job_id, job_name, user, time, status, queue = self._qstat()
+        return status
+
+    def _job_exit_code(self):
+        return self.finished_statuses.index(self._job_status())
+
+
+class SlurmExecutor(ClusterExecutor):
+    unfinished_statuses = ('RUNNING', 'RESIZING', 'SUSPENDED', 'PENDING')
+    finished_statuses = ('COMPLETED', 'CANCELLED', 'FAILED', 'TIMEOUT', 'NODE_FAIL')
+    script_writer = script_writers.SlurmWriter
+
+    def _submit_job(self):
+        # sbatch stdout: "Submitted batch job {job_id}"
+        return super()._submit_job().split()[-1].strip()
+
+    def _sacct(self, output_format):
+        return self._get_stdout('sacct -n -j {j} -o {o}'.format(j=self.job_id, o=output_format))
+
+    def _squeue(self):
+        s = self._get_stdout('squeue -j {j} -o %T'.format(j=self.job_id)).split('\n')
+        if len(s) < 2:
+            return None
+        return sorted(set(s[1:]))
+
+    def _job_status(self):
+        state = self._squeue()
+        if not state:
+            state = self._sacct('State')
+        return state
+
+    def _job_exit_code(self):
+        state, exit_code = self._sacct('State,ExitCode').split()
+        if state == 'CANCELLED':  # cancelled jobs can still be exit status 0
+            return 9
+        return int(exit_code.split(':')[0])
+

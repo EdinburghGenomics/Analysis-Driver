@@ -19,7 +19,7 @@ default:
     ncbi_cache: ':memory:'
 
     tt_agent_delay: 20
-    job_execution: pbs  # pbs or None
+    job_execution: local  # pbs, slurm, local
     job_queue: uv2000
 
     tools:

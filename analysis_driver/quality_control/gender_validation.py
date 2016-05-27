@@ -42,7 +42,7 @@ class GenderValidation(QualityControl):
         self.info(command)
 
         exit_status = executor.execute(
-            [command],
+            command,
             job_name='sex_detection',
             working_dir=self.working_dir,
             walltime=6,
