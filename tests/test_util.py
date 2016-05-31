@@ -82,13 +82,14 @@ class TestTransferData(TestAnalysisDriver):
             cfg.content[p['name']] = p['original']
 
         shutil.rmtree(self._to_dir)
+        shutil.rmtree(self._pseudo_links)
 
     @property
     def _to_dir(self):
         return os.path.join(self.data_output, 'to', '')
 
     def _create_pseudo_links(self):
-        self._pseudo_links
+        os.makedirs(self._pseudo_links, exist_ok=True)
         for f in [
             '10015AT0001.bam',
             '10015AT0001.bam.bai',
