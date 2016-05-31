@@ -3,6 +3,7 @@ from time import sleep
 from analysis_driver import executor, util
 from analysis_driver.external_data import clarity
 from analysis_driver.exceptions import PipelineError
+from analysis_driver.util import same_fs, move_dir
 from analysis_driver.util.bash_commands import rsync_from_to, is_remote_path
 from analysis_driver.app_logging import logging_default as log_cfg
 from analysis_driver.config import default as cfg
@@ -149,7 +150,7 @@ def create_links_from_bcbio(sample_id, input_dir, output_config, link_dir):
         app_logger.error('link creation failed with exit status ' + str(exit_status))
 
 
-def _output_data(source_dir, output_dir, run_id):
+def _output_data(source_dir, output_dir, working_dir):
     if is_remote_path(output_dir):
         app_logger.info('output dir is remote')
         host, path = output_dir.split(':')
@@ -157,21 +158,27 @@ def _output_data(source_dir, output_dir, run_id):
         exit_status = executor.execute([ssh_cmd], env='local', stream=False).join()
         if exit_status:
             raise PipelineError('Could not create remote output dir: ' + output_dir)
-
+        command = rsync_from_to(source_dir, output_dir)
+        return executor.execute(
+                [command],
+                job_name='data_output',
+                working_dir=working_dir
+            ).join()
+    elif same_fs(source_dir, output_dir):
+        return move_dir(source_dir, output_dir)
     else:
         os.makedirs(output_dir, exist_ok=True)
-
-    command = rsync_from_to(source_dir, output_dir)
-    return executor.execute(
-        [command],
-        job_name='data_output',
-        working_dir=os.path.join(cfg['jobs_dir'], run_id)
-    ).join()
+        command = rsync_from_to(source_dir, output_dir)
+        return executor.execute(
+                [command],
+                job_name='data_output',
+                working_dir=working_dir
+            ).join()
 
 
 def output_run_data(fastq_dir, run_id):
     """Retrieve and copy the fastq files to the output directory"""
-    return _output_data(fastq_dir, os.path.join(cfg['output_dir'], run_id), run_id)
+    return _output_data(fastq_dir, os.path.join(cfg['output_dir'], run_id), os.path.join(cfg['jobs_dir'], run_id))
 
 
 def output_sample_data(sample_id, source_dir, output_dir):
@@ -181,5 +188,5 @@ def output_sample_data(sample_id, source_dir, output_dir):
     return _output_data(
         source_dir.rstrip('/') + '/',
         output_dir.rstrip('/'),
-        sample_id
+        os.path.join(cfg['jobs_dir'], sample_id)
     )

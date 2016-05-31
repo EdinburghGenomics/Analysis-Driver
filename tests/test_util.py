@@ -75,6 +75,7 @@ class TestTransferData(TestAnalysisDriver):
             cfg.content[p['name']] = p['new']
 
         os.makedirs(self._to_dir, exist_ok=True)
+        self._create_pseudo_links()
 
     def tearDown(self):
         for p in self.param_remappings:
@@ -85,6 +86,22 @@ class TestTransferData(TestAnalysisDriver):
     @property
     def _to_dir(self):
         return os.path.join(self.data_output, 'to', '')
+
+    def _create_pseudo_links(self):
+        self._pseudo_links
+        for f in [
+            '10015AT0001.bam',
+            '10015AT0001.bam.bai',
+            '10015AT0001.g.vcf.gz',
+            '10015AT0001.g.vcf.gz.tbi',
+            '10015AT0001_R1.fastq.gz',
+            '10015AT0001_R2.fastq.gz',
+            '1_2015-10-16_samples_10015AT0001-merged-sort-callable.bed',
+            '1_2015-10-16_samples_10015AT0001-merged-sort-highdepth-stats.yaml',
+            'ConversionStats.xml',
+            'bamtools_stats.txt'
+        ]:
+            open(os.path.join(self._pseudo_links, f), 'a').close()
 
     def test_create_links(self):
         if not os.path.exists(os.path.join(self.data_output, 'jobs', self.sample_id)):
