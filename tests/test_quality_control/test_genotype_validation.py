@@ -55,7 +55,7 @@ class TestGenotypeValidation(QCTester):
         assert expected_bam == pjoin('path/to/jobs/', self.sample_id, self.sample_id + '_geno_val.bam')
         assert mocked_execute.call_count == 1
         mocked_execute.assert_called_once_with(
-            ['long_bwa_command'],
+            'long_bwa_command',
             job_name='alignment_bwa',
             cpus=4,
             working_dir=pjoin(cfg['jobs_dir'], self.sample_id),
@@ -82,7 +82,7 @@ class TestGenotypeValidation(QCTester):
         assert output_vcf == expected_vcf
         assert mocked_execute.call_count == 1
         mocked_execute.assert_called_once_with(
-            [command],
+            command,
             job_name='snpcall_gatk',
             working_dir=pjoin(cfg['jobs_dir'], self.sample_id),
             cpus=4,
@@ -110,9 +110,9 @@ class TestGenotypeValidation(QCTester):
         command_index = '{tabix} -p vcf {vcf}'.format(tabix=cfg.query('tools', 'tabix'), vcf=genotype_vcf)
         # Call the index and the actual validation
         assert mocked_execute.call_count == 2
-        mocked_execute.assert_any_call([command_index], job_name='index_vcf', working_dir=work_dir, cpus=1, mem=4)
+        mocked_execute.assert_any_call(command_index, job_name='index_vcf', working_dir=work_dir, cpus=1, mem=4)
         mocked_execute.assert_called_with(
-            [command_gatk],
+            command_gatk,
             job_name='genotype_concordance',
             working_dir=work_dir,
             cpus=4,
@@ -126,7 +126,7 @@ class TestGenotypeValidation(QCTester):
         # No call to the index generation and the actual validation
         assert mocked_execute.call_count == 1
         mocked_execute.assert_called_with(
-            [command_gatk],
+            command_gatk,
             job_name='genotype_concordance',
             working_dir=work_dir,
             cpus=4,
@@ -184,7 +184,7 @@ class TestGenotypeValidation(QCTester):
             bcftools=cfg.query('tools', 'bcftools'), sample_name=sample_name, genotype_vcf=genotype_vcf
         )
         mocked_execute.assert_called_once_with(
-            [command],
+            command,
             job_name='genotype_rename',
             working_dir=work_dir,
             cpus=4,
