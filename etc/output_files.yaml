@@ -25,9 +25,15 @@ bcbio:
 
   - location: ['samples_{runfolder}-merged', 'final', '{sample_id}', 'qc', 'bamtools']
     basename: 'bamtools_stats.txt'
+    required: False
+
+  - location: ['samples_{runfolder}-merged', 'final', '{sample_id}', 'qc', 'samtools', '{sample_id}.txt']
+    basename: 'samtools_stats.txt'
+    required: False
 
   - location: ['samples_{runfolder}-merged', 'work', 'align', '{sample_id}']
     basename: '*{sample_id}*-sort-highdepth-stats.yaml'
+    required: False
 
   - location: ['samples_{runfolder}-merged', 'work', 'align', '{sample_id}']
     basename: '*{sample_id}*-sort-callable.bed'

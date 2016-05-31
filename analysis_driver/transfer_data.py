@@ -65,7 +65,7 @@ def _find_fastqs_for_sample(sample_id, run_element):
         rsync_cmd = rsync_from_to(pattern, os.path.join(cfg['jobs_dir'], sample_id, run_id))
         # TODO: try and parallelise this (although this avoids spamming the rdf server)
         exit_status = executor.execute(
-            [rsync_cmd],
+            rsync_cmd,
             job_name='transfer_sample',
             working_dir=os.path.join(cfg['jobs_dir'], sample_id)
         ).join()
@@ -95,7 +95,7 @@ def _transfer_run_to_int_dir(dataset, from_dir, to_dir, repeat_delay):
 
     while not dataset.rta_complete():
         exit_status += executor.execute(
-            [rsync_cmd],
+            rsync_cmd,
             job_name='transfer_run',
             working_dir=os.path.join(cfg['jobs_dir'], dataset.name)
         ).join()
@@ -104,7 +104,7 @@ def _transfer_run_to_int_dir(dataset, from_dir, to_dir, repeat_delay):
     # one more rsync after the RTAComplete is created. After this, everything should be synced
     sleep(repeat_delay)
     exit_status += executor.execute(
-        [rsync_cmd],
+        rsync_cmd,
         job_name='rsync',
         working_dir=os.path.join(cfg['jobs_dir'], dataset.name)
     ).join()
@@ -150,7 +150,7 @@ def _output_data(source_dir, output_dir, working_dir):
         app_logger.info('output dir is remote')
         host, path = output_dir.split(':')
         ssh_cmd = 'ssh %s mkdir -p %s' % (host, path)
-        exit_status = executor.execute([ssh_cmd], env='local', stream=False).join()
+        exit_status = executor.execute(ssh_cmd, env='local', stream=False).join()
         if exit_status:
             raise PipelineError('Could not create remote output dir: ' + output_dir)
         command = rsync_from_to(source_dir, output_dir)
@@ -165,7 +165,7 @@ def _output_data(source_dir, output_dir, working_dir):
         os.makedirs(output_dir, exist_ok=True)
         command = rsync_from_to(source_dir, output_dir)
         return executor.execute(
-                [command],
+                command,
                 job_name='data_output',
                 working_dir=working_dir
             ).join()

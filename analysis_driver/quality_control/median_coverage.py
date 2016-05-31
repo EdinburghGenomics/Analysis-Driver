@@ -18,7 +18,6 @@ class SamtoolsDepth(QualityControl):
         samtools_depth_command = """%s depth -a -a -q 0 -Q 0 %s | awk -F "\t" '{array[$1"\t"$3]+=1} END{for (val in array){print val"\t"array[val]}}' | sort -k 1,1 -nk 2,2 > %s""" % (samtools_bin, self.bam_file, samtools_depth_out_file)
         return samtools_depth_command, samtools_depth_out_file
 
-
     def _run_samtools_depth(self):
         """
         :return string: the expected outfile from samtools depth
@@ -26,7 +25,7 @@ class SamtoolsDepth(QualityControl):
         samtools_depth_command, samtools_depth_out_file = self._get_samtools_depth_command()
         ntf.start_stage('run_samtools_depth')
         samtools_depth_executor = executor.execute(
-            [samtools_depth_command],
+            samtools_depth_command,
             job_name='samtoolsdepth',
             working_dir=self.working_dir,
             cpus=1,
