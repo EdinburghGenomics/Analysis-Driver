@@ -184,7 +184,8 @@ class RunCrawler(Crawler):
         for run_element_id in self.barcodes_info:
             barcode_info = self.barcodes_info.get(run_element_id)
             lane = barcode_info.get(ELEMENT_LANE)
-            barcode_info[ELEMENT_LANE_PC_OPT_DUP] = dup_per_lane[int(lane)]
+            if int(lane) in dup_per_lane:
+                barcode_info[ELEMENT_LANE_PC_OPT_DUP] = dup_per_lane.get(int(lane))
 
     def _populate_barcode_info_from_conversion_file(self, conversion_xml):
         all_barcodes, top_unknown_barcodes, all_barcodeless = demultiplexing_parsers.parse_conversion_stats(conversion_xml, self.samplesheet.has_barcode)
