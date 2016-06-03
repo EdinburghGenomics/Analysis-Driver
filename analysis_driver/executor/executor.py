@@ -229,10 +229,10 @@ class SlurmExecutor(ClusterExecutor):
         return self._get_stdout('sacct -n -j {j} -o {o}'.format(j=self.job_id, o=output_format))
 
     def _squeue(self):
-        s = self._get_stdout('squeue -j {j} -o %T'.format(j=self.job_id)).split('\n')
-        if len(s) < 2:
+        s = self._get_stdout('squeue -j {j} -o %T'.format(j=self.job_id))
+        if not s or len(s.split('\n')) < 2:
             return None
-        return sorted(set(s[1:]))
+        return sorted(set(s.split('\n')[1:]))
 
     def _job_status(self):
         state = self._squeue()
