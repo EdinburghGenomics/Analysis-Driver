@@ -28,7 +28,8 @@ bcbio:
     required: False
 
   - location: ['samples_{runfolder}-merged', 'final', '{sample_id}', 'qc', 'samtools', '{sample_id}.txt']
-    basename: 'samtools_stats.txt'
+    basename: '{sample_id}.txt'
+    new_name: 'samtools_stats.txt'
     required: False
 
   - location: ['samples_{runfolder}-merged', 'work', 'align', '{sample_id}']

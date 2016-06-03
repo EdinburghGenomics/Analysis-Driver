@@ -354,7 +354,7 @@ class SampleCrawler(Crawler):
             sample_contamination_path = self.search_file(sample_dir, '%s-chr22-vbi.selfSM' % self.sample_id)
         if sample_contamination_path:
             freemix = parse_vbi_selfSM(sample_contamination_path)
-            if freemix:
+            if freemix is not None:
                 sample[ELEMENT_SAMPLE_CONTAMINATION] = {ELEMENT_FREEMIX: freemix}
             else:
                 self.critical('freemix results from validateBamId are not available for %s', self.sample_id)
