@@ -150,6 +150,10 @@ class ClusterExecutor(AppLogger):
         self.job_queue = cfg['job_queue']
         self.job_id = None
         w = self._get_writer(jobs=len(cmds), **cluster_config)
+        if cfg.get('pre_job_source'):
+            if not prelim_cmds:
+                prelim_cmds = []
+            prelim_cmds.append('source ' + cfg.get('pre_job_source'))
         w.write_jobs(cmds, prelim_cmds)
         qsub = cfg.query('tools', 'qsub', ret_default='qsub')
         self.cmd = qsub + ' ' + w.script_name

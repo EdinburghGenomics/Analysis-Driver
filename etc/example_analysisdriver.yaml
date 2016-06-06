@@ -22,6 +22,8 @@ default:
     job_execution: local  # pbs, slurm, local
     job_queue: uv2000
 
+    pre_job_source: bashrc
+
     tools:
         qsub:      /bin/sh
         bcl2fastq: path/to/bcl2fastq
