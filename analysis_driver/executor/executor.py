@@ -153,6 +153,8 @@ class ClusterExecutor(AppLogger):
         if cfg.get('pre_job_source'):
             if not prelim_cmds:
                 prelim_cmds = []
+            else:
+                prelim_cmds = list(prelim_cmds)
             prelim_cmds.append('source ' + cfg.get('pre_job_source'))
         w.write_jobs(cmds, prelim_cmds)
         qsub = cfg.query('tools', 'qsub', ret_default='qsub')
