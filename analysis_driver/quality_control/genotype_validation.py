@@ -1,5 +1,5 @@
 import os
-from analysis_driver import executor
+from analysis_driver import executor, util
 from analysis_driver.external_data import clarity
 from analysis_driver.exceptions import PipelineError
 from analysis_driver.config import default as cfg
@@ -119,6 +119,7 @@ class GenotypeValidation(QualityControl):
         self.dataset.start_stage('genotype_validation_gatk')
         gatk_executor = executor.execute(
             ' '.join(gatk_command),
+            prelim_cmds=util.bash_commands.export_env_vars(),
             job_name='snpcall_gatk',
             working_dir=self.working_dir,
             cpus=4,

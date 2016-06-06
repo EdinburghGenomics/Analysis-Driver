@@ -99,6 +99,7 @@ def export_env_vars():
     app_logger.debug('Writing Java paths')
     return (
         _export('PATH', os.path.join(cfg['tools']['bcbio'], 'bin'), prepend=True),
+        _export('PATH', os.path.join(cfg['tools']['jdk'], 'bin'), prepend=True),
         _export('LD_LIBRARY_PATH', os.path.join(cfg['tools']['bcbio'], 'lib'), prepend=True),
         _export('PERL5LIB', os.path.join(cfg['tools']['bcbio'], 'lib', 'perl5'), prepend=True),
         _export('JAVA_HOME', cfg['tools']['jdk']),
