@@ -1,5 +1,7 @@
 from os.path import join as pjoin
 from unittest.mock import patch, mock_open, call
+
+from analysis_driver.util.bash_commands import export_env_vars
 from tests.test_quality_control.qc_tester import QCTester
 from analysis_driver.config import default as cfg
 from analysis_driver.quality_control import GenotypeValidation
@@ -83,6 +85,7 @@ class TestGenotypeValidation(QCTester):
         assert mocked_execute.call_count == 1
         mocked_execute.assert_called_once_with(
             command,
+            prelim_cmds=export_env_vars(),
             job_name='snpcall_gatk',
             working_dir=pjoin(cfg['jobs_dir'], self.sample_id),
             cpus=4,
