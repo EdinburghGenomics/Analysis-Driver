@@ -116,6 +116,7 @@ class TestGenotypeValidation(QCTester):
         mocked_execute.assert_any_call(command_index, job_name='index_vcf', working_dir=work_dir, cpus=1, mem=4)
         mocked_execute.assert_called_with(
             command_gatk,
+            prelim_cmds=export_env_vars(),
             job_name='genotype_concordance',
             working_dir=work_dir,
             cpus=4,

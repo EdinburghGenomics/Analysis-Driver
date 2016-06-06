@@ -157,6 +157,7 @@ class GenotypeValidation(QualityControl):
         self.dataset.start_stage('validation_genotype_concordance')
         genotype_concordance_executor = executor.execute(
             *list_commands,
+            prelim_cmds=util.bash_commands.export_env_vars(),
             job_name='genotype_concordance',
             working_dir=self.working_dir,
             cpus=4,
