@@ -131,6 +131,7 @@ class TestGenotypeValidation(QCTester):
         assert mocked_execute.call_count == 1
         mocked_execute.assert_called_with(
             command_gatk,
+            prelim_cmds=export_env_vars(),
             job_name='genotype_concordance',
             working_dir=work_dir,
             cpus=4,
