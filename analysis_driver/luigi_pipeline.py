@@ -21,18 +21,15 @@ class Stage1(ExampleStage):
 
 
 class Stage2(ExampleStage):
-    def requires(self):
-        return Stage1(dataset=self.dataset)
+    previous_stages = (Stage1,)
 
 
 class Stage3(ExampleStage):
-    def requires(self):
-        return Stage1(dataset=self.dataset)
+    previous_stages = (Stage1,)
 
 
 class Stage4(ExampleStage):
-    def requires(self):
-        return Stage2(dataset=self.dataset), Stage3(dataset=self.dataset)
+    previous_stages = (Stage2, Stage3)
 
 
 def pipeline(dataset):
