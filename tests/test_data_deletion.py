@@ -231,6 +231,9 @@ class TestRawDataDeleter(TestDeleter):
         )
         assert mocked_deletable_runs.call_count == 1
 
+    def test_run_deletable(self):
+        assert False
+
 
 patched_clarity_get_samples = patch(
     'bin.delete_data.clarity.get_released_samples', return_value=['deletable_sample', 'deletable_sample_2']
@@ -359,7 +362,7 @@ class TestFastqDeleter(TestDeleter):
             return_value=run_elements
         )
         patched_mark_sample = patch(
-            'bin.delete_data.FastqDeleter.mark_sample_fastqs_as_deleted',
+            'bin.delete_data.FastqDeleter.mark_sample_as_deleted',
         )
         basenames = []
         for lane in range(8):
@@ -424,9 +427,8 @@ class TestDeliveredDataDeleter(TestDeleter):
                 )
                 os.makedirs(d, exist_ok=True)
                 self.touch(p_join(d, s['sample_id'] + '.' + x))
-        patched_get = patch('bin.delete_data.rest_communication.get_documents', return_value=self.samples[0:2])
-        patched_now = patch('bin.delete_data.Deleter._now', return_value='t')
-        with patched_get, patched_now:
+        patched_now = patch('bin.delete_data.Deleter._strnow', return_value='t')
+        with patched_now:
             self.deleter = delete_data.DeliveredDataDeleter(['a_sample', 'yet_another_sample'], self.assets_deletion)
 
     def tearDown(self):
@@ -456,25 +458,34 @@ class TestDeliveredDataDeleter(TestDeleter):
 
     @patch('bin.delete_data.DeliveredDataDeleter.mark_sample_as_deleted')
     def test_delete_data(self, mocked_mark):
-        self.deleter.dry_run = True
-        assert self.deleter.delete_data() == 0
-        self.deleter.dry_run = False
+        patched_get = patch('bin.delete_data.rest_communication.get_documents', return_value=self.samples[0:2])
+        with patched_get:
+            self.deleter.dry_run = True
+            assert self.deleter.delete_data() == 0
+            self.deleter.dry_run = False
 
-        for s in self.samples:
-            assert os.listdir(
-                p_join(
-                    self.assets_deletion,
-                    'delivered_data',
-                    s['project_id'],
-                    s['release_dir'],
-                    s['sample_id']
+            for s in self.samples:
+                assert os.listdir(
+                    p_join(
+                        self.assets_deletion,
+                        'delivered_data',
+                        s['project_id'],
+                        s['release_dir'],
+                        s['sample_id']
+                    )
                 )
-            )
-        assert not os.path.isdir(p_join(self.assets_deletion, '.data_deletion_t'))
-        self.deleter.delete_data()
+            assert not os.path.isdir(p_join(self.assets_deletion, '.data_deletion_t'))
+            self.deleter.delete_data()
+
         mocked_mark.assert_any_call('a_sample', 'a_proc_id')
         mocked_mark.assert_any_call('yet_another_sample', 'yet_another_proc_id')
         assert not os.path.isdir(p_join(self.assets_deletion, 'delivered_data', 'another_project'))
         assert not os.path.isdir(p_join(self.assets_deletion, 'delivered_data', 'a_project', 'release_1'))
         assert os.path.isdir(p_join(self.assets_deletion, 'delivered_data', 'a_project', 'release_2', 'another_sample'))
         os.makedirs(p_join(self.assets_deletion, 'delivered_data', 'another_project'))
+
+    def test_auto_deletable_samples(self):
+        assert False
+
+    def test_old_enough_for_deletion(self):
+        assert False

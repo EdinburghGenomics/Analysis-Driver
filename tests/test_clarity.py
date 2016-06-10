@@ -271,3 +271,7 @@ def test_get_samples_sequenced_with(mocked_get_sample, mocked_containers, mocked
 def test_get_released_samples(mocked_lims):
     assert clarity.get_released_samples() == ['that', 'this']
     mocked_lims.assert_called_with(type='Data Release EG 1.0')
+
+
+def test_get_sample_release_date():
+    assert False

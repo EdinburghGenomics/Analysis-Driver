@@ -10,8 +10,8 @@ sys.path.append(dirname(dirname(abspath(__file__))))
 from analysis_driver.exceptions import AnalysisDriverError
 from analysis_driver.config import default as cfg
 from analysis_driver.app_logging import AppLogger, logging_default as log_cfg
-from analysis_driver.constants import ELEMENT_PROJECT_ID, ELEMENT_SAMPLE_INTERNAL_ID, ELEMENT_RUN_ELEMENTS,\
-    ELEMENT_PROCS, ELEMENT_RUN_NAME, ELEMENT_STATUS, ELEMENT_PROC_ID, ELEMENT_USEABLE, ELEMENT_FASTQS_DELETED,\
+from analysis_driver.constants import ELEMENT_PROJECT_ID, ELEMENT_SAMPLE_INTERNAL_ID, ELEMENT_PROCS,\
+    ELEMENT_RUN_NAME, ELEMENT_STATUS, ELEMENT_PROC_ID, ELEMENT_USEABLE, ELEMENT_FASTQS_DELETED,\
     ELEMENT_DELIVERED, ELEMENT_LANE, DATASET_DELETED
 from analysis_driver import rest_communication, executor, clarity, util
 
@@ -23,7 +23,7 @@ class Deleter(AppLogger):
         self.work_dir = work_dir
         self.dry_run = dry_run
         self.deletion_limit = deletion_limit
-        self.deletion_dir = p_join(self.data_dir, '.data_deletion_' + self._now())
+        self.deletion_dir = p_join(self.data_dir, '.data_deletion_' + self._strnow())
 
     def delete_dir(self, d):
         self.debug('Removing deletion dir containing: %s', listdir(d))
@@ -48,7 +48,11 @@ class Deleter(AppLogger):
 
     @staticmethod
     def _now():
-        return datetime.utcnow().strftime('%d_%m_%Y_%H:%M:%S')
+        return datetime.utcnow()
+
+    @classmethod
+    def _strnow(cls):
+        return cls._now().strftime('%d_%m_%Y_%H:%M:%S')
 
 
 class RawDataDeleter(Deleter):
@@ -64,16 +68,8 @@ class RawDataDeleter(Deleter):
         runs = rest_communication.get_documents('aggregate/all_runs', depaginate=True, quiet=True, sort=ELEMENT_RUN_NAME)
         deletable_runs = []
         for r in runs:
-            if self.list_runs and r[ELEMENT_RUN_NAME] in self.list_runs:
+            if (self.list_runs and r[ELEMENT_RUN_NAME] in self.list_runs) or self._run_deletable(r):
                 deletable_runs.append(r)
-            else:
-                review_statuses = r.get('review_statuses')
-                if type(review_statuses) is list:
-                    review_statuses = [s for s in review_statuses if s]
-                if review_statuses and 'not reviewed' not in review_statuses:
-                    if r.get('most_recent_proc', {}).get('status') in ('finished', 'aborted'):
-                        deletable_runs.append(r)  # i.e. not 'deleted'
-
         return deletable_runs[:self.deletion_limit]
 
     def _setup_run_for_deletion(self, run_id):
@@ -145,6 +141,16 @@ class RawDataDeleter(Deleter):
 
         self.delete_dir(self.deletion_dir)
 
+    @staticmethod
+    def _run_deletable(e):
+        review_statuses = e.get('review_statuses')
+        if type(review_statuses) is list:
+            review_statuses = [s for s in review_statuses if s]
+        if review_statuses and 'not reviewed' not in review_statuses:  # all run elements have been reviewed
+            if e.get('most_recent_proc', {}).get('status') in ('finished', 'aborted'):  # run is not deleted
+                return True
+        return False
+
 
 class FastqDeleter(Deleter):
     data_dir = cfg['data_deletion']['fastqs']
@@ -184,8 +190,11 @@ class FastqDeleter(Deleter):
             lane=run_element[ELEMENT_LANE]
         )
 
+    def deletable_samples(self):
+        return sorted(self.samples_released_in_lims & set(self.samples_released_in_app))[:self.deletion_limit]
+
     def setup_deletion_records(self):
-        deletable_samples = sorted(self.samples_released_in_lims & set(self.samples_released_in_app))[:self.deletion_limit]
+        deletable_samples = self.deletable_samples()
         deletion_records = []
 
         n_samples = 0
@@ -241,7 +250,7 @@ class FastqDeleter(Deleter):
         assert all([basename(f) in observed for f in del_record.fastqs])
         return del_record.fastqs
 
-    def mark_sample_fastqs_as_deleted(self, sample_id):
+    def mark_sample_as_deleted(self, sample_id):
         self.debug('Updating dataset status for ' + sample_id)
         if not self.dry_run:
             rest_communication.patch_entry(
@@ -255,7 +264,7 @@ class FastqDeleter(Deleter):
 
         self.setup_fastqs_for_deletion(deletion_records)
         for s in set([r.sample_id for r in deletion_records]):
-            self.mark_sample_fastqs_as_deleted(s)
+            self.mark_sample_as_deleted(s)
 
         self.delete_dir(self.deletion_dir)
 
@@ -263,13 +272,31 @@ class FastqDeleter(Deleter):
 class DeliveredDataDeleter(Deleter):
     data_dir = cfg['data_deletion']['delivered_data']
 
-    def __init__(self, sample_ids, work_dir, dry_run=False, deletion_limit=None):
+    def __init__(self, work_dir, dry_run=False, deletion_limit=None, list_samples=None):
         super().__init__(work_dir, dry_run, deletion_limit)
-        self.sample_records = rest_communication.get_documents(
+        if list_samples is None:
+            list_samples = []
+        self.list_samples = list_samples
+
+    def deletable_samples(self):
+        sample_records = rest_communication.get_documents(
             'aggregate/samples',
             quiet=True,
-            match={'$or': [{'sample_id': s} for s in sample_ids]}
+            match={'$or': [{'sample_id': s} for s in self.list_samples]}
         )
+        return sorted(set(sample_records + self._auto_deletable_samples()))
+
+    def _auto_deletable_samples(self):
+        samples = []
+        sample_records = rest_communication.get_documents(
+            'aggregate/samples',
+            quiet=True,
+            match={'$or': [{'proc_status': 'finished'}, {'proc_status': 'aborted'}]}
+        )
+        for r in sample_records:
+            if self._old_enough_for_deletion(clarity.get_sample_release_date(r['sample_id'])):
+                samples.append(r)
+        return samples
 
     def mark_sample_as_deleted(self, sample_id, proc_id):
         if not proc_id:
@@ -284,6 +311,13 @@ class DeliveredDataDeleter(Deleter):
     def setup_samples_for_deletion(self, sample_records):
         for s in sample_records:
             self._setup_sample_for_deletion(s['project_id'], s['sample_id'])
+
+    @classmethod
+    def _old_enough_for_deletion(cls, date_run, age_threshold=90):
+        year, month, day = date_run.split('-')
+        age = cls._now() - datetime(year, month, day)
+        return age > age_threshold
+
 
     def _setup_sample_for_deletion(self, project_id, sample_id):
         release_folders = util.find_files(self.data_dir, project_id, '*', sample_id)
@@ -310,7 +344,7 @@ class DeliveredDataDeleter(Deleter):
         self._try_delete_empty_dir(project_folder)
 
     def delete_data(self):
-        deletable_samples = self.sample_records
+        deletable_samples = self.deletable_samples()
         sample_ids = [e[ELEMENT_SAMPLE_INTERNAL_ID] for e in deletable_samples]
         self.debug('Found %s samples for deletion: %s' % (len(deletable_samples), sample_ids))
 
