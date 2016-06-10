@@ -97,9 +97,10 @@ def _process_dataset(d):
 
     exit_status = 9
     try:
-        from analysis_driver import driver
+        # from analysis_driver.driver import pipeline
+        from analysis_driver.luigi_pipeline import pipeline
         d.start()
-        exit_status = driver.pipeline(d)
+        exit_status = pipeline(d)
         app_logger.info('Done')
 
     except exceptions.SequencingRunError as e:

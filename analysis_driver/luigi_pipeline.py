@@ -1,57 +1,47 @@
 import luigi
 from os.path import join
-from analysis_driver.exceptions import PipelineError
-from analysis_driver.app_logging import logging_default as log_cfg
-from analysis_driver.config import default as cfg
+from time import sleep, ctime
+from analysis_driver.pipeline import Stage
+from analysis_driver.dataset import NoCommunicationDataset
 
 
-app_logger = log_cfg.get_logger('luigi')
-
-
-class Stage(luigi.Task):
-    dataset = luigi.Parameter()
-    
-    @property
-    def dataset_name(self):
-        return self.dataset.name
-
-    @property
-    def job_dir(self):
-        return join(cfg['jobs_dir'], self.dataset_name)
-
-    def output(self):  # if <stage_name>.done is present, the stage is complete
-        return luigi.LocalTarget(self._stage_lock_file())
-
-    def run(self):
-        self.dataset.start_stage(self.stage_name)
-        exit_status = self._run()
-        self.dataset.end_stage(self.stage_name, exit_status)
-        if exit_status == 0:
-            self._touch(self._stage_lock_file())
-        else:
-            raise PipelineError('Exit status was %s. Stopping' % exit_status)
-
-    @property
-    def stage_name(self):
-        return self.__class__.__name__.lower()
-
+class ExampleStage(Stage):
     def _run(self):
-        raise NotImplementedError
+        print(self.stage_name)
+        print('starting')
+        sleep(80)
+        with open(join(self.job_dir, self.stage_name + '.txt'), 'a') as f:
+            f.write('Finished %s on %s' % (self.stage_name, ctime()))
+        print('done')
+        return 0
 
-    @staticmethod
-    def _touch(f):
-        open(f, 'w').close()
 
-    def _stage_lock_file(self):
-        return join(self.job_dir, '.' + self.stage_name + '.done')
+class Stage1(ExampleStage):
+    pass
+
+
+class Stage2(ExampleStage):
+    def requires(self):
+        return Stage1(dataset=self.dataset)
+
+
+class Stage3(ExampleStage):
+    def requires(self):
+        return Stage1(dataset=self.dataset)
+
+
+class Stage4(ExampleStage):
+    def requires(self):
+        return Stage2(dataset=self.dataset), Stage3(dataset=self.dataset)
 
 
 def pipeline(dataset):
-
-    luigi.run(
-        cmdline_args=[
-            '--dataset', dataset,
-        ],
-        # main_task_cls=DataOutput,
-        local_scheduler=True
+    final_stage = Stage4(dataset=dataset)
+    luigi.build(
+        [final_stage],
+        # local_scheduler=True
     )
+    return final_stage.exit_status
+
+if __name__ == '__main__':
+    print(pipeline(NoCommunicationDataset('150424_E00307_0017_AH3KGTCCXX', {'things': 'thangs'})))
