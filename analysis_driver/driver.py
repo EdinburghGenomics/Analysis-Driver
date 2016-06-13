@@ -310,7 +310,7 @@ def qc_pipeline(dataset, species):
         job_name='bwa_mem',
         working_dir=sample_dir,
         cpus=12,
-        mem=32
+        mem=64
     )
 
     fastqc_exit_status = fastqc_executor.join()
