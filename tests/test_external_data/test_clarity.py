@@ -1,15 +1,13 @@
-from unittest.mock import patch, Mock
 import os
-from analysis_driver import clarity
-from tests.test_analysisdriver import TestAnalysisDriver
-from tests.test_rest_communication import FakeRestResponse
+from unittest.mock import patch, Mock
+from analysis_driver.external_data import clarity
+from tests.test_analysisdriver import helper
 
 clarity._lims = Mock()
-helper = TestAnalysisDriver()
 
 
 def patched(path, **kwargs):
-    return patch('analysis_driver.clarity.' + path, **kwargs)
+    return patch('analysis_driver.external_data.clarity.' + path, **kwargs)
 
 
 def patched_lims(method, return_value=None, side_effect=None):
@@ -88,38 +86,7 @@ def test_find_run_elements_from_sample(mocked_get_sample, mocked_get_artifacts):
     mocked_get_artifacts.assert_called_with(sample_name='a_sample', process_type='AUTOMATED - Sequence')
 
 
-def test_get_species_information_from_ncbi():
-    ncbi_search_data = {'esearchresult': {'idlist': ['1337']}}
-    ncbi_fetch_data = '''
-        <ScientificName>Genus species</ScientificName>
-        <OtherNames><CommonName>a common name</CommonName></OtherNames>
-        <Rank>species</Rank>
-    '''
-
-    patched_get = patch(
-        'analysis_driver.clarity.requests.get',
-        side_effect=(
-            FakeRestResponse(content=ncbi_search_data),
-            FakeRestResponse(content=ncbi_fetch_data),
-            FakeRestResponse(content=ncbi_fetch_data),
-            FakeRestResponse(content=ncbi_fetch_data)
-        )
-    )
-
-    with patched_get as mocked_get:
-        obs = clarity.get_species_information_from_ncbi('a_species')
-        assert obs == ('1337', 'Genus species', 'a common name')
-        mocked_get.assert_any_call(
-            'http://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi',
-            params={'db': 'Taxonomy', 'term': 'a_species', 'retmode': 'JSON'}
-        )
-        mocked_get.assert_any_call(
-            'http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi',
-            params={'db': 'Taxonomy', 'id': '1337'}
-        )
-
-
-@patched_clarity('get_species_information_from_ncbi', ('1337', 'Genus species', 'common name'))
+@patched_clarity('get_species_name', 'Genus species')
 @patched_clarity('get_samples', fake_samples)
 def test_get_species_from_sample(mocked_get_samples, mocked_ncbi):
     assert clarity.get_species_from_sample('a_sample_name') == 'Genus species'

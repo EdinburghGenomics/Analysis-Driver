@@ -1,8 +1,9 @@
 import os
+import threading
 from datetime import datetime
-from analysis_driver import rest_communication
 from analysis_driver.notification import default as ntf
-from analysis_driver.clarity import get_expected_yield_for_sample
+from analysis_driver.external_data import rest_communication
+from analysis_driver.external_data.clarity import get_expected_yield_for_sample
 from analysis_driver.exceptions import AnalysisDriverError, RestCommunicationError
 from analysis_driver.constants import DATASET_NEW, DATASET_READY, DATASET_FORCE_READY, DATASET_REPROCESS,\
     DATASET_PROCESSING, DATASET_PROCESSED_SUCCESS, DATASET_PROCESSED_FAIL, DATASET_ABORTED, ELEMENT_RUN_NAME,\
@@ -129,10 +130,17 @@ class SampleDataset(Dataset):
     def __init__(self, name, most_recent_proc=None, data_threshold=None):
         super().__init__(name, most_recent_proc)
         self._run_elements = None
+        self._non_useable_run_elements = None
         self._data_threshold = data_threshold
 
     def force(self):
         self.most_recent_proc.change_status(DATASET_FORCE_READY)
+
+    @property
+    def non_useable_run_elements(self):
+        if self._non_useable_run_elements is None:
+            self._non_useable_run_elements = self._read_non_useable_data()
+        return self._non_useable_run_elements
 
     @property
     def run_elements(self):
@@ -146,6 +154,12 @@ class SampleDataset(Dataset):
             where={'sample_id': self.name, 'useable': 'yes'}
         )
 
+    def _read_non_useable_data(self):
+        return rest_communication.get_documents(
+            'run_elements',
+            where={'sample_id': self.name, 'useable': {'$ne': 'yes'}}
+        )
+
     def _amount_data(self):
         return sum(
             [
@@ -156,6 +170,10 @@ class SampleDataset(Dataset):
 
     def _runs(self):
         return sorted(set([r.get(ELEMENT_RUN_NAME) for r in self.run_elements]))
+
+    def _non_useable_runs(self):
+        return sorted(set([r.get(ELEMENT_RUN_NAME) for r in self.non_useable_run_elements]))
+
 
     @property
     def data_threshold(self):
@@ -169,16 +187,18 @@ class SampleDataset(Dataset):
         return self.data_threshold and int(self._amount_data()) > int(self.data_threshold)
 
     def __str__(self):
-        return '%s  (%s / %s  from %s) ' % (
+        return '%s  (%s / %s  from %s) (non useable in %s)' % (
             super().__str__(),
             self._amount_data(),
             self.data_threshold,
-            ', '.join(self._runs())
+            ', '.join(self._runs()),
+            ', '.join(self._non_useable_runs())
         )
 
 
 class MostRecentProc:
     def __init__(self, dataset_type, dataset_name, initial_content=None):
+        self.lock = threading.Lock()
         self.dataset_type = dataset_type
         self.dataset_name = dataset_name
         if initial_content:
@@ -195,7 +215,8 @@ class MostRecentProc:
                 sort='-_created'
             )
             if procs:
-                self._entity = procs[0]
+                #Remove the private (starting with _ ) fields from the dict
+                self._entity = {k: v for k, v in procs[0].items() if not k.startswith('_')}
             else:
                 self.initialise_entity()
         return self._entity
@@ -230,8 +251,9 @@ class MostRecentProc:
             raise RestCommunicationError('Sync failed: ' + str(patch_content))
 
     def update_entity(self, **kwargs):
-        self.entity.update(kwargs)
-        self.sync()
+        with self.lock:
+            self.entity.update(kwargs)
+            self.sync()
 
     def change_status(self, status):
         self.update_entity(status=status)

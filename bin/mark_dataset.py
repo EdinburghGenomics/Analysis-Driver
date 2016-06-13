@@ -1,14 +1,14 @@
 __author__ = 'tcezard'
-import sys
-import os
 import argparse
 import logging
+import os
+import sys
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from analysis_driver.app_logging import logging_default as log_cfg
 log_cfg.default_level = logging.DEBUG
 log_cfg.add_handler(logging.StreamHandler(stream=sys.stdout), logging.DEBUG)
-from analysis_driver import rest_communication
+from analysis_driver.external_data import rest_communication
 
 
 def main():

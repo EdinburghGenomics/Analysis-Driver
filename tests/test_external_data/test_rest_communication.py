@@ -1,30 +1,8 @@
-from unittest.mock import patch, Mock
 import json
-from tests import test_analysisdriver
-from analysis_driver import rest_communication
-
-
-helper = test_analysisdriver.TestAnalysisDriver()
-
-
-class FakeRestResponse(Mock):
-    def __init__(self, *args, **kwargs):
-        content = kwargs.pop('content', None)
-        if type(content) in (list, dict):
-            content = json.dumps(content)
-        content = content.encode()
-        super().__init__(*args, **kwargs)
-        self.content = content
-        self.request = Mock(method='a method', path_url='a url')
-        self.status_code = 200
-        self.reason = 'a reason'
-
-    def json(self):
-        return json.loads(self.content.decode('utf-8'))
-
-    @property
-    def text(self):
-        return self.content.decode('utf-8')
+from unittest.mock import patch
+from tests.test_analysisdriver import helper
+from tests.test_external_data import FakeRestResponse
+from analysis_driver.external_data import rest_communication
 
 
 def rest_url(endpoint):
@@ -90,7 +68,7 @@ def test_get_documents_depaginate():
         FakeRestResponse(content={'data': ['more', 'things'], '_links': {}})
     )
     patched_req = patch(
-        'analysis_driver.rest_communication._req',
+        'analysis_driver.external_data.rest_communication._req',
         side_effect=docs
     )
     with patched_req as mocked_req:
@@ -141,7 +119,7 @@ test_patch_document = {
 }
 
 
-@patch('analysis_driver.rest_communication.get_document', return_value=test_patch_document)
+@patch('analysis_driver.external_data.rest_communication.get_document', return_value=test_patch_document)
 @patched_response
 def test_patch_entry(mocked_request, mocked_get_doc):
     patching_payload = {'list_to_update': ['another']}
@@ -170,15 +148,15 @@ test_post_or_patch_doc = {
 
 
 def patched_post(success):
-    return patch('analysis_driver.rest_communication.post_entry', return_value=success)
+    return patch('analysis_driver.external_data.rest_communication.post_entry', return_value=success)
 
 
 def patched_patch(success):
-    return patch('analysis_driver.rest_communication._patch_entry', return_value=success)
+    return patch('analysis_driver.external_data.rest_communication._patch_entry', return_value=success)
 
 
 def patched_get(payload):
-    return patch('analysis_driver.rest_communication.get_document', return_value=payload)
+    return patch('analysis_driver.external_data.rest_communication.get_document', return_value=payload)
 
 
 def test_post_or_patch():

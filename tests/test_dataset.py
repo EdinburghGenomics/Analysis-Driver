@@ -256,7 +256,7 @@ class TestSampleDataset(TestDataset):
         assert mocked_instance.call_count == 1  # even after 2 calls to data_threshold
 
     def test_str(self):
-        expected_str = 'test_dataset -- this, that, other  (480 / 1000000000  from a_run_id, another_run_id) '
+        expected_str = 'test_dataset -- this, that, other  (480 / 1000000000  from a_run_id, another_run_id) (non useable in a_run_id, another_run_id)'
         self.dataset._data_threshold = None
         with patched_get(self.dataset.run_elements), patched_expected_yield(), patched_stages:
             print(expected_str)
