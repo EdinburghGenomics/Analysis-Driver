@@ -315,9 +315,8 @@ class DeliveredDataDeleter(Deleter):
     @classmethod
     def _old_enough_for_deletion(cls, date_run, age_threshold=90):
         year, month, day = date_run.split('-')
-        age = cls._now() - datetime(year, month, day)
-        return age > age_threshold
-
+        age = cls._now() - datetime(int(year), int(month), int(day))
+        return age.days > age_threshold
 
     def _setup_sample_for_deletion(self, project_id, sample_id):
         release_folders = util.find_files(self.data_dir, project_id, '*', sample_id)

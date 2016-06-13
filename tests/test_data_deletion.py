@@ -1,6 +1,7 @@
 import os
 from os.path import join as p_join
 import shutil
+from datetime import datetime
 from tests.test_analysisdriver import TestAnalysisDriver
 from unittest.mock import patch, Mock
 from bin import delete_data
@@ -108,11 +109,13 @@ fake_run_elements_procs_complete = [
 
 ]
 
+patch_get = 'analysis_driver.rest_communication.get_documents'
 patched_patch_entry = patch('bin.delete_data.rest_communication.patch_entry')
 patched_deletable_runs = patch(
     'bin.delete_data.RawDataDeleter.deletable_runs',
     return_value=[{'run_id': 'deletable_run', 'most_recent_proc': {'proc_id': 'most_recent_proc'}}]
 )
+patched_now = patch('bin.delete_data.Deleter._now', return_value=datetime(2000, 12, 31))
 
 
 class TestRawDataDeleter(TestDeleter):
@@ -135,19 +138,18 @@ class TestRawDataDeleter(TestDeleter):
             shutil.rmtree(p_join(self.assets_deletion, 'archive', d))
 
     def test_deletable_runs(self):
-        patch_target = 'analysis_driver.rest_communication.get_documents'
 
-        with patch(patch_target, return_value=fake_run_elements_no_procs) as p:
+        with patch(patch_get, return_value=fake_run_elements_no_procs) as p:
             runs = self.deleter.deletable_runs()
             p.assert_called_with('aggregate/all_runs', depaginate=True, quiet=True, sort='run_id')
             assert runs == []
 
-        with patch(patch_target, return_value=fake_run_elements_procs_running) as p:
+        with patch(patch_get, return_value=fake_run_elements_procs_running) as p:
             runs = self.deleter.deletable_runs()
             p.assert_called_with('aggregate/all_runs', depaginate=True, quiet=True, sort='run_id')
             assert runs == []
 
-        with patch(patch_target, return_value=fake_run_elements_procs_complete) as p:
+        with patch(patch_get, return_value=fake_run_elements_procs_complete) as p:
             runs = self.deleter.deletable_runs()
             p.assert_called_with('aggregate/all_runs', depaginate=True, quiet=True, sort='run_id')
             assert runs == fake_run_elements_procs_complete[1:]
@@ -232,7 +234,24 @@ class TestRawDataDeleter(TestDeleter):
         assert mocked_deletable_runs.call_count == 1
 
     def test_run_deletable(self):
-        assert False
+        deletable_element = {
+            'review_statuses': [None, 'yes', 'no'],
+            'most_recent_proc': {'status': 'finished'}
+        }
+        unreviewed_element = {
+            'review_statuses': [None, 'not reviewed', 'yes', 'no'],
+            'most_recent_proc': {'status': 'finished'}
+        }
+        unfinished_element = {
+            'review_statuses': [None, 'yes', 'no'],
+            'most_recent_proc': {'status': 'running'}
+        }
+        d = self.deleter._run_deletable
+        assert d(deletable_element)
+        assert not d(unreviewed_element)
+        assert not d(unfinished_element)
+
+
 
 
 patched_clarity_get_samples = patch(
@@ -427,8 +446,8 @@ class TestDeliveredDataDeleter(TestDeleter):
                 )
                 os.makedirs(d, exist_ok=True)
                 self.touch(p_join(d, s['sample_id'] + '.' + x))
-        patched_now = patch('bin.delete_data.Deleter._strnow', return_value='t')
-        with patched_now:
+        patched_strnow = patch('bin.delete_data.Deleter._strnow', return_value='t')
+        with patched_strnow:
             self.deleter = delete_data.DeliveredDataDeleter(['a_sample', 'yet_another_sample'], self.assets_deletion)
 
     def tearDown(self):
@@ -458,8 +477,8 @@ class TestDeliveredDataDeleter(TestDeleter):
 
     @patch('bin.delete_data.DeliveredDataDeleter.mark_sample_as_deleted')
     def test_delete_data(self, mocked_mark):
-        patched_get = patch('bin.delete_data.rest_communication.get_documents', return_value=self.samples[0:2])
-        with patched_get:
+        patched_deletables = patch('bin.delete_data.DeliveredDataDeleter.deletable_samples', return_value=self.samples[0:2])
+        with patched_deletables:
             self.deleter.dry_run = True
             assert self.deleter.delete_data() == 0
             self.deleter.dry_run = False
@@ -485,7 +504,35 @@ class TestDeliveredDataDeleter(TestDeleter):
         os.makedirs(p_join(self.assets_deletion, 'delivered_data', 'another_project'))
 
     def test_auto_deletable_samples(self):
-        assert False
+        fake_release_map = {
+            'this': '2000-12-01',
+            'that': '2000-10-01',
+            'other': '2000-09-01'
+        }
+        patched_release_date = patch(
+            'bin.delete_data.clarity.get_sample_release_date',
+            new=lambda sample_id: fake_release_map[sample_id]
+        )
+        test_payload = [
+            {
+                'sample_id': 'this',
+                'proc_status': 'finished'
+            },
+            {
+                'sample_id': 'that',
+                'proc_status': 'finished'
+            },
+            {
+                'sample_id': 'other',
+                'proc_status': 'aborted'
+            }
+        ]
+        with patched_release_date, patch(patch_get, return_value=test_payload), patched_now:
+            assert self.deleter._auto_deletable_samples() == test_payload[1:]
 
     def test_old_enough_for_deletion(self):
-        assert False
+        with patched_now:
+            o = self.deleter._old_enough_for_deletion
+            assert o('2000-10-01')
+            assert not o('2000-10-01', 120)
+            assert not o('2000-12-01')
