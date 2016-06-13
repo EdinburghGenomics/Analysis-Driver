@@ -60,13 +60,13 @@ class RawDataDeleter(Deleter):
     deletable_sub_dirs = ('Data', 'Logs', 'Thumbnail_Images')
     data_dir = cfg['data_deletion']['raw_data']
 
-    def __init__(self, work_dir, dry_run=False, deletion_limit=None, list_runs=None):
+    def __init__(self, work_dir, dry_run=False, deletion_limit=None, manual_delete=None):
         super().__init__(work_dir, dry_run, deletion_limit)
         self.archive_dir = cfg['data_deletion']['raw_archives']
-        self.list_runs = list_runs
+        self.list_runs = manual_delete
 
     def deletable_runs(self):
-        runs = rest_communication.get_documents('aggregate/all_runs', paginate=False, quiet=True, sort=ELEMENT_RUN_NAME, )
+        runs = rest_communication.get_documents('aggregate/all_runs', paginate=False, quiet=True, sort=ELEMENT_RUN_NAME)
         deletable_runs = []
         for r in runs:
             if (self.list_runs and r[ELEMENT_RUN_NAME] in self.list_runs) or self._run_deletable(r):
@@ -273,19 +273,22 @@ class FastqDeleter(Deleter):
 class DeliveredDataDeleter(Deleter):
     data_dir = cfg['data_deletion']['delivered_data']
 
-    def __init__(self, work_dir, dry_run=False, deletion_limit=None, list_samples=None):
+    def __init__(self, work_dir, dry_run=False, deletion_limit=None, manual_delete=None, sample_ids=None):
         super().__init__(work_dir, dry_run, deletion_limit)
-        if list_samples is None:
-            list_samples = []
-        self.list_samples = list_samples
+        if manual_delete is None:
+            manual_delete = []
+        self.list_samples = manual_delete
+        self.limit_samples = sample_ids
 
     def deletable_samples(self):
-        sample_records = rest_communication.get_documents(
-            'aggregate/samples',
-            quiet=True,
-            match={'$or': [{'sample_id': s} for s in self.list_samples]}
-        )
-        return sorted(set(sample_records + self._auto_deletable_samples()))
+        manual_samples = []
+        if self.list_samples:
+            manual_samples = rest_communication.get_documents(
+                'aggregate/samples',
+                quiet=True,
+                match={'$or': [{'sample_id': s} for s in self.list_samples]}
+            )
+        return sorted(manual_samples + self._auto_deletable_samples(), key=lambda e: e['sample_id'])
 
     def _auto_deletable_samples(self):
         samples = []
@@ -295,7 +298,8 @@ class DeliveredDataDeleter(Deleter):
             match={'$or': [{'proc_status': 'finished'}, {'proc_status': 'aborted'}]}
         )
         for r in sample_records:
-            if self._old_enough_for_deletion(clarity.get_sample_release_date(r['sample_id'])):
+            release_date = clarity.get_sample_release_date(r['sample_id'])
+            if release_date and self._old_enough_for_deletion(release_date):
                 samples.append(r)
         return samples
 
@@ -345,6 +349,9 @@ class DeliveredDataDeleter(Deleter):
 
     def delete_data(self):
         deletable_samples = self.deletable_samples()
+        if self.limit_samples:
+            deletable_samples = [s for s in deletable_samples if s['sample_id'] in self.limit_samples]
+
         sample_ids = [e[ELEMENT_SAMPLE_INTERNAL_ID] for e in deletable_samples]
         self.debug('Found %s samples for deletion: %s' % (len(deletable_samples), sample_ids))
 
@@ -396,13 +403,17 @@ def main():
     p.add_argument('--work_dir', default=expanduser('~'))
     p.add_argument('--deletion_limit', type=int, default=None)
     p.add_argument('--project_id', type=str)
-    p.add_argument('--list_runs', type=str, nargs='+')
+    p.add_argument('--manual_delete', type=str, nargs='+')
     p.add_argument('--sample_ids', nargs='+', default=[])
     args = p.parse_args()
 
     if args.__dict__.pop('debug', False):
-        log_cfg.set_log_level(logging.DEBUG)
-        log_cfg.add_handler(logging.StreamHandler(stream=sys.stdout), logging.DEBUG)
+        log_level = logging.DEBUG
+    else:
+        log_level = logging.WARNING
+
+    log_cfg.set_log_level(log_level)
+    log_cfg.add_handler(logging.StreamHandler(stream=sys.stdout), log_level)
 
     deleter_type = args.__dict__.pop('deleter')
     deleter_args = dict([(k, v) for k, v in args.__dict__.items() if v])

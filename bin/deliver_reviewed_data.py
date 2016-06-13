@@ -201,7 +201,7 @@ class DataDelivery(AppLogger):
         else:
             self.mark_samples_as_released(all_samples)
             for command in self.all_commands:
-                exit_status = executor.execute([command], env='local').join()
+                exit_status = executor.execute(command, env='local').join()
                 if exit_status != 0:
                     raise AnalysisDriverError('command %s exited with status %s'%(command, exit_status))
 

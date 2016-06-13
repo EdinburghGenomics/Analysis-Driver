@@ -54,7 +54,7 @@ def get_documents(endpoint, paginate=True, depaginate=False, quiet=False, **quer
     else:
         url = api_url(endpoint, **query_args)
 
-    content = _req('GET', url).json()
+    content = _req('GET', url, quiet=quiet).json()
     elements = content['data']
 
     if depaginate and 'next' in content['_links']:
