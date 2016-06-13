@@ -1,5 +1,5 @@
 import os
-from analysis_driver import executor
+from analysis_driver import executor, util
 from analysis_driver.external_data import clarity
 from analysis_driver.exceptions import PipelineError
 from analysis_driver.config import default as cfg
@@ -86,7 +86,7 @@ class GenotypeValidation(QualityControl):
         
         self.dataset.start_stage('genotype_validation_bwa')
         bwa_executor = executor.execute(
-            [command],
+            command,
             job_name='alignment_bwa',
             working_dir=self.working_dir,
             cpus=4,
@@ -118,7 +118,8 @@ class GenotypeValidation(QualityControl):
 
         self.dataset.start_stage('genotype_validation_gatk')
         gatk_executor = executor.execute(
-            [' '.join(gatk_command)],
+            ' '.join(gatk_command),
+            prelim_cmds=util.bash_commands.export_env_vars(),
             job_name='snpcall_gatk',
             working_dir=self.working_dir,
             cpus=4,
@@ -155,7 +156,8 @@ class GenotypeValidation(QualityControl):
 
         self.dataset.start_stage('validation_genotype_concordance')
         genotype_concordance_executor = executor.execute(
-            list_commands,
+            *list_commands,
+            prelim_cmds=util.bash_commands.export_env_vars(),
             job_name='genotype_concordance',
             working_dir=self.working_dir,
             cpus=4,
@@ -175,7 +177,7 @@ class GenotypeValidation(QualityControl):
             list_commands.append(cmd.format(bcftools=cfg.query('tools', 'bcftools'), sn=self.sample_id, genovcf=genotype_vcf))
 
         exit_status = executor.execute(
-            list_commands,
+            *list_commands,
             job_name='genotype_rename',
             working_dir=self.working_dir,
             cpus=4,
@@ -187,7 +189,7 @@ class GenotypeValidation(QualityControl):
     def _index_vcf_gz(self, vcf_file):
         command = '{tabix} -p vcf {vcf}'.format(tabix=cfg.query('tools', 'tabix'), vcf=vcf_file)
         exit_status = executor.execute(
-            [command],
+            command,
             job_name='index_vcf',
             working_dir=self.working_dir,
             cpus=1,

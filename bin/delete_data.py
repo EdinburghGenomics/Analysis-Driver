@@ -32,9 +32,9 @@ class Deleter(AppLogger):
 
     def _execute(self, cmd, cluster_execution=False):
         if cluster_execution:
-            status = executor.execute([cmd], job_name='data_deletion', working_dir=self.work_dir).join()
+            status = executor.execute(cmd, job_name='data_deletion', working_dir=self.work_dir).join()
         else:
-            status = executor.execute([cmd], 'local').join()
+            status = executor.execute(cmd, env='local').join()
         if status:
             raise AnalysisDriverError('Command failed: ' + cmd)
 
@@ -66,7 +66,7 @@ class RawDataDeleter(Deleter):
         self.list_runs = list_runs
 
     def deletable_runs(self):
-        runs = rest_communication.get_documents('aggregate/all_runs', sort=ELEMENT_RUN_NAME, paginate=False)
+        runs = rest_communication.get_documents('aggregate/all_runs', paginate=False, quiet=True, sort=ELEMENT_RUN_NAME, )
         deletable_runs = []
         for r in runs:
             if (self.list_runs and r[ELEMENT_RUN_NAME] in self.list_runs) or self._run_deletable(r):

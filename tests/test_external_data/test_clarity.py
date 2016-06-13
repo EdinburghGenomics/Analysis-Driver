@@ -241,4 +241,13 @@ def test_get_released_samples(mocked_lims):
 
 
 def test_get_sample_release_date():
-    assert False
+    with patched_clarity('get_sample') as mocked_get_sample:
+        assert clarity.get_sample_release_date('this') is None
+        mocked_get_sample.assert_called_with('this')
+    with patched_clarity('get_sample', Mock(artifact=Mock(id='artifact_this'))):
+        with patched_lims('get_processes', [Mock(date_run='2000-01-01'), Mock(date_run='2000-01-02')]):
+            assert clarity.get_sample_release_date('this') is None
+        with patched_lims('get_processes', [Mock(date_run='2000-01-01')]) as mocked_procs:
+            clarity.get_sample_release_date('this') == '2000-01-01'
+            mocked_procs.assert_called_with(type='Data Release EG 1.0', inputartifactlimsid='artifact_this')
+

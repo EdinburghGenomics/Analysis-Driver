@@ -12,7 +12,7 @@ class TestWellDuplicates(QCTester):
         exit_status = welldup._well_duplicates()
         assert exit_status == 0
         mocked_execute.assert_called_once_with(
-                ['path/to/well_duplicate -f path/to/coord_file -r path/to/run -s hiseq_x > test_run/fastq/test_run.wellduplicate 2> test_run/fastq/test_run.wellduplicate.err'],
+                'path/to/well_duplicate -f path/to/coord_file -r path/to/run -s hiseq_x > test_run/fastq/test_run.wellduplicate 2> test_run/fastq/test_run.wellduplicate.err',
                 cpus=1,
                 job_name='welldup',
                 mem=2,

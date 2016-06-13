@@ -58,7 +58,7 @@ class ContaminationCheck(QualityControl):
         """
         :return list: a list of the expected outfiles from fastq screen
         """
-        fastqscreen_run_command = [(self._fastqscreen_command())]
+        fastqscreen_run_command = self._fastqscreen_command()
         fastqscreen_expected_outfiles = self._get_expected_outfiles()
         self.dataset.start_stage('run_fastqscreen')
         fastqscreen_executor = executor.execute(
@@ -97,7 +97,7 @@ class VerifyBamId(QualityControl):
         self.filtered_bam = os.path.join(self.working_dir, self.dataset.name + '_chr22.bam')
         cmd = cfg.query('tools', 'samtools') + ' view -b %s chr22 > %s' % (self.input_bam, self.filtered_bam)
         return executor.execute(
-                [cmd],
+                cmd,
                 job_name='filter_bam22',
                 working_dir=self.working_dir,
                 cpus=1,
@@ -108,7 +108,7 @@ class VerifyBamId(QualityControl):
     def _index_filtered_bam(self):
         cmd = cfg.query('tools', 'samtools') + ' index %s' % (self.filtered_bam)
         return executor.execute(
-                [cmd],
+                cmd,
                 job_name='index_bam22',
                 working_dir=self.working_dir,
                 cpus=1,
@@ -124,7 +124,7 @@ class VerifyBamId(QualityControl):
             os.path.join(self.working_dir, self.dataset.name + '-chr22-vbi')
         )
         exit_status = executor.execute(
-            [cmd],
+            cmd,
             job_name='verify_bam_id',
             working_dir=self.working_dir,
             cpus=1,

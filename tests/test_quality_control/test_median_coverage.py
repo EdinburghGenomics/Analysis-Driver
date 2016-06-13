@@ -22,7 +22,7 @@ class TestSamtoolsDepth(QCTester):
         instance = mocked_execute.return_value
         instance.join.return_value = 0
         run_samtools_depth = g._run_samtools_depth()
-        mocked_execute.assert_called_once_with(["""path/to/samtools depth -a -a -q 0 -Q 0 testfile.bam | awk -F "\t" '{array[$1"\t"$3]+=1} END{for (val in array){print val"\t"array[val]}}' | sort -k 1,1 -nk 2,2 > testfile.depth"""],
+        mocked_execute.assert_called_once_with("""path/to/samtools depth -a -a -q 0 -Q 0 testfile.bam | awk -F "\t" '{array[$1"\t"$3]+=1} END{for (val in array){print val"\t"array[val]}}' | sort -k 1,1 -nk 2,2 > testfile.depth""",
                                                job_name='samtoolsdepth',
                                                working_dir='test_sample',
                                                cpus=1,

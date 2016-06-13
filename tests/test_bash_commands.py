@@ -67,6 +67,7 @@ def test_export_env_vars():
     cmds = bash_commands.export_env_vars()
     assert cmds == (
         'export PATH=path/to/bcbio/bin:$PATH',
+        'export PATH=path/to/jdk/bin:$PATH',
         'export LD_LIBRARY_PATH=path/to/bcbio/lib:$LD_LIBRARY_PATH',
         'export PERL5LIB=path/to/bcbio/lib/perl5:$PERL5LIB',
         'export JAVA_HOME=path/to/jdk',
