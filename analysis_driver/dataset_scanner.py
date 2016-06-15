@@ -62,7 +62,7 @@ class DatasetScanner(AppLogger):
         for s in rest_api_statuses:
             self.debug('Scanning for datasets with status %s', s)
             for d in self._get_datasets_for_status(s):
-                if d.name not in [d.name for d in datasets[d.dataset_status]]:
+                if d and d.name not in [d.name for d in datasets[d.dataset_status]]:
                     datasets[d.dataset_status].append(d)
 
         for k in datasets:
