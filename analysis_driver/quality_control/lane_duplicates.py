@@ -29,7 +29,7 @@ class WellDuplicates(QualityControl):
             output_err
         )
         return executor.execute(
-                [cmd],
+                cmd,
                 job_name='welldup',
                 working_dir=self.working_dir,
                 cpus=1,

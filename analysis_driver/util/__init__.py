@@ -1,9 +1,14 @@
 import os
 import csv
 from glob import glob
-from analysis_driver.exceptions import AnalysisDriverError
+
+import shutil
+
+from analysis_driver import executor
+from analysis_driver.exceptions import AnalysisDriverError, PipelineError
 from analysis_driver.app_logging import logging_default as log_cfg
 from analysis_driver.config import default as cfg
+from analysis_driver.util.bash_commands import is_remote_path, rsync_from_to
 from . import bash_commands
 
 app_logger = log_cfg.get_logger('util')
@@ -33,7 +38,7 @@ def bcbio_prepare_samples_cmd(job_dir, sample_id, fastqs, user_sample_id=None):
 
 
 def find_files(*path_parts):
-    return glob(os.path.join(*path_parts))
+    return sorted(glob(os.path.join(*path_parts)))
 
 
 def find_file(*path_parts):
@@ -108,3 +113,42 @@ def _write_bcbio_csv(run_dir, sample_id, fastqs, user_sample_id=None):
             writer.writerow([fq, user_sample_id])
 
     return csv_file
+
+def same_fs(file1, file2):
+    if not file1 or not file2:
+        return False
+    if not os.path.exists(file1):
+        return same_fs(os.path.dirname(file1), file2)
+    if not os.path.exists(file2):
+        return same_fs(file1, os.path.dirname(file2))
+
+    dev1 = os.stat(file1).st_dev
+    dev2 = os.stat(file2).st_dev
+    return dev1 == dev2
+
+
+def move_dir(src_dir, dest_dir):
+    os.makedirs(dest_dir, exist_ok=True)
+    list_file = os.listdir(src_dir)
+    for f in list_file:
+        if os.path.isdir(f):
+            move_dir(os.path.join(src_dir, f), os.path.join(dest_dir, f))
+        else:
+            move_file_or_link_target(os.path.join(src_dir, f), dest_dir)
+    return 0
+
+
+
+
+
+def move_file_or_link_target(file_path, dest_dir):
+    """move a file to a destination directory"""
+    dest_file = os.path.join(dest_dir, os.path.basename(file_path))
+    if os.path.islink(file_path):
+        file_path = os.path.realpath(file_path)
+    dest_file = shutil.move(file_path, dest_file)
+
+
+
+
+

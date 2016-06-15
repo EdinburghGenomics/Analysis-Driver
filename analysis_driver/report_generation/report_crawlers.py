@@ -184,7 +184,8 @@ class RunCrawler(Crawler):
         for run_element_id in self.barcodes_info:
             barcode_info = self.barcodes_info.get(run_element_id)
             lane = barcode_info.get(ELEMENT_LANE)
-            barcode_info[ELEMENT_LANE_PC_OPT_DUP] = dup_per_lane[int(lane)]
+            if int(lane) in dup_per_lane:
+                barcode_info[ELEMENT_LANE_PC_OPT_DUP] = dup_per_lane.get(int(lane))
 
     def _populate_barcode_info_from_conversion_file(self, conversion_xml):
         all_barcodes, top_unknown_barcodes, all_barcodeless = demultiplexing_parsers.parse_conversion_stats(conversion_xml, self.samplesheet.has_barcode)
@@ -301,12 +302,17 @@ class SampleCrawler(Crawler):
         else:
             self.critical('Missing bamtools_stats.txt')
 
-        yaml_metric_path = self.search_file(sample_dir, '*%s-sort-highdepth-stats.yaml' % external_sample_name)
-        if yaml_metric_path:
-            median_coverage = mapping_stats_parsers.parse_highdepth_yaml_file(yaml_metric_path)
-            sample[ELEMENT_MEDIAN_COVERAGE] = median_coverage
+        samtools_path = self.search_file(sample_dir, 'samtools_stats.txt')
+        if samtools_path:
+            (total_reads, mapped_reads,
+             duplicate_reads, proper_pairs) = mapping_stats_parsers.parse_samtools_stats(samtools_path)
+
+            sample[ELEMENT_NB_READS_IN_BAM] = total_reads
+            sample[ELEMENT_NB_MAPPED_READS] = mapped_reads
+            sample[ELEMENT_NB_DUPLICATE_READS] = duplicate_reads
+            sample[ELEMENT_NB_PROPERLY_MAPPED] = proper_pairs
         else:
-            self.critical('Missing %s-sort-highdepth-stats.yaml', external_sample_name)
+            self.critical('Missing samtools_stats.txt')
 
         bed_file_path = self.search_file(sample_dir, '*%s-sort-callable.bed' % external_sample_name)
         if bed_file_path:
@@ -348,7 +354,7 @@ class SampleCrawler(Crawler):
             sample_contamination_path = self.search_file(sample_dir, '%s-chr22-vbi.selfSM' % self.sample_id)
         if sample_contamination_path:
             freemix = parse_vbi_selfSM(sample_contamination_path)
-            if freemix:
+            if freemix is not None:
                 sample[ELEMENT_SAMPLE_CONTAMINATION] = {ELEMENT_FREEMIX: freemix}
             else:
                 self.critical('freemix results from validateBamId are not available for %s', self.sample_id)
@@ -358,6 +364,7 @@ class SampleCrawler(Crawler):
             mean, median, sd = get_coverage_statistics(coverage_statistics_path)
             coverage_statistics = {ELEMENT_MEAN_COVERAGE: mean, ELEMENT_MEDIAN_COVERAGE_SAMTOOLS: median, ELEMENT_COVERAGE_SD: sd}
             sample[ELEMENT_COVERAGE_STATISTICS] = coverage_statistics
+            sample[ELEMENT_MEDIAN_COVERAGE] = median
         else:
             self.critical('coverage statistics unavailable for %s', self.sample_id)
         return sample
