@@ -1,5 +1,5 @@
 from os import listdir
-from os.path import basename, expanduser, join as p_join, isdir
+from os.path import basename, expanduser, join, isdir
 from datetime import datetime
 import argparse
 import logging
@@ -24,7 +24,7 @@ class Deleter(AppLogger):
         self.work_dir = work_dir
         self.dry_run = dry_run
         self.deletion_limit = deletion_limit
-        self.deletion_dir = p_join(self.data_dir, '.data_deletion_' + self._strnow())
+        self.deletion_dir = join(self.data_dir, '.data_deletion_' + self._strnow())
 
     def delete_dir(self, d):
         self.debug('Removing deletion dir containing: %s', listdir(d))
@@ -74,15 +74,15 @@ class RawDataDeleter(Deleter):
         return deletable_runs[:self.deletion_limit]
 
     def _setup_run_for_deletion(self, run_id):
-        raw_data = p_join(self.data_dir, run_id)
-        deletable_data = p_join(self.deletion_dir, run_id)
+        raw_data = join(self.data_dir, run_id)
+        deletable_data = join(self.deletion_dir, run_id)
         self.debug('Creating deletion dir: ' + deletable_data)
         self._execute('mkdir -p ' + deletable_data)
 
         for d in self.deletable_sub_dirs:
-            from_d = p_join(raw_data, d)
+            from_d = join(raw_data, d)
             if isdir(from_d):
-                to_d = p_join(deletable_data, d)
+                to_d = join(deletable_data, d)
                 self._execute('mv %s %s' % (from_d, to_d))
 
         return listdir(deletable_data)  # Data, Thumbnail_Images, etc.
@@ -111,10 +111,10 @@ class RawDataDeleter(Deleter):
             )
 
     def archive_run(self, run_id):
-        run_to_be_archived = p_join(self.data_dir, run_id)
+        run_to_be_archived = join(self.data_dir, run_id)
         self.debug('Archiving ' + run_id)
         assert not any([d in self.deletable_sub_dirs for d in listdir(run_to_be_archived)])
-        self._execute('mv %s %s' % (p_join(self.data_dir, run_id), p_join(self.archive_dir, run_id)))
+        self._execute('mv %s %s' % (join(self.data_dir, run_id), join(self.archive_dir, run_id)))
 
     def delete_data(self):
         deletable_runs = self.deletable_runs()
@@ -132,13 +132,13 @@ class RawDataDeleter(Deleter):
             runs_to_delete,
             [run[ELEMENT_RUN_NAME] for run in deletable_runs]
         )
-        assert all([listdir(p_join(self.data_dir, r)) for r in runs_to_delete])
+        assert all([listdir(join(self.data_dir, r)) for r in runs_to_delete])
 
         for run in deletable_runs:
             assert run[ELEMENT_RUN_NAME] in runs_to_delete
             self.mark_run_as_deleted(run)
             self.archive_run(run[ELEMENT_RUN_NAME])
-            assert listdir(p_join(self.archive_dir, run[ELEMENT_RUN_NAME]))
+            assert listdir(join(self.archive_dir, run[ELEMENT_RUN_NAME]))
 
         self.delete_dir(self.deletion_dir)
 
@@ -185,7 +185,7 @@ class FastqDeleter(Deleter):
 
     def find_fastqs_for_run_element(self, run_element):
         return util.find_fastqs(
-            p_join(self.data_dir, run_element[ELEMENT_RUN_NAME], 'fastq'),
+            join(self.data_dir, run_element[ELEMENT_RUN_NAME], 'fastq'),
             run_element[ELEMENT_PROJECT_ID],
             run_element[ELEMENT_SAMPLE_INTERNAL_ID],
             lane=run_element[ELEMENT_LANE]
@@ -238,7 +238,7 @@ class FastqDeleter(Deleter):
                                 set([basename(f) for f in expected]))
 
     def _setup_record_for_deletion(self, del_record):
-        deletion_sub_dir = p_join(
+        deletion_sub_dir = join(
             self.deletion_dir,
             del_record.run_id,
             'fastq',
@@ -333,7 +333,7 @@ class DeliveredDataDeleter(Deleter):
                 release_folders
             )
         else:
-            deletable_data = p_join(self.deletion_dir, project_id)
+            deletable_data = join(self.deletion_dir, project_id)
             self._execute('mkdir -p ' + deletable_data)
             self._execute('mv %s %s' % (release_folders[0], deletable_data))
 
@@ -342,9 +342,9 @@ class DeliveredDataDeleter(Deleter):
             self._execute('rm -r ' + d)
 
     def _cleanup_empty_dirs(self, project_id):
-        project_folder = p_join(self.data_dir, project_id)
+        project_folder = join(self.data_dir, project_id)
         for release_dir in listdir(project_folder):
-            self._try_delete_empty_dir(p_join(project_folder, release_dir))
+            self._try_delete_empty_dir(join(project_folder, release_dir))
         self._try_delete_empty_dir(project_folder)
 
     def delete_data(self):
@@ -359,7 +359,9 @@ class DeliveredDataDeleter(Deleter):
             return 0
 
         self.setup_samples_for_deletion(deletable_samples)
-        samples_to_delete = sum([listdir(p_join(self.deletion_dir, p)) for p in listdir(self.deletion_dir)], [])
+        samples_to_delete = []
+        for p in listdir(self.deletion_dir):
+            samples_to_delete.extend(listdir(join(self.deletion_dir, p)))
         self._compare_lists(samples_to_delete, sample_ids)
 
         for s in deletable_samples:
