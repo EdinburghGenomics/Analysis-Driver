@@ -60,7 +60,7 @@ class DatasetScanner(AppLogger):
 
         self.debug('Querying Rest API for status %s', ', '.join(statuses))
         if DATASET_NEW in statuses :
-            statuses = copy.copy(statuses)
+            statuses = list(statuses)
             statuses.remove(DATASET_NEW)
             statuses.append(None)
         match={'$or': [ {'$eq': ['proc_status', status] } for status in statuses ]}

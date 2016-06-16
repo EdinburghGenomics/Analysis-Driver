@@ -55,8 +55,8 @@ class LoggingConfiguration:
         for h in self.handlers:
             h.setFormatter(self.formatter)
 
-    def configure_handlers_from_config(self, handler_cfg):
-        if not handler_cfg:
+    def configure_handlers_from_config(self, handler_cfgs):
+        if not handler_cfgs:
             return None
 
         configurator = logging.config.BaseConfigurator({})
@@ -67,7 +67,7 @@ class LoggingConfiguration:
         }
 
         for handler_type in handler_classes:
-            for handler_cfg in handler_cfg.get(handler_type, []):
+            for handler_cfg in handler_cfgs.get(handler_type, []):
                 level = logging.getLevelName(handler_cfg.pop('level', self.log_level))
 
                 if 'stream' in handler_cfg:
