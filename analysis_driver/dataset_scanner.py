@@ -49,7 +49,7 @@ class DatasetScanner(AppLogger):
             statuses.remove(DATASET_NEW)
             statuses.append(None)
         if len(statuses) > 1:
-            match={'$or': [ {'$eq': ['proc_status', status] } for status in statuses ]}
+            match={'$or': [ {'proc_status': status} for status in statuses ]}
         else:
             match={'proc_status': statuses[0]}
         return [
