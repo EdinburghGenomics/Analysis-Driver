@@ -114,9 +114,9 @@ class TestRunScanner(TestScanner):
                 d = RunDataset(x, os.path.join(self.base_dir, x), False)
                 assert d.most_recent_proc.entity
                 fake_datasets.append(d)
-        with patch(ppath('DatasetScanner._get_datasets_for_status'), return_value=fake_datasets) as p:
+        with patch(ppath('DatasetScanner._get_datasets_for_statuses'), return_value=fake_datasets) as p:
             obs = self.scanner.scan_datasets(DATASET_NEW)
-            p.assert_any_call(DATASET_NEW)
+            p.assert_any_call((DATASET_NEW, ))
             exp = {DATASET_NEW: '[other, that, this]'}
             assert str(obs[DATASET_NEW]) == exp[DATASET_NEW]
 
@@ -169,9 +169,9 @@ class TestSampleScanner(TestScanner):
                 fake_datasets[DATASET_NEW].append(d)
 
         def fake_get_datasets(*args):
-            return fake_datasets[args[1]]
+            return [d for arg in args[1] for d in fake_datasets.get(arg)]
 
         patched_is_ready = patch(ppath('SampleDataset._is_ready'), return_value=False)
-        patched_get_datasets = patch(ppath('SampleScanner._get_datasets_for_status'), new=fake_get_datasets)
+        patched_get_datasets = patch(ppath('SampleScanner._get_datasets_for_statuses'), new=fake_get_datasets)
         with patched_is_ready, patched_get_datasets:
             assert self.scanner.scan_datasets(DATASET_NEW) == fake_datasets
