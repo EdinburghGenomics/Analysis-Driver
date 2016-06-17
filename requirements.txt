@@ -3,3 +3,4 @@ PyYAML==3.11
 pytest==2.7.2
 genologics==0.3.2
 asana==0.5.1
+git+https://github.com/EdinburghGenomics/EGCG-Core.git@v0.1

@@ -3,7 +3,7 @@ import logging
 import argparse
 from analysis_driver import exceptions
 from analysis_driver.config import default as cfg
-from analysis_driver.app_logging import logging_default as log_cfg
+from analysis_driver.app_logging import log_cfg
 from analysis_driver.notification import default as ntf, LogNotification, EmailNotification, AsanaNotification
 from analysis_driver.dataset_scanner import RunScanner, SampleScanner, DATASET_READY, DATASET_FORCE_READY, DATASET_NEW, DATASET_REPROCESS
 

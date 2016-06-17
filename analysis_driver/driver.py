@@ -2,11 +2,11 @@ import os
 import time
 import shutil
 import yaml
-from analysis_driver import reader, util, executor, quality_control as qc
-from analysis_driver.external_data import clarity
+from analysis_driver import reader, util, quality_control as qc
+from egcg_core import executor, clarity
 from analysis_driver.dataset_scanner import RunDataset, SampleDataset
 from analysis_driver.exceptions import PipelineError, SequencingRunError
-from analysis_driver.app_logging import logging_default as log_cfg
+from analysis_driver.app_logging import log_cfg
 from analysis_driver.config import output_files_config, default as cfg
 from analysis_driver.quality_control.lane_duplicates import WellDuplicates
 from analysis_driver.report_generation.report_crawlers import RunCrawler, SampleCrawler
