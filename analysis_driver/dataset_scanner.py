@@ -1,5 +1,6 @@
 import os
 from collections import defaultdict
+
 from analysis_driver.app_logging import AppLogger
 from analysis_driver.external_data import rest_communication
 from analysis_driver.dataset import RunDataset, SampleDataset
@@ -41,30 +42,34 @@ class DatasetScanner(AppLogger):
         out.append('_' * 42)
         print('\n'.join(out))
 
-    def _get_dataset_records_for_status(self, status):
-        self.debug('Querying Rest API for status %s', status)
-        if status == DATASET_NEW:
-            status = None
+    def _get_dataset_records_for_statuses(self, statuses):
+        self.debug('Querying Rest API for status %s', ', '.join(statuses))
+        if DATASET_NEW in statuses :
+            statuses = list(statuses)
+            statuses.remove(DATASET_NEW)
+            statuses.append(None)
+        if len(statuses) > 1:
+            match={'$or': [ {'proc_status': status} for status in statuses ]}
+        else:
+            match={'proc_status': statuses[0]}
         return [
-            d for d in rest_communication.get_documents(self.endpoint, match={'proc_status': status}, paginate=False)
+            d for d in rest_communication.get_documents(self.endpoint, match=match, paginate=False)
             if d[self.item_id] not in self._triggerignore
             ]
 
-    def _get_datasets_for_status(self, status):
-        self.debug('Creating Datasets for status %s', status)
+    def _get_datasets_for_statuses(self, statuses):
+        self.debug('Creating Datasets for status %s', ', '.join(statuses))
         return [
             self.get_dataset(d[self.item_id], d.get('most_recent_proc'))
-            for d in self._get_dataset_records_for_status(status)
+            for d in self._get_dataset_records_for_statuses(statuses)
         ]
 
     def scan_datasets(self, *rest_api_statuses):
         datasets = defaultdict(list)
-        for s in rest_api_statuses:
-            self.debug('Scanning for datasets with status %s', s)
-            for d in self._get_datasets_for_status(s):
-                if d and d.name not in [d.name for d in datasets[d.dataset_status]]:
-                    datasets[d.dataset_status].append(d)
-
+        self.debug('Scanning for datasets with statuses %s', ', '.join(rest_api_statuses))
+        for d in self._get_datasets_for_statuses(rest_api_statuses):
+            if d and d.name not in [d.name for d in datasets[d.dataset_status]]:
+                datasets[d.dataset_status].append(d)
         for k in datasets:
             datasets[k].sort()
 
@@ -105,17 +110,15 @@ class RunScanner(DatasetScanner):
                 most_recent_proc=most_recent_proc
             )
 
-    def _get_dataset_records_for_status(self, status):
-        if status in (DATASET_NEW, DATASET_READY):
-            self.debug('Scanning disk for datasets with status %s', status)
-            datasets = []
-            rest_api_datasets = rest_communication.get_documents(self.endpoint)
+    def _get_dataset_records_for_statuses(self, statuses):
+        rest_api_datasets = super()._get_dataset_records_for_statuses(statuses)
+        dataset_names = [d.get(self.item_id) for d in rest_api_datasets]
+        if DATASET_NEW in statuses or DATASET_READY in statuses:
+            self.debug('Scanning disk for datasets with status %s', ','.join(statuses))
             for d in self._datasets_on_disk():
-                if d not in rest_api_datasets:
-                    datasets.append({self.item_id: d})
-            return datasets
-        else:
-            return super()._get_dataset_records_for_status(status)
+                if d not in dataset_names:
+                    rest_api_datasets.append({self.item_id: d})
+        return rest_api_datasets
 
     def _datasets_on_disk(self):
         return [
@@ -139,10 +142,10 @@ class SampleScanner(DatasetScanner):
     def get_dataset(self, name, most_recent_proc=None, data_threshold=None):
         return SampleDataset(name, most_recent_proc, data_threshold)
 
-    def _get_datasets_for_status(self, status):
-        self.debug('Creating Datasets for status %s', status)
+    def _get_datasets_for_statuses(self, statuses):
+        self.debug('Creating Datasets for status %s', ', '.join(statuses))
         datasets = {}
-        for r in self._get_dataset_records_for_status(status):
+        for r in self._get_dataset_records_for_statuses(statuses):
             datasets[r[self.item_id]] = {'record': r}
 
         if datasets:
