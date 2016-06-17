@@ -112,7 +112,7 @@ class RunScanner(DatasetScanner):
 
     def _get_dataset_records_for_statuses(self, statuses):
         rest_api_datasets = super()._get_dataset_records_for_statuses(statuses)
-        dataset_names = [list(d)[0] for d in rest_api_datasets]
+        dataset_names = [d.get(self.item_id) for d in rest_api_datasets]
         if DATASET_NEW in statuses or DATASET_READY in statuses:
             self.debug('Scanning disk for datasets with status %s', ','.join(statuses))
             for d in self._datasets_on_disk():
