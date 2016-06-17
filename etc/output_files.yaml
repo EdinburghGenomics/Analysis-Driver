@@ -45,8 +45,8 @@ bcbio:
   - location: ['samples_{runfolder}-merged', 'final', '*_{sample_id}']
     basename: 'project-summary.yaml'
 
-  - location: ['merged']
-    basename: '{sample_id}_R1.fastq.gz'
+#  - location: ['merged']
+#    basename: '{sample_id}_R1.fastq.gz'
 
   - location: ['merged']
     basename: '{sample_id}_R1_fastqc.html'
@@ -54,8 +54,8 @@ bcbio:
   - location: ['merged']
     basename: '{sample_id}_R1_fastqc.zip'
 
-  - location: ['merged']
-    basename: '{sample_id}_R2.fastq.gz'
+#  - location: ['merged']
+#    basename: '{sample_id}_R2.fastq.gz'
 
   - location: ['merged']
     basename: '{sample_id}_R2_fastqc.html'
@@ -80,8 +80,8 @@ non_human_qc:
   - location: ['']
     basename: 'bamtools_stats.txt'
 
-  - location: ['merged']
-    basename: '{sample_id}_R1.fastq.gz'
+#  - location: ['merged']
+#    basename: '{sample_id}_R1.fastq.gz'
 
   - location: ['merged']
     basename: '{sample_id}_R1_fastqc.html'
@@ -89,8 +89,8 @@ non_human_qc:
   - location: ['merged']
     basename: '{sample_id}_R1_fastqc.zip'
 
-  - location: ['merged']
-    basename: '{sample_id}_R2.fastq.gz'
+#  - location: ['merged']
+#    basename: '{sample_id}_R2.fastq.gz'
 
   - location: ['merged']
     basename: '{sample_id}_R2_fastqc.html'
