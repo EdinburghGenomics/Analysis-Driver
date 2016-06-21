@@ -174,10 +174,10 @@ def demultiplexing_pipeline(dataset):
     dataset.end_stage('data_transfer', transfer_exit_status)
     exit_status += transfer_exit_status + fastqc_exit_status + md5_exit_status
 
-    # if exit_status == 0:
-    #     dataset.start_stage('cleanup')
-    #     exit_status += _cleanup(run_id)
-    #     dataset.end_stage('cleanup', exit_status)
+    if exit_status == 0:
+        dataset.start_stage('cleanup')
+        exit_status += _cleanup(run_id)
+        dataset.end_stage('cleanup', exit_status)
     return exit_status
 
 
@@ -271,6 +271,11 @@ def variant_calling_pipeline(dataset):
 
     exit_status += _output_data(dataset, sample_dir, sample_id, dir_with_linked_files)
 
+    if exit_status == 0:
+        dataset.start_stage('cleanup')
+        exit_status += _cleanup(sample_id)
+        dataset.end_stage('cleanup', exit_status)
+
     return exit_status
 
 
@@ -353,6 +358,11 @@ def qc_pipeline(dataset, species):
 
     exit_status += _output_data(dataset, sample_dir, sample_id, dir_with_linked_files)
 
+    if exit_status == 0:
+        dataset.start_stage('cleanup')
+        exit_status += _cleanup(sample_id)
+        dataset.end_stage('cleanup', exit_status)
+
     return exit_status
 
 
@@ -398,10 +408,6 @@ def _output_data(dataset, sample_dir, sample_id, dir_with_linked_files):
     dataset.end_stage('data_transfer', transfer_exit_status)
     exit_status += transfer_exit_status
 
-    if exit_status == 0:
-        dataset.start_stage('cleanup')
-        exit_status += _cleanup(sample_id)
-        dataset.end_stage('cleanup', exit_status)
     return exit_status
 
 
