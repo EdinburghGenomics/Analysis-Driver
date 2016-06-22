@@ -41,19 +41,21 @@ def query(content, parts, top_level=None, ret_default=None):
 
 
 def morethan(a, b):
-    if a:
+    if a is not None:
         return a >= b
     else:
         return False
 
 def lessthan(a, b):
-    if a:
+
+    if a is not None:
         return a <= b
     else:
         return False
 
 def inlist(a, b):
-    return a in b
+    if a is not None:
+        return a in b
 
 def metrics(dataset, datatype):
     PassFailDict = {}
@@ -152,7 +154,7 @@ def get_reviewable_runs():
             run_id = run.get('run_id')
             run_elements_by_lane = rest_communication.get_documents('aggregate/run_elements_by_lane', match={"run_id":run_id})
             r = AutomaticRunReview(run_id, run_elements_by_lane)
-            run_review = r.patch_entry()
+            r.patch_entry()
 
 def get_reviewable_samples():
     samples = rest_communication.get_documents('aggregate/samples', depaginate=True,  match={"proc_status":"finished","reviewed":"not%20reviewed"})
@@ -161,7 +163,7 @@ def get_reviewable_samples():
 
             sample_id = sample.get('sample_id')
             s = AutomaticSampleReview(sample, sample_id)
-            sample_review = s.patch_entry()
+            s.patch_entry()
 
 
 if __name__ == '__main__':
