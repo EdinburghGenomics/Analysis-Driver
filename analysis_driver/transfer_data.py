@@ -2,7 +2,6 @@ import os
 from time import sleep
 from egcg_core import executor, clarity, util
 from analysis_driver.exceptions import PipelineError
-from analysis_driver.util import find_fastqs
 from analysis_driver.util.bash_commands import rsync_from_to, is_remote_path
 from analysis_driver.app_logging import log_cfg
 from analysis_driver.config import default as cfg
@@ -52,7 +51,7 @@ def _find_fastqs_for_sample(sample_id, run_element):
 
     local_fastq_dir = os.path.join(cfg['input_dir'], run_id, 'fastq')
     app_logger.debug('Searching for fastqs in ' + local_fastq_dir)
-    fastqs = find_fastqs(local_fastq_dir, project_id, sample_id, lane)
+    fastqs = util.find_fastqs(local_fastq_dir, project_id, sample_id, lane)
     if fastqs:
         return fastqs
 

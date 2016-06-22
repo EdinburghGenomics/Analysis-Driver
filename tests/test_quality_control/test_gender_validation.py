@@ -5,7 +5,7 @@ from tests.test_quality_control.qc_tester import QCTester
 
 class TestGenderValidation(QCTester):
     @patch('analysis_driver.dataset.rest_communication')
-    @patch('analysis_driver.executor.execute')
+    @patch('egcg_core.executor.execute')
     def test__gender_call(self, mocked_execute, mocked_rest):
         validator = GenderValidation(self.dataset, working_dir='test_sample', vcf_file='path/to/test/vcf')
         instance = mocked_execute.return_value

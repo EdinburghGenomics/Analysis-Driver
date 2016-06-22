@@ -1,7 +1,5 @@
 import os
 import csv
-import egcg_core.util
-from analysis_driver.exceptions import AnalysisDriverError
 from analysis_driver.app_logging import log_cfg
 from analysis_driver.config import default as cfg
 from analysis_driver.util.bash_commands import is_remote_path, rsync_from_to
@@ -31,50 +29,6 @@ def bcbio_prepare_samples_cmd(job_dir, sample_id, fastqs, user_sample_id=None):
             bcbio_csv_file
         )
     )
-
-
-def find_fastqs(location, sample_project, sample_id, lane=None):
-    """
-    Find all .fastq.gz files in an input folder 'location/sample_project'
-    :param location: The overall directory to search
-    :param sample_project: The sample_project directory to search
-    :return: Full paths to *.fastq.gz files in the sample_project dir.
-    :rtype: list[str]
-    """
-    if lane:
-        pattern = os.path.join(sample_project, sample_id, '*L00%s*.fastq.gz' % lane)
-    else:
-        pattern = os.path.join(sample_project, sample_id, '*.fastq.gz')
-    fastqs = egcg_core.util.find_files(location, pattern)
-    app_logger.info('Found %s fastq files for %s', len(fastqs), pattern)
-    return fastqs
-
-
-def find_all_fastqs(location):
-    """
-    Return the results of find_fastqs as a flat list.
-    :return: Full paths to all *.fastq.gz files for all sample projects and sample ids in the input dir
-    :rtype: list[str]
-    """
-    fastqs = []
-    for name, dirs, files in os.walk(location):
-        fastqs.extend([os.path.join(name, f) for f in files if f.endswith('.fastq.gz')])
-    app_logger.info('Found %s fastqs in %s', len(fastqs), location)
-    return fastqs
-
-
-def find_all_fastq_pairs(location):
-    """
-    Return the results of find_all_fastqs as a list or paired fastq files.
-    It does not check the fastq name but expect that they will come together after sorting
-    :return: Full paths to all *.fastq.gz files for all sample projects and sample ids in the input dir aggregated per pair
-    :rtype: list[tuple(str, str)]
-    """
-    fastqs = find_all_fastqs(location)
-    if len(fastqs) % 2 != 0 :
-        raise AnalysisDriverError('Expect a even number of fastq file in %s found %s' % (location, len(fastqs)))
-    fastqs.sort()
-    return list(zip(*[iter(fastqs)]*2))
 
 
 def _write_bcbio_csv(run_dir, sample_id, fastqs, user_sample_id=None):

@@ -4,7 +4,7 @@ from tests.test_quality_control.qc_tester import QCTester
 
 
 class TestWellDuplicates(QCTester):
-    @patch('analysis_driver.executor.execute')
+    @patch('egcg_core.executor.execute')
     def test__well_duplicates(self, mocked_execute):
         welldup = WellDuplicates(self.run_dataset, working_dir='test_run', output_directory='test_run/fastq', run_directory='path/to/run')
         instance = mocked_execute.return_value

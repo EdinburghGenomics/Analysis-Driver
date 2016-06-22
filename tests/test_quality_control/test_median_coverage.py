@@ -14,7 +14,7 @@ class TestSamtoolsDepth(QCTester):
         assert my_samtools_depth_outfile == 'testfile.depth'
 
 
-    @patch('analysis_driver.executor.execute', autospec=True)
+    @patch('egcg_core.executor.execute', autospec=True)
     def test_run_samtools_depth(self, mocked_execute):
         bam_file = 'testfile.bam'
         working_dir = 'test_sample'

@@ -1,7 +1,5 @@
 import os
-
 import shutil
-
 from egcg_core import executor
 from analysis_driver.config import default as cfg
 from .quality_control_base import QualityControl

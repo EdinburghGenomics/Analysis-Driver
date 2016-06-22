@@ -5,7 +5,7 @@ from analysis_driver.exceptions import AnalysisDriverError
 
 
 def ppath(*parts):
-    return 'analysis_driver.external_data.' + '.'.join(parts)
+    return 'egcg_core.' + '.'.join(parts)
 
 patched_deliverable_project = patch(
     ppath('rest_communication.get_documents'),
