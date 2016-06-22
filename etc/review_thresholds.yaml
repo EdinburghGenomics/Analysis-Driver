@@ -1,13 +1,39 @@
+
 run:
-    yield_in_gb:         120
-    pc_q30:              75
-    pc_pass_filter:      50
+    yield_in_gb:
+        value: 120
+        comparison: '>'
+    pc_q30:
+        value: 75
+        comparison: '>'
+    pc_pass_filter:
+        value: 50
+        comparison: '>'
+
+
 
 sample:
-    clean_yield_in_gb:   120
-    clean_yield_q30:     95
-    pc_mapped_reads:     90
-    median_coverage:     30
-    pc_duplicate_reads:  35
-    mismatching_snps:    5
-    no_call_seq:         10
+    clean_yield_in_gb:
+        value: 120
+        comparison: '>'
+    clean_yield_q30:
+        value: 95
+        comparison: '>'
+    pc_mapped_reads:
+        value: 90
+        comparison: '>'
+    median_coverage:
+        value: 30
+        comparison: '>'
+    pc_duplicate_reads:
+        value: 35
+        comparison: '<'
+    genotype_validation,mismatching_snps:
+        value: 5
+        comparison: '<'
+    genotype_validation,no_call_seq:
+        value: 10
+        comparison: '<'
+    provided_gender:
+        value: ['unknown', 'called_gender']
+        comparison: 'inlist'
