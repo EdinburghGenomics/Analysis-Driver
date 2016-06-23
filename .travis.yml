@@ -15,3 +15,4 @@ notifications:
 env:
   global:
     ANALYSISDRIVERCONFIG=etc/example_analysisdriver.yaml
+    EGCGCONFIG=etc/example_analysisdriver.yaml
