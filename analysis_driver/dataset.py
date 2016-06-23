@@ -67,6 +67,8 @@ class Dataset:
         self.most_recent_proc.end_stage(stage_name, exit_status)
 
     def _assert_status(self, *allowed_statuses, method=None):
+        # make sure the most recent process is the same as the one in the REST API
+        self.most_recent_proc.retrieve_entity()
         status = self.dataset_status
         assert status in allowed_statuses, 'Tried to %s a %s %s' % (method, status, self.type)
 
@@ -207,18 +209,21 @@ class MostRecentProc:
         else:
             self._entity = None
 
+    def retrieve_entity(self):
+        procs = rest_communication.get_documents(
+            'analysis_driver_procs',
+            where={'dataset_type': self.dataset_type, 'dataset_name': self.dataset_name},
+            sort='-_created'
+        )
+        if procs:
+            # remove the private (starting with _ ) fields from the dict
+            self._entity = {k: v for k, v in procs[0].items() if not k.startswith('_')}
+
     @property
     def entity(self):
         if self._entity is None:
-            procs = rest_communication.get_documents(
-                'analysis_driver_procs',
-                where={'dataset_type': self.dataset_type, 'dataset_name': self.dataset_name},
-                sort='-_created'
-            )
-            if procs:
-                # remove the private (starting with _ ) fields from the dict
-                self._entity = {k: v for k, v in procs[0].items() if not k.startswith('_')}
-            else:
+            self.retrieve_entity()
+            if not self._entity:
                 self.initialise_entity()
         return self._entity
 
