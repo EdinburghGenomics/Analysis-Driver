@@ -64,7 +64,7 @@ def demultiplexing_pipeline(dataset):
     dataset.end_stage('setup')
 
     # Need to sleep to make sure the LIMS has had enough time to update itself
-    time.sleep(300)
+    time.sleep(900)
     run_status = clarity.get_run(run_id).udf.get('Run Status')
     # TODO: catch bcl2fastq error logs instead
     if run_status != 'RunCompleted':
