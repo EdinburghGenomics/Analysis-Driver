@@ -101,4 +101,4 @@ class TestDemultiplexingStats(TestAnalysisDriver):
     def test_parse_welldup_file(self):
         welldup_file = os.path.join(self.assets_path, 'test_crawlers', 'test_run.well_dup')
         dup_per_lane = parse_welldup_file(welldup_file)
-        assert dup_per_lane == {1: 11.747, 2: 14.576, 3: 12.5, 4: 20.496, 5: 5.981, 6: 10.917, 7: 14.611, 8: 26.416}
+        assert dup_per_lane == {1: 11.747, 2: 14.576, 3: 0, 4: 20.496, 5: 5.981, 6: 10.917, 7: 14.611, 8: 26.416}
