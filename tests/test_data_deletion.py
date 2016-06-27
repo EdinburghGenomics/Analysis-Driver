@@ -1,9 +1,9 @@
 import os
 from os.path import join as p_join
 import shutil
-from tests.test_analysisdriver import TestAnalysisDriver
-from unittest.mock import patch, Mock
 from bin import delete_data
+from unittest.mock import patch, Mock
+from tests.test_analysisdriver import TestAnalysisDriver
 from analysis_driver.util import find_files, find_fastqs
 
 
@@ -28,7 +28,7 @@ class TestDeleter(TestAnalysisDriver):
     @patch('bin.delete_data.executor.execute', return_value=FakeExecutor())
     def test_execute(self, mocked_execute):
         self.deleter._execute('a test command')
-        mocked_execute.assert_called_with(['a test command'], 'local')
+        mocked_execute.assert_called_with('a test command', env='local')
 
 
 finished_proc = {'status': 'finished'}
@@ -131,27 +131,21 @@ class TestRawDataDeleter(TestDeleter):
             os.remove(deletion_script)
 
     def test_deletable_runs(self):
-        patch_target = 'analysis_driver.rest_communication.get_documents'
-        expected_rest_query = {
-            'max_results': 100,
-            'embedded': {'run_elements': 1, 'analysis_driver_procs': 1},
-            'aggregate': True,
-            'sort': 'run_id'
-        }
+        patch_target = 'analysis_driver.external_data.rest_communication.get_documents'
 
         with patch(patch_target, return_value=fake_run_elements_no_procs) as p:
             runs = self.deleter.deletable_runs()
-            p.assert_called_with('aggregate/all_runs', sort='run_id')
+            p.assert_called_with('aggregate/all_runs', sort='run_id', paginate=False)
             assert runs == []
 
         with patch(patch_target, return_value=fake_run_elements_procs_running) as p:
             runs = self.deleter.deletable_runs()
-            p.assert_called_with('aggregate/all_runs', sort='run_id')
+            p.assert_called_with('aggregate/all_runs', sort='run_id', paginate=False)
             assert runs == []
 
         with patch(patch_target, return_value=fake_run_elements_procs_complete) as p:
             runs = self.deleter.deletable_runs()
-            p.assert_called_with('aggregate/all_runs', sort='run_id')
+            p.assert_called_with('aggregate/all_runs', sort='run_id', paginate=False)
             assert runs == fake_run_elements_procs_complete[1:]
 
     def test_setup_run_for_deletion(self):

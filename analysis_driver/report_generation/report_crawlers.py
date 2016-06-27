@@ -1,12 +1,13 @@
-from collections import Counter, defaultdict
 import json
+from collections import Counter, defaultdict
 from analysis_driver import util
-from analysis_driver.clarity import get_sample_gender, get_user_sample_name
 from analysis_driver.app_logging import AppLogger
 from analysis_driver.exceptions import PipelineError
+from analysis_driver.external_data.rest_communication import post_or_patch as pp
+from analysis_driver.external_data.clarity import get_sample_gender, get_user_sample_name
 from analysis_driver.reader import demultiplexing_parsers, mapping_stats_parsers
-from analysis_driver.reader.demultiplexing_parsers import get_fastqscreen_results, get_coverage_statistics
-from analysis_driver.rest_communication import post_or_patch as pp
+from analysis_driver.reader.demultiplexing_parsers import get_fastqscreen_results, get_coverage_statistics, \
+    parse_welldup_file
 from analysis_driver.reader.mapping_stats_parsers import parse_and_aggregate_genotype_concordance,\
     parse_vbi_selfSM
 from analysis_driver.config import default as cfg
@@ -20,7 +21,7 @@ from analysis_driver.constants import ELEMENT_RUN_NAME, ELEMENT_NUMBER_LANE, ELE
     ELEMENT_SPECIES_CONTAMINATION, ELEMENT_NB_BASE_R2_CLEANED, ELEMENT_NB_Q30_R2_CLEANED, ELEMENT_NB_BASE_R1_CLEANED, \
     ELEMENT_GENOTYPE_VALIDATION, ELEMENT_COVERAGE_STATISTICS, ELEMENT_MEAN_COVERAGE, ELEMENT_MEDIAN_COVERAGE_SAMTOOLS, ELEMENT_COVERAGE_SD, \
     ELEMENT_FREEMIX, ELEMENT_SAMPLE_CONTAMINATION, ELEMENT_GENDER_VALIDATION, \
-    ELEMENT_GENDER_HETX
+    ELEMENT_GENDER_HETX, ELEMENT_LANE_PC_OPT_DUP
 
 
 class Crawler(AppLogger):
@@ -41,6 +42,10 @@ class RunCrawler(Crawler):
             self._populate_barcode_info_from_conversion_file(conversion_xml_file)
         if run_dir:
             self._populate_barcode_info_from_seqtk_fqchk_files(run_dir)
+        if run_dir:
+            welldup_files = util.find_files(run_dir, 'fastq', run_id + '.wellduplicate')
+            if welldup_files:
+                self._populate_barcode_info_from_well_dup(welldup_files[0])
 
     @staticmethod
     def _update_doc_list(d, k, v):
@@ -174,6 +179,14 @@ class RunCrawler(Crawler):
             else:
                 raise PipelineError('%s fqchk files found in %s for %s' % (len(fq_chk_files), run_dir, run_element_id))
 
+    def _populate_barcode_info_from_well_dup(self, welldup_file):
+        dup_per_lane = parse_welldup_file(welldup_file)
+        for run_element_id in self.barcodes_info:
+            barcode_info = self.barcodes_info.get(run_element_id)
+            lane = barcode_info.get(ELEMENT_LANE)
+            if int(lane) in dup_per_lane:
+                barcode_info[ELEMENT_LANE_PC_OPT_DUP] = dup_per_lane.get(int(lane))
+
     def _populate_barcode_info_from_conversion_file(self, conversion_xml):
         all_barcodes, top_unknown_barcodes, all_barcodeless = demultiplexing_parsers.parse_conversion_stats(conversion_xml, self.samplesheet.has_barcode)
         reads_per_lane = Counter()
@@ -289,12 +302,17 @@ class SampleCrawler(Crawler):
         else:
             self.critical('Missing bamtools_stats.txt')
 
-        yaml_metric_path = self.search_file(sample_dir, '*%s-sort-highdepth-stats.yaml' % external_sample_name)
-        if yaml_metric_path:
-            median_coverage = mapping_stats_parsers.parse_highdepth_yaml_file(yaml_metric_path)
-            sample[ELEMENT_MEDIAN_COVERAGE] = median_coverage
+        samtools_path = self.search_file(sample_dir, 'samtools_stats.txt')
+        if samtools_path:
+            (total_reads, mapped_reads,
+             duplicate_reads, proper_pairs) = mapping_stats_parsers.parse_samtools_stats(samtools_path)
+
+            sample[ELEMENT_NB_READS_IN_BAM] = total_reads
+            sample[ELEMENT_NB_MAPPED_READS] = mapped_reads
+            sample[ELEMENT_NB_DUPLICATE_READS] = duplicate_reads
+            sample[ELEMENT_NB_PROPERLY_MAPPED] = proper_pairs
         else:
-            self.critical('Missing %s-sort-highdepth-stats.yaml', external_sample_name)
+            self.critical('Missing samtools_stats.txt')
 
         bed_file_path = self.search_file(sample_dir, '*%s-sort-callable.bed' % external_sample_name)
         if bed_file_path:
@@ -336,7 +354,7 @@ class SampleCrawler(Crawler):
             sample_contamination_path = self.search_file(sample_dir, '%s-chr22-vbi.selfSM' % self.sample_id)
         if sample_contamination_path:
             freemix = parse_vbi_selfSM(sample_contamination_path)
-            if freemix:
+            if freemix is not None:
                 sample[ELEMENT_SAMPLE_CONTAMINATION] = {ELEMENT_FREEMIX: freemix}
             else:
                 self.critical('freemix results from validateBamId are not available for %s', self.sample_id)
@@ -346,6 +364,7 @@ class SampleCrawler(Crawler):
             mean, median, sd = get_coverage_statistics(coverage_statistics_path)
             coverage_statistics = {ELEMENT_MEAN_COVERAGE: mean, ELEMENT_MEDIAN_COVERAGE_SAMTOOLS: median, ELEMENT_COVERAGE_SD: sd}
             sample[ELEMENT_COVERAGE_STATISTICS] = coverage_statistics
+            sample[ELEMENT_MEDIAN_COVERAGE] = median
         else:
             self.critical('coverage statistics unavailable for %s', self.sample_id)
         return sample

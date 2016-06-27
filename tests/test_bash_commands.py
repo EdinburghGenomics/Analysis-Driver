@@ -1,11 +1,9 @@
-__author__ = 'mwham'
 import os.path
-from tests.test_analysisdriver import TestAnalysisDriver
+from tests.test_analysisdriver import helper
 from analysis_driver.util import bash_commands
 from analysis_driver.reader import SampleSheet, RunInfo
 from analysis_driver.config import default as cfg
 
-helper = TestAnalysisDriver()
 sample_sheet_csv = os.path.join(helper.assets_path, 'SampleSheet_analysis_driver.csv')
 sample_sheet = SampleSheet(helper.sample_sheet_path)
 run_info = RunInfo(helper.assets_path)
@@ -69,6 +67,7 @@ def test_export_env_vars():
     cmds = bash_commands.export_env_vars()
     assert cmds == (
         'export PATH=path/to/bcbio/bin:$PATH',
+        'export PATH=path/to/jdk/bin:$PATH',
         'export LD_LIBRARY_PATH=path/to/bcbio/lib:$LD_LIBRARY_PATH',
         'export PERL5LIB=path/to/bcbio/lib/perl5:$PERL5LIB',
         'export JAVA_HOME=path/to/jdk',

@@ -95,7 +95,8 @@ class TestDataset(TestAnalysisDriver):
     @patched_ntf_start
     @patched_initialise
     @patch(ppath('MostRecentProc.start'))
-    def test_start(self, mocked_start, mocked_update, mocked_ntf):
+    @patch(ppath('MostRecentProc.retrieve_entity'))
+    def test_start(self, mocked_retrieve_entity, mocked_start, mocked_update, mocked_ntf):
         self.dataset.most_recent_proc.entity['status'] = c.DATASET_PROCESSING
         with pytest.raises(AssertionError):
             self.dataset.start()
@@ -107,7 +108,8 @@ class TestDataset(TestAnalysisDriver):
 
     @patched_ntf_end
     @patched_finish
-    def test_succeed(self, mocked_finish, mocked_ntf):
+    @patch(ppath('MostRecentProc.retrieve_entity'))
+    def test_succeed(self, mocked_retrieve_entity, mocked_finish, mocked_ntf):
         with pytest.raises(AssertionError):
             self.dataset.succeed()
 
@@ -118,7 +120,8 @@ class TestDataset(TestAnalysisDriver):
 
     @patched_ntf_end
     @patched_finish
-    def test_fail(self, mocked_finish, mocked_ntf):
+    @patch(ppath('MostRecentProc.retrieve_entity'))
+    def test_fail(self, mocked_retrieve_entity, mocked_finish, mocked_ntf):
         with pytest.raises(AssertionError):
             self.dataset.succeed()
 
@@ -128,12 +131,14 @@ class TestDataset(TestAnalysisDriver):
         mocked_finish.assert_called_with(c.DATASET_PROCESSED_FAIL)
 
     @patched_finish
-    def test_abort(self, mocked_finish):
+    @patch(ppath('MostRecentProc.retrieve_entity'))
+    def test_abort(self, mocked_retrieve_entity, mocked_finish):
         self.dataset.abort()
         mocked_finish.assert_called_with(c.DATASET_ABORTED)
 
     @patch(ppath('MostRecentProc.change_status'))
-    def test_reset(self, mocked_change_status):
+    @patch(ppath('MostRecentProc.retrieve_entity'))
+    def test_reset(self, mocked_retrieve_entity, mocked_change_status):
         self.dataset.reset()
         mocked_change_status.assert_called_with(c.DATASET_REPROCESS)
 
@@ -256,7 +261,7 @@ class TestSampleDataset(TestDataset):
         assert mocked_instance.call_count == 1  # even after 2 calls to data_threshold
 
     def test_str(self):
-        expected_str = 'test_dataset -- this, that, other  (480 / 1000000000  from a_run_id, another_run_id) '
+        expected_str = 'test_dataset -- this, that, other  (480 / 1000000000  from a_run_id, another_run_id) (non useable in a_run_id, another_run_id)'
         self.dataset._data_threshold = None
         with patched_get(self.dataset.run_elements), patched_expected_yield(), patched_stages:
             print(expected_str)

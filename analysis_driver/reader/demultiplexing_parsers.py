@@ -1,16 +1,13 @@
-__author__ = 'tcezard'
-
-import os
 import sys
 import math
 from xml.etree import ElementTree
 
 sys.path.append('../..')
-from analysis_driver.clarity import get_species_from_sample
-from analysis_driver.constants import ELEMENT_SPECIES_CONTAMINATION, ELEMENT_CONTAMINANT_UNIQUE_MAP, ELEMENT_PCNT_UNMAPPED_FOCAL, ELEMENT_PCNT_UNMAPPED, ELEMENT_TOTAL_READS_MAPPED
+from analysis_driver.external_data.clarity import get_species_from_sample
+from analysis_driver.constants import ELEMENT_CONTAMINANT_UNIQUE_MAP, ELEMENT_PCNT_UNMAPPED_FOCAL,\
+    ELEMENT_PCNT_UNMAPPED, ELEMENT_TOTAL_READS_MAPPED
 from analysis_driver.app_logging import logging_default
 app_logger = logging_default.get_logger(__name__)
-
 
 
 def parse_demultiplexing_stats(xml_file):
@@ -289,3 +286,23 @@ def get_coverage_statistics(histogram_file):
     coverage_sd = calculate_sd(histogram_file)
 
     return coverage_mean, coverage_median, coverage_sd
+
+
+def parse_welldup_file(welldup_file):
+    dup_per_lane = {1:0, 2:0, 3:0, 4:0, 5:0, 6:0, 7:0, 8:0}
+    in_summary = False
+    with open(welldup_file) as open_file:
+        for line in open_file:
+            if line.startswith('LaneSummary:'):
+                lane = int(line.split()[1])
+                in_summary=True
+            elif in_summary == 1 and line.startswith('Level: 3'):
+                pc_dup = line.split()[12].strip('(').rstrip(')')
+                dup_per_lane[lane]=round(float(pc_dup)*100,3)
+                in_summary = False
+            elif line.startswith('Lane: '):
+                in_summary = False
+    return dup_per_lane
+
+
+

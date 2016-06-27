@@ -16,10 +16,13 @@ default:
       fastqs: tests/assets/data_deletion/fastqs
 
     genome: hg38
+    ncbi_cache: ':memory:'
 
     tt_agent_delay: 20
-    job_execution: pbs  # pbs or None
+    job_execution: local  # pbs, slurm, local
     job_queue: uv2000
+
+    pre_job_source: bashrc
 
     tools:
         qsub:      /bin/sh
@@ -39,7 +42,7 @@ default:
         tabix: path/to/tabix
         fastqscreen: path/to/fastqscreen
         verifybamid: path/to/verifybamid
-
+        well_duplicate: path/to/well_duplicate
 
     logging:
         format: '[%(asctime)s][%(name)s][%(levelname)s] %(message)s'
@@ -67,3 +70,6 @@ default:
     contamination-check:
       fastqscreen_conf: path/to/fastqscreen/conf
       population_vcf:   path/to/population_vcf
+
+    well_duplicate:
+      coord_file: path/to/coord_file

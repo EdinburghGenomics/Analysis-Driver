@@ -1,10 +1,10 @@
 import os
-import smtplib
 import jinja2
+import smtplib
 from email.mime.text import MIMEText
 from time import sleep
-from .notification_center import Notification
 from analysis_driver.exceptions import AnalysisDriverError
+from .notification_center import Notification
 
 
 class EmailNotification(Notification):
@@ -26,7 +26,7 @@ class EmailNotification(Notification):
     def end_pipeline(self, exit_status=0):
         self._send_mail('Pipeline finished with exit status ' + str(exit_status), bool(exit_status))
 
-    def crash_report(self, exit_status, crash_report):
+    def crash_report(self, crash_report):
         self._send_mail(
             'Crash report for %s %s:\n\n%s' % (self.dataset.type, self.dataset.name, crash_report),
             diagnostics=True

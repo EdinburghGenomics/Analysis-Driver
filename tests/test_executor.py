@@ -1,17 +1,19 @@
-__author__ = 'mwham'
 import pytest
 import os
 import shutil
 import sys
 import logging
 import subprocess
+from unittest.mock import patch, Mock
 from tests.test_analysisdriver import TestAnalysisDriver
-from analysis_driver import executor
-from analysis_driver.executor import script_writers
+from analysis_driver.executor import script_writers, Executor, StreamExecutor, ArrayExecutor
+from analysis_driver.executor.executor import ClusterExecutor, PBSExecutor, SlurmExecutor
 from analysis_driver.exceptions import AnalysisDriverError
-from analysis_driver.config import default as cfg
 
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
+
+get_stdout = 'analysis_driver.executor.executor.ClusterExecutor._get_stdout'
+sleep = 'analysis_driver.executor.executor.sleep'
 
 
 class TestScriptWriter(TestAnalysisDriver):
@@ -31,19 +33,6 @@ class TestScriptWriter(TestAnalysisDriver):
             [l.rstrip('\n') for l in self.script_writer.lines],
             [l.rstrip('\n') for l in self.exp_header + expected]
         )
-
-    def test_get_script_writer(self):
-        old_job_execution = cfg['job_execution']
-        assert isinstance(
-            script_writers.get_script_writer('a_job', os.path.join(cfg['jobs_dir'], 'a_run_id')),
-            script_writers.PBSWriter
-        )
-        cfg.content['job_execution'] = 'local'
-        assert isinstance(
-            script_writers.get_script_writer('a_job', os.path.join(cfg['jobs_dir'], 'a_run_id')),
-            script_writers.ScriptWriter
-        )
-        cfg.content['job_execution'] = old_job_execution
 
     def test_write_line(self):
         self.script_writer.write_line('a_line')
@@ -78,7 +67,7 @@ class TestScriptWriter(TestAnalysisDriver):
         self._compare_writer_lines(
             [
                 '1337) an_array_cmd\n' + ';;',
-                '1338) another_array_cmd > ' + os.path.join(self.assets_path, 'a_log_file') + ' 2>&1''\n' + ';;'
+                '1338) another_array_cmd > ' + os.path.join(self.assets_path, 'a_log_file') + ' 2>&1''\n;;'
             ]
         )
 
@@ -124,20 +113,22 @@ class TestPBSWriter(TestScriptWriter):
             'a_job_name',
             self.working_dir,
             'a_job_queue',
+            walltime=3,
             cpus=2,
             mem=1,
-            walltime=3,
-            jobs=1
+            jobs=1,
+            log_commands=True
         )
         self.exp_header = [
             '#!/bin/bash\n',
             '#PBS -l ncpus=2,mem=1gb',
-            '#PBS -l walltime=3:00:00',
-            '#PBS -N a_job_name',
             '#PBS -q a_job_queue',
             '#PBS -j oe',
             '#PBS -o ' + os.path.join(self.working_dir, 'a_job_name.log'),
             '#PBS -W block=true',
+            '#PBS -l walltime=3:00:00',
+            '#PBS -N a_job_name',
+            'cd ' + self.script_writer.working_dir,
             ''
         ]
 
@@ -149,18 +140,21 @@ class TestPBSWriter(TestScriptWriter):
             'a_job_name',
             self.working_dir,
             'a_job_queue',
+            walltime=None,
             cpus=2,
             mem=1,
-            jobs=1
+            jobs=1,
+            log_commands=True
         )
-        exp_header = self.exp_header = [
+        exp_header = [
             '#!/bin/bash\n',
             '#PBS -l ncpus=2,mem=1gb',
-            '#PBS -N a_job_name',
             '#PBS -q a_job_queue',
             '#PBS -j oe',
             '#PBS -o ' + os.path.join(self.working_dir, 'a_job_name.log'),
             '#PBS -W block=true',
+            '#PBS -N a_job_name',
+            'cd ' + self.script_writer.working_dir,
             ''
         ]
         self.compare_lists(script_writer.lines, exp_header)
@@ -178,7 +172,7 @@ class TestPBSWriter(TestScriptWriter):
 
 class TestExecutor(TestAnalysisDriver):
     def _get_executor(self, cmd):
-        return executor.Executor(cmd)
+        return Executor(cmd)
 
     def test_cmd(self):
         e = self._get_executor('ls ' + os.path.join(self.assets_path, '..'))
@@ -200,7 +194,7 @@ class TestExecutor(TestAnalysisDriver):
 
 class TestStreamExecutor(TestExecutor):
     def _get_executor(self, cmd):
-        return executor.StreamExecutor(cmd)
+        return StreamExecutor(cmd)
 
     def test_cmd(self):
         e = self._get_executor(os.path.join(self.assets_path, 'countdown.sh'))
@@ -222,7 +216,7 @@ class TestStreamExecutor(TestExecutor):
 
 class TestArrayExecutor(TestExecutor):
     def _get_executor(self, cmds):
-        return executor.ArrayExecutor(cmds, stream=True)
+        return ArrayExecutor(cmds, stream=True)
 
     def test_cmd(self):
         e = self._get_executor(['ls', 'ls -lh', 'pwd'])
@@ -238,33 +232,96 @@ class TestArrayExecutor(TestExecutor):
             assert 'Commands failed' in str(err)
 
 
-class TestClusterExecutor(TestExecutor):
+class TestClusterExecutor(TestAnalysisDriver):
+    e_cls = ClusterExecutor
+
+    @property
+    def script(self):
+        return os.path.join(self.assets_path, 'countdown.sh')
+
     def setUp(self):
         os.makedirs(os.path.join(self.assets_path, 'a_run_id'), exist_ok=True)
+        self.executor = self._get_executor(self.script)
 
     def tearDown(self):
         shutil.rmtree(os.path.join(self.assets_path, 'a_run_id'))
 
     def _get_executor(self, cmd):
-        return executor.ClusterExecutor(
-            [cmd],
-            qsub=cfg.query('tools', 'qsub'),
-            job_name='test_job',
-            working_dir=os.path.join(self.assets_path, 'a_run_id')
-        )
+        get_writer = 'analysis_driver.executor.executor.ClusterExecutor._get_writer'
+        with patch(get_writer, return_value=Mock(script_name='a_script_name')):
+            return self.e_cls(
+                cmd,
+                job_name='test_job',
+                working_dir=os.path.join(self.assets_path, 'a_run_id')
+            )
+
+    def test_get_stdout(self):
+        popen = 'analysis_driver.executor.executor.subprocess.Popen'
+        with patch(popen, return_value=Mock(wait=Mock(return_value=None))) as p:
+            assert self.executor._get_stdout('ls -d ' + self.assets_path).endswith('tests/assets')
+            p.assert_called_with(['ls', '-d', self.assets_path], stdout=-1, stderr=-1)
 
     def test_cmd(self):
-        e = self._get_executor(os.path.join(self.assets_path, 'countdown.sh'))
-        e.start()
-        assert e.join() == 0
+        assert self.executor.cmd == '/bin/sh a_script_name'
 
-    def test_dodgy_cmd(self):
-        e = self._get_executor(os.path.join(self.assets_path, 'non_existent_script.sh'))
-        e.start()
-        assert e.join() == 127
+    @patch(get_stdout, return_value=None)
+    def test_dodgy_cmd(self, mocked_get_stdout):
+        with pytest.raises(AnalysisDriverError) as e:
+            ex = self._get_executor(os.path.join(self.assets_path, 'non_existent_script.sh'))
+            ex.cmd = '/bin/sh non_existent_script.sh'
+            ex.start()
+            assert str(e) == 'Job submission failed'
+        mocked_get_stdout.assert_called_with('/bin/sh non_existent_script.sh')
 
-    def test_process(self):
-        e = self._get_executor(os.path.join(self.assets_path, 'countdown.sh'))
-        proc = e._process()
-        assert type(proc) is subprocess.Popen
-        assert proc.args == [cfg['tools']['qsub'], os.path.join(self.assets_path, 'a_run_id', 'test_job.pbs')]
+    def test_join(self):
+        job_finished = 'analysis_driver.executor.executor.' + self.e_cls.__name__ + '._job_finished'
+        exit_code = 'analysis_driver.executor.executor.' + self.e_cls.__name__ + '._job_exit_code'
+        self.executor.finished_statuses = 'FXM'
+        with patch(job_finished, return_value=True), patch(exit_code, return_value=0), patch(sleep):
+            assert self.executor.join() == 0
+
+
+class TestPBSExecutor(TestClusterExecutor):
+    e_cls = PBSExecutor
+
+    def test_qstat(self):
+        with patch(get_stdout, return_value='this\nthat\nother') as p:
+            assert self.executor._qstat() == 'other'.split()
+            p.assert_called_with('qstat -x None')
+
+    def test_job_status(self):
+        qstat = 'analysis_driver.executor.executor.PBSExecutor._qstat'
+        fake_report = ('1337', 'a_job', 'a_user', '10:00:00', 'R',  'q')
+        with patch(qstat, return_value=fake_report) as p:
+            assert self.executor._job_status() == 'R'
+
+    def test_job_finished(self):
+        job_status = 'analysis_driver.executor.executor.PBSExecutor._qstat'
+        with patch(job_status, return_value=(1, '1', 'user', 'time', 'B', 'queue')):
+            assert not self.executor._job_finished()
+        with patch(job_status, return_value=(1, '1', 'user', 'time', 'F', 'queue')):
+            assert self.executor._job_finished()
+
+
+class TestSlurmExecutor(TestClusterExecutor):
+    e_cls = SlurmExecutor
+
+    def test_sacct(self):
+        with patch(get_stdout, return_value='1:0') as p:
+            assert self.executor._sacct('ExitCode') == '1:0'
+            p.assert_called_with('sacct -n -j None -o ExitCode')
+
+    def test_job_finished(self):
+        sacct = 'analysis_driver.executor.executor.SlurmExecutor._sacct'
+        patched_squeue = patch('analysis_driver.executor.executor.SlurmExecutor._squeue', return_value='')
+        with patch(sacct, return_value='RUNNING'), patched_squeue:
+            assert not self.executor._job_finished()
+        with patch(sacct, return_value='COMPLETED'), patched_squeue:
+            assert self.executor._job_finished()
+
+    def test_job_exit_code(self):
+        sacct = 'analysis_driver.executor.executor.SlurmExecutor._sacct'
+        with patch(sacct, return_value='CANCELLED 0:0'):
+            assert self.executor._job_exit_code() == 9
+        with patch(sacct, return_value='COMPLETED 0:x'):
+            assert self.executor._job_exit_code() == 0

@@ -13,7 +13,8 @@ from analysis_driver.app_logging import AppLogger, logging_default as log_cfg
 from analysis_driver.constants import ELEMENT_PROJECT_ID, ELEMENT_SAMPLE_INTERNAL_ID, ELEMENT_RUN_ELEMENTS,\
     ELEMENT_PROCS, ELEMENT_RUN_NAME, ELEMENT_STATUS, ELEMENT_PROC_ID, ELEMENT_USEABLE, ELEMENT_FASTQS_DELETED,\
     ELEMENT_DELIVERED, ELEMENT_LANE, DATASET_DELETED
-from analysis_driver import rest_communication, executor, clarity, util
+from analysis_driver import executor, util
+from analysis_driver.external_data import rest_communication, clarity
 
 
 class Deleter(AppLogger):
@@ -28,9 +29,9 @@ class Deleter(AppLogger):
 
     def _execute(self, cmd, cluster_execution=False):
         if cluster_execution:
-            status = executor.execute([cmd], job_name='data_deletion', working_dir=self.work_dir).join()
+            status = executor.execute(cmd, job_name='data_deletion', working_dir=self.work_dir).join()
         else:
-            status = executor.execute([cmd], 'local').join()
+            status = executor.execute(cmd, env='local').join()
         if status:
             raise AnalysisDriverError('Command failed: ' + cmd)
 
@@ -54,7 +55,7 @@ class RawDataDeleter(Deleter):
         self.list_runs = list_runs
 
     def deletable_runs(self):
-        runs = rest_communication.get_documents('aggregate/all_runs', sort=ELEMENT_RUN_NAME)
+        runs = rest_communication.get_documents('aggregate/all_runs', sort=ELEMENT_RUN_NAME, paginate=False)
         deletable_runs = []
         for r in runs:
             if self.list_runs and r[ELEMENT_RUN_NAME] in self.list_runs:

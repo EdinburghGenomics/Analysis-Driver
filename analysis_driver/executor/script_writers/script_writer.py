@@ -1,4 +1,3 @@
-__author__ = 'mwham'
 import os.path
 from analysis_driver.app_logging import AppLogger
 
@@ -18,7 +17,8 @@ class ScriptWriter(AppLogger):
         """
         self.script_name = os.path.join(working_dir, job_name + self.suffix)
         self.log_commands = log_commands
-        self.log_file = os.path.join(working_dir, job_name + '.log')
+        self.working_dir = working_dir
+        self.log_file = os.path.join(self.working_dir, job_name + '.log')
         self.queue = job_queue
         self.info('Writing: ' + self.script_name)
         self.info('Log file: ' + self.log_file)
@@ -28,6 +28,9 @@ class ScriptWriter(AppLogger):
 
     def write_line(self, line):
         self.lines.append(line)
+
+    def write_lines(self, *lines):
+        self.lines.extend(list(lines))
 
     def write_jobs(self, cmds, prelim_cmds=None):
         if prelim_cmds:
@@ -70,9 +73,7 @@ class ScriptWriter(AppLogger):
         self.lines.append('')
 
     def _save(self):
-        """
-        Save self.lines to self.script_file. Also closes it. Always close it.
-        """
+        """Save self.lines to self.script_file. Also closes it. Always close the file."""
         if self.job_total > 1 and self.job_total != self.jobs_written:
             raise ValueError('Bad number of array jobs: %s written, %s expected' % (self.jobs_written, self.job_total))
         script_file = open(self.script_name, 'w')
@@ -80,7 +81,7 @@ class ScriptWriter(AppLogger):
         for line in self.lines:
             script_file.write(line + '\n')
         script_file.close()
-        self.info('Closed ' + self.script_name)
+        self.debug('Closed ' + self.script_name)
 
     @staticmethod
     def _trim_field(field, max_length):
@@ -92,3 +93,21 @@ class ScriptWriter(AppLogger):
             return field[0:max_length]
         else:
             return field
+
+
+class ClusterWriter(ScriptWriter):
+    array_index = None
+
+    def __init__(self, job_name, working_dir, job_queue, cpus, mem, walltime, jobs, log_commands):
+        super().__init__(job_name, working_dir, job_queue, jobs, log_commands)
+        self._write_header(cpus, mem, job_name, self.queue, walltime, jobs)
+
+    def _write_header(self, cpus, mem, job_name, queue, walltime=None, jobs=1):
+        raise NotImplementedError
+
+    def _start_array(self):
+        self.write_line('case $%s in\n' % self.array_index)
+
+    def _finish_array(self):
+        self.write_line('*) echo "Unexpected %s: $%s"' % (self.array_index, self.array_index))
+        self.write_line('esac')
