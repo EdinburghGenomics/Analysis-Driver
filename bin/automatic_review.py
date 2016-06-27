@@ -12,13 +12,14 @@ from analysis_driver.config import review_thresholds_config as cfg
 
 def main():
     args = _parse_args()
-    if args:
+    if not 'sample' not in sys.argv and 'run' not in sys.argv:
+        print('no mode specified - use either --run_review or --sample_review')
+        return 1
+    else:
         if args.run_review:
             get_reviewable_runs()
         elif args.sample_review:
             get_reviewable_samples()
-    print('no mode specified - use either --run_review or --sample_review')
-    return 1
 
 
 def _parse_args():
