@@ -121,5 +121,5 @@ class TestAutomaticReview():
 
         sample_review = automatic_review.metrics(self.samples_pass, 'sample')
         review = sample_review[0]
-        assert review == ['pass']
+        assert review == 'pass'
 
