@@ -104,20 +104,16 @@ class AutomaticRunReview():
         self.run_element_by_lane = run_element_by_lane
 
     def patch_entry(self):
-        run_metrics = {}
         for lane in self.run_element_by_lane:
-            lane_id = lane['lane_number']
-            run_metrics[lane_id] = metrics(lane, 'run')
-        if run_metrics:
-            for lane in run_metrics:
+            lane_review, reasons = metrics(lane, 'run')
+            if lane_review:
                 patch_review = {}
                 patch_comments = {}
-                review = run_metrics[lane][0]
-                if review == 'pass':
+                if lane_review == 'pass':
                     patch_review['reviewed'] = 'pass'
                     rest_communication.patch_entries('run_elements', payload=patch_review, update_lists=None, where={"run_id":self.run_name, "lane": lane})
-                elif review == 'fail':
-                    review_comments = ('lane ' + str(lane) + ' failed due to ' + ' '.join(run_metrics[lane][1]))
+                elif lane_review == 'fail':
+                    review_comments = ('lane ' + str(lane) + ' failed due to ' + ' '.join(reasons))
                     patch_review['reviewed'] = 'fail'
                     patch_comments[ELEMENT_REVIEW_COMMENTS] = review_comments
                     rest_communication.patch_entries('run_elements', payload=patch_review, update_lists=None, where={"run_id":self.run_name, "lane": (lane)})
@@ -133,20 +129,14 @@ class AutomaticSampleReview():
     def patch_entry(self):
         sample_review, reasons = metrics(self.sample, 'sample')
         if sample_review:
-            if sample_review == 'pass':
-                review = sample_review
-            else:
-                review = (sample_review[1])
             patch_review = {}
             patch_comments = {}
-
-            if review == 'pass':
+            if sample_review == 'pass':
                 patch_review['reviewed'] = 'pass'
                 rest_communication.patch_entries('samples', payload=patch_review, update_lists=None, where={"sample_id": self.sample_name})
-
             else:
                 patch_review['reviewed'] = 'fail'
-                patch_comments[ELEMENT_REVIEW_COMMENTS] = 'sample ' + self.sample_name + ' failed due to ' + ', '.join(review)
+                patch_comments[ELEMENT_REVIEW_COMMENTS] = 'sample ' + self.sample_name + ' failed due to ' + ', '.join(reasons)
                 rest_communication.patch_entries('samples', payload=patch_review, update_lists=None, where={"sample_id": self.sample_name})
                 rest_communication.patch_entries('samples', payload=patch_comments, update_lists=None, where={"sample_id": self.sample_name})
 
