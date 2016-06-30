@@ -104,9 +104,11 @@ class TestAutomaticReview():
     def test_run_review(self):
         for lane in self.run_elements_by_lane_pass:
             run_review = automatic_review.metrics(lane, 'run')
-            assert run_review == ['pass']
+            run_review = run_review[0]
+            assert run_review == 'pass'
         for lane in self.run_elements_by_lane_fail:
             run_review = automatic_review.metrics(lane, 'run')
+            print(run_review)
             assert run_review[0] == 'fail'
 
 

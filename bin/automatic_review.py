@@ -91,10 +91,10 @@ def metrics(dataset, datatype):
                 PassFailDict[metric_name] = 'fail'
 
     if all(value == 'pass' for value in PassFailDict.values()):
-        return ['pass']
+        return ('pass', None)
     else:
         failed_metrics = ([value for value in PassFailDict if PassFailDict[value] == 'fail'])
-        return_failed_metrics = ['fail', failed_metrics]
+        return_failed_metrics = ('fail', failed_metrics)
     return return_failed_metrics
 
 
@@ -131,10 +131,9 @@ class AutomaticSampleReview():
         self.sample_name = sample_name
 
     def patch_entry(self):
-        sample_review = metrics(self.sample, 'sample')
-        review = ''
+        sample_review, reasons = metrics(self.sample, 'sample')
         if sample_review:
-            if sample_review == ['pass']:
+            if sample_review == 'pass':
                 review = sample_review
             else:
                 review = (sample_review[1])
