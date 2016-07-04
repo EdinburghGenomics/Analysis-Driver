@@ -324,7 +324,7 @@ def _bam_file_production(dataset, species):
         ),
         job_name='bwa_mem',
         working_dir=sample_dir,
-        cpus=12,
+        cpus=16,
         mem=64
     )
 
@@ -346,7 +346,7 @@ def _bam_file_production(dataset, species):
         util.bash_commands.bamtools_stats(expected_output_bam, bamtools_stat_file),
         job_name='bamtools',
         working_dir=sample_dir,
-        cpus=2,
+        cpus=1,
         mem=4,
         log_commands=False
     ).join()
@@ -423,19 +423,19 @@ def _gatk_var_calling(dataset, species):
     sample_gvcfgz = sample_gvcf + '.gz'
 
     base_recal = executor.execute(
-        gatk_cmd('BaseRecalibrator', sorted_bam, output_grp, ext='--knownSites ' + dbsnp),
+        gatk_cmd('BaseRecalibrator', sorted_bam, output_grp, xmx=48, ext='--knownSites ' + dbsnp),
         job_name='gatk_base_recal',
         working_dir=gatk_run_dir,
         cpus=16,
-        mem=16
+        mem=64
     ).join()
 
     print_reads = executor.execute(
-        gatk_cmd('PrintReads', sorted_bam, recal_bam, ext=' -BQSR ' + output_grp),
+        gatk_cmd('PrintReads', sorted_bam, recal_bam, xmx=48, ext=' -BQSR ' + output_grp),
         job_name='gatk_print_reads',
         working_dir=gatk_run_dir,
         cpus=16,
-        mem=16
+        mem=64
     ).join()
 
     realign_target_cmd = gatk_cmd('RealignerTargetCreator', recal_bam, output_intervals, nct=1)
@@ -468,6 +468,7 @@ def _gatk_var_calling(dataset, species):
         'HaplotypeCaller',
         indel_realigned_bam,
         sample_gvcf,
+        xmx=48,
         ext=('--pair_hmm_implementation VECTOR_LOGLESS_CACHING -ploidy 2 --emitRefConfidence GVCF '
              '--variant_index_type LINEAR --variant_index_parameter 128000 --dbsnp ' + dbsnp)
     )
@@ -481,22 +482,22 @@ def _gatk_var_calling(dataset, species):
         job_name='gatk_haplotype_call',
         working_dir=gatk_run_dir,
         cpus=16,
-        mem=16
+        mem=64
     ).join()
 
     bgzip = executor.execute(
         '%s %s' % (cfg['tools']['bgzip'], sample_gvcf),
         job_name='bgzip',
         working_dir=gatk_run_dir,
-        cpus=16,
-        mem=16
+        cpus=1,
+        mem=8
     ).join()
     tabix = executor.execute(
         '%s -p vcf %s' % (cfg['tools']['tabix'], sample_gvcfgz),
         job_name='tabix',
         working_dir=gatk_run_dir,
-        cpus=16,
-        mem=16
+        cpus=1,
+        mem=8
     ).join()
 
     return base_recal + print_reads + realign_target + realign + haplotype + bgzip + tabix
