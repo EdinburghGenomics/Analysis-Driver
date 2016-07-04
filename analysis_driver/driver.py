@@ -21,13 +21,14 @@ def pipeline(dataset):
     if isinstance(dataset, RunDataset):
         return demultiplexing_pipeline(dataset)
     elif isinstance(dataset, SampleDataset):
-        species = clarity.get_species_from_sample(dataset.name)
+        species = clarity.get_species_from_sample(dataset.name).replace(' ', '_')
         if species is None:
             raise PipelineError('No species information found in the LIMS for ' + dataset.name)
+        else:
         elif species == 'Homo sapiens':
             return bcbio_var_calling_pipeline(dataset)
-        elif clarity.get_sample(dataset.name).udf.get('Run Variant Calling') == 'True':
-            return var_calling_pipeline(dataset)
+        elif clarity.get_sample(dataset.name).udf.get('Analysis Type') == 'Variant Calling':
+            return var_calling_pipeline(dataset, species)
         else:
             return qc_pipeline(dataset, species)
     else:
@@ -289,6 +290,7 @@ def _bam_file_production(dataset, species):
     sample_id = dataset.name
     sample_dir = os.path.join(cfg['jobs_dir'], sample_id)
     app_logger.info('Job dir: ' + sample_dir)
+    user_sample_id = clarity.get_user_sample_name(sample_id, lenient=True)
 
     reference = cfg.query('references', species.replace(' ', '_'), 'fasta')
     if not reference:
@@ -315,7 +317,13 @@ def _bam_file_production(dataset, species):
     app_logger.info('align %s to %s genome found at %s', sample_id, species, reference)
     dataset.start_stage('sample_bwa')
     bwa_mem_executor = executor.execute(
-        util.bash_commands.bwa_mem_samblaster(fastq_pair, reference, expected_output_bam, thread=16),
+        util.bash_commands.bwa_mem_samblaster(
+            fastq_pair,
+            reference,
+            expected_output_bam,
+            {'ID': '1', 'SM': user_sample_id, 'PL': 'illumina'},
+            thread=16
+        ),
         job_name='bwa_mem',
         working_dir=sample_dir,
         cpus=12,
@@ -381,14 +389,18 @@ def _gatk_var_calling(dataset, species):
 
     sample_id = dataset.name
     gatk_run_dir = os.path.join(cfg['jobs_dir'], sample_id, 'gatk_var_calling')
+    user_sample_id = clarity.get_user_sample_name(sample_id, lenient=True)
+    os.makedirs(gatk_run_dir, exist_ok=True)
 
-    def gatk_cmd(run_cls, input_bam, output, xmx=4, ext=None):
+    def gatk_cmd(run_cls, input_bam, output, xmx=16, nct=16, ext=None):
         base_cmd = ('java -Xmx{xmx}m -XX:+UseSerialGC -Djava.io.tmpdir={tmpdir} -jar {gatk} -R {ref} '
                     '-I {input_bam} -T {run_cls} --read_filter BadCigar --read_filter NotPrimaryAlignment '
-                    '-o {output} ')
+                    '-o {output} -l INFO -U LENIENT_VCF_PROCESSING ')
 
         if ext:
             base_cmd += ext
+        if nct > 1:
+            base_cmd += ' -nct %s' % nct
 
         return base_cmd.format(
             xmx=str(xmx * 1000),
@@ -400,69 +412,96 @@ def _gatk_var_calling(dataset, species):
             output=output
         )
 
-    lenient = '-U LENIENT_VCF_PROCESSING'
     dbsnp = cfg['references'][species]['dbsnp']
     known_indels = cfg['references'][species].get('known_indels')
 
-    sorted_bam = os.path.join(gatk_run_dir, sample_id + '_sorted.bam')
-    recal_bam = os.path.join(gatk_run_dir, sample_id + '_recal.bam')
-    output_grp = os.path.join(gatk_run_dir, sample_id + '.grp')
-    output_intervals = os.path.join(gatk_run_dir, sample_id + '.intervals')
-    indel_realigned_bam = os.path.join(gatk_run_dir, sample_id + '_indel_relaigned.bam')
-    sample_gvcf = os.path.join(gatk_run_dir, sample_id + '.g.vcf.gz')
+    basename = os.path.join(gatk_run_dir, user_sample_id)
+    sorted_bam = os.path.join(cfg['jobs_dir'], sample_id, sample_id + '.bam')
+    recal_bam = basename + '_recal.bam'
+    output_grp = basename + '.grp'
+    output_intervals = basename + '.intervals'
+    indel_realigned_bam = basename + '_indel_realigned.bam'
+    sample_gvcf = basename + '.g.vcf'
+    sample_gvcfgz = sample_gvcf + '.gz'
 
     base_recal = executor.execute(
-        gatk_cmd(
-            'BaseRecalibrator',
-            sorted_bam,
-            output_grp,
-            ext='--knownSites %s -nct 16 %s' % (dbsnp, lenient)
-        )
+        gatk_cmd('BaseRecalibrator', sorted_bam, output_grp, ext='--knownSites ' + dbsnp),
+        job_name='gatk_base_recal',
+        working_dir=gatk_run_dir,
+        cpus=16,
+        mem=16
     ).join()
 
     print_reads = executor.execute(
-        gatk_cmd(
-            'PrintReads',
-            sorted_bam,
-            recal_bam,
-            ext=' -BQSR %s %s' % (output_grp, lenient)
-        )
+        gatk_cmd('PrintReads', sorted_bam, recal_bam, ext=' -BQSR ' + output_grp),
+        job_name='gatk_print_reads',
+        working_dir=gatk_run_dir,
+        cpus=16,
+        mem=16
     ).join()
 
+    realign_target_cmd = gatk_cmd('RealignerTargetCreator', recal_bam, output_intervals, nct=1)
+    if known_indels:
+        realign_target_cmd += ' --known ' + known_indels
     realign_target = executor.execute(
-        gatk_cmd(
-            'RealignerTargetCreator',
-            recal_bam,
-            output_intervals,
-            ext='-l INFO  [--known %s %s' % (known_indels, lenient)
-        )
+        realign_target_cmd,
+        job_name='gatk_realign_target',
+        working_dir=gatk_run_dir,
+        mem=16
     ).join()
 
     realign_cmd = gatk_cmd(
         'IndelRealigner',
         recal_bam,
         indel_realigned_bam,
+        nct=1,
         ext='-targetIntervals ' + output_intervals
     )
     if known_indels:
-        realign_cmd += ' --knownAlleles %s %s' % (known_indels, lenient)
-    realign = executor.execute(realign_cmd).join()
+        realign_cmd += ' --knownAlleles ' + known_indels
+    realign = executor.execute(
+        realign_cmd,
+        job_name='gatk_indel_realign',
+        working_dir=gatk_run_dir,
+        mem=16
+    ).join()
 
     haplotype_cmd = gatk_cmd(
         'HaplotypeCaller',
         indel_realigned_bam,
         sample_gvcf,
-        ext=('--dbsnp %s --pair_hmm_implementation VECTOR_LOGLESS_CACHING -ploidy 2 --emitRefConfidence GVCF '
-             '--variant_index_type LINEAR --variant_index_parameter 128000 %s' % (dbsnp, lenient))
+        ext=('--pair_hmm_implementation VECTOR_LOGLESS_CACHING -ploidy 2 --emitRefConfidence GVCF '
+             '--variant_index_type LINEAR --variant_index_parameter 128000 --dbsnp ' + dbsnp)
     )
     for annot in ('BaseQualityRankSumTest', 'FisherStrand', 'GCContent', 'HaplotypeScore', 'HomopolymerRun',
                   'MappingQualityRankSumTest', 'MappingQualityZero', 'QualByDepth', 'ReadPosRankSumTest',
                   'RMSMappingQuality', 'DepthPerAlleleBySample', 'Coverage', 'ClippingRankSumTest',
                   'DepthPerSampleHC'):
         haplotype_cmd += ' --annotation ' + annot
-    haplotype = executor.execute(haplotype_cmd).join()
+    haplotype = executor.execute(
+        haplotype_cmd,
+        job_name='gatk_haplotype_call',
+        working_dir=gatk_run_dir,
+        cpus=16,
+        mem=16
+    ).join()
 
-    return base_recal + print_reads + realign_target, realign + haplotype
+    bgzip = executor.execute(
+        '%s %s' % (cfg['tools']['bgzip'], sample_gvcf),
+        job_name='bgzip',
+        working_dir=gatk_run_dir,
+        cpus=16,
+        mem=16
+    ).join()
+    tabix = executor.execute(
+        '%s -p vcf %s' % (cfg['tools']['tabix'], sample_gvcfgz),
+        job_name='tabix',
+        working_dir=gatk_run_dir,
+        cpus=16,
+        mem=16
+    ).join()
+
+    return base_recal + print_reads + realign_target + realign + haplotype + bgzip + tabix
 
 
 def var_calling_pipeline(dataset, species):
@@ -624,7 +663,3 @@ def _cleanup(dataset_name):
 
     return exit_status
 
-
-if __name__ == '__main__':
-    from analysis_driver.dataset import NoCommunicationDataset
-    _gatk_var_calling(NoCommunicationDataset('10015AT0008'), 'Homo_sapiens')
