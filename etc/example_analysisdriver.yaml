@@ -14,6 +14,7 @@ default:
       raw_data: tests/assets/data_deletion/raw
       raw_archives: tests/assets/data_deletion/archive
       fastqs: tests/assets/data_deletion/fastqs
+      delivered_data: tests/assets/data_deletion/delivered_data
 
     genome: hg38
     ncbi_cache: ':memory:'

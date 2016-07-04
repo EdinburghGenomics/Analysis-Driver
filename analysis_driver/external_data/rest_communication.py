@@ -32,20 +32,21 @@ def parse_query_string(query_string, requires=None):
     return query
 
 
-def _req(method, url, **kwargs):
+def _req(method, url, quiet=False, **kwargs):
     r = requests.request(method, url, **kwargs)
     # e.g: 'POST <url> ({"some": "args"}) -> {"some": "content"}. Status code 201. Reason: CREATED
     report = '%s %s (%s) -> %s. Status code %s. Reason: %s' % (
         r.request.method, r.request.path_url, kwargs, r.content.decode('utf-8'), r.status_code, r.reason
     )
     if r.status_code in (200, 201):
-        app_logger.debug(report)
+        if not quiet:
+            app_logger.debug(report)
     else:
         app_logger.error(report)
     return r
 
 
-def get_documents(endpoint, paginate=True, depaginate=False, **query_args):
+def get_documents(endpoint, paginate=True, depaginate=False, quiet=False, **query_args):
     if paginate:
         page_size = query_args.pop('max_results', 100)  # default to page size of 100
         page = query_args.pop('page', 1)
@@ -53,13 +54,13 @@ def get_documents(endpoint, paginate=True, depaginate=False, **query_args):
     else:
         url = api_url(endpoint, **query_args)
 
-    content = _req('GET', url).json()
+    content = _req('GET', url, quiet=quiet).json()
     elements = content['data']
 
     if depaginate and 'next' in content['_links']:
         next_query = parse_query_string(content['_links']['next']['href'], requires=('max_results', 'page'))
         query_args.update(next_query)
-        elements.extend(get_documents(endpoint, depaginate=True, **query_args))
+        elements.extend(get_documents(endpoint, depaginate=True, quiet=quiet, **query_args))
 
     return elements
 

@@ -278,3 +278,16 @@ def get_released_samples():
             released_samples.extend([sanitize_user_id(s.name) for s in artifact.samples])
 
     return sorted(set(released_samples))
+
+
+def get_sample_release_date(sample_id):
+    s = get_sample(sample_id)
+    if not s:
+        return None
+    procs = connection().get_processes(type='Data Release EG 1.0', inputartifactlimsid=s.artifact.id)
+    if not procs:
+        return None
+    elif len(procs) != 1:
+        app_logger.warning('%s Processes found for sample %s with Artifact %s', len(procs), sample_id, s.artifact.id)
+        return None
+    return procs[0].date_run
