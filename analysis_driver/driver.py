@@ -24,7 +24,6 @@ def pipeline(dataset):
         species = clarity.get_species_from_sample(dataset.name).replace(' ', '_')
         if species is None:
             raise PipelineError('No species information found in the LIMS for ' + dataset.name)
-        else:
         elif species == 'Homo sapiens':
             return bcbio_var_calling_pipeline(dataset)
         elif clarity.get_sample(dataset.name).udf.get('Analysis Type') == 'Variant Calling':
@@ -107,7 +106,6 @@ def demultiplexing_pipeline(dataset):
     dataset.end_stage('sickle_filter', exit_status)
     if exit_status:
         return exit_status
-
 
     exit_status += well_dup_exec.join()
     if exit_status:
@@ -261,7 +259,7 @@ def bcbio_var_calling_pipeline(dataset):
     sample_contam = qc.VerifyBamId(dataset, sample_dir, bam_file)
     sample_contam.start()
 
-    #coverage statistics
+    # coverage statistics
     dataset.start_stage('coverage statistics')
     coverage_statistics_histogram = qc.SamtoolsDepth(dataset, sample_dir, bam_file)
     coverage_statistics_histogram.start()
@@ -662,4 +660,3 @@ def _cleanup(dataset_name):
             exit_status += 1
 
     return exit_status
-

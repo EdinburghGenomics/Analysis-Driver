@@ -73,7 +73,7 @@ def bwa_mem_samblaster(fastq_pair, reference, expected_output_bam, read_group=No
     command_bwa = '%s mem -M -t %s' % (cfg['tools']['bwa'], thread)
 
     if read_group:
-        read_group_str = '@RG\\t%s' % '\\t'.join(['%s:%s' % (k, v) for k, v in read_group.items()])
+        read_group_str = '@RG\\t%s' % '\\t'.join(['%s:%s' % (k, read_group[k]) for k in sorted(read_group)])
         command_bwa += ' -R \'%s\'' % read_group_str
 
     command_bwa += ' %s %s' % (reference, ' '.join(fastq_pair))
