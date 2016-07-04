@@ -99,7 +99,7 @@ def run_genotype_validation(args):
             genotype_vcf = genotype_vcfs[0]
             fastq_files = []
     else:
-        genotype_vcfs = glob.glob(os.path.join(work_dir, '*_genotype_validation.vcf.gz'))
+        genotype_vcfs = glob.glob(os.path.join(projects_source, args.project_id, args.sample_id, '*_genotype_validation.vcf.gz'))
         if not genotype_vcfs:
             fastq_files = glob.glob(os.path.join(projects_source, args.project_id, args.sample_id, '*_R?.fastq.gz'))
             genotype_vcf = None
@@ -123,7 +123,7 @@ def run_genotype_validation(args):
             output_commands.append(rsync_from_to(f, out_file))
 
     exit_status = executor.execute(
-        output_commands,
+        *output_commands,
         job_name='output_results',
         working_dir=work_dir,
         cpus=1,
