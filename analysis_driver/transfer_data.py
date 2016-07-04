@@ -51,7 +51,7 @@ def _find_fastqs_for_sample(sample_id, run_element):
     project_id = run_element.get(ELEMENT_PROJECT_ID)
     lane = run_element.get(ELEMENT_LANE)
 
-    local_fastq_dir = os.path.join(cfg['input_dir'], run_id, 'fastq')
+    local_fastq_dir = os.path.join(cfg['input_dir'], run_id)
     app_logger.debug('Searching for fastqs in ' + local_fastq_dir)
     fastqs = util.find_fastqs(local_fastq_dir, project_id, sample_id, lane)
     if fastqs:
