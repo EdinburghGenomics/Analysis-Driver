@@ -7,6 +7,7 @@ from analysis_driver.reader import SampleSheet
 
 
 class TestCrawler(TestAnalysisDriver):
+
     @property
     def test_data(self):
         return os.path.join(self.assets_path, 'test_crawlers')

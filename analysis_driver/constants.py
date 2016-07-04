@@ -61,7 +61,7 @@ ELEMENT_MEAN_COVERAGE = 'mean'
 ELEMENT_MEDIAN_COVERAGE_SAMTOOLS = 'median'
 ELEMENT_COVERAGE_SD = 'std_dev'
 
-
+ELEMENT_REVIEW_COMMENTS = 'review_comments'
 ELEMENT_DELIVERED = 'delivered'
 ELEMENT_USEABLE = 'useable'
 ELEMENT_FASTQS_DELETED = 'input_fastqs_deleted'
