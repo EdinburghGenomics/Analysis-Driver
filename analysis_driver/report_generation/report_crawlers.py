@@ -43,7 +43,7 @@ class RunCrawler(Crawler):
         if run_dir:
             self._populate_barcode_info_from_seqtk_fqchk_files(run_dir)
         if run_dir:
-            welldup_files = util.find_files(run_dir, 'fastq', run_id + '.wellduplicate')
+            welldup_files = util.find_files(run_dir, run_id + '.wellduplicate')
             if welldup_files:
                 self._populate_barcode_info_from_well_dup(welldup_files[0])
 
@@ -145,13 +145,11 @@ class RunCrawler(Crawler):
             if ELEMENT_BARCODE in barcode_info and barcode_info[ELEMENT_BARCODE] == 'unknown':
                 fq_chk_files = util.find_files(
                     run_dir,
-                    'fastq',
                     'Undetermined_S0_L00%s_R*_001.fastq.gz.fqchk' % barcode_info[ELEMENT_LANE]
                 )
             else:
                 fq_chk_files = util.find_files(
                     run_dir,
-                    'fastq',
                     barcode_info[ELEMENT_PROJECT_ID],
                     barcode_info[ELEMENT_SAMPLE_INTERNAL_ID],
                     '*_S*_L00%s_R*_001.fastq.gz.fqchk' % barcode_info[ELEMENT_LANE]

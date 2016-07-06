@@ -50,12 +50,12 @@ def run_crawler(args):
     if args.conversion_stats:
         conversion_stats = args.conversion_stats
     else:
-        conversion_stats = os.path.join(run_dir, 'fastq', 'Stats', 'ConversionStats.xml')
-    run_info = RunInfo(os.path.join(run_dir,'fastq'))
+        conversion_stats = os.path.join(run_dir, 'Stats', 'ConversionStats.xml')
+    run_info = RunInfo(os.path.join(run_dir))
     if args.samplesheet:
         samplesheet = SampleSheet(args.samplesheet, has_barcode=run_info.mask.has_barcodes)
     else:
-        samplesheet = SampleSheet(os.path.join(run_dir, 'fastq', 'SampleSheet_analysis_driver.csv'),
+        samplesheet = SampleSheet(os.path.join(run_dir, 'SampleSheet_analysis_driver.csv'),
                                   has_barcode=run_info.mask.has_barcodes)
 
     c = RunCrawler(args.run_id, samplesheet, conversion_stats, run_dir)
