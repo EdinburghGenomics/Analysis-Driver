@@ -21,7 +21,7 @@ def pipeline(dataset):
     if isinstance(dataset, RunDataset):
         return demultiplexing_pipeline(dataset)
     elif isinstance(dataset, SampleDataset):
-        species = clarity.get_species_from_sample(dataset.name).replace(' ', '_')
+        species = clarity.get_species_from_sample(dataset.name)
         if species is None:
             raise PipelineError('No species information found in the LIMS for ' + dataset.name)
         elif species == 'Homo sapiens':
@@ -290,7 +290,7 @@ def _bam_file_production(dataset, species):
     app_logger.info('Job dir: ' + sample_dir)
     user_sample_id = clarity.get_user_sample_name(sample_id, lenient=True)
 
-    reference = cfg.query('references', species.replace(' ', '_'), 'fasta')
+    reference = cfg.query('references', species, 'fasta')
     if not reference:
         raise PipelineError('Could not find reference for species %s in sample %s ' % (species, sample_id))
 
