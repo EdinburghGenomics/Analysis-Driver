@@ -214,7 +214,7 @@ def get_fastqscreen_results(filename, sample_id):
         return fastqscreen_results
 
 def read_histogram_file(input_file):
-    histograms = defaultdict(dict)
+    histograms = defaultdict(Counter)
     with open(input_file) as openfile:
         for line in openfile:
             sp_line = line.split()
@@ -222,13 +222,13 @@ def read_histogram_file(input_file):
                 # Ignore the PATCH chromosome as they are full of Ns
                 continue
             else:
-                histograms[sp_line[0]][int(sp_line[1])] = int(sp_line[2])
+                histograms[sp_line[0]][int(sp_line[1])] += int(sp_line[2])
     return histograms
 
 def collapse_histograms(histograms):
-    res = {}
+    res = Counter()
     for histogram in histograms.values():
-        res.update(dict(histogram))
+        res.update(histogram)
     return res
 
 
