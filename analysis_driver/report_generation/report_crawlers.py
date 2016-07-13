@@ -7,7 +7,7 @@ from egcg_core.rest_communication import post_or_patch as pp
 from egcg_core.clarity import get_sample_gender, get_user_sample_name
 from analysis_driver.reader import demultiplexing_parsers, mapping_stats_parsers
 from analysis_driver.reader.demultiplexing_parsers import get_fastqscreen_results, get_coverage_statistics, \
-    parse_welldup_file
+    parse_welldup_file, get_coverage_Y_chrom
 from analysis_driver.reader.mapping_stats_parsers import parse_and_aggregate_genotype_concordance,\
     parse_vbi_selfSM
 from analysis_driver.config import default as cfg
@@ -21,7 +21,7 @@ from egcg_core.constants import ELEMENT_RUN_NAME, ELEMENT_NUMBER_LANE, ELEMENT_R
     ELEMENT_SPECIES_CONTAMINATION, ELEMENT_NB_BASE_R2_CLEANED, ELEMENT_NB_Q30_R2_CLEANED, ELEMENT_NB_BASE_R1_CLEANED, \
     ELEMENT_GENOTYPE_VALIDATION, ELEMENT_COVERAGE_STATISTICS, ELEMENT_MEAN_COVERAGE, ELEMENT_MEDIAN_COVERAGE_SAMTOOLS, ELEMENT_COVERAGE_SD, \
     ELEMENT_FREEMIX, ELEMENT_SAMPLE_CONTAMINATION, ELEMENT_GENDER_VALIDATION, \
-    ELEMENT_GENDER_HETX, ELEMENT_LANE_PC_OPT_DUP
+    ELEMENT_GENDER_HETX, ELEMENT_LANE_PC_OPT_DUP, ELEMENT_GENDER_COVY
 
 
 class Crawler(AppLogger):
@@ -363,6 +363,9 @@ class SampleCrawler(Crawler):
             coverage_statistics = {ELEMENT_MEAN_COVERAGE: mean, ELEMENT_MEDIAN_COVERAGE_SAMTOOLS: median, ELEMENT_COVERAGE_SD: sd}
             sample[ELEMENT_COVERAGE_STATISTICS] = coverage_statistics
             sample[ELEMENT_MEDIAN_COVERAGE] = median
+            if ELEMENT_GENDER_VALIDATION in sample:
+                covY = get_coverage_Y_chrom(coverage_statistics_path)
+                if covY: sample[ELEMENT_GENDER_VALIDATION][ELEMENT_GENDER_COVY] = covY
         else:
             self.critical('coverage statistics unavailable for %s', self.sample_id)
         return sample

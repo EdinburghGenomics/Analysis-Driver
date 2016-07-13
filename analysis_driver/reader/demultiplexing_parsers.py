@@ -1,4 +1,5 @@
 import math
+from collections import Counter, defaultdict
 from xml.etree import ElementTree
 from egcg_core.clarity import get_species_from_sample
 from egcg_core.constants import ELEMENT_CONTAMINANT_UNIQUE_MAP, ELEMENT_PCNT_UNMAPPED_FOCAL,\
@@ -210,81 +211,86 @@ def get_fastqscreen_results(filename, sample_id):
         fastqscreen_results = parse_fastqscreen_file(filename, myFocalSpecies)
         return fastqscreen_results
 
+def read_histogram_file(input_file):
+    histograms = defaultdict(Counter)
+    with open(input_file) as openfile:
+        for line in openfile:
+            sp_line = line.split()
+            if 'PATCH' in sp_line[0]:
+                # Ignore the PATCH chromosome as they are full of Ns
+                continue
+            else:
+                histograms[sp_line[0]][int(sp_line[1])] += int(sp_line[2])
+    return histograms
+
+def collapse_histograms(histograms):
+    res = Counter()
+    for histogram in histograms.values():
+        res.update(histogram)
+    return res
+
+
+
+def get_percentiles(histogram, percentile):
+    """
+    Calculate the percentiles of the histogram.
+    :param percentiles: a scalar or an array of scalar comprised in between 0 and 100.
+    :return A value or a array value for the given percentiles.
+    """
+    n_percentile=None
+    sorted_set_of_keys = sorted(histogram.keys())
+    sum_of_values = sum(histogram.values())
+    percentile_index = sum_of_values * (percentile / 100)
+    index_sum = 0
+    if len(sorted_set_of_keys)<1:
+        n_percentile = 0
+    else:
+        for i in range(len(sorted_set_of_keys)):
+            k = sorted_set_of_keys[i]
+            index_sum += histogram.get(k)
+            if index_sum > percentile_index:
+                n_percentile = k
+                break
+            elif index_sum == percentile_index:
+                n_percentile = (k + sorted_set_of_keys[i + 1])/2
+                break
+    return n_percentile
+
 def calculate_mean(histogram):
-    sumOfDepths = 0
-    numberOfDepths = 0
-    with open(histogram) as openfile:
-        lines = openfile.readlines()
-        for line in lines:
-            count = int(line.split()[2])
-            depth = int(line.split()[1])
-            sumOfDepths += int(count * depth)
-            numberOfDepths += int(count)
-    meanDepth = sumOfDepths/numberOfDepths
-    return meanDepth
-
-
+    sumOfDepths = sum([k * v for k, v in histogram.items()])
+    numberOfDepths = sum(histogram.values())
+    return sumOfDepths/numberOfDepths
 
 def calculate_median(histogram):
-
-    with open(histogram) as openfile:
-        numberOfDepths = 0
-        middleDepthIndex = []
-        countRunningTotal = 0
-        medianDepth = []
-
-        lines = openfile.readlines()
-
-        for line in lines:
-            count = int(line.split()[2])
-            numberOfDepths += int(count)
-        if numberOfDepths % 2 != 0:
-            middleDepthIndex = [((numberOfDepths/2) + 0.5)]
-        elif numberOfDepths % 2 == 0:
-            middleDepthIndex = [(numberOfDepths/2), ((numberOfDepths/2) + 1)]
-        for line in lines:
-            count = int(line.split()[2])
-            depth = int(line.split()[1])
-            countRunningTotal += count
-            if middleDepthIndex:
-                for m in middleDepthIndex:
-                    if m > countRunningTotal:
-                        continue
-                    else:
-                        medianDepth.append(int(depth))
-                        middleDepthIndex.remove(m)
-        if len(medianDepth) == 2:
-            return(sum(medianDepth)/len(medianDepth))
-        elif len(medianDepth) == 1:
-            return int(''.join(map(str,medianDepth)))
+    return get_percentiles(histogram, 50)
 
 def calculate_sd(histogram):
-
     meanDepth = int(calculate_mean(histogram))
     numberOfDepths = 0
     sumOfSquaredDifference = 0
-
-    with open(histogram) as openfile:
-        lines = openfile.readlines()
-
-        for line in lines:
-            count = int(line.split()[2])
-            depth = int(line.split()[1])
-            numberOfDepths += int(count)
-            sd = (depth - meanDepth) ** 2
-            sd = sd * count
-            sumOfSquaredDifference += sd
-
-    standardDeviation = math.sqrt(sumOfSquaredDifference/numberOfDepths)
-    return standardDeviation
+    for depth, count  in histogram.items():
+        numberOfDepths += count
+        sd = ((depth - meanDepth) ** 2) * count
+        sumOfSquaredDifference += sd
+    return math.sqrt(sumOfSquaredDifference/numberOfDepths)
 
 def get_coverage_statistics(histogram_file):
-    coverage_mean = calculate_mean(histogram_file)
-    coverage_median = calculate_median(histogram_file)
-    coverage_sd = calculate_sd(histogram_file)
-
+    # Read the histogram file keeping each chrom separated
+    histograms = read_histogram_file(histogram_file)
+    # Collapse all chroms into one hist
+    histogram = collapse_histograms(histograms)
+    # Calculate statistics
+    coverage_mean = calculate_mean(histogram)
+    coverage_median = calculate_median(histogram)
+    coverage_sd = calculate_sd(histogram)
     return coverage_mean, coverage_median, coverage_sd
 
+def get_coverage_Y_chrom(histogram_file, chr_name='chrY'):
+    # Read the histogram file keeping each chrom separated
+    histograms = read_histogram_file(histogram_file)
+    # Calculate the mean coverage of Y chromosome
+    if chr_name in histograms:
+        return calculate_mean(histograms.get('chrY'))
 
 def parse_welldup_file(welldup_file):
     dup_per_lane = {1:0, 2:0, 3:0, 4:0, 5:0, 6:0, 7:0, 8:0}
