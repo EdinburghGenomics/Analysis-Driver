@@ -157,3 +157,38 @@ class VerifyBamId(QualityControl):
         if self.exception:
             raise self.exception
         return self.exit_status
+
+
+class VCFStats(QualityControl):
+    """This class runs vcfstats from rtg on a filtered vcf file"""
+    def __init__(self, dataset, working_dir, vcf_file):
+        super().__init__(dataset, working_dir)
+        self.vcf_file = vcf_file
+        self.exit_status = None
+
+    def _vcf_stats(self):
+        name, ext = os.path.splitext(self.vcf_file)
+        stats_file = name + '.stats'
+        cmd = '%s vcfstats %s > %s' % (cfg.query('tools', 'rtg'), self.vcf_file, stats_file)
+        exit_status = executor.execute(
+            cmd,
+            job_name='rtg_vcfstats',
+            working_dir=self.working_dir,
+            cpus=1,
+            mem=4
+        ).join()
+        return exit_status
+
+    def run(self):
+        try:
+            self.exit_status = self._vcf_stats()
+        except Exception as e:
+            self.exception = e
+
+    def join(self, timeout=None):
+        super().join(timeout=timeout)
+        if self.exception:
+            raise self.exception
+        return self.exit_status
+
+
