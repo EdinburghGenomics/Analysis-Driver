@@ -1,4 +1,5 @@
 import subprocess
+import yaml
 
 from analysis_driver.exceptions import AnalysisDriverError
 from analysis_driver.config import default as cfg
@@ -29,7 +30,7 @@ class Version_reader():
             version = self.get_version_from_config()
         if version:
             return version
-        raise AnalysisDriverError('Version of ' + self.tool_name + ' cannot be resolved')
+        return None
 
 command1 = ' 2>&1 | grep "Version" | cut -d " " -f 2'
 
@@ -56,5 +57,11 @@ all_commands = {
 def get_versions():
     all_versions = {}
     for tool in cfg['tools']:
-        all_versions[tool] = Version_reader(tool, all_commands.get(tool)).get_version()
+        v = Version_reader(tool, all_commands.get(tool)).get_version()
+        if v :
+            all_versions[tool] = v
     return all_versions
+
+def write_versions_to_yaml(yaml_file):
+    with open(yaml_file, 'w') as o:
+        o.write(yaml.safe_dump(get_versions(), default_flow_style=False))
