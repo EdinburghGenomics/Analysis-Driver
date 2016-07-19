@@ -8,14 +8,14 @@ from analysis_driver.config import default as cfg
 class Version_reader():
     tool_name = None
     command = None
-    def __init__(self, tool_name, command):
+    def __init__(self, tool_name, command, prefix=None):
         self.tool_name = tool_name
         self.command = command
 
     def _get_stdout_from_command(self):
         if self.command:
             tool = cfg.query('tools', self.tool_name)
-            p = subprocess.Popen(tool + self.command, stdout=subprocess.PIPE)
+            p = subprocess.Popen(self.prefix + tool + self.command, stdout=subprocess.PIPE)
             stdout = p.stdout.read()
             p.wait()
             p.stdout.close()
@@ -34,7 +34,7 @@ class Version_reader():
 
 command1 = ' 2>&1 | grep "Version" | cut -d " " -f 2'
 
-all_commands = {
+all_executable_commands = {
     'bwa': command1,
     'samtools': command1,
     'bcl2fastq': ' -v 2>&1 | grep "bcl2fastq" | cut -d " " -f 2 | head -n1 ',
@@ -44,20 +44,26 @@ all_commands = {
     'samblaster': ' -h 2>&1 | grep "Version" | cut -d " " -f 3',
     'sambamba': ' -v 2>&1 | grep "sambamba" | cut -d " " -f 2 | head -n1',
     'bamtools': ' -v 2>&1 | grep "bamtools" | cut -d " " -f 2 | head -n1',
-    'gatk': ' -h 2>&1 | grep "The Genome Analysis Toolkit (GATK)" | cut -d " " -f 6 | cut -d "," -f 1',
     'bcftools': ' -v 2>&1 | grep "bcftools" | cut -d " " -f 2 | head -n1',
     'tabix': command1,
+    'bgzip': command1,
     'fastqscreen':' -v 2>&1 | grep "fastq_screen" | cut -d " " -f 2 | head -n1',
     'sickle': ' --version | grep "sickle" | cut -d " " -f 3 | head -n1',
     'verifybamid': ' 2>&1 | grep "verifyBamID" | cut -d " " -f 2 | head -n1',
     'well_duplicate': None
+}
+all_java_commands = {
+    'gatk': ' -h 2>&1 | grep "The Genome Analysis Toolkit (GATK)" | cut -d " " -f 6 | cut -d "," -f 1',
 }
 
 
 def get_versions():
     all_versions = {}
     for tool in cfg['tools']:
-        v = Version_reader(tool, all_commands.get(tool)).get_version()
+        if tool in all_executable_commands:
+            v = Version_reader(tool, all_executable_commands.get(tool)).get_version()
+        elif tool in all_java_commands:
+            v = Version_reader(tool, all_java_commands.get(tool), prefix='java -jar ').get_version()
         if v :
             all_versions[tool] = v
     return all_versions
