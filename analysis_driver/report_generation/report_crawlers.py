@@ -9,7 +9,7 @@ from analysis_driver.reader import demultiplexing_parsers, mapping_stats_parsers
 from analysis_driver.reader.demultiplexing_parsers import get_fastqscreen_results, get_coverage_statistics, \
     parse_welldup_file, get_coverage_Y_chrom
 from analysis_driver.reader.mapping_stats_parsers import parse_and_aggregate_genotype_concordance,\
-    parse_vbi_selfSM
+    parse_vbi_selfSM, parse_vcf_stats
 from analysis_driver.config import default as cfg
 from analysis_driver.constants import ELEMENT_RUN_NAME, ELEMENT_NUMBER_LANE, ELEMENT_RUN_ELEMENTS, \
     ELEMENT_BARCODE, ELEMENT_RUN_ELEMENT_ID, ELEMENT_SAMPLE_INTERNAL_ID, ELEMENT_LIBRARY_INTERNAL_ID, \
@@ -21,7 +21,7 @@ from analysis_driver.constants import ELEMENT_RUN_NAME, ELEMENT_NUMBER_LANE, ELE
     ELEMENT_SPECIES_CONTAMINATION, ELEMENT_NB_BASE_R2_CLEANED, ELEMENT_NB_Q30_R2_CLEANED, ELEMENT_NB_BASE_R1_CLEANED, \
     ELEMENT_GENOTYPE_VALIDATION, ELEMENT_COVERAGE_STATISTICS, ELEMENT_MEAN_COVERAGE, ELEMENT_MEDIAN_COVERAGE_SAMTOOLS, ELEMENT_COVERAGE_SD, \
     ELEMENT_FREEMIX, ELEMENT_SAMPLE_CONTAMINATION, ELEMENT_GENDER_VALIDATION, \
-    ELEMENT_GENDER_HETX, ELEMENT_LANE_PC_OPT_DUP, ELEMENT_GENDER_COVY
+    ELEMENT_GENDER_HETX, ELEMENT_LANE_PC_OPT_DUP, ELEMENT_GENDER_COVY, ELEMENT_SNPS_TI_TV, ELEMENT_SNPS_HET_HOM
 
 
 class Crawler(AppLogger):
@@ -368,6 +368,13 @@ class SampleCrawler(Crawler):
                 if covY: sample[ELEMENT_GENDER_VALIDATION][ELEMENT_GENDER_COVY] = covY
         else:
             self.critical('coverage statistics unavailable for %s', self.sample_id)
+
+        vcf_stats_path = self.search_file(sample_dir, '%s.vcf.stats' % external_sample_name)
+        if vcf_stats_path:
+            ti_tv, het_hom = parse_vcf_stats(vcf_stats_path)
+            sample[ELEMENT_SNPS_TI_TV] = ti_tv
+            sample[ELEMENT_SNPS_HET_HOM] = het_hom
+
         return sample
 
     def send_data(self):
