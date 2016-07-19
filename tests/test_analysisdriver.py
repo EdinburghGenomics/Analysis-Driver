@@ -1,4 +1,6 @@
 from unittest import TestCase
+from egcg_core.app_logging import logging_default as log_cfg
+from analysis_driver.config import default as cfg
 from os.path import join, dirname
 import json
 
@@ -43,3 +45,5 @@ class TestAnalysisDriver(TestCase):
 
 
 helper = TestAnalysisDriver()
+log_cfg.cfg = cfg['logging']
+log_cfg.add_stdout_handler()

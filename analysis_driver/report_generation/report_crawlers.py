@@ -1,10 +1,10 @@
 import json
 from collections import Counter, defaultdict
 from egcg_core import util
-from analysis_driver.app_logging import AppLogger
-from analysis_driver.exceptions import PipelineError
+from egcg_core.app_logging import AppLogger
 from egcg_core.rest_communication import post_or_patch as pp
 from egcg_core.clarity import get_sample_gender, get_user_sample_name
+from analysis_driver.exceptions import PipelineError
 from analysis_driver.reader import demultiplexing_parsers, mapping_stats_parsers
 from analysis_driver.reader.demultiplexing_parsers import get_fastqscreen_results, get_coverage_statistics, \
     parse_welldup_file, get_coverage_Y_chrom

@@ -3,9 +3,9 @@ import sys
 import logging
 import argparse
 import json
+from egcg_core.app_logging import logging_default as log_cfg
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from analysis_driver.app_logging import log_cfg
 from analysis_driver.reader import SampleSheet
 from analysis_driver.report_generation.report_crawlers import SampleCrawler, RunCrawler
 from analysis_driver.config import default as cfg
@@ -13,6 +13,7 @@ from analysis_driver.reader.run_info import RunInfo
 
 log_cfg.default_level = logging.DEBUG
 log_cfg.add_handler(logging.StreamHandler(stream=sys.stdout), logging.DEBUG)
+
 
 def main():
     if 'run' not in sys.argv and 'sample' not in sys.argv:

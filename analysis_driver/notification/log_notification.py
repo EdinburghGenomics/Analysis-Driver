@@ -1,6 +1,6 @@
 import logging
 from .notification_center import Notification
-from analysis_driver.app_logging import log_cfg
+from egcg_core.app_logging import logging_default as log_cfg
 
 
 class LogNotification(Notification):

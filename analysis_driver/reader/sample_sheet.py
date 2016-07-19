@@ -1,7 +1,7 @@
 import csv
 import os.path
 from collections import defaultdict
-from analysis_driver.app_logging import AppLogger, log_cfg
+from egcg_core.app_logging import AppLogger, logging_default as log_cfg
 from analysis_driver.exceptions import AnalysisDriverError
 from analysis_driver import config
 

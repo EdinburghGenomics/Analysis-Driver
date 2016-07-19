@@ -1,7 +1,7 @@
 import os
 import csv
-from analysis_driver.app_logging import log_cfg
 from analysis_driver.config import default as cfg
+from egcg_core.app_logging import logging_default as log_cfg
 from analysis_driver.util.bash_commands import is_remote_path, rsync_from_to
 from . import bash_commands
 

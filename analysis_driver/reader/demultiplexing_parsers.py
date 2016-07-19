@@ -5,7 +5,7 @@ from egcg_core.clarity import get_species_from_sample
 from egcg_core.constants import ELEMENT_CONTAMINANT_UNIQUE_MAP, ELEMENT_PCNT_UNMAPPED_FOCAL,\
     ELEMENT_PCNT_UNMAPPED, ELEMENT_TOTAL_READS_MAPPED
 
-from analysis_driver.app_logging import log_cfg
+from egcg_core.app_logging import logging_default as log_cfg
 app_logger = log_cfg.get_logger(__name__)
 
 

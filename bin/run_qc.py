@@ -5,13 +5,13 @@ import logging
 import argparse
 from egcg_core import executor
 from egcg_core.clarity import get_user_sample_name
+from egcg_core.app_logging import logging_default as log_cfg
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from analysis_driver.config import default as cfg
 from analysis_driver.exceptions import AnalysisDriverError
 from analysis_driver.quality_control import SamtoolsDepth
 from analysis_driver.dataset import NoCommunicationDataset
-from analysis_driver.app_logging import log_cfg
 from analysis_driver.util.bash_commands import rsync_from_to, is_remote_path
 from analysis_driver.quality_control.gender_validation import GenderValidation
 from analysis_driver.quality_control.genotype_validation import GenotypeValidation
