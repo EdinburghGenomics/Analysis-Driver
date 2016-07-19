@@ -43,6 +43,8 @@ default:
         fastqscreen: path/to/fastqscreen
         verifybamid: path/to/verifybamid
         well_duplicate: path/to/well_duplicate
+    versions:
+        bwa: '0.9'
 
     logging:
         format: '[%(asctime)s][%(name)s][%(levelname)s] %(message)s'
