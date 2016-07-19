@@ -372,8 +372,11 @@ class SampleCrawler(Crawler):
         vcf_stats_path = self.search_file(sample_dir, '%s.vcf.stats' % external_sample_name)
         if vcf_stats_path:
             ti_tv, het_hom = parse_vcf_stats(vcf_stats_path)
-            sample[ELEMENT_SNPS_TI_TV] = ti_tv
-            sample[ELEMENT_SNPS_HET_HOM] = het_hom
+            if ELEMENT_SAMPLE_CONTAMINATION in sample:
+                sample[ELEMENT_SAMPLE_CONTAMINATION][ELEMENT_SNPS_TI_TV] = ti_tv
+                sample[ELEMENT_SAMPLE_CONTAMINATION][ELEMENT_SNPS_HET_HOM] = het_hom
+            else:
+                sample[ELEMENT_SAMPLE_CONTAMINATION]={ELEMENT_SNPS_TI_TV: ti_tv, ELEMENT_SNPS_HET_HOM:het_hom}
 
         return sample
 

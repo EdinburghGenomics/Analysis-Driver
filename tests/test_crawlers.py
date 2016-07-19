@@ -97,6 +97,7 @@ class TestSampleCrawler(TestCrawler):
             'percent_unmapped_focal': 1.09,
             'total_reads_mapped': 100000
         },
+        "sample_contamination": {"het_hom_ratio": 1.6, "ti_tv_ratio": 2.01},
         'gender_validation': {'hetX': '0.10'},
         'coverage': {'mean': 438.8514851485148, 'median': 478, 'std_dev': 189.1911391390011}
     }
