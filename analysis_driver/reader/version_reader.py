@@ -20,7 +20,7 @@ class Version_reader():
             stdout = p.stdout.read()
             p.wait()
             p.stdout.close()
-            return stdout.strip()
+            return stdout.strip().decode("utf-8")
 
     def get_version_from_config(self):
         return cfg.query('versions', self.tool_name)
