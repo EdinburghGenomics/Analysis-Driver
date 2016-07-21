@@ -8,18 +8,19 @@ from analysis_driver.config import default as cfg
 class Version_reader():
     tool_name = None
     command = None
-    def __init__(self, tool_name, command, prefix=None):
+    def __init__(self, tool_name, command, prefix=''):
         self.tool_name = tool_name
         self.command = command
+        self.prefix = prefix
 
     def _get_stdout_from_command(self):
         if self.command:
             tool = cfg.query('tools', self.tool_name)
-            p = subprocess.Popen(self.prefix + tool + self.command, stdout=subprocess.PIPE)
+            p = subprocess.Popen(self.prefix + tool + self.command, stdout=subprocess.PIPE, shell=True)
             stdout = p.stdout.read()
             p.wait()
             p.stdout.close()
-            return stdout
+            return stdout.strip()
 
     def get_version_from_config(self):
         return cfg.query('versions', self.tool_name)
@@ -60,6 +61,7 @@ all_java_commands = {
 def get_versions():
     all_versions = {}
     for tool in cfg['tools']:
+        v = None
         if tool in all_executable_commands:
             v = Version_reader(tool, all_executable_commands.get(tool)).get_version()
         elif tool in all_java_commands:

@@ -43,6 +43,7 @@ default:
         fastqscreen: path/to/fastqscreen
         verifybamid: path/to/verifybamid
         well_duplicate: path/to/well_duplicate
+        echo: echo
     versions:
         bwa: '0.9'
 
