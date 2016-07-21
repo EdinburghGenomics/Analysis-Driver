@@ -8,11 +8,9 @@ def _etc_config(config_file):
 
 # singletons for access by other modules
 default = EnvConfiguration(
-    [
-        os.getenv('ANALYSISDRIVERCONFIG'),
-        os.path.expanduser('~/.analysisdriver.yaml'),
-        _etc_config('example_analysisdriver.yaml')
-    ]
+    os.getenv('ANALYSISDRIVERCONFIG'),
+    os.path.expanduser('~/.analysisdriver.yaml'),
+    _etc_config('example_analysisdriver.yaml')
 )
-output_files_config = Configuration([_etc_config('output_files.yaml')])
-sample_sheet_config = Configuration([_etc_config('sample_sheet_cfg.yaml')])
+output_files_config = Configuration(_etc_config('output_files.yaml'))
+sample_sheet_config = Configuration(_etc_config('sample_sheet_cfg.yaml'))
