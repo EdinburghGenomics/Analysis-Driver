@@ -17,7 +17,7 @@ class TestVersion(TestAnalysisDriver):
 
     def test_get_stdout_from_command(self):
         reader = Version_reader(tool_name='echo', command=' 123')
-        reader._get_stdout_from_command() == '123'
+        assert reader._get_stdout_from_command() == '123'
 
 
     @patch('analysis_driver.reader.version_reader.Version_reader._get_stdout_from_command', return_value='1.2')
