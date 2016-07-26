@@ -5,7 +5,7 @@ from tests.test_analysisdriver import TestAnalysisDriver
 from analysis_driver import transfer_data
 from analysis_driver.util import bcbio_prepare_samples_cmd
 from analysis_driver.util.bash_commands import sickle_paired_end_in_place
-from analysis_driver.config import default as cfg, load_config, _etc_config
+from analysis_driver.config import default as cfg, _etc_config
 
 
 def ppath(*parts):
@@ -21,7 +21,7 @@ def patched_find_project_from_sample(sample_id):
 
 
 def test_sickle_paired_end_in_place():
-    load_config(_etc_config('example_analysisdriver.yaml'))
+    cfg.load_config_file(_etc_config('example_analysisdriver.yaml'))
     expected_command = "path/to/sickle pe -f fastqfile1_R1.fastq.gz -r fastqfile1_R2.fastq.gz " \
                        "-o fastqfile1_R1.fastq_sickle.gz -p fastqfile1_R2.fastq_sickle.gz -s " \
                        "fastqfile1_R1.fastq_sickle_single.gz -q 5  -l 36  -x  -g -t sanger > " \
