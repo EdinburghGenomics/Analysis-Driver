@@ -1,4 +1,7 @@
-class AnalysisDriverError(Exception):
+from egcg_core.exceptions import EGCGError
+
+
+class AnalysisDriverError(EGCGError):
     pass
 
 
@@ -9,10 +12,3 @@ class PipelineError(AnalysisDriverError):
 class SequencingRunError(AnalysisDriverError):
     pass
 
-
-class RestCommunicationError(AnalysisDriverError):
-    pass
-
-
-class LimsCommunicationError(AnalysisDriverError):
-    pass

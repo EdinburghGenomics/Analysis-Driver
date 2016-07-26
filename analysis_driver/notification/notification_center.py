@@ -1,4 +1,4 @@
-from analysis_driver.app_logging import AppLogger
+from egcg_core.app_logging import AppLogger
 
 
 class _Method:
