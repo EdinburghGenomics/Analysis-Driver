@@ -36,6 +36,7 @@ class AsanaNotification(Notification):
 
     def _add_comment(self, text):
         self.client.tasks.add_comment(self.task['id'], text=text)
+        self.client.tasks.update(self.task['id'], completed=False)
 
     @staticmethod
     def _get_entity(collection, name):

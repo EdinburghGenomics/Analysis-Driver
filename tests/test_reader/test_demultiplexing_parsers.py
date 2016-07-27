@@ -1,11 +1,11 @@
 import os
 from analysis_driver.reader.demultiplexing_parsers import parse_seqtk_fqchk_file, parse_conversion_stats, \
-    parse_welldup_file
+    parse_welldup_file, get_percentiles, read_histogram_file, collapse_histograms, get_coverage_Y_chrom
 from analysis_driver.reader.demultiplexing_parsers import parse_fastqscreen_file
 from analysis_driver.reader.demultiplexing_parsers import get_fastqscreen_results
 from analysis_driver.reader.demultiplexing_parsers import calculate_mean, calculate_median, calculate_sd, get_coverage_statistics
 from tests.test_analysisdriver import TestAnalysisDriver
-from analysis_driver.constants import ELEMENT_CONTAMINANT_UNIQUE_MAP, ELEMENT_PCNT_UNMAPPED_FOCAL, ELEMENT_PCNT_UNMAPPED, ELEMENT_TOTAL_READS_MAPPED
+from egcg_core.constants import ELEMENT_CONTAMINANT_UNIQUE_MAP, ELEMENT_PCNT_UNMAPPED_FOCAL, ELEMENT_PCNT_UNMAPPED, ELEMENT_TOTAL_READS_MAPPED
 from unittest.mock import patch
 __author__ = 'tcezard'
 
@@ -77,18 +77,30 @@ class TestDemultiplexingStats(TestAnalysisDriver):
 
     def test_calculate_mean(self):
         hist_file = os.path.join(self.assets_path, 'test_sample.depth')
-        test_mean = calculate_mean(hist_file)
+        hist = collapse_histograms(read_histogram_file(hist_file))
+        test_mean = calculate_mean(hist)
         assert test_mean == 438.8514851485148
 
     def test_calculate_median(self):
         hist_file = os.path.join(self.assets_path, 'test_sample.depth')
-        test_median = calculate_median(hist_file)
+        hist = collapse_histograms(read_histogram_file(hist_file))
+        test_median = calculate_median(hist)
         assert test_median == 478
 
     def test_calculate_sd(self):
         hist_file = os.path.join(self.assets_path, 'test_sample.depth')
-        test_sd = calculate_sd(hist_file)
+        hist = collapse_histograms(read_histogram_file(hist_file))
+        test_sd = calculate_sd(hist)
         assert test_sd == 189.1911391390011
+
+    def test_get_percentiles(self):
+        histogram={1:5, 2:2, 3:4, 4:6, 5:3}
+        assert get_percentiles(histogram, 50) == 3
+        histogram={1:1, 2:3, 3:4, 4:6, 5:6}
+        assert get_percentiles(histogram, 50) == 4
+        histogram={1:3, 2:3, 3:4, 4:6, 5:4}
+        assert get_percentiles(histogram, 50) == 3.5
+
 
     def test_get_coverage_statistics(self):
         hist_file = os.path.join(self.assets_path, 'test_sample.depth')
@@ -97,8 +109,12 @@ class TestDemultiplexingStats(TestAnalysisDriver):
         assert median == 478
         assert sd == 189.1911391390011
 
+    def test_get_coverage_Y_chrom(self):
+        hist_file = os.path.join(self.assets_path, 'test_sample_chrY.depth')
+        mean = get_coverage_Y_chrom(hist_file)
+        assert mean == 234.275
 
     def test_parse_welldup_file(self):
         welldup_file = os.path.join(self.assets_path, 'test_crawlers', 'test_run.well_dup')
         dup_per_lane = parse_welldup_file(welldup_file)
-        assert dup_per_lane == {1: 11.747, 2: 14.576, 3: 12.5, 4: 20.496, 5: 5.981, 6: 10.917, 7: 14.611, 8: 26.416}
+        assert dup_per_lane == {1: 11.747, 2: 14.576, 3: 0, 4: 20.496, 5: 5.981, 6: 10.917, 7: 14.611, 8: 26.416}

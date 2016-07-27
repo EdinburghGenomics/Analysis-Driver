@@ -73,15 +73,15 @@ class TestRunCrawler(TestCrawler):
 
 class TestSampleCrawler(TestCrawler):
     expected_sample = {
-        'properly_mapped_reads': 949154225,
-        'duplicate_reads': 171911966,
+        'properly_mapped_reads': 7741548,
+        'duplicate_reads': 676698,
         'sample_id': 'test_sample',
-        'median_coverage': 30.156,
+        'median_coverage': 478,
         'user_sample_id': 'test_sample',
         'pc_callable': 0.24392084973311048,
         'project_id': 'test_project',
-        'bam_file_reads': 988805087,
-        'mapped_reads': 975587288,
+        'bam_file_reads': 7928618,
+        'mapped_reads': 7892452,
         'called_gender': 'male',
         'provided_gender': 'female',
         'species_contamination': {

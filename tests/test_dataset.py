@@ -3,7 +3,7 @@ import pytest
 from shutil import rmtree
 from unittest.mock import patch, PropertyMock
 from tests.test_analysisdriver import TestAnalysisDriver
-from analysis_driver import constants as c
+from egcg_core import constants as c
 from analysis_driver.exceptions import AnalysisDriverError
 from analysis_driver.dataset import Dataset, RunDataset, SampleDataset, MostRecentProc
 
@@ -95,7 +95,8 @@ class TestDataset(TestAnalysisDriver):
     @patched_ntf_start
     @patched_initialise
     @patch(ppath('MostRecentProc.start'))
-    def test_start(self, mocked_start, mocked_update, mocked_ntf):
+    @patch(ppath('MostRecentProc.retrieve_entity'))
+    def test_start(self, mocked_retrieve_entity, mocked_start, mocked_update, mocked_ntf):
         self.dataset.most_recent_proc.entity['status'] = c.DATASET_PROCESSING
         with pytest.raises(AssertionError):
             self.dataset.start()
@@ -107,7 +108,8 @@ class TestDataset(TestAnalysisDriver):
 
     @patched_ntf_end
     @patched_finish
-    def test_succeed(self, mocked_finish, mocked_ntf):
+    @patch(ppath('MostRecentProc.retrieve_entity'))
+    def test_succeed(self, mocked_retrieve_entity, mocked_finish, mocked_ntf):
         with pytest.raises(AssertionError):
             self.dataset.succeed()
 
@@ -118,7 +120,8 @@ class TestDataset(TestAnalysisDriver):
 
     @patched_ntf_end
     @patched_finish
-    def test_fail(self, mocked_finish, mocked_ntf):
+    @patch(ppath('MostRecentProc.retrieve_entity'))
+    def test_fail(self, mocked_retrieve_entity, mocked_finish, mocked_ntf):
         with pytest.raises(AssertionError):
             self.dataset.succeed()
 
@@ -128,12 +131,14 @@ class TestDataset(TestAnalysisDriver):
         mocked_finish.assert_called_with(c.DATASET_PROCESSED_FAIL)
 
     @patched_finish
-    def test_abort(self, mocked_finish):
+    @patch(ppath('MostRecentProc.retrieve_entity'))
+    def test_abort(self, mocked_retrieve_entity, mocked_finish):
         self.dataset.abort()
         mocked_finish.assert_called_with(c.DATASET_ABORTED)
 
     @patch(ppath('MostRecentProc.change_status'))
-    def test_reset(self, mocked_change_status):
+    @patch(ppath('MostRecentProc.retrieve_entity'))
+    def test_reset(self, mocked_retrieve_entity, mocked_change_status):
         self.dataset.reset()
         mocked_change_status.assert_called_with(c.DATASET_REPROCESS)
 

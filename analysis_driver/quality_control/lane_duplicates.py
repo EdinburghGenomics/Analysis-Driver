@@ -1,6 +1,5 @@
 import os
-
-from analysis_driver import executor
+from egcg_core import executor
 from .quality_control_base import QualityControl
 from analysis_driver.config import default as cfg
 
@@ -29,7 +28,7 @@ class WellDuplicates(QualityControl):
             output_err
         )
         return executor.execute(
-                [cmd],
+                cmd,
                 job_name='welldup',
                 working_dir=self.working_dir,
                 cpus=1,

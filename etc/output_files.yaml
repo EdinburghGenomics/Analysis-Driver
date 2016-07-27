@@ -25,9 +25,16 @@ bcbio:
 
   - location: ['samples_{runfolder}-merged', 'final', '{sample_id}', 'qc', 'bamtools']
     basename: 'bamtools_stats.txt'
+    required: False
+
+  - location: ['samples_{runfolder}-merged', 'final', '{sample_id}', 'qc', 'samtools']
+    basename: '{sample_id}.txt'
+    new_name: 'samtools_stats.txt'
+    required: False
 
   - location: ['samples_{runfolder}-merged', 'work', 'align', '{sample_id}']
     basename: '*{sample_id}*-sort-highdepth-stats.yaml'
+    required: False
 
   - location: ['samples_{runfolder}-merged', 'work', 'align', '{sample_id}']
     basename: '*{sample_id}*-sort-callable.bed'
@@ -38,8 +45,8 @@ bcbio:
   - location: ['samples_{runfolder}-merged', 'final', '*_{sample_id}']
     basename: 'project-summary.yaml'
 
-  - location: ['merged']
-    basename: '{sample_id}_R1.fastq.gz'
+#  - location: ['merged']
+#    basename: '{sample_id}_R1.fastq.gz'
 
   - location: ['merged']
     basename: '{sample_id}_R1_fastqc.html'
@@ -47,8 +54,8 @@ bcbio:
   - location: ['merged']
     basename: '{sample_id}_R1_fastqc.zip'
 
-  - location: ['merged']
-    basename: '{sample_id}_R2.fastq.gz'
+#  - location: ['merged']
+#    basename: '{sample_id}_R2.fastq.gz'
 
   - location: ['merged']
     basename: '{sample_id}_R2_fastqc.html'
@@ -73,8 +80,8 @@ non_human_qc:
   - location: ['']
     basename: 'bamtools_stats.txt'
 
-  - location: ['merged']
-    basename: '{sample_id}_R1.fastq.gz'
+#  - location: ['merged']
+#    basename: '{sample_id}_R1.fastq.gz'
 
   - location: ['merged']
     basename: '{sample_id}_R1_fastqc.html'
@@ -82,8 +89,8 @@ non_human_qc:
   - location: ['merged']
     basename: '{sample_id}_R1_fastqc.zip'
 
-  - location: ['merged']
-    basename: '{sample_id}_R2.fastq.gz'
+#  - location: ['merged']
+#    basename: '{sample_id}_R2.fastq.gz'
 
   - location: ['merged']
     basename: '{sample_id}_R2_fastqc.html'
@@ -97,3 +104,48 @@ non_human_qc:
   - location: ['']
     basename: '{runfolder}.depth'
     new_name: '{sample_id}.depth'
+
+
+gatk_var_calling:
+  - location: ['']
+    basename: 'bamtools_stats.txt'
+
+#  - location: ['merged']
+#    basename: '{sample_id}_R1.fastq.gz'
+
+  - location: ['merged']
+    basename: '{sample_id}_R1_fastqc.html'
+
+  - location: ['merged']
+    basename: '{sample_id}_R1_fastqc.zip'
+
+#  - location: ['merged']
+#    basename: '{sample_id}_R2.fastq.gz'
+
+  - location: ['merged']
+    basename: '{sample_id}_R2_fastqc.html'
+
+  - location: ['merged']
+    basename: '{sample_id}_R2_fastqc.zip'
+
+  - location: ['merged']
+    basename: '{sample_id}_R1_screen.txt'
+
+  - location: ['']
+    basename: '{runfolder}.depth'
+    new_name: '{sample_id}.depth'
+
+  - location: ['gatk_var_calling']
+    basename: '{sample_id}_indel_realigned.bam'
+    new_name: '{sample_id}.bam'
+
+  - location: ['gatk_var_calling']
+    basename: '{sample_id}_indel_realigned.bai'
+    new_name: '{sample_id}.bam.bai'
+
+  - location: ['gatk_var_calling']
+    basename: '{sample_id}.g.vcf.gz'
+
+  - location: ['gatk_var_calling']
+    basename: '{sample_id}.g.vcf.gz.tbi'
+

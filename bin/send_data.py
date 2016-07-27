@@ -1,19 +1,18 @@
-__author__ = 'mwham'
-import sys
 import os
-import argparse
+import sys
 import logging
+import argparse
 import json
+from egcg_core.app_logging import logging_default as log_cfg
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from analysis_driver.app_logging import logging_default as log_cfg
-log_cfg.default_level = logging.DEBUG
-log_cfg.add_handler(logging.StreamHandler(stream=sys.stdout), logging.DEBUG)
-
 from analysis_driver.reader import SampleSheet
 from analysis_driver.report_generation.report_crawlers import SampleCrawler, RunCrawler
 from analysis_driver.config import default as cfg
 from analysis_driver.reader.run_info import RunInfo
+
+log_cfg.default_level = logging.DEBUG
+log_cfg.add_handler(logging.StreamHandler(stream=sys.stdout), logging.DEBUG)
 
 
 def main():
@@ -52,12 +51,12 @@ def run_crawler(args):
     if args.conversion_stats:
         conversion_stats = args.conversion_stats
     else:
-        conversion_stats = os.path.join(run_dir, 'fastq', 'Stats', 'ConversionStats.xml')
-    run_info = RunInfo(os.path.join(run_dir,'fastq'))
+        conversion_stats = os.path.join(run_dir, 'Stats', 'ConversionStats.xml')
+    run_info = RunInfo(os.path.join(run_dir))
     if args.samplesheet:
         samplesheet = SampleSheet(args.samplesheet, has_barcode=run_info.mask.has_barcodes)
     else:
-        samplesheet = SampleSheet(os.path.join(run_dir, 'fastq', 'SampleSheet_analysis_driver.csv'),
+        samplesheet = SampleSheet(os.path.join(run_dir, 'SampleSheet_analysis_driver.csv'),
                                   has_barcode=run_info.mask.has_barcodes)
 
     c = RunCrawler(args.run_id, samplesheet, conversion_stats, run_dir)

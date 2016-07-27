@@ -1159,9 +1159,6 @@ Level: 1	Wells: 11853	Dups: 185	Hit: 172	AccO: 172	AccI: 314
 Level: 2	Wells: 23703	Dups: 124	Hit: 109	AccO: 258	AccI: 178
 Level: 3	Wells: 35547	Dups: 93	Hit: 83	AccO: 314	AccI: 83
 LaneSummary: 3	Tiles: 96	Targets: 185102/240000
-Level: 1	Wells: 1110472	Dups: 13202 (0.01189)	Hit: 11982 (0.06473)	AccO: 11982 (0.06473)	AccI: 23138 (0.12500)
-Level: 2	Wells: 2220682	Dups: 9046 (0.00407)	Hit: 8094 (0.04373)	AccO: 18502 (0.09996)	AccI: 13449 (0.07266)
-Level: 3	Wells: 3330360	Dups: 7316 (0.00220)	Hit: 6375 (0.03444)	AccO: 23138 (0.12500)	AccI: 6375 (0.03444)
 Lane: 4	Tile: 1101	Targets: 1803/2500
 Level: 1	Wells: 10816	Dups: 239	Hit: 213	AccO: 213	AccI: 348
 Level: 2	Wells: 21628	Dups: 142	Hit: 122	AccO: 305	AccI: 174

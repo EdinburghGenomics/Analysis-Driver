@@ -1,17 +1,17 @@
 import json
 from collections import Counter, defaultdict
-from analysis_driver import util
-from analysis_driver.app_logging import AppLogger
+from egcg_core import util
+from egcg_core.app_logging import AppLogger
+from egcg_core.rest_communication import post_or_patch as pp
+from egcg_core.clarity import get_sample_gender, get_user_sample_name
 from analysis_driver.exceptions import PipelineError
-from analysis_driver.external_data.rest_communication import post_or_patch as pp
-from analysis_driver.external_data.clarity import get_sample_gender, get_user_sample_name
 from analysis_driver.reader import demultiplexing_parsers, mapping_stats_parsers
 from analysis_driver.reader.demultiplexing_parsers import get_fastqscreen_results, get_coverage_statistics, \
-    parse_welldup_file
+    parse_welldup_file, get_coverage_Y_chrom
 from analysis_driver.reader.mapping_stats_parsers import parse_and_aggregate_genotype_concordance,\
     parse_vbi_selfSM
 from analysis_driver.config import default as cfg
-from analysis_driver.constants import ELEMENT_RUN_NAME, ELEMENT_NUMBER_LANE, ELEMENT_RUN_ELEMENTS, \
+from egcg_core.constants import ELEMENT_RUN_NAME, ELEMENT_NUMBER_LANE, ELEMENT_RUN_ELEMENTS, \
     ELEMENT_BARCODE, ELEMENT_RUN_ELEMENT_ID, ELEMENT_SAMPLE_INTERNAL_ID, ELEMENT_LIBRARY_INTERNAL_ID, \
     ELEMENT_LANE, ELEMENT_SAMPLES, ELEMENT_NB_READS_SEQUENCED, ELEMENT_NB_READS_PASS_FILTER, ELEMENT_NB_BASE_R1, \
     ELEMENT_NB_BASE_R2, ELEMENT_NB_Q30_R1, ELEMENT_NB_Q30_R2, ELEMENT_PC_READ_IN_LANE, ELEMENT_LANE_ID, \
@@ -21,7 +21,7 @@ from analysis_driver.constants import ELEMENT_RUN_NAME, ELEMENT_NUMBER_LANE, ELE
     ELEMENT_SPECIES_CONTAMINATION, ELEMENT_NB_BASE_R2_CLEANED, ELEMENT_NB_Q30_R2_CLEANED, ELEMENT_NB_BASE_R1_CLEANED, \
     ELEMENT_GENOTYPE_VALIDATION, ELEMENT_COVERAGE_STATISTICS, ELEMENT_MEAN_COVERAGE, ELEMENT_MEDIAN_COVERAGE_SAMTOOLS, ELEMENT_COVERAGE_SD, \
     ELEMENT_FREEMIX, ELEMENT_SAMPLE_CONTAMINATION, ELEMENT_GENDER_VALIDATION, \
-    ELEMENT_GENDER_HETX, ELEMENT_LANE_PC_OPT_DUP
+    ELEMENT_GENDER_HETX, ELEMENT_LANE_PC_OPT_DUP, ELEMENT_GENDER_COVY
 
 
 class Crawler(AppLogger):
@@ -43,7 +43,7 @@ class RunCrawler(Crawler):
         if run_dir:
             self._populate_barcode_info_from_seqtk_fqchk_files(run_dir)
         if run_dir:
-            welldup_files = util.find_files(run_dir, 'fastq', run_id + '.wellduplicate')
+            welldup_files = util.find_files(run_dir, run_id + '.wellduplicate')
             if welldup_files:
                 self._populate_barcode_info_from_well_dup(welldup_files[0])
 
@@ -145,13 +145,11 @@ class RunCrawler(Crawler):
             if ELEMENT_BARCODE in barcode_info and barcode_info[ELEMENT_BARCODE] == 'unknown':
                 fq_chk_files = util.find_files(
                     run_dir,
-                    'fastq',
                     'Undetermined_S0_L00%s_R*_001.fastq.gz.fqchk' % barcode_info[ELEMENT_LANE]
                 )
             else:
                 fq_chk_files = util.find_files(
                     run_dir,
-                    'fastq',
                     barcode_info[ELEMENT_PROJECT_ID],
                     barcode_info[ELEMENT_SAMPLE_INTERNAL_ID],
                     '*_S*_L00%s_R*_001.fastq.gz.fqchk' % barcode_info[ELEMENT_LANE]
@@ -184,7 +182,8 @@ class RunCrawler(Crawler):
         for run_element_id in self.barcodes_info:
             barcode_info = self.barcodes_info.get(run_element_id)
             lane = barcode_info.get(ELEMENT_LANE)
-            barcode_info[ELEMENT_LANE_PC_OPT_DUP] = dup_per_lane[int(lane)]
+            if int(lane) in dup_per_lane:
+                barcode_info[ELEMENT_LANE_PC_OPT_DUP] = dup_per_lane.get(int(lane))
 
     def _populate_barcode_info_from_conversion_file(self, conversion_xml):
         all_barcodes, top_unknown_barcodes, all_barcodeless = demultiplexing_parsers.parse_conversion_stats(conversion_xml, self.samplesheet.has_barcode)
@@ -301,12 +300,17 @@ class SampleCrawler(Crawler):
         else:
             self.critical('Missing bamtools_stats.txt')
 
-        yaml_metric_path = self.search_file(sample_dir, '*%s-sort-highdepth-stats.yaml' % external_sample_name)
-        if yaml_metric_path:
-            median_coverage = mapping_stats_parsers.parse_highdepth_yaml_file(yaml_metric_path)
-            sample[ELEMENT_MEDIAN_COVERAGE] = median_coverage
+        samtools_path = self.search_file(sample_dir, 'samtools_stats.txt')
+        if samtools_path:
+            (total_reads, mapped_reads,
+             duplicate_reads, proper_pairs) = mapping_stats_parsers.parse_samtools_stats(samtools_path)
+
+            sample[ELEMENT_NB_READS_IN_BAM] = total_reads
+            sample[ELEMENT_NB_MAPPED_READS] = mapped_reads
+            sample[ELEMENT_NB_DUPLICATE_READS] = duplicate_reads
+            sample[ELEMENT_NB_PROPERLY_MAPPED] = proper_pairs
         else:
-            self.critical('Missing %s-sort-highdepth-stats.yaml', external_sample_name)
+            self.critical('Missing samtools_stats.txt')
 
         bed_file_path = self.search_file(sample_dir, '*%s-sort-callable.bed' % external_sample_name)
         if bed_file_path:
@@ -348,7 +352,7 @@ class SampleCrawler(Crawler):
             sample_contamination_path = self.search_file(sample_dir, '%s-chr22-vbi.selfSM' % self.sample_id)
         if sample_contamination_path:
             freemix = parse_vbi_selfSM(sample_contamination_path)
-            if freemix:
+            if freemix is not None:
                 sample[ELEMENT_SAMPLE_CONTAMINATION] = {ELEMENT_FREEMIX: freemix}
             else:
                 self.critical('freemix results from validateBamId are not available for %s', self.sample_id)
@@ -358,6 +362,10 @@ class SampleCrawler(Crawler):
             mean, median, sd = get_coverage_statistics(coverage_statistics_path)
             coverage_statistics = {ELEMENT_MEAN_COVERAGE: mean, ELEMENT_MEDIAN_COVERAGE_SAMTOOLS: median, ELEMENT_COVERAGE_SD: sd}
             sample[ELEMENT_COVERAGE_STATISTICS] = coverage_statistics
+            sample[ELEMENT_MEDIAN_COVERAGE] = median
+            if ELEMENT_GENDER_VALIDATION in sample:
+                covY = get_coverage_Y_chrom(coverage_statistics_path)
+                if covY: sample[ELEMENT_GENDER_VALIDATION][ELEMENT_GENDER_COVY] = covY
         else:
             self.critical('coverage statistics unavailable for %s', self.sample_id)
         return sample

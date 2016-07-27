@@ -1,7 +1,7 @@
 import os.path
-from analysis_driver.exceptions import AnalysisDriverError
-from analysis_driver.app_logging import logging_default as log_cfg
 from analysis_driver.config import default as cfg
+from egcg_core.app_logging import logging_default as log_cfg
+from analysis_driver.exceptions import AnalysisDriverError
 
 
 app_logger = log_cfg.get_logger('bash_commands')
@@ -68,15 +68,20 @@ def sickle_paired_end_in_place(fastq_file_pair):
     return '\n'.join(cmds)
 
 
-def bwa_mem_samblaster(fastq_pair, reference, expected_output_bam, thread=16):
-    bwa_bin = cfg.query('tools', 'bwa')
+def bwa_mem_samblaster(fastq_pair, reference, expected_output_bam, read_group=None, thread=16):
     tmp_dir = os.path.dirname(expected_output_bam)
-    command_bwa = '%s mem -M -t %s %s %s' % (bwa_bin, thread, reference, ' '.join(fastq_pair))
-    command_samtools = '%s view -b -' % (cfg.query('tools', 'samtools'))
+    command_bwa = '%s mem -M -t %s' % (cfg['tools']['bwa'], thread)
+
+    if read_group:
+        read_group_str = '@RG\\t%s' % '\\t'.join(['%s:%s' % (k, read_group[k]) for k in sorted(read_group)])
+        command_bwa += ' -R \'%s\'' % read_group_str
+
+    command_bwa += ' %s %s' % (reference, ' '.join(fastq_pair))
+    command_samtools = cfg['tools']['samtools'] + ' view -b -'
     command_sambamba = '%s sort -m 5G --tmpdir %s -t %s -o %s /dev/stdin' % (
-        cfg.query('tools', 'sambamba'), tmp_dir, thread, expected_output_bam
+        cfg['tools']['sambamba'], tmp_dir, thread, expected_output_bam
     )
-    cmd = ' | '.join([command_bwa, cfg.query('tools', 'samblaster'), command_samtools, command_sambamba])
+    cmd = ' | '.join([command_bwa, cfg['tools']['samblaster'], command_samtools, command_sambamba])
     app_logger.debug('Writing: ' + cmd)
     return cmd
 
@@ -99,6 +104,7 @@ def export_env_vars():
     app_logger.debug('Writing Java paths')
     return (
         _export('PATH', os.path.join(cfg['tools']['bcbio'], 'bin'), prepend=True),
+        _export('PATH', os.path.join(cfg['tools']['jdk'], 'bin'), prepend=True),
         _export('LD_LIBRARY_PATH', os.path.join(cfg['tools']['bcbio'], 'lib'), prepend=True),
         _export('PERL5LIB', os.path.join(cfg['tools']['bcbio'], 'lib', 'perl5'), prepend=True),
         _export('JAVA_HOME', cfg['tools']['jdk']),

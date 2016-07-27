@@ -54,6 +54,25 @@ def test_bwa_mem_samblaster():
     assert cmd == expected_cmd
 
 
+def test_bwa_mem_samblaster_read_groups():
+    cmd = bash_commands.bwa_mem_samblaster(
+        ['this.fastq', 'that.fastq'],
+        'ref.fasta',
+        'output/out.bam',
+        read_group={'ID': '1', 'SM': 'user_sample_id', 'PL': 'illumina'}
+    )
+    expected_cmd = (
+        'path/to/bwa mem -M -t 16 -R \'@RG\\tID:1\\tPL:illumina\\tSM:user_sample_id\' '
+        'ref.fasta this.fastq that.fastq | '
+        'path/to/samblaster | '
+        'path/to/samtools view -b - | '
+        'path/to/sambamba sort -m 5G --tmpdir output -t 16 -o output/out.bam /dev/stdin'
+    )
+    print(cmd)
+    print(expected_cmd)
+    assert cmd == expected_cmd
+
+
 def test_bamtools_stats():
     expected = 'path/to/bamtools stats -in in.bam -insert > out.txt'
     assert bash_commands.bamtools_stats('in.bam', 'out.txt') == expected
@@ -67,6 +86,7 @@ def test_export_env_vars():
     cmds = bash_commands.export_env_vars()
     assert cmds == (
         'export PATH=path/to/bcbio/bin:$PATH',
+        'export PATH=path/to/jdk/bin:$PATH',
         'export LD_LIBRARY_PATH=path/to/bcbio/lib:$LD_LIBRARY_PATH',
         'export PERL5LIB=path/to/bcbio/lib/perl5:$PERL5LIB',
         'export JAVA_HOME=path/to/jdk',

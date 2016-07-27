@@ -2,13 +2,14 @@ import shutil
 import os.path
 from unittest.mock import patch
 from tests.test_analysisdriver import TestAnalysisDriver
-from analysis_driver import util, transfer_data
+from analysis_driver import transfer_data
+from analysis_driver.util import bcbio_prepare_samples_cmd
 from analysis_driver.util.bash_commands import sickle_paired_end_in_place
-from analysis_driver.config import default as cfg
+from analysis_driver.config import default as cfg, _etc_config
 
 
 def ppath(*parts):
-    return 'analysis_driver.external_data.clarity.' + '.'.join(parts)
+    return 'egcg_core.clarity.' + '.'.join(parts)
 
 
 def patched_get_user_sample_name(sample_id):
@@ -19,47 +20,17 @@ def patched_find_project_from_sample(sample_id):
     return patch(ppath('find_project_name_from_sample'), return_value='proj_' + sample_id)
 
 
-class TestUtil(TestAnalysisDriver):
-    def test_find_fastqs(self):
-        fastqs = util.find_fastqs(self.fastq_path, '10015AT', '10015AT0001')
-        for file_name in ['10015AT0001_S6_L004_R1_001.fastq.gz', '10015AT0001_S6_L004_R2_001.fastq.gz',
-                          '10015AT0001_S6_L005_R1_001.fastq.gz', '10015AT0001_S6_L005_R2_001.fastq.gz']:
-            assert os.path.join(
-                self.fastq_path, '10015AT', '10015AT0001', file_name
-            ) in fastqs
-
-    def test_find_fastqs_with_lane(self):
-        fastqs = util.find_fastqs(self.fastq_path, '10015AT', '10015AT0001', lane=4)
-        for file_name in ['10015AT0001_S6_L004_R1_001.fastq.gz', '10015AT0001_S6_L004_R2_001.fastq.gz']:
-            assert os.path.join(
-                self.fastq_path, '10015AT', '10015AT0001', file_name
-            ) in fastqs
-
-    def test_find_all_fastqs(self):
-        fastqs = util.find_all_fastqs(self.fastq_path)
-        for file_name in ['10015AT0001_S6_L004_R1_001.fastq.gz', '10015AT0001_S6_L004_R2_001.fastq.gz']:
-            assert os.path.join(
-                self.fastq_path, '10015AT', '10015AT0001', file_name
-            ) in fastqs
-
-    def test_find_all_fastq_pairs(self):
-        fastqs = util.find_all_fastq_pairs(self.fastq_path)
-        for f1, f2 in [('10015AT0001_S6_L004_R1_001.fastq.gz', '10015AT0001_S6_L004_R2_001.fastq.gz'),
-                       ('10015AT0001_S6_L005_R1_001.fastq.gz', '10015AT0001_S6_L005_R2_001.fastq.gz')]:
-            fp1 = os.path.join(self.fastq_path, '10015AT', '10015AT0001', f1)
-            fp2 = os.path.join(self.fastq_path, '10015AT', '10015AT0001', f2)
-            assert (fp1, fp2) in fastqs
-
-    def test_sickle_paired_end_in_place(self):
-        expected_command = "path/to/sickle pe -f fastqfile1_R1.fastq.gz -r fastqfile1_R2.fastq.gz " \
-                           "-o fastqfile1_R1.fastq_sickle.gz -p fastqfile1_R2.fastq_sickle.gz -s " \
-                           "fastqfile1_R1.fastq_sickle_single.gz -q 5  -l 36  -x  -g -t sanger > " \
-                           "fastqfile1_R1.fastq_sickle.log\nEXIT_CODE=$?\n" \
-                           "(exit $EXIT_CODE) && mv fastqfile1_R1.fastq_sickle.gz fastqfile1_R1.fastq.gz\n" \
-                           "(exit $EXIT_CODE) && mv fastqfile1_R2.fastq_sickle.gz fastqfile1_R2.fastq.gz\n" \
-                           "(exit $EXIT_CODE) && rm fastqfile1_R1.fastq_sickle_single.gz\n(exit $EXIT_CODE)"
-        cmd = sickle_paired_end_in_place(('fastqfile1_R1.fastq.gz', 'fastqfile1_R2.fastq.gz'))
-        assert cmd == expected_command
+def test_sickle_paired_end_in_place():
+    cfg.load_config_file(_etc_config('example_analysisdriver.yaml'))
+    expected_command = "path/to/sickle pe -f fastqfile1_R1.fastq.gz -r fastqfile1_R2.fastq.gz " \
+                       "-o fastqfile1_R1.fastq_sickle.gz -p fastqfile1_R2.fastq_sickle.gz -s " \
+                       "fastqfile1_R1.fastq_sickle_single.gz -q 5  -l 36  -x  -g -t sanger > " \
+                       "fastqfile1_R1.fastq_sickle.log\nEXIT_CODE=$?\n" \
+                       "(exit $EXIT_CODE) && mv fastqfile1_R1.fastq_sickle.gz fastqfile1_R1.fastq.gz\n" \
+                       "(exit $EXIT_CODE) && mv fastqfile1_R2.fastq_sickle.gz fastqfile1_R2.fastq.gz\n" \
+                       "(exit $EXIT_CODE) && rm fastqfile1_R1.fastq_sickle_single.gz\n(exit $EXIT_CODE)"
+    cmd = sickle_paired_end_in_place(('fastqfile1_R1.fastq.gz', 'fastqfile1_R2.fastq.gz'))
+    assert cmd == expected_command
 
 
 class TestTransferData(TestAnalysisDriver):
@@ -75,16 +46,34 @@ class TestTransferData(TestAnalysisDriver):
             cfg.content[p['name']] = p['new']
 
         os.makedirs(self._to_dir, exist_ok=True)
+        self._create_pseudo_links()
 
     def tearDown(self):
         for p in self.param_remappings:
             cfg.content[p['name']] = p['original']
 
         shutil.rmtree(self._to_dir)
+        shutil.rmtree(self._pseudo_links)
 
     @property
     def _to_dir(self):
         return os.path.join(self.data_output, 'to', '')
+
+    def _create_pseudo_links(self):
+        os.makedirs(self._pseudo_links, exist_ok=True)
+        for f in [
+            '10015AT0001.bam',
+            '10015AT0001.bam.bai',
+            '10015AT0001.g.vcf.gz',
+            '10015AT0001.g.vcf.gz.tbi',
+            '10015AT0001_R1.fastq.gz',
+            '10015AT0001_R2.fastq.gz',
+            '1_2015-10-16_samples_10015AT0001-merged-sort-callable.bed',
+            '1_2015-10-16_samples_10015AT0001-merged-sort-highdepth-stats.yaml',
+            'ConversionStats.xml',
+            'bamtools_stats.txt'
+        ]:
+            open(os.path.join(self._pseudo_links, f), 'a').close()
 
     def test_create_links(self):
         if not os.path.exists(os.path.join(self.data_output, 'jobs', self.sample_id)):
@@ -213,7 +202,7 @@ class TestTransferData(TestAnalysisDriver):
             return ''.join(parts)
 
     def test_prep_samples_cmd(self):
-        cmd = util.bcbio_prepare_samples_cmd(
+        cmd = bcbio_prepare_samples_cmd(
             self.assets_path,
             'a_sample_id',
             ['test_R1.fastq', 'test_R2.fastq'],
