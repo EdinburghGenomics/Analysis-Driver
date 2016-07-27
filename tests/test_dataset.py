@@ -36,7 +36,13 @@ fake_proc = {
 
 patched_stages = patch(
     ppath('Dataset.stages'),
-    new_callable=PropertyMock(return_value=['this', 'that', 'other'])
+    new_callable=PropertyMock(
+        return_value=[
+            {'stage_name': 'this'},
+            {'stage_name': 'that'},
+            {'stage_name': 'other'}
+        ]
+    )
 )
 
 
@@ -84,13 +90,13 @@ class TestDataset(TestAnalysisDriver):
         assert self.dataset.dataset_status == 'a_status'
 
     def test_stages(self):
-        assert self.dataset.stages == []
+        assert self.dataset.active_stages == []
         self.dataset.most_recent_proc.entity['stages'] = [
             {'stage_name': 'a_stage', 'date_started': 'now', 'date_finished': 'finally'},
             {'stage_name': 'another_stage', 'date_started': 'then'},
             {'stage_name': 'yet_another_stage', 'date_started': 'finally'}
         ]
-        assert self.dataset.stages == ['another_stage', 'yet_another_stage']
+        assert self.dataset.active_stages == ['another_stage', 'yet_another_stage']
 
     @patched_ntf_start
     @patched_initialise

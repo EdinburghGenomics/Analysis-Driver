@@ -33,7 +33,18 @@ class Dataset:
 
     @property
     def stages(self):
-        return [s['stage_name'] for s in self.most_recent_proc.get('stages', []) if 'date_finished' not in s]
+        return self.most_recent_proc.get('stages', [])
+
+    @property
+    def active_stages(self):
+        return [s['stage_name'] for s in self.stages if 'date_finished' not in s]
+
+    def get_stage(self, stage_name):
+        stages = [s for s in self.stages if s['stage_name'] == stage_name]
+        if len(stages) > 1:
+            raise AnalysisDriverError('%s stages found for name %s' % (len(stages), stage_name))
+        elif len(stages) == 1:
+            return stages[0]
 
     def start(self):
         self._assert_status(DATASET_READY, DATASET_FORCE_READY, DATASET_NEW, method='start')
@@ -81,8 +92,8 @@ class Dataset:
         pid = self.most_recent_proc.get('pid')
         if pid:
             out.append('(%s)' % pid)
-        if self.stages:
-            out.append('-- %s' % (', '.join(self.stages)))
+        if self.active_stages:
+            out.append('-- %s' % (', '.join(self.active_stages)))
         return ' '.join(out)
 
     __repr__ = __str__

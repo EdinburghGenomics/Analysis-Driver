@@ -55,3 +55,16 @@ class Stage(luigi.Task):
             return self.previous_stages[0](dataset=self.dataset)
         else:
             return [s(dataset=self.dataset) for s in self.previous_stages]
+
+
+class RestAPITarget(luigi.Target):
+    def __init__(self, stage):
+        self.stage = stage
+
+    @property
+    def rest_api_stage(self):
+        return self.dataset.get_stage(self.stage.__stagename__)
+
+    def exists(self):
+        s = self.rest_api_stage
+        return bool(s.get('date_finished')) and s.get('exit_status') == 0

@@ -9,7 +9,7 @@ class ExampleStage(Stage):
     def _run(self):
         print(self.stage_name)
         print('starting')
-        sleep(80)
+        sleep(5)
         with open(join(self.job_dir, self.stage_name + '.txt'), 'a') as f:
             f.write('Finished %s on %s' % (self.stage_name, ctime()))
         print('done')
@@ -36,7 +36,7 @@ def pipeline(dataset):
     final_stage = Stage4(dataset=dataset)
     luigi.build(
         [final_stage],
-        # local_scheduler=True
+        local_scheduler=True
     )
     return final_stage.exit_status
 
