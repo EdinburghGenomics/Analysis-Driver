@@ -3,6 +3,7 @@ import threading
 from datetime import datetime
 from analysis_driver.notification import default as ntf
 from egcg_core import rest_communication
+from egcg_core.app_logging import AppLogger
 from egcg_core.clarity import get_expected_yield_for_sample
 from egcg_core.exceptions import RestCommunicationError
 from analysis_driver.exceptions import AnalysisDriverError
@@ -11,7 +12,7 @@ from egcg_core.constants import DATASET_NEW, DATASET_READY, DATASET_FORCE_READY,
     ELEMENT_NB_Q30_R1_CLEANED, ELEMENT_NB_Q30_R2_CLEANED
 
 
-class Dataset:
+class Dataset(AppLogger):
     type = None
     endpoint = None
     id_field = None
@@ -19,6 +20,16 @@ class Dataset:
     def __init__(self, name, most_recent_proc=None):
         self.name = name
         self.most_recent_proc = MostRecentProc(self.type, self.name, most_recent_proc)
+        self.expected_output_files = []
+        self.data = {}
+
+    def add_output_file(self, filename, new_basename=None, required=True):
+        """:param filename: full path to the expected output file."""
+        if not os.path.isfile(filename):
+            self.error('Could not find expected output file ' + filename)
+        self.expected_output_files.append(
+            {'filename': filename, 'new_basename': new_basename, 'required': required}
+        )
 
     @property
     def dataset_status(self):

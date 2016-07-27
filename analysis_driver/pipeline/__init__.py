@@ -1,5 +1,7 @@
 import luigi
 from os.path import join
+from egcg_core import clarity
+from analysis_driver.dataset import RunDataset, SampleDataset
 from analysis_driver.config import default as cfg
 from analysis_driver.exceptions import PipelineError
 
@@ -22,8 +24,14 @@ class Stage(luigi.Task):
     def input_dir(self):
         return join(cfg.get('intermediate_dir', cfg['input_dir']), self.dataset_name)
 
+    def get_cached_data(self, key):
+        return self.dataset.data[key]
+
+    def cache_data(self, key, value):
+        self.dataset.data[key] = value
+
     def output(self):  # if <stage_name>.done is present, the stage is complete
-        return luigi.LocalTarget(self._stage_lock_file())
+        return RestAPITarget(self)
 
     def run(self):
         self.dataset.start_stage(self.stage_name)
@@ -63,8 +71,32 @@ class RestAPITarget(luigi.Target):
 
     @property
     def rest_api_stage(self):
-        return self.dataset.get_stage(self.stage.__stagename__)
+        return self.stage.dataset.get_stage(self.stage.__stagename__)
 
     def exists(self):
         s = self.rest_api_stage
-        return bool(s.get('date_finished')) and s.get('exit_status') == 0
+        return s and bool(s.get('date_finished')) and s.get('exit_status') == 0
+
+
+def pipeline(dataset):
+    if isinstance(dataset, RunDataset):
+        from . import fastq_production
+        final_stage = fastq_production.DataOutput
+    # elif isinstance(dataset, SampleDataset):
+    #     species = clarity.get_species_from_sample(dataset.name)
+    #     if species is None:
+    #         raise PipelineError('No species information found in the LIMS for ' + dataset.name)
+    #     elif species == 'Homo sapiens':
+    #         final_stage = BCBioVarCalling
+    #     elif clarity.get_sample(dataset.name).udf.get('Analysis Type') == 'Variant Calling':
+    #         final_stage = VarCalling
+    #     else:
+    #         final_stage = BasicQC
+    # else:
+    #     raise AssertionError('Unexpected dataset type: ' + str(dataset))
+
+    luigi.build(
+        [final_stage(dataset=dataset)],
+        local_scheduler=True
+    )
+    return final_stage.exit_status
