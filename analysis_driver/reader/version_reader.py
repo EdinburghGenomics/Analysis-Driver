@@ -47,6 +47,7 @@ executable_commands = {
     'verifybamid': '{executable} 2>&1 | grep "verifyBamID" | cut -d " " -f 2 | head -n1',
     'well_duplicate': None,
     'gatk': 'java -jar {executable} -h 2>&1 | grep "The Genome Analysis Toolkit (GATK)" | cut -d " " -f 6 | cut -d "," -f 1',
+    'rtg': ' version 2>&1 | grep "Product: RTG Tools" | cut -d ' ' -f 4'
 }
 
 
