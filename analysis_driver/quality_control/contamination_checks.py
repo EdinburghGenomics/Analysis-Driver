@@ -174,8 +174,8 @@ class VCFStats(QualityControl):
             cmd,
             job_name='rtg_vcfstats',
             working_dir=self.working_dir,
-            cpus=2,
-            mem=16
+            cpus=4,
+            mem=32
         ).join()
         return exit_status
 
