@@ -1,16 +1,23 @@
 import luigi
 from os.path import join
 from egcg_core import clarity
+from egcg_core.app_logging import logging_default as log_cfg
 from analysis_driver.dataset import RunDataset, SampleDataset
 from analysis_driver.config import default as cfg
 from analysis_driver.exceptions import PipelineError
+
+
+class EGCGParameter(luigi.Parameter):
+    """Parameter that does not call `warnings.warn` in self.serialize."""
+    def serialize(self, x):
+        return str(x)
 
 
 class Stage(luigi.Task):
     __stagename__ = None
     exit_status = None
     previous_stages = ()
-    dataset = luigi.Parameter()
+    dataset = EGCGParameter()
 
     @property
     def dataset_name(self):
@@ -37,9 +44,7 @@ class Stage(luigi.Task):
         self.dataset.start_stage(self.stage_name)
         self.exit_status = self._run()
         self.dataset.end_stage(self.stage_name, self.exit_status)
-        if self.exit_status == 0:
-            self._touch(self._stage_lock_file())
-        else:
+        if self.exit_status:
             raise PipelineError('Exit status was %s. Stopping' % self.exit_status)
 
     @property
@@ -51,18 +56,21 @@ class Stage(luigi.Task):
     def _run(self):
         raise NotImplementedError
 
-    @staticmethod
-    def _touch(f):
-        open(f, 'w').close()
-
-    def _stage_lock_file(self):
-        return join(self.job_dir, '.' + self.stage_name + '.done')
-
     def requires(self):
-        if len(self.previous_stages) == 1:
-            return self.previous_stages[0](dataset=self.dataset)
-        else:
-            return [s(dataset=self.dataset) for s in self.previous_stages]
+        """
+        Generates prior Stages from self.previous_stages, which should be either a single luigi.Task or a
+        tuple. If it's a tuple, each element can be a luigi.Task or a
+        tuple[luigi.Task,dict[str,luigi.Parameter]].
+        """
+        if isinstance(self.previous_stages, type):
+            return self.previous_stages(dataset=self.dataset)
+
+        for s in self.previous_stages:
+            if isinstance(s, type):
+                yield s(dataset=self.dataset)
+            elif type(s) is tuple:
+                assert len(s) == 2 and type(s[1]) is dict, 'Invalid format for self.previous_stages'
+                yield s[0](dataset=self.dataset, **s[1])
 
 
 class RestAPITarget(luigi.Target):
@@ -71,7 +79,7 @@ class RestAPITarget(luigi.Target):
 
     @property
     def rest_api_stage(self):
-        return self.stage.dataset.get_stage(self.stage.__stagename__)
+        return self.stage.dataset.get_stage(self.stage.stage_name)
 
     def exists(self):
         s = self.rest_api_stage
@@ -79,9 +87,11 @@ class RestAPITarget(luigi.Target):
 
 
 def pipeline(dataset):
+    _setup_luigi_logging()
+
     if isinstance(dataset, RunDataset):
         from . import fastq_production
-        final_stage = fastq_production.DataOutput
+        final_stage = fastq_production.OutputQCData(dataset=dataset)
     # elif isinstance(dataset, SampleDataset):
     #     species = clarity.get_species_from_sample(dataset.name)
     #     if species is None:
@@ -96,7 +106,12 @@ def pipeline(dataset):
     #     raise AssertionError('Unexpected dataset type: ' + str(dataset))
 
     luigi.build(
-        [final_stage(dataset=dataset)],
+        [final_stage],
         local_scheduler=True
     )
     return final_stage.exit_status
+
+
+def _setup_luigi_logging():
+    luigi.interface.setup_interface_logging.has_run = True  # turn off Luigi's default logging setup
+    log_cfg.get_logger('luigi-interface', 10)  # just calling log_cfg.get_logger registers the luigi-interface

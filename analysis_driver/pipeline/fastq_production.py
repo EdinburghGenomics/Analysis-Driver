@@ -51,6 +51,7 @@ class Setup(FqProductionStage):
         if run_status != 'RunCompleted':
             app_logger.error('Run status is \'%s\'. Stopping.', run_status)
             raise SequencingRunError(run_status)
+        return 0
 
 
 class Bcl2Fastq(FqProductionStage):
@@ -141,7 +142,7 @@ class FqChk(QCStage):
             cpus=1,
             mem=2,
             log_commands=False
-        )
+        ).join()
 
 
 class MD5Sum(QCStage):
@@ -153,11 +154,11 @@ class MD5Sum(QCStage):
             cpus=1,
             mem=2,
             log_commands=False
-        )
+        ).join()
 
 
-class OutputQCData(Stage):
-    previous_stages = (WellDups, SickleFilter, Fastqc, FqChk, MD5Sum)
+class OutputQCData(FqProductionStage):
+    previous_stages = (SickleFilter, Fastqc, FqChk, MD5Sum)  # , WellDups)
 
     def _run(self):
         # copy the samplesheet, runinfo and run_parameters.xml to the fastq dir
@@ -171,7 +172,7 @@ class OutputQCData(Stage):
         conversion_xml = join(self.fastq_dir, 'Stats', 'ConversionStats.xml')
         if exists(conversion_xml):
             app_logger.info('Found ConversionStats. Sending data.')
-            crawler = RunCrawler(self.dataset_name, self.get_cached_data('sample_sheet'), conversion_xml, self.job_dir)
+            crawler = RunCrawler(self.dataset_name, self.get_cached_data('sample_sheet'), conversion_xml, self.fastq_dir)
             # TODO: review whether we need this
             json_file = join(self.fastq_dir, 'demultiplexing_results.json')
             crawler.write_json(json_file)
@@ -182,7 +183,7 @@ class OutputQCData(Stage):
             return 1
 
 
-class DataOutput(Stage):
+class DataOutput(FqProductionStage):
     previous_stages = (OutputQCData,)
 
     def _run(self):
