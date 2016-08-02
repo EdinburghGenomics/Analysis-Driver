@@ -3,7 +3,7 @@ import pytest
 from shutil import rmtree
 from unittest.mock import patch, PropertyMock
 from tests.test_analysisdriver import TestAnalysisDriver
-from analysis_driver import constants as c
+from egcg_core import constants as c
 from analysis_driver.exceptions import AnalysisDriverError
 from analysis_driver.dataset import Dataset, RunDataset, SampleDataset, MostRecentProc
 

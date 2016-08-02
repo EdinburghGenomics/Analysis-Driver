@@ -9,7 +9,7 @@ from analysis_driver.reader.mapping_stats_parsers import parse_genotype_concorda
 
 
 patched_rest_communication = patch('analysis_driver.dataset.rest_communication')
-patched_execute = patch('analysis_driver.executor.execute')
+patched_execute = patch('egcg_core.executor.execute')
 
 
 class TestGenotypeValidation(QCTester):

@@ -1,7 +1,7 @@
 import argparse
 import os
 import sys
-from analysis_driver import executor, util
+from egcg_core import executor, util
 from .quality_control_base import QualityControl
 
 

@@ -1,4 +1,6 @@
 from unittest import TestCase
+from egcg_core.app_logging import logging_default as log_cfg
+from analysis_driver.config import default as cfg, _etc_config
 from os.path import join, dirname
 import json
 
@@ -14,6 +16,10 @@ class TestAnalysisDriver(TestCase):
     fastq_path = join(assets_path, 'fastqs')
     execs = join(assets_path, 'fake_tools')
     data_transfer = join(assets_path, 'data_transfer')
+
+    def __init__(self, *args, **kwargs):
+        super(TestAnalysisDriver, self).__init__(*args, **kwargs)
+        cfg.load_config_file(_etc_config('example_analysisdriver.yaml'))
 
     @classmethod
     def exec_path(cls, executable):
@@ -43,3 +49,5 @@ class TestAnalysisDriver(TestCase):
 
 
 helper = TestAnalysisDriver()
+log_cfg.cfg = cfg['logging']
+log_cfg.add_stdout_handler()
