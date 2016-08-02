@@ -6,6 +6,7 @@ from analysis_driver import transfer_data
 from analysis_driver.dataset_scanner import RunDataset
 from analysis_driver.util.bash_commands import rsync_from_to
 from analysis_driver.config import default as cfg
+from egcg_core.config import cfg as egcg_core_cfg
 
 patched_get = patch(
     'analysis_driver.dataset_scanner.rest_communication.get_documents',
@@ -29,6 +30,7 @@ class TestProcessTrigger(TestAnalysisDriver):
         return patch('analysis_driver.transfer_data.rsync_from_to', return_value=cmd)
 
     def setUp(self):
+        egcg_core_cfg.load_config_file(cfg.config_file)
         with patched_get:
             self.dataset = RunDataset(
                 name='test_dataset',
@@ -44,6 +46,7 @@ class TestProcessTrigger(TestAnalysisDriver):
             os.remove(os.path.join(self.to_dir, self.dataset.name, f))
         shutil.rmtree(os.path.join(self.data_transfer, self.dataset.name))
         cfg.content['jobs_dir'] = self.old_job_dir
+        egcg_core_cfg.content = None
 
     def test_transfer(self):
         with self._patched_rsync(self.from_dir, self.to_dir):

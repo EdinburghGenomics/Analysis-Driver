@@ -2,10 +2,11 @@ import os
 import threading
 from datetime import datetime
 from analysis_driver.notification import default as ntf
-from analysis_driver.external_data import rest_communication
-from analysis_driver.external_data.clarity import get_expected_yield_for_sample
-from analysis_driver.exceptions import AnalysisDriverError, RestCommunicationError
-from analysis_driver.constants import DATASET_NEW, DATASET_READY, DATASET_FORCE_READY, DATASET_REPROCESS,\
+from egcg_core import rest_communication
+from egcg_core.clarity import get_expected_yield_for_sample
+from egcg_core.exceptions import RestCommunicationError
+from analysis_driver.exceptions import AnalysisDriverError
+from egcg_core.constants import DATASET_NEW, DATASET_READY, DATASET_FORCE_READY, DATASET_REPROCESS,\
     DATASET_PROCESSING, DATASET_PROCESSED_SUCCESS, DATASET_PROCESSED_FAIL, DATASET_ABORTED, ELEMENT_RUN_NAME,\
     ELEMENT_NB_Q30_R1_CLEANED, ELEMENT_NB_Q30_R2_CLEANED
 
@@ -215,7 +216,7 @@ class MostRecentProc:
             sort='-_created'
         )
         if procs:
-            #Remove the private (starting with _ ) fields from the dict
+            # remove the private (starting with _ ) fields from the dict
             self._entity = {k: v for k, v in procs[0].items() if not k.startswith('_')}
 
     @property

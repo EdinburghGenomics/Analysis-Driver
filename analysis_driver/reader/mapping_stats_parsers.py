@@ -1,9 +1,8 @@
-__author__ = 'tcezard'
-from collections import Counter
+import re
 import csv
 import yaml
-import re
-from analysis_driver.constants import ELEMENT_NO_CALL_CHIP, ELEMENT_NO_CALL_SEQ, ELEMENT_MISMATCHING, \
+from collections import Counter
+from egcg_core.constants import ELEMENT_NO_CALL_CHIP, ELEMENT_NO_CALL_SEQ, ELEMENT_MISMATCHING, \
     ELEMENT_MATCHING
 
 

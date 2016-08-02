@@ -29,7 +29,7 @@ class TestContaminationCheck(QCTester):
         assert fastqscreen_expected_outfiles_pe == ['fastqFile1_screen.txt', 'fastqFile2_screen.txt']
 
     @patch('analysis_driver.dataset.rest_communication')
-    @patch('analysis_driver.executor.execute')
+    @patch('egcg_core.executor.execute')
     def test_run_fastqscreen(self, mocked_execute, mocked_rest):
         instance = mocked_execute.return_value
         instance.join.return_value = 0
@@ -65,7 +65,7 @@ class TestVerifyBamId(QCTester):
         self.vbi = VerifyBamId(self.dataset, self.working_dir, 'test_bam_file.bam')
 
     @patch('analysis_driver.dataset.rest_communication')
-    @patch('analysis_driver.executor.execute')
+    @patch('egcg_core.executor.execute')
     def test_contamination_check(self, mocked_execute, mocked_rest):
         self.vbi._contamination_check()
         assert mocked_execute.call_count == 3
@@ -93,7 +93,7 @@ class TestVerifyBamId(QCTester):
         )
 
 
-    @patch('analysis_driver.executor.execute')
+    @patch('egcg_core.executor.execute')
     def test_filter_bam(self, mocked_execute):
         self.vbi._filter_bam()
         mocked_execute.assert_called_once_with(
@@ -105,7 +105,7 @@ class TestVerifyBamId(QCTester):
             log_commands=False
         )
 
-    @patch('analysis_driver.executor.execute')
+    @patch('egcg_core.executor.execute')
     def test_index_filtered_bam(self, mocked_execute):
         self.vbi.filtered_bam = 'test_filtered_bam.bam'
         self.vbi._index_filtered_bam()
@@ -117,7 +117,7 @@ class TestVerifyBamId(QCTester):
             cpus=1
         )
 
-    @patch('analysis_driver.executor.execute')
+    @patch('egcg_core.executor.execute')
     def test_verify_bam_id(self, mocked_execute):
         self.vbi.filtered_bam = 'test_filtered_bam.bam'
         self.vbi._verify_bam_id()
