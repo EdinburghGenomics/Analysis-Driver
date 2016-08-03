@@ -10,6 +10,7 @@ from analysis_driver.exceptions import PipelineError, SequencingRunError
 from egcg_core.app_logging import logging_default as log_cfg
 from analysis_driver.config import output_files_config, default as cfg
 from analysis_driver.quality_control.lane_duplicates import WellDuplicates
+from analysis_driver.reader.version_reader import write_versions_to_yaml
 from analysis_driver.report_generation.report_crawlers import RunCrawler, SampleCrawler
 from analysis_driver.transfer_data import prepare_run_data, prepare_sample_data, output_sample_data,\
     output_run_data, create_links_from_bcbio
@@ -171,6 +172,7 @@ def demultiplexing_pipeline(dataset):
         app_logger.error('File not found: %s', conversion_xml)
         exit_status += 1
 
+    write_versions_to_yaml(os.path.join(fastq_dir, 'program_versions.yaml'))
     dataset.start_stage('data_transfer')
     transfer_exit_status = output_run_data(fastq_dir, run_id)
     dataset.end_stage('data_transfer', transfer_exit_status)
@@ -271,6 +273,7 @@ def bcbio_var_calling_pipeline(dataset):
     exit_status += coverage_statistics_histogram.exit_status
     dataset.end_stage('coverage statistics', coverage_statistics_histogram.exit_status)
 
+    write_versions_to_yaml(os.path.join(dir_with_linked_files, 'program_versions.yaml'))
     exit_status += _output_data(dataset, sample_dir, sample_id, dir_with_linked_files)
 
     if exit_status == 0:
@@ -373,6 +376,7 @@ def qc_pipeline(dataset, species):
 
     # link the bcbio file into the final directory
     dir_with_linked_files = _link_results_files(sample_id, sample_dir, 'non_human_qc')
+    write_versions_to_yaml(os.path.join(dir_with_linked_files, 'program_versions.yaml'))
 
     exit_status += _output_data(dataset, sample_dir, sample_id, dir_with_linked_files)
 
@@ -513,6 +517,8 @@ def var_calling_pipeline(dataset, species):
 
     # link the bcbio file into the final directory
     dir_with_linked_files = _link_results_files(sample_id, sample_dir, 'gatk_var_calling')
+
+    write_versions_to_yaml(os.path.join(dir_with_linked_files, 'program_versions.yaml'))
 
     exit_status += _output_data(dataset, sample_dir, sample_id, dir_with_linked_files)
 
