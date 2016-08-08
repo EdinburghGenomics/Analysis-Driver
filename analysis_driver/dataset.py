@@ -1,12 +1,13 @@
 import os
 import threading
 from datetime import datetime
+from analysis_driver import reader
 from analysis_driver.notification import default as ntf
-from egcg_core import rest_communication
+from egcg_core import rest_communication, clarity
 from egcg_core.app_logging import AppLogger
-from egcg_core.clarity import get_expected_yield_for_sample
 from egcg_core.exceptions import RestCommunicationError
 from analysis_driver.exceptions import AnalysisDriverError
+from analysis_driver.config import default as cfg
 from egcg_core.constants import DATASET_NEW, DATASET_READY, DATASET_FORCE_READY, DATASET_REPROCESS,\
     DATASET_PROCESSING, DATASET_PROCESSED_SUCCESS, DATASET_PROCESSED_FAIL, DATASET_ABORTED, ELEMENT_RUN_NAME,\
     ELEMENT_NB_Q30_R1_CLEANED, ELEMENT_NB_Q30_R2_CLEANED
@@ -16,20 +17,32 @@ class Dataset(AppLogger):
     type = None
     endpoint = None
     id_field = None
+    _species = None
+    _user_sample_id = None
 
     def __init__(self, name, most_recent_proc=None):
         self.name = name
         self.most_recent_proc = MostRecentProc(self.type, self.name, most_recent_proc)
         self.expected_output_files = []
-        self.data = {}
 
-    def add_output_file(self, filename, new_basename=None, required=True):
-        """:param filename: full path to the expected output file."""
-        if not os.path.isfile(filename):
-            self.error('Could not find expected output file ' + filename)
-        self.expected_output_files.append(
-            {'filename': filename, 'new_basename': new_basename, 'required': required}
-        )
+    def add_output_file(self, output_record):
+        self.expected_output_files.append(output_record)
+
+    @property
+    def species(self):
+        if self._species is None:
+            self._species = clarity.get_species_from_sample(self.name)
+        return self._species
+
+    @property
+    def user_sample_id(self):
+        if self._user_sample_id is None:
+            self._user_sample_id = clarity.get_user_sample_name(self.name, lenient=True)
+        return self._user_sample_id
+
+    @property
+    def job_dir(self):
+        return os.path.join(cfg['jobs_dir'], self.name)
 
     @property
     def dataset_status(self):
@@ -134,6 +147,8 @@ class RunDataset(Dataset):
     type = 'run'
     endpoint = 'runs'
     id_field = 'run_id'
+    _sample_sheet = None
+    _run_info = None
 
     def __init__(self, name, path, use_int_dir, most_recent_proc=None):
         super().__init__(name, most_recent_proc)
@@ -145,6 +160,25 @@ class RunDataset(Dataset):
 
     def rta_complete(self):
         return os.path.isfile(os.path.join(self.path, 'RTAComplete.txt'))
+
+    @property
+    def run_info(self):
+        if self._run_info is None:
+            self._run_info = reader.RunInfo(self.path)
+        return self._run_info
+
+    @property
+    def sample_sheet(self):
+        if self._sample_sheet is None:
+            has_barcodes = self.run_info.mask.has_barcodes
+            reader.transform_sample_sheet(self.path, remove_barcode=not has_barcodes)
+            self._sample_sheet = reader.SampleSheet(
+                os.path.join(self.path, 'SampleSheet_analysis_driver.csv'),
+                has_barcode=has_barcodes
+            )
+            if not self._sample_sheet.validate(self.run_info.mask):
+                raise AnalysisDriverError('Validation failed. Check SampleSheet.csv and RunInfo.xml.')
+        return self._sample_sheet
 
 
 class SampleDataset(Dataset):
@@ -199,11 +233,10 @@ class SampleDataset(Dataset):
     def _non_useable_runs(self):
         return sorted(set([r.get(ELEMENT_RUN_NAME) for r in self.non_useable_run_elements]))
 
-
     @property
     def data_threshold(self):
         if self._data_threshold is None:
-            self._data_threshold = get_expected_yield_for_sample(self.name)
+            self._data_threshold = clarity.get_expected_yield_for_sample(self.name)
         if not self._data_threshold:
             raise AnalysisDriverError('Could not find data threshold in LIMS for ' + self.name)
         return self._data_threshold

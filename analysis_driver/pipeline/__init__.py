@@ -1,7 +1,7 @@
 import luigi
-from os.path import join
+from os.path import join, exists
 from egcg_core import clarity
-from egcg_core.app_logging import logging_default as log_cfg
+from egcg_core.app_logging import AppLogger, logging_default as log_cfg
 from analysis_driver.dataset import RunDataset, SampleDataset
 from analysis_driver.config import default as cfg
 from analysis_driver.exceptions import PipelineError
@@ -12,10 +12,14 @@ class EGCGParameter(luigi.Parameter):
     def serialize(self, x):
         return str(x)
 
+    def __getattribute__(self, item):
+        return getattr(self, item, None)
 
-class Stage(luigi.Task):
+
+class Stage(luigi.Task, AppLogger):
     __stagename__ = None
     exit_status = None
+    expected_output_files = []
     previous_stages = ()
     dataset = EGCGParameter()
 
@@ -25,20 +29,14 @@ class Stage(luigi.Task):
 
     @property
     def job_dir(self):
-        return join(cfg['jobs_dir'], self.dataset_name)
+        return self.dataset.job_dir
 
     @property
     def input_dir(self):
         return join(cfg.get('intermediate_dir', cfg['input_dir']), self.dataset_name)
 
-    def get_cached_data(self, key):
-        return self.dataset.data[key]
-
-    def cache_data(self, key, value):
-        self.dataset.data[key] = value
-
     def output(self):  # if <stage_name>.done is present, the stage is complete
-        return RestAPITarget(self)
+        return [RestAPITarget(self)] + self.expected_output_files
 
     def run(self):
         self.dataset.start_stage(self.stage_name)
@@ -46,6 +44,10 @@ class Stage(luigi.Task):
         self.dataset.end_stage(self.stage_name, self.exit_status)
         if self.exit_status:
             raise PipelineError('Exit status was %s. Stopping' % self.exit_status)
+        for f in self.expected_output_files:
+            self.dataset.expected_output_files.append(f)
+            self.debug('Registered output file %s' % f.filename)
+        self.info('Finished with %s expected output files' % len(self.expected_output_files))
 
     @property
     def stage_name(self):
@@ -86,25 +88,36 @@ class RestAPITarget(luigi.Target):
         return s and bool(s.get('date_finished')) and s.get('exit_status') == 0
 
 
+class FileTarget(luigi.Target):
+    def __init__(self, filename, deliver, new_basename=None, required=True):
+        self.filename = filename
+        self.new_basename = new_basename
+        self.required = required
+        self.deliver = deliver
+
+    def exists(self):
+        return exists(self.filename) or not self.required
+
+
 def pipeline(dataset):
     _setup_luigi_logging()
 
     if isinstance(dataset, RunDataset):
-        from . import fastq_production
-        final_stage = fastq_production.OutputQCData(dataset=dataset)
-    # elif isinstance(dataset, SampleDataset):
-    #     species = clarity.get_species_from_sample(dataset.name)
-    #     if species is None:
-    #         raise PipelineError('No species information found in the LIMS for ' + dataset.name)
-    #     elif species == 'Homo sapiens':
-    #         final_stage = BCBioVarCalling
-    #     elif clarity.get_sample(dataset.name).udf.get('Analysis Type') == 'Variant Calling':
-    #         final_stage = VarCalling
-    #     else:
-    #         final_stage = BasicQC
-    # else:
-    #     raise AssertionError('Unexpected dataset type: ' + str(dataset))
+        from .fastq_production import OutputQCData as FinalStage
+    elif isinstance(dataset, SampleDataset):
+        species = clarity.get_species_from_sample(dataset.name)
+        if species is None:
+            raise PipelineError('No species information found in the LIMS for ' + dataset.name)
+        elif species == 'Homo sapiens':
+            from .bcbio_var_calling import DataOutput as FinalStage
+        elif clarity.get_sample(dataset.name).udf.get('Analysis Type') == 'Variant Calling':
+            from .var_calling import VarCalling as FinalStage
+        else:
+            from .var_calling import BasicQC as FinalStage
+    else:
+        raise AssertionError('Unexpected dataset type: ' + str(dataset))
 
+    final_stage = FinalStage(dataset=dataset)
     luigi.build(
         [final_stage],
         local_scheduler=True
