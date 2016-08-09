@@ -67,7 +67,7 @@ class RunCrawler(Crawler):
         self.run = {ELEMENT_RUN_NAME: self.run_id, ELEMENT_RUN_ELEMENTS: []}
         self.projects = defaultdict(dict)
 
-        for project_id, proj_obj in samplesheet.sample_projects.items():
+        for project_id, proj_obj in samplesheet.projects.items():
             for sample_id_obj in proj_obj.sample_ids.values():
                 for sample in sample_id_obj.samples:
                     for lane in sample.lane.split('+'):
@@ -78,7 +78,7 @@ class RunCrawler(Crawler):
                                 ELEMENT_RUN_NAME: self.run_id,
                                 ELEMENT_PROJECT_ID: project_id,
                                 ELEMENT_SAMPLE_INTERNAL_ID: sample.sample_id,
-                                ELEMENT_LIBRARY_INTERNAL_ID: sample.sample_name,
+                                ELEMENT_LIBRARY_INTERNAL_ID: sample.library_id,
                                 ELEMENT_LANE: lane
                             }
                         else:
@@ -89,15 +89,15 @@ class RunCrawler(Crawler):
                                 ELEMENT_RUN_NAME: self.run_id,
                                 ELEMENT_PROJECT_ID: project_id,
                                 ELEMENT_SAMPLE_INTERNAL_ID: sample.sample_id,
-                                ELEMENT_LIBRARY_INTERNAL_ID: sample.sample_name,
+                                ELEMENT_LIBRARY_INTERNAL_ID: sample.library_id,
                                 ELEMENT_LANE: lane
                             }
 
                         # Populate the libraries
-                        lib = self.libraries[sample.sample_name]
+                        lib = self.libraries[sample.library_id]
                         lib[ELEMENT_SAMPLE_INTERNAL_ID] = sample.sample_id
                         lib[ELEMENT_PROJECT_ID] = project_id
-                        lib[ELEMENT_LIBRARY_INTERNAL_ID] = sample.sample_name
+                        lib[ELEMENT_LIBRARY_INTERNAL_ID] = sample.library_id
                         self._update_doc_list(lib, k=ELEMENT_RUN_ELEMENTS, v=run_element_id)
 
                         # Populate the projects

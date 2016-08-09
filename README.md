@@ -6,8 +6,8 @@
 ## Scripts
 These can be found in bin/. Currently, these are:
 
-- edingen_analysis_driver.py - The main entry point for the pipeline, currently called by ProcTrigger with an input
-  data dir.
+- edingen_analysis_driver.py - The main entry point for the pipeline, currently called by ProcTrigger with an
+  input data dir.
 - run_qc.py - Entry point for rerunning the QC for a given run or sample.
 - send_data.py - Entry point for rerunning the QC crawlers for a given run/sample, pushing/re-pushing QC data
   to the [reporting app](https://github.com/EdinburghGenomics/Reporting-App).
@@ -59,10 +59,10 @@ This contains two classes:
 This contains three classes:
 
 - SampleSheet - Reads SampleSheet_analysis_driver.csv, validates the barcode lengths contained, and constructs
-  a series of SampleProject objects.
-- SampleProject - Represents a sample project in SampleSheet.csv, e.g., '10015AT', and contains appropriate
-  matching lines from the file. Effectively grouping the sample sheet by sample project. Each SampleProject
-  can have its own read length, as long as all its reads are consistent.
+  a series of Project objects.
+- Project - Represents a project in SampleSheet.csv, e.g., '10015AT', and contains appropriate matching lines
+  from the file, effectively grouping the samples by project id. Each Project can have its own read length, as
+  long as all its reads are consistent.
 - Sample - Represents a line in SampleSheet.csv
 
 Also present is transform_sample_sheet, which takes SampleSheet.csv, transforms it to a format valid for
@@ -103,7 +103,7 @@ Contains crawler classes that scan for QC files and pushes them to an external d
 - SampleCrawler
 
 ### app_logging
-Contains an AppLogger from [EGCG-Core](https://github.com/EdinburghGenomics/EGCG-Core.git), which can be
+Contains an AppLogger from [EGCG-Core](https://github.com/EdinburghGenomics/EGCG-Core), which can be
 subclassed to implement debug, info, warn, error and critical logging methods, and log_cfg, also from
 EGCG-Core.
 
