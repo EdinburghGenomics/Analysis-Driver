@@ -70,7 +70,7 @@ def patched_datetime(time='now'):
 
 
 def patched_expected_yield(y=1000000000):
-    return patch(ppath('get_expected_yield_for_sample'), return_value=y)
+    return patch(ppath('clarity.get_expected_yield_for_sample'), return_value=y)
 
 
 class TestDataset(TestAnalysisDriver):

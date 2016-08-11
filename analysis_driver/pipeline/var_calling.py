@@ -1,9 +1,7 @@
 from os.path import join
 from analysis_driver import quality_control as qc
-from analysis_driver.pipeline import Stage
-from analysis_driver.pipeline import gatk
-from analysis_driver.transfer_data import prepare_sample_data
-from analysis_driver.driver import _bcbio_prepare_sample
+from analysis_driver.pipeline import Stage, gatk
+from analysis_driver.pipeline.common import MergeFastqs, Fastqc, CoverageStats
 from analysis_driver.config import default as cfg
 from analysis_driver.exceptions import PipelineError
 from analysis_driver.util import bash_commands
@@ -21,26 +19,6 @@ class VarCallingStage(Stage):
 
     def _run(self):
         raise NotImplementedError
-
-
-class MergeFastqs(VarCallingStage):
-    def _run(self):
-        fastq_files = prepare_sample_data(self.dataset)
-        _bcbio_prepare_sample(self.job_dir, self.dataset_name, fastq_files)
-        self.debug('Sample fastq files: ' + str(self.fastq_pair))
-
-
-class MergedFastqc(VarCallingStage):
-    previous_stages = MergeFastqs
-
-    def _run(self):
-        return executor.execute(
-            *[bash_commands.fastqc(fastq_file) for fastq_file in self.fastq_pair],
-            job_name='fastqc2',
-            working_dir=self.job_dir,
-            cpus=1,
-            mem=2
-        ).join()
 
 
 class SpeciesContaminationCheck(VarCallingStage):
@@ -90,25 +68,17 @@ class BamtoolsStats(VarCallingStage):
         ).join()
 
 
-class CoverageStats(VarCallingStage):
-    previous_stages = BWAAlignment
-
-    def _run(self):
-        coverage_statistics_histogram = qc.SamtoolsDepth(self.dataset, self.job_dir, self.output_bam)
-        coverage_statistics_histogram.start()
-        coverage_statistics_histogram.join()
-        return coverage_statistics_histogram.exit_status
-
-
 class BasicQC(VarCallingStage):
-    previous_stages = (MergedFastqc, SpeciesContaminationCheck, BamtoolsStats, CoverageStats)
+    @property
+    def previous_stages(self):
+        return Fastqc(previous_stages=MergeFastqs, fastqs=self.fastq_pair), SpeciesContaminationCheck, BamtoolsStats, CoverageStats(bam_file=self.output_bam)
 
     def _run(self):
         return 0
 
 
 class VarCalling(VarCallingStage):
-    previous_stages = (MergedFastqc, SpeciesContaminationCheck, BamtoolsStats, CoverageStats, gatk.Tabix)
+    previous_stages = (BasicQC, gatk.Tabix)
 
     def _run(self):
         return 0

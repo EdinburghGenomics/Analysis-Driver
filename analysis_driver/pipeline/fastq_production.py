@@ -7,6 +7,7 @@ from analysis_driver.config import default as cfg
 from analysis_driver.exceptions import SequencingRunError
 from analysis_driver.report_generation.report_crawlers import RunCrawler
 from analysis_driver.transfer_data import output_run_data
+from analysis_driver.pipeline.common import Fastqc
 from . import Stage
 
 
@@ -101,19 +102,6 @@ class WellDups(FqProductionStage):
         ).join()
 
 
-class Fastqc(FqProductionStage):
-    previous_stages = SickleFilter
-
-    def _run(self):
-        return executor.execute(
-            *[bash_commands.fastqc(fq) for fq in self.fastqs],
-            job_name='fastqc',
-            working_dir=self.job_dir,
-            cpus=1,
-            mem=2
-        ).join()
-
-
 class FqChk(FqProductionStage):
     previous_stages = SickleFilter
 
@@ -129,7 +117,9 @@ class FqChk(FqProductionStage):
 
 
 class OutputQCData(FqProductionStage):
-    previous_stages = (Fastqc, FqChk)  # , WellDups)
+    @property
+    def previous_stages(self):
+        return Fastqc(previous_stages=SickleFilter, fastqs=self.fastqs), FqChk  # , WellDups
 
     def _run(self):
         # copy the samplesheet, runinfo and run_parameters.xml to the fastq dir

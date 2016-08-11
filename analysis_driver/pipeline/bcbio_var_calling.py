@@ -1,9 +1,8 @@
 from analysis_driver import quality_control as qc
 from analysis_driver.pipeline import Stage
-from analysis_driver.transfer_data import prepare_sample_data
-from analysis_driver.driver import _bcbio_prepare_sample, _run_bcbio, _link_results_files, _output_data
-from analysis_driver.util import bash_commands
-from egcg_core import executor, util
+from analysis_driver.pipeline.common import MergeFastqs, Fastqc, CoverageStats
+from analysis_driver.driver import _run_bcbio, _link_results_files, _output_data
+from egcg_core import util
 
 
 class BCBioStage(Stage):
@@ -13,26 +12,6 @@ class BCBioStage(Stage):
 
     def _run(self):
         raise NotImplementedError
-
-
-class MergeFastqs(BCBioStage):
-    def _run(self):
-        fastq_files = prepare_sample_data(self.dataset)
-        _bcbio_prepare_sample(self.job_dir, self.dataset_name, fastq_files)
-        self.debug('sample fastq files: ' + str(self.fastq_pair))
-
-
-class MergedFastqc(BCBioStage):
-    previous_stages = MergeFastqs
-
-    def _run(self):
-        return executor.execute(
-            *[bash_commands.fastqc(fastq_file) for fastq_file in self.fastq_pair],
-            job_name='fastqc2',
-            working_dir=self.job_dir,
-            cpus=1,
-            mem=2
-        ).join()
 
 
 class GenotypeValidation(BCBioStage):
@@ -93,25 +72,25 @@ class SampleContaminationCheck(BCBioStage):
         return sample_contam.join()
 
 
-class CoverageStats(BCBioStage):
-    previous_stages = BCBio
-
-    def _run(self):
-        bam_file = util.find_file(
-            'samples_%s-merged' % self.dataset_name,
-            'final',
-            self.dataset.user_sample_id,
-            self.dataset.user_sample_id + '-ready.bam'
-        )
-        coverage_statistics_histogram = qc.SamtoolsDepth(self.dataset, self.job_dir, bam_file)
-        coverage_statistics_histogram.start()
-        coverage_statistics_histogram.join()
-        return coverage_statistics_histogram.exit_status
-
-
 class DataOutput(BCBioStage):
-    previous_stages = (MergedFastqc, SpeciesContaminationCheck, GenotypeValidation,
-                       SampleContaminationCheck, GenderValidation, CoverageStats)
+    @property
+    def previous_stages(self):
+        return (
+            Fastqc(previous_stages=MergeFastqs, fastqs=self.fastq_pair),
+            SpeciesContaminationCheck,
+            GenotypeValidation,
+            SampleContaminationCheck,
+            GenderValidation,
+            CoverageStats(
+                previous_stages=BCBio,
+                bam_file=util.find_file(
+                    'samples_%s-merged' % self.dataset_name,
+                    'final',
+                    self.dataset.user_sample_id,
+                    self.dataset.user_sample_id + '-ready.bam'
+                )
+            )
+        )
 
     def _run(self):
         dir_with_linked_files = _link_results_files(self.dataset_name, self.job_dir, 'bcbio')

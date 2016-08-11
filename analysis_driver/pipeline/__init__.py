@@ -6,14 +6,16 @@ from analysis_driver.dataset import RunDataset, SampleDataset
 from analysis_driver.config import default as cfg
 from analysis_driver.exceptions import PipelineError
 
+_dataset = None
+
 
 class EGCGParameter(luigi.Parameter):
     """Parameter that does not call `warnings.warn` in self.serialize."""
     def serialize(self, x):
         return str(x)
 
-    def __getattribute__(self, item):
-        return getattr(self, item, None)
+    # def __getattribute__(self, item):
+    #     return getattr(self, item, None)
 
 
 class Stage(luigi.Task, AppLogger):
@@ -21,7 +23,10 @@ class Stage(luigi.Task, AppLogger):
     exit_status = None
     expected_output_files = []
     previous_stages = ()
-    dataset = EGCGParameter()
+
+    @property
+    def dataset(self):
+        return _dataset
 
     @property
     def dataset_name(self):
@@ -64,15 +69,14 @@ class Stage(luigi.Task, AppLogger):
         tuple. If it's a tuple, each element can be a luigi.Task or a
         tuple[luigi.Task,dict[str,luigi.Parameter]].
         """
-        if isinstance(self.previous_stages, type):
-            return self.previous_stages(dataset=self.dataset)
+        p = self.previous_stages
+        if type(p) is not tuple:
+            p = (p,)
 
-        for s in self.previous_stages:
+        for s in p:
             if isinstance(s, type):
-                yield s(dataset=self.dataset)
-            elif type(s) is tuple:
-                assert len(s) == 2 and type(s[1]) is dict, 'Invalid format for self.previous_stages'
-                yield s[0](dataset=self.dataset, **s[1])
+                s = s()
+            yield s
 
 
 class RestAPITarget(luigi.Target):
@@ -117,7 +121,9 @@ def pipeline(dataset):
     else:
         raise AssertionError('Unexpected dataset type: ' + str(dataset))
 
-    final_stage = FinalStage(dataset=dataset)
+    global _dataset
+    _dataset = dataset
+    final_stage = FinalStage()
     luigi.build(
         [final_stage],
         local_scheduler=True
