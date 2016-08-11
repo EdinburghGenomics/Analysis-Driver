@@ -2,6 +2,7 @@ import csv
 from os.path import join
 from collections import defaultdict
 from egcg_core.app_logging import AppLogger, logging_default as log_cfg
+from egcg_core.clarity import get_library_id
 from analysis_driver.exceptions import AnalysisDriverError
 from analysis_driver.config import sample_sheet_config
 
@@ -159,7 +160,7 @@ class SampleSheet(AppLogger):
                     project_id=project_id,
                     lane=line[self._get_column(cols, 'lane')],
                     sample_id=sample_id,
-                    library_id=line[self._get_column(cols, 'library_id')],
+                    default_library_id=line[self._get_column(cols, 'library_id')],
                     barcode=line[self._get_column(cols, 'barcode')],
                     **self._get_all_cols(
                         line,
@@ -215,10 +216,19 @@ class SampleID:
 
 class Sample:
     """Represents a line in SampleSheet.csv below the '[Data]' marker."""
-    def __init__(self, project_id, sample_id, library_id, lane, barcode, **kwargs):
+    _library_id = None
+
+    def __init__(self, project_id, sample_id, default_library_id, lane, barcode, **kwargs):
         self.project_id = project_id
         self.sample_id = sample_id
-        self.library_id = library_id
+        self.default_library_id = default_library_id
         self.lane = lane
         self.barcode = barcode
         self.extra_data = kwargs
+
+    @property
+    def library_id(self):
+        """Query the Lims for the sample's library ID. Default to what is in the sample sheet."""
+        if self._library_id is None:
+            self._library_id = get_library_id(self.sample_id) or self.default_library_id
+        return self._library_id
