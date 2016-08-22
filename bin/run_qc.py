@@ -8,7 +8,7 @@ from egcg_core.clarity import get_user_sample_name
 from egcg_core.app_logging import logging_default as log_cfg
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from analysis_driver.config import default as cfg
+from analysis_driver.config import default as cfg, load_config
 from analysis_driver.exceptions import AnalysisDriverError
 from analysis_driver.quality_control import SamtoolsDepth
 from analysis_driver.dataset import NoCommunicationDataset
@@ -24,6 +24,7 @@ log_cfg.add_handler(logging.StreamHandler(stream=sys.stdout), logging.DEBUG)
 
 def main():
     args = _parse_args()
+    load_config()
     args.func(args)
 
 
