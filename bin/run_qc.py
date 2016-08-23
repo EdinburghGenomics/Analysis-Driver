@@ -18,13 +18,12 @@ from analysis_driver.quality_control.genotype_validation import GenotypeValidati
 from analysis_driver.quality_control.contamination_checks import ContaminationCheck, VerifyBamId
 from analysis_driver.reader.demultiplexing_parsers import get_fastqscreen_results
 
-log_cfg.default_level = logging.DEBUG
-log_cfg.add_handler(logging.StreamHandler(stream=sys.stdout), logging.DEBUG)
-
 
 def main():
     args = _parse_args()
     load_config()
+    log_cfg.default_level = logging.DEBUG
+    log_cfg.add_handler(logging.StreamHandler(stream=sys.stdout), logging.DEBUG)
     args.func(args)
 
 

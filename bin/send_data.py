@@ -11,8 +11,6 @@ from analysis_driver.report_generation.report_crawlers import SampleCrawler, Run
 from analysis_driver.config import default as cfg, load_config
 from analysis_driver.reader.run_info import RunInfo
 
-log_cfg.default_level = logging.DEBUG
-log_cfg.add_handler(logging.StreamHandler(stream=sys.stdout), logging.DEBUG)
 
 
 def main():
@@ -40,6 +38,8 @@ def main():
     args = p.parse_args()
 
     load_config()
+    log_cfg.default_level = logging.DEBUG
+    log_cfg.add_handler(logging.StreamHandler(stream=sys.stdout), logging.DEBUG)
 
     return args.func(args)
 
