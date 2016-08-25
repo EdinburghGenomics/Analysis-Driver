@@ -1,3 +1,4 @@
+from os.path import join
 from analysis_driver import quality_control as qc
 from analysis_driver.pipeline import Stage
 from analysis_driver.pipeline.common import MergeFastqs, Fastqc, CoverageStats
@@ -8,7 +9,7 @@ from egcg_core import util
 class BCBioStage(Stage):
     @property
     def fastq_pair(self):
-        return util.find_files(self.job_dir, 'merged', self.user_sample_id + '_R?.fastq.gz')
+        return util.find_files(self.job_dir, 'merged', self.dataset.user_sample_id + '_R?.fastq.gz')
 
     def _run(self):
         raise NotImplementedError
@@ -83,7 +84,7 @@ class DataOutput(BCBioStage):
             GenderValidation,
             CoverageStats(
                 previous_stages=BCBio,
-                bam_file=util.find_file(
+                bam_file=join(
                     'samples_%s-merged' % self.dataset_name,
                     'final',
                     self.dataset.user_sample_id,

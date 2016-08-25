@@ -12,16 +12,16 @@ _dataset = None
 class EGCGParameter(luigi.Parameter):
     """Parameter that does not call `warnings.warn` in self.serialize."""
     def serialize(self, x):
+        if type(x) in (list, tuple, dict, set):
+            x = '<%s of len %s>' % (x.__class__.__name__, len(x))
         return str(x)
 
     # def __getattribute__(self, item):
     #     return getattr(self, item, None)
 
 
-class Stage(luigi.Task, AppLogger):
+class BasicStage(luigi.Task, AppLogger):
     __stagename__ = None
-    exit_status = None
-    expected_output_files = []
     previous_stages = ()
 
     @property
@@ -40,28 +40,11 @@ class Stage(luigi.Task, AppLogger):
     def input_dir(self):
         return join(cfg.get('intermediate_dir', cfg['input_dir']), self.dataset_name)
 
-    def output(self):  # if <stage_name>.done is present, the stage is complete
-        return [RestAPITarget(self)] + self.expected_output_files
-
-    def run(self):
-        self.dataset.start_stage(self.stage_name)
-        self.exit_status = self._run()
-        self.dataset.end_stage(self.stage_name, self.exit_status)
-        if self.exit_status:
-            raise PipelineError('Exit status was %s. Stopping' % self.exit_status)
-        for f in self.expected_output_files:
-            self.dataset.expected_output_files.append(f)
-            self.debug('Registered output file %s' % f.filename)
-        self.info('Finished with %s expected output files' % len(self.expected_output_files))
-
     @property
     def stage_name(self):
         if self.__stagename__:
             return self.__stagename__
         return self.__class__.__name__.lower()
-
-    def _run(self):
-        raise NotImplementedError
 
     def requires(self):
         """
@@ -77,6 +60,28 @@ class Stage(luigi.Task, AppLogger):
             if isinstance(s, type):
                 s = s()
             yield s
+
+
+class Stage(BasicStage):
+    exit_status = None
+    expected_output_files = []
+
+    def output(self):
+        return [RestAPITarget(self)] + self.expected_output_files
+
+    def run(self):
+        self.dataset.start_stage(self.stage_name)
+        self.exit_status = self._run()
+        self.dataset.end_stage(self.stage_name, self.exit_status)
+        if self.exit_status:
+            raise PipelineError('Exit status was %s. Stopping' % self.exit_status)
+        for f in self.expected_output_files:
+            self.dataset.expected_output_files.append(f)
+            self.debug('Registered output file %s' % f.filename)
+        self.info('Finished with %s expected output files' % len(self.expected_output_files))
+
+    def _run(self):
+        raise NotImplementedError
 
 
 class RestAPITarget(luigi.Target):
