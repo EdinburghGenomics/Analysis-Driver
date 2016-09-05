@@ -274,6 +274,14 @@ def calculate_sd(histogram):
         sumOfSquaredDifference += sd
     return math.sqrt(sumOfSquaredDifference/numberOfDepths)
 
+
+def calculate_bases_at_coverage(histogram):
+    bases_5X = histogram.get(5)
+    bases_15X = histogram.get(15)
+    bases_30X = histogram.get(30)
+    return bases_5X, bases_15X, bases_30X
+
+
 def get_coverage_statistics(histogram_file):
     # Read the histogram file keeping each chrom separated
     histograms = read_histogram_file(histogram_file)
@@ -283,7 +291,16 @@ def get_coverage_statistics(histogram_file):
     coverage_mean = calculate_mean(histogram)
     coverage_median = calculate_median(histogram)
     coverage_sd = calculate_sd(histogram)
-    return coverage_mean, coverage_median, coverage_sd
+    coverage_percentiles = {'percentile_5': get_percentiles(histogram, 5),
+                            'percentile_25': get_percentiles(histogram, 25),
+                            'percentile_75': get_percentiles(histogram, 75),
+                            'percentile_95': get_percentiles(histogram, 95)}
+
+    bases_5X, bases_15X, bases_30X = calculate_bases_at_coverage(histogram)
+    bases_at_coverage = {'bases_at_5X': bases_5X, 'bases_at_15X': bases_15X, 'bases_at_30X': bases_30X}
+
+
+    return coverage_mean, coverage_median, coverage_sd, coverage_percentiles, bases_at_coverage
 
 def get_coverage_Y_chrom(histogram_file, chr_name='chrY'):
     # Read the histogram file keeping each chrom separated
