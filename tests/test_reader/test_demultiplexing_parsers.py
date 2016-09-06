@@ -115,7 +115,7 @@ class TestDemultiplexingStats(TestAnalysisDriver):
 
     def test_get_coverage_statistics(self):
         hist_file = os.path.join(self.assets_path, 'test_sample.depth')
-        mean, median, sd, coverage_percentiles = get_coverage_statistics(hist_file)
+        mean, median, sd, coverage_percentiles, bases_at_coverage = get_coverage_statistics(hist_file)
         assert mean == 438.8514851485148
         assert median == 478
         assert sd == 189.1911391390011
