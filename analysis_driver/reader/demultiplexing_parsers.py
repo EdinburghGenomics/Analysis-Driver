@@ -276,9 +276,13 @@ def calculate_sd(histogram):
 
 
 def calculate_bases_at_coverage(histogram):
-    bases_5X = histogram.get(5)
-    bases_15X = histogram.get(15)
-    bases_30X = histogram.get(30)
+    bases_5X = sum([histogram[i] for i in histogram.keys() if i > 5])
+    bases_15X = sum([histogram[i] for i in histogram.keys() if i > 15])
+    bases_30X = sum([histogram[i] for i in histogram.keys() if i > 30])
+
+
+
+
     return bases_5X, bases_15X, bases_30X
 
 
@@ -287,6 +291,8 @@ def get_coverage_statistics(histogram_file):
     histograms = read_histogram_file(histogram_file)
     # Collapse all chroms into one hist
     histogram = collapse_histograms(histograms)
+    print('printing histogram')
+    print(histogram)
     # Calculate statistics
     coverage_mean = calculate_mean(histogram)
     coverage_median = calculate_median(histogram)
