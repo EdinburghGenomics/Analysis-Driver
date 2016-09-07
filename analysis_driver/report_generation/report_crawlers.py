@@ -365,7 +365,6 @@ class SampleCrawler(Crawler):
                                    ELEMENT_COVERAGE_SD: sd,
                                    ELEMENT_COVERAGE_PERCENTILES: coverage_percentiles,
                                    ELEMENT_BASES_AT_COVERAGE: bases_at_coverage}
-            print(coverage_statistics)
             sample[ELEMENT_COVERAGE_STATISTICS] = coverage_statistics
             sample[ELEMENT_MEDIAN_COVERAGE] = median
             if ELEMENT_GENDER_VALIDATION in sample:
