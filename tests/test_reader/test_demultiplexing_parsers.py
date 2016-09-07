@@ -97,12 +97,12 @@ class TestDemultiplexingStats(TestAnalysisDriver):
     def test_calculate_bases_at_coverage(self):
         histogram = {5:3, 10:6, 15:24, 20:30, 25:21, 30:43, 35:63}
         bases_5X, bases_15X, bases_30X = calculate_bases_at_coverage(histogram)
-        assert bases_5X == 3
-        assert bases_15X == 24
-        assert bases_30X == 43
+        assert bases_5X == 187
+        assert bases_15X == 157
+        assert bases_30X == 63
         histogram = {5:3, 10:6, 15:24, 20:30, 25:21}
         bases_5X, bases_15X, bases_30X = calculate_bases_at_coverage(histogram)
-        assert bases_30X is None
+        assert bases_30X == 0
 
     def test_get_percentiles(self):
         histogram={1:5, 2:2, 3:4, 4:6, 5:3}
