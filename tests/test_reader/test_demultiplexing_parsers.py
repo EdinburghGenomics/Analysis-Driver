@@ -119,7 +119,7 @@ class TestDemultiplexingStats(TestAnalysisDriver):
         assert mean == 438.8514851485148
         assert median == 478
         assert sd == 189.1911391390011
-        assert coverage_percentiles == {'percentile_25': 279, 'percentile_5': 102, 'percentile_75': 625, 'percentile_95': 648}
+        assert coverage_percentiles == {'percentile_5': 102, 'percentile_25': 279, 'percentile_50': 478, 'percentile_75': 625, 'percentile_95': 648}
 
     def test_get_coverage_Y_chrom(self):
         hist_file = os.path.join(self.assets_path, 'test_sample_chrY.depth')
