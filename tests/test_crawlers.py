@@ -98,7 +98,11 @@ class TestSampleCrawler(TestCrawler):
             'total_reads_mapped': 100000
         },
         'gender_validation': {'hetX': '0.10'},
-        'coverage': {'mean': 438.8514851485148, 'median': 478, 'std_dev': 189.1911391390011}
+        'coverage': {'median': 478,
+                     'std_dev': 189.1911391390011,
+                     'coverage_percentiles': {"percentile_25": 279, "percentile_5": 102, "percentile_50": 478, "percentile_75": 625, "percentile_95": 648},
+                     'mean': 438.8514851485148,
+                     'bases_at_coverage': {'bases_at_5X': 100, 'bases_at_30X': 99, 'bases_at_15X': 100}}
     }
 
     def setUp(self):

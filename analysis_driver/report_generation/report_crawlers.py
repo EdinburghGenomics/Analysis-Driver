@@ -19,9 +19,9 @@ from egcg_core.constants import ELEMENT_RUN_NAME, ELEMENT_NUMBER_LANE, ELEMENT_R
     ELEMENT_NB_DUPLICATE_READS, ELEMENT_NB_PROPERLY_MAPPED, ELEMENT_MEDIAN_COVERAGE, ELEMENT_PC_BASES_CALLABLE, \
     ELEMENT_LANE_NUMBER, ELEMENT_CALLED_GENDER, ELEMENT_PROVIDED_GENDER, ELEMENT_NB_READS_CLEANED, ELEMENT_NB_Q30_R1_CLEANED, \
     ELEMENT_SPECIES_CONTAMINATION, ELEMENT_NB_BASE_R2_CLEANED, ELEMENT_NB_Q30_R2_CLEANED, ELEMENT_NB_BASE_R1_CLEANED, \
-    ELEMENT_GENOTYPE_VALIDATION, ELEMENT_COVERAGE_STATISTICS, ELEMENT_MEAN_COVERAGE, ELEMENT_MEDIAN_COVERAGE_SAMTOOLS, ELEMENT_COVERAGE_SD, \
-    ELEMENT_FREEMIX, ELEMENT_SAMPLE_CONTAMINATION, ELEMENT_GENDER_VALIDATION, \
-    ELEMENT_GENDER_HETX, ELEMENT_LANE_PC_OPT_DUP, ELEMENT_GENDER_COVY
+    ELEMENT_GENOTYPE_VALIDATION, ELEMENT_COVERAGE_STATISTICS, ELEMENT_MEAN_COVERAGE, ELEMENT_COVERAGE_PERCENTILES, \
+    ELEMENT_BASES_AT_COVERAGE, ELEMENT_MEDIAN_COVERAGE_SAMTOOLS, ELEMENT_COVERAGE_SD, ELEMENT_FREEMIX, ELEMENT_SAMPLE_CONTAMINATION, \
+    ELEMENT_GENDER_VALIDATION, ELEMENT_GENDER_HETX, ELEMENT_LANE_PC_OPT_DUP, ELEMENT_GENDER_COVY
 
 
 class Crawler(AppLogger):
@@ -359,8 +359,12 @@ class SampleCrawler(Crawler):
 
         coverage_statistics_path = self.search_file(sample_dir, '%s.depth' % external_sample_name)
         if coverage_statistics_path:
-            mean, median, sd = get_coverage_statistics(coverage_statistics_path)
-            coverage_statistics = {ELEMENT_MEAN_COVERAGE: mean, ELEMENT_MEDIAN_COVERAGE_SAMTOOLS: median, ELEMENT_COVERAGE_SD: sd}
+            mean, median, sd, coverage_percentiles, bases_at_coverage = get_coverage_statistics(coverage_statistics_path)
+            coverage_statistics = {ELEMENT_MEAN_COVERAGE: mean,
+                                   ELEMENT_MEDIAN_COVERAGE_SAMTOOLS: median,
+                                   ELEMENT_COVERAGE_SD: sd,
+                                   ELEMENT_COVERAGE_PERCENTILES: coverage_percentiles,
+                                   ELEMENT_BASES_AT_COVERAGE: bases_at_coverage}
             sample[ELEMENT_COVERAGE_STATISTICS] = coverage_statistics
             sample[ELEMENT_MEDIAN_COVERAGE] = median
             if ELEMENT_GENDER_VALIDATION in sample:

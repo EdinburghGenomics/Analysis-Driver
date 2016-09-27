@@ -36,7 +36,6 @@ class SamtoolsDepth(QualityControl):
         return samtools_depth_out_file
 
 
-
     def run(self):
         try:
             self.median_coverage_expected_outfiles = self._run_samtools_depth()
