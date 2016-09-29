@@ -1,11 +1,16 @@
 import os
-from unittest.mock import patch
-from analysis_driver.constants import DATASET_NEW, DATASET_ABORTED
+from unittest.mock import Mock, patch
+from egcg_core.constants import DATASET_NEW, DATASET_ABORTED
 from analysis_driver.dataset import RunDataset, SampleDataset
 from analysis_driver.dataset_scanner import DatasetScanner, RunScanner, SampleScanner
 from tests.test_analysisdriver import TestAnalysisDriver
 from tests.test_dataset import patched_expected_yield, fake_proc, seed_directories, clean
-from tests.test_external_data.test_clarity import FakeEntity
+
+
+class FakeEntity(Mock):
+    def __init__(self, name, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.name = name
 
 
 def ppath(*parts):

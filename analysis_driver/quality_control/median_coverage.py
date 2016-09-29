@@ -1,5 +1,5 @@
 import os
-from analysis_driver import executor
+from egcg_core import executor
 from analysis_driver.config import default as cfg
 from analysis_driver.notification import default as ntf
 from .quality_control_base import QualityControl
@@ -9,7 +9,7 @@ class SamtoolsDepth(QualityControl):
     def __init__(self, dataset, working_dir, bam_file):
         super().__init__(dataset, working_dir)
         self.bam_file = bam_file
-        self.working_dir =  working_dir
+        self.working_dir = working_dir
 
     def _get_samtools_depth_command(self):
         samtools_bin = cfg['tools']['samtools']
@@ -34,7 +34,6 @@ class SamtoolsDepth(QualityControl):
         exit_status = samtools_depth_executor.join()
         ntf.end_stage('run_samtools_depth', exit_status)
         return samtools_depth_out_file
-
 
 
     def run(self):

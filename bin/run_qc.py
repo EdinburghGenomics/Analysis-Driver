@@ -1,28 +1,29 @@
-import glob
-import sys
 import os
-import argparse
+import sys
+import glob
 import logging
+import argparse
+from egcg_core import executor
+from egcg_core.clarity import get_user_sample_name
+from egcg_core.app_logging import logging_default as log_cfg
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from analysis_driver import executor
-from analysis_driver.config import default as cfg
+from analysis_driver.config import default as cfg, load_config
 from analysis_driver.exceptions import AnalysisDriverError
 from analysis_driver.quality_control import SamtoolsDepth
 from analysis_driver.dataset import NoCommunicationDataset
-from analysis_driver.app_logging import logging_default as log_cfg
-from analysis_driver.external_data.clarity import get_user_sample_name
 from analysis_driver.util.bash_commands import rsync_from_to, is_remote_path
 from analysis_driver.quality_control.gender_validation import GenderValidation
 from analysis_driver.quality_control.genotype_validation import GenotypeValidation
 from analysis_driver.quality_control.contamination_checks import ContaminationCheck, VerifyBamId
 from analysis_driver.reader.demultiplexing_parsers import get_fastqscreen_results
-log_cfg.default_level = logging.DEBUG
-log_cfg.add_handler(logging.StreamHandler(stream=sys.stdout), logging.DEBUG)
 
 
 def main():
     args = _parse_args()
+    load_config()
+    log_cfg.default_level = logging.DEBUG
+    log_cfg.add_handler(logging.StreamHandler(stream=sys.stdout), logging.DEBUG)
     args.func(args)
 
 

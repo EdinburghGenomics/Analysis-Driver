@@ -1,7 +1,7 @@
 import os
-from analysis_driver import executor, util
-from analysis_driver.external_data import clarity
+from egcg_core import executor, clarity
 from analysis_driver.exceptions import PipelineError
+from analysis_driver. util import bash_commands
 from analysis_driver.config import default as cfg
 from analysis_driver.reader.mapping_stats_parsers import parse_genotype_concordance
 from .quality_control_base import QualityControl
@@ -119,7 +119,7 @@ class GenotypeValidation(QualityControl):
         self.dataset.start_stage('genotype_validation_gatk')
         gatk_executor = executor.execute(
             ' '.join(gatk_command),
-            prelim_cmds=util.bash_commands.export_env_vars(),
+            prelim_cmds=bash_commands.export_env_vars(),
             job_name='snpcall_gatk',
             working_dir=self.working_dir,
             cpus=4,
@@ -157,7 +157,7 @@ class GenotypeValidation(QualityControl):
         self.dataset.start_stage('validation_genotype_concordance')
         genotype_concordance_executor = executor.execute(
             *list_commands,
-            prelim_cmds=util.bash_commands.export_env_vars(),
+            prelim_cmds=bash_commands.export_env_vars(),
             job_name='genotype_concordance',
             working_dir=self.working_dir,
             cpus=4,

@@ -1,6 +1,5 @@
 import os
-
-from analysis_driver import executor
+from egcg_core import executor
 from .quality_control_base import QualityControl
 from analysis_driver.config import default as cfg
 

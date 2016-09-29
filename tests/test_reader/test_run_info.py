@@ -1,9 +1,7 @@
-__author__ = 'mwham'
-from tests.test_analysisdriver import TestAnalysisDriver
-from analysis_driver.reader.run_info import RunInfo, Mask
-from analysis_driver.exceptions import AnalysisDriverError
-import xml.etree.ElementTree as eT
 import os
+import xml.etree.ElementTree as eT
+from analysis_driver.reader.run_info import RunInfo, Mask
+from tests.test_analysisdriver import TestAnalysisDriver
 
 
 def new_read(number, num_cycles, is_indexed_read):

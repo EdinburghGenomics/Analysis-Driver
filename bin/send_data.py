@@ -1,19 +1,16 @@
-__author__ = 'mwham'
-import sys
 import os
-import argparse
+import sys
 import logging
+import argparse
 import json
+from egcg_core.app_logging import logging_default as log_cfg
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from analysis_driver.app_logging import logging_default as log_cfg
-log_cfg.default_level = logging.DEBUG
-log_cfg.add_handler(logging.StreamHandler(stream=sys.stdout), logging.DEBUG)
-
 from analysis_driver.reader import SampleSheet
 from analysis_driver.report_generation.report_crawlers import SampleCrawler, RunCrawler
-from analysis_driver.config import default as cfg
+from analysis_driver.config import default as cfg, load_config
 from analysis_driver.reader.run_info import RunInfo
+
 
 
 def main():
@@ -39,6 +36,10 @@ def main():
     sample_parser.set_defaults(func=sample_crawler)
 
     args = p.parse_args()
+
+    load_config()
+    log_cfg.default_level = logging.DEBUG
+    log_cfg.add_handler(logging.StreamHandler(stream=sys.stdout), logging.DEBUG)
 
     return args.func(args)
 

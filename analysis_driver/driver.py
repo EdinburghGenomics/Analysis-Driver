@@ -2,13 +2,15 @@ import os
 import time
 import shutil
 import yaml
-from analysis_driver import reader, util, executor, quality_control as qc
-from analysis_driver.external_data import clarity
+from egcg_core import executor, clarity, util
+from analysis_driver import reader, quality_control as qc
+from analysis_driver.util import bash_commands, bcbio_prepare_samples_cmd
 from analysis_driver.dataset_scanner import RunDataset, SampleDataset
 from analysis_driver.exceptions import PipelineError, SequencingRunError
-from analysis_driver.app_logging import logging_default as log_cfg
+from egcg_core.app_logging import logging_default as log_cfg
 from analysis_driver.config import output_files_config, default as cfg
 from analysis_driver.quality_control.lane_duplicates import WellDuplicates
+from analysis_driver.reader.version_reader import write_versions_to_yaml
 from analysis_driver.report_generation.report_crawlers import RunCrawler, SampleCrawler
 from analysis_driver.transfer_data import prepare_run_data, prepare_sample_data, output_sample_data,\
     output_run_data, create_links_from_bcbio
@@ -79,7 +81,7 @@ def demultiplexing_pipeline(dataset):
 
     dataset.start_stage('bcl2fastq')
     exit_status += executor.execute(
-        util.bash_commands.bcl2fastq(input_run_folder, fastq_dir, sample_sheet.filename, mask),
+        bash_commands.bcl2fastq(input_run_folder, fastq_dir, sample_sheet.filename, mask),
         job_name='bcl2fastq',
         working_dir=job_dir,
         cpus=8,
@@ -97,7 +99,7 @@ def demultiplexing_pipeline(dataset):
     # Filter the adapter dimer from fastq with sickle
     dataset.start_stage('sickle_filter')
     exit_status = executor.execute(
-        *[util.bash_commands.sickle_paired_end_in_place(fqs) for fqs in util.find_all_fastq_pairs(fastq_dir)],
+        *[bash_commands.sickle_paired_end_in_place(fqs) for fqs in util.find_all_fastq_pairs(fastq_dir)],
         job_name='sickle_filter',
         working_dir=job_dir,
         cpus=1,
@@ -114,7 +116,7 @@ def demultiplexing_pipeline(dataset):
     # fastqc
     dataset.start_stage('fastqc')
     fastqc_executor = executor.execute(
-        *[util.bash_commands.fastqc(fq) for fq in util.find_all_fastqs(fastq_dir)],
+        *[bash_commands.fastqc(fq) for fq in util.find_all_fastqs(fastq_dir)],
         job_name='fastqc',
         working_dir=job_dir,
         cpus=1,
@@ -124,7 +126,7 @@ def demultiplexing_pipeline(dataset):
     # seqtk fqchk
     dataset.start_stage('seqtk_fqchk')
     seqtk_fqchk_executor = executor.execute(
-        *[util.bash_commands.seqtk_fqchk(fq) for fq in util.find_all_fastqs(fastq_dir)],
+        *[bash_commands.seqtk_fqchk(fq) for fq in util.find_all_fastqs(fastq_dir)],
         job_name='fqchk',
         working_dir=job_dir,
         cpus=1,
@@ -135,7 +137,7 @@ def demultiplexing_pipeline(dataset):
     # md5sum
     dataset.start_stage('md5sum')
     md5sum_executor = executor.execute(
-        *[util.bash_commands.md5sum(fq) for fq in util.find_all_fastqs(fastq_dir)],
+        *[bash_commands.md5sum(fq) for fq in util.find_all_fastqs(fastq_dir)],
         job_name='md5sum',
         working_dir=job_dir,
         cpus=1,
@@ -170,6 +172,7 @@ def demultiplexing_pipeline(dataset):
         app_logger.error('File not found: %s', conversion_xml)
         exit_status += 1
 
+    write_versions_to_yaml(os.path.join(fastq_dir, 'program_versions.yaml'))
     dataset.start_stage('data_transfer')
     transfer_exit_status = output_run_data(fastq_dir, run_id)
     dataset.end_stage('data_transfer', transfer_exit_status)
@@ -204,7 +207,7 @@ def bcbio_var_calling_pipeline(dataset):
     # fastqc2
     dataset.start_stage('sample_fastqc')
     fastqc2_executor = executor.execute(
-        *[util.bash_commands.fastqc(fastq_file) for fastq_file in fastq_pair],
+        *[bash_commands.fastqc(fastq_file) for fastq_file in fastq_pair],
         job_name='fastqc2',
         working_dir=sample_dir,
         cpus=1,
@@ -275,6 +278,7 @@ def bcbio_var_calling_pipeline(dataset):
     exit_status += coverage_statistics_histogram.exit_status
     dataset.end_stage('coverage statistics', coverage_statistics_histogram.exit_status)
 
+    write_versions_to_yaml(os.path.join(dir_with_linked_files, 'program_versions.yaml'))
     exit_status += _output_data(dataset, sample_dir, sample_id, dir_with_linked_files)
 
     if exit_status == 0:
@@ -308,7 +312,7 @@ def _bam_file_production(dataset, species):
     # fastqc2
     dataset.start_stage('sample_fastqc')
     fastqc_executor = executor.execute(
-        *[util.bash_commands.fastqc(fastq_file) for fastq_file in fastq_pair],
+        *[bash_commands.fastqc(fastq_file) for fastq_file in fastq_pair],
         job_name='fastqc2',
         working_dir=sample_dir,
         cpus=1,
@@ -320,7 +324,7 @@ def _bam_file_production(dataset, species):
     app_logger.info('align %s to %s genome found at %s', sample_id, species, reference)
     dataset.start_stage('sample_bwa')
     bwa_mem_executor = executor.execute(
-        util.bash_commands.bwa_mem_samblaster(
+        bash_commands.bwa_mem_samblaster(
             fastq_pair,
             reference,
             expected_output_bam,
@@ -348,7 +352,7 @@ def _bam_file_production(dataset, species):
     dataset.start_stage('bamtools_stat')
     bamtools_stat_file = os.path.join(sample_dir, 'bamtools_stats.txt')
     bamtools_exit_status = executor.execute(
-        util.bash_commands.bamtools_stats(expected_output_bam, bamtools_stat_file),
+        bash_commands.bamtools_stats(expected_output_bam, bamtools_stat_file),
         job_name='bamtools',
         working_dir=sample_dir,
         cpus=1,
@@ -377,6 +381,7 @@ def qc_pipeline(dataset, species):
 
     # link the bcbio file into the final directory
     dir_with_linked_files = _link_results_files(sample_id, sample_dir, 'non_human_qc')
+    write_versions_to_yaml(os.path.join(dir_with_linked_files, 'program_versions.yaml'))
 
     exit_status += _output_data(dataset, sample_dir, sample_id, dir_with_linked_files)
 
@@ -518,6 +523,8 @@ def var_calling_pipeline(dataset, species):
     # link the bcbio file into the final directory
     dir_with_linked_files = _link_results_files(sample_id, sample_dir, 'gatk_var_calling')
 
+    write_versions_to_yaml(os.path.join(dir_with_linked_files, 'program_versions.yaml'))
+
     exit_status += _output_data(dataset, sample_dir, sample_id, dir_with_linked_files)
 
     if exit_status == 0:
@@ -553,7 +560,7 @@ def _output_data(dataset, sample_dir, sample_id, dir_with_linked_files):
     # md5sum
     dataset.start_stage('md5sum')
     md5sum_exit_status = executor.execute(
-        *[util.bash_commands.md5sum(os.path.join(dir_with_linked_files, f)) for f in os.listdir(dir_with_linked_files)],
+        *[bash_commands.md5sum(os.path.join(dir_with_linked_files, f)) for f in os.listdir(dir_with_linked_files)],
         job_name='md5sum',
         working_dir=sample_dir,
         cpus=1,
@@ -578,7 +585,7 @@ def _bcbio_prepare_sample(job_dir, sample_id, fastq_files):
     Merge the fastq files per sample using bcbio prepare sample
     """
     user_sample_id = clarity.get_user_sample_name(sample_id, lenient=True)
-    cmd = util.bcbio_prepare_samples_cmd(job_dir, sample_id, fastq_files, user_sample_id=user_sample_id)
+    cmd = bcbio_prepare_samples_cmd(job_dir, sample_id, fastq_files, user_sample_id=user_sample_id)
 
     exit_status = executor.execute(cmd, job_name='bcbio_prepare_samples', working_dir=job_dir,).join()
     sample_fastqs = util.find_files(job_dir, 'merged', user_sample_id + '_R?.fastq.gz')
@@ -615,7 +622,7 @@ def _run_bcbio(sample_id, sample_dir, sample_fastqs):
     ] + sample_fastqs
 
     run_yaml = os.path.join(bcbio_dir, 'config', 'samples_' + sample_id + '-merged.yaml')
-    bcbio_cmd = util.bash_commands.bcbio(run_yaml, os.path.join(bcbio_dir, 'work'), threads=16)
+    bcbio_cmd = bash_commands.bcbio(run_yaml, os.path.join(bcbio_dir, 'work'), threads=16)
 
     prep_status = executor.execute(' '.join(sample_prep), env='local').join()
     app_logger.info('BCBio sample prep exit status: ' + str(prep_status))
@@ -635,7 +642,7 @@ def _run_bcbio(sample_id, sample_dir, sample_fastqs):
 
     bcbio_executor = executor.execute(
         bcbio_cmd,
-        prelim_cmds=util.bash_commands.export_env_vars(),
+        prelim_cmds=bash_commands.export_env_vars(),
         job_name='bcb%s' % sample_id,
         working_dir=sample_dir,
         cpus=12,
