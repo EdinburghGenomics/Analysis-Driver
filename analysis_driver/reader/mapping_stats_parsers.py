@@ -163,3 +163,11 @@ def get_nb_sequence_from_fastqc_html(html_file):
         match = re.search('<td>Total Sequences</td><td>(\d+)</td>', s)
         if match:
             return int(match.group(1))
+
+def parse_vcf_stats(input_file):
+    all_vals = {}
+    with open(input_file) as open_file:
+        for line in open_file:
+            key, val = line.split(':')
+            all_vals[key.strip()] = val.strip().split()[0]
+    return float(all_vals['SNP Transitions/Transversions']), float(all_vals['SNP Het/Hom ratio'])

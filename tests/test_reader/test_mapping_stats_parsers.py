@@ -1,6 +1,6 @@
 import os
 from analysis_driver.reader.mapping_stats_parsers import parse_genotype_concordance, aggregate_genotype_concordance, \
-    parse_vbi_selfSM, parse_samtools_stats
+    parse_vbi_selfSM, parse_samtools_stats, parse_vcf_stats
 from tests.test_analysisdriver import TestAnalysisDriver
 
 __author__ = 'tcezard'
@@ -11,6 +11,7 @@ class TestMappingStats(TestAnalysisDriver):
         self.geno_val_file = os.path.join(self.assets_path, 'sample_data', 'T00001P001A01-validation.txt')
         self.vbi_selfSM_file = os.path.join(self.assets_path, 'sample_data', 'test_sample-chr22-vbi.selfSM')
         self.samtools_stats = os.path.join(self.assets_path, 'test_crawlers', 'samtools_stats.txt')
+        self.vcf_stats_file =  os.path.join(self.assets_path, 'test_crawlers', 'test_sample.vcf.stats')
 
     def test_parse_genotype_concordance(self):
         expected_headers = '\t'.join(
@@ -76,3 +77,8 @@ class TestMappingStats(TestAnalysisDriver):
         assert duplicate_reads == 676698
         assert proper_pairs == 7741548
 
+
+    def test_parse_vcf_stats(self):
+        ti_tv, het_hom = parse_vcf_stats(self.vcf_stats_file)
+        assert ti_tv == 2.01
+        assert het_hom == 1.6
