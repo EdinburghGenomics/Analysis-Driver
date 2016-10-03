@@ -2,6 +2,7 @@ import math
 from itertools import islice
 from collections import Counter, defaultdict
 from xml.etree import ElementTree
+from egcg_core import rest_communication
 from egcg_core.clarity import get_species_from_sample
 from egcg_core.constants import ELEMENT_CONTAMINANT_UNIQUE_MAP, ELEMENT_PCNT_UNMAPPED_FOCAL, \
     ELEMENT_PCNT_UNMAPPED, ELEMENT_TOTAL_READS_MAPPED, ELEMENT_PERCENTILE_5, ELEMENT_PERCENTILE_25, ELEMENT_PERCENTILE_50, \
