@@ -32,7 +32,6 @@ class TestCrawler(TestAnalysisDriver):
             elif type(v) is dict:
                 cls._sort_lists(v)
 
-
 class TestRunCrawler(TestCrawler):
     run_id = '150723_E00306_0025_BHCHK3CCXX'
     _expected_output = None
@@ -46,11 +45,20 @@ class TestRunCrawler(TestCrawler):
         return self._expected_output
 
     def setUp(self):
-        self.crawler = report_generation.RunCrawler(
-            self.run_id,
-            SampleSheet(os.path.join(self.test_data, 'SampleSheet_analysis_driver.csv')),
-            os.path.join(self.test_data, 'ConversionStats.xml')
-        )
+        with patch('analysis_driver.reader.demultiplexing_parsers.convert_barcode_from_run_sample_lane',
+                   return_value={"150723_E00306_0025_BHCHK3CCXX_1_unknown": {'read_1_trimmed_bases': 184380158, 'read_2_trimmed_bases': 172552099},
+                                 "150723_E00306_0025_BHCHK3CCXX_2_unknown": {'read_1_trimmed_bases': 48149799, 'read_2_trimmed_bases': 48818739},
+                                 "150723_E00306_0025_BHCHK3CCXX_1_TCCGGAGA": {'read_1_trimmed_bases': 1088149481, 'read_2_trimmed_bases': 1034179505},
+                                 "150723_E00306_0025_BHCHK3CCXX_2_TCCGGAGA": {'read_1_trimmed_bases': 398993728, 'read_2_trimmed_bases': 391621660},
+                                 "150723_E00306_0025_BHCHK3CCXX_1_ATTACTCG": {'read_1_trimmed_bases': 714309214, 'read_2_trimmed_bases': 684692293},
+                                 "150723_E00306_0025_BHCHK3CCXX_2_ATTACTCG": {'read_1_trimmed_bases': 284712861, 'read_2_trimmed_bases': 282625840}}):
+
+            self.crawler = report_generation.RunCrawler(
+                self.run_id,
+                SampleSheet(os.path.join(self.test_data, 'SampleSheet_analysis_driver.csv')),
+                os.path.join(self.test_data, 'AdapterTrimming.txt'),
+                os.path.join(self.test_data, 'ConversionStats.xml')
+            )
 
     def test_barcodes_info(self):
         self.compare_jsons(dict(self.crawler.barcodes_info), self.expected_output['barcodes_info'])
@@ -69,7 +77,6 @@ class TestRunCrawler(TestCrawler):
 
     def test_projects(self):
         self.compare_jsons(dict(self.crawler.projects), self.expected_output['projects'])
-
 
 class TestSampleCrawler(TestCrawler):
     expected_sample = {
