@@ -3,9 +3,9 @@ from itertools import islice
 from collections import Counter, defaultdict
 from xml.etree import ElementTree
 from egcg_core.clarity import get_species_from_sample
-from egcg_core import rest_communication
-from egcg_core.constants import ELEMENT_CONTAMINANT_UNIQUE_MAP, ELEMENT_PCNT_UNMAPPED_FOCAL,\
-    ELEMENT_PCNT_UNMAPPED, ELEMENT_TOTAL_READS_MAPPED
+from egcg_core.constants import ELEMENT_CONTAMINANT_UNIQUE_MAP, ELEMENT_PCNT_UNMAPPED_FOCAL, \
+    ELEMENT_PCNT_UNMAPPED, ELEMENT_TOTAL_READS_MAPPED, ELEMENT_PERCENTILE_5, ELEMENT_PERCENTILE_25, ELEMENT_PERCENTILE_50, \
+    ELEMENT_PERCENTILE_75, ELEMENT_PERCENTILE_95, ELEMENT_BASES_AT_5X, ELEMENT_BASES_AT_15X, ELEMENT_BASES_AT_30X
 
 from egcg_core.app_logging import logging_default as log_cfg
 app_logger = log_cfg.get_logger(__name__)
@@ -274,6 +274,14 @@ def calculate_sd(histogram):
         sumOfSquaredDifference += sd
     return math.sqrt(sumOfSquaredDifference/numberOfDepths)
 
+
+def calculate_bases_at_coverage(histogram):
+    bases_5X = sum([histogram[i] for i in histogram.keys() if i > 5])
+    bases_15X = sum([histogram[i] for i in histogram.keys() if i > 15])
+    bases_30X = sum([histogram[i] for i in histogram.keys() if i > 30])
+    return bases_5X, bases_15X, bases_30X
+
+
 def get_coverage_statistics(histogram_file):
     # Read the histogram file keeping each chrom separated
     histograms = read_histogram_file(histogram_file)
@@ -283,7 +291,16 @@ def get_coverage_statistics(histogram_file):
     coverage_mean = calculate_mean(histogram)
     coverage_median = calculate_median(histogram)
     coverage_sd = calculate_sd(histogram)
-    return coverage_mean, coverage_median, coverage_sd
+    coverage_percentiles = {ELEMENT_PERCENTILE_5: get_percentiles(histogram, 5),
+                            ELEMENT_PERCENTILE_25: get_percentiles(histogram, 25),
+                            ELEMENT_PERCENTILE_50: get_percentiles(histogram, 50),
+                            ELEMENT_PERCENTILE_75: get_percentiles(histogram, 75),
+                            ELEMENT_PERCENTILE_95: get_percentiles(histogram, 95)}
+
+    bases_5X, bases_15X, bases_30X = calculate_bases_at_coverage(histogram)
+    bases_at_coverage = {ELEMENT_BASES_AT_5X: bases_5X, ELEMENT_BASES_AT_15X: bases_15X, ELEMENT_BASES_AT_30X: bases_30X}
+
+    return coverage_mean, coverage_median, coverage_sd, coverage_percentiles, bases_at_coverage
 
 def get_coverage_Y_chrom(histogram_file, chr_name='chrY'):
     # Read the histogram file keeping each chrom separated

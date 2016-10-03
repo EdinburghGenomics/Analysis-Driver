@@ -257,6 +257,10 @@ def bcbio_var_calling_pipeline(dataset):
     gender_validation = qc.GenderValidation(dataset, sample_dir, vcf_file)
     gender_validation.start()
 
+    #vcf stats
+    vcf_stats = qc.VCFStats(dataset, sample_dir, vcf_file)
+    vcf_stats.start()
+
     # sample contamination check
     bam_file = os.path.join(dir_with_linked_files, user_sample_id + '.bam')
     sample_contam = qc.VerifyBamId(dataset, sample_dir, bam_file)
@@ -269,6 +273,7 @@ def bcbio_var_calling_pipeline(dataset):
 
     exit_status += sample_contam.join()
     exit_status += gender_validation.join()
+    exit_status += vcf_stats.join()
     coverage_statistics_histogram.join()
     exit_status += coverage_statistics_histogram.exit_status
     dataset.end_stage('coverage statistics', coverage_statistics_histogram.exit_status)

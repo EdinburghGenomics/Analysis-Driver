@@ -93,6 +93,17 @@ class TestDemultiplexingStats(TestAnalysisDriver):
         test_sd = calculate_sd(hist)
         assert test_sd == 189.1911391390011
 
+
+    def test_calculate_bases_at_coverage(self):
+        histogram = {5:3, 10:6, 15:24, 20:30, 25:21, 30:43, 35:63}
+        bases_5X, bases_15X, bases_30X = calculate_bases_at_coverage(histogram)
+        assert bases_5X == 187
+        assert bases_15X == 157
+        assert bases_30X == 63
+        histogram = {5:3, 10:6, 15:24, 20:30, 25:21}
+        bases_5X, bases_15X, bases_30X = calculate_bases_at_coverage(histogram)
+        assert bases_30X == 0
+
     def test_get_percentiles(self):
         histogram={1:5, 2:2, 3:4, 4:6, 5:3}
         assert get_percentiles(histogram, 50) == 3
@@ -101,12 +112,14 @@ class TestDemultiplexingStats(TestAnalysisDriver):
         histogram={1:3, 2:3, 3:4, 4:6, 5:4}
         assert get_percentiles(histogram, 50) == 3.5
 
+
     def test_get_coverage_statistics(self):
         hist_file = os.path.join(self.assets_path, 'test_sample.depth')
-        mean, median, sd = get_coverage_statistics(hist_file)
+        mean, median, sd, coverage_percentiles, bases_at_coverage = get_coverage_statistics(hist_file)
         assert mean == 438.8514851485148
         assert median == 478
         assert sd == 189.1911391390011
+        assert coverage_percentiles == {'percentile_5': 102, 'percentile_25': 279, 'percentile_50': 478, 'percentile_75': 625, 'percentile_95': 648}
 
     def test_get_coverage_Y_chrom(self):
         hist_file = os.path.join(self.assets_path, 'test_sample_chrY.depth')
