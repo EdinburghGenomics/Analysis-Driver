@@ -23,6 +23,11 @@ from egcg_core.constants import ELEMENT_RUN_NAME, ELEMENT_NUMBER_LANE, ELEMENT_R
     ELEMENT_FREEMIX, ELEMENT_SAMPLE_CONTAMINATION, ELEMENT_GENDER_VALIDATION, \
     ELEMENT_GENDER_HETX, ELEMENT_LANE_PC_OPT_DUP, ELEMENT_GENDER_COVY
 
+# temporary placeholders, import from constants when egcg core released
+ELEMENT_ADAPTER_TRIM_R1 = 'adaptor_bases_removed_r1'
+ELEMENT_ADAPTER_TRIM_R2 = 'adaptor_bases_removed_r2'
+
+
 
 class Crawler(AppLogger):
     def _check_config(self):
@@ -34,10 +39,12 @@ class Crawler(AppLogger):
 
 
 class RunCrawler(Crawler):
-    def __init__(self, run_id, samplesheet, conversion_xml_file=None, run_dir=None):
+    def __init__(self, run_id, samplesheet, adapter_trim_file, conversion_xml_file=None, run_dir=None):
         self.run_id = run_id
+        self.adapter_trim_file = adapter_trim_file
         self.samplesheet = samplesheet
         self._populate_barcode_info_from_sample_sheet(samplesheet)
+        self._populate_barcode_info_from_adapter_file(adapter_trim_file)
         if conversion_xml_file:
             self._populate_barcode_info_from_conversion_file(conversion_xml_file)
         if run_dir:
@@ -79,7 +86,9 @@ class RunCrawler(Crawler):
                                 ELEMENT_PROJECT_ID: project_id,
                                 ELEMENT_SAMPLE_INTERNAL_ID: sample.sample_id,
                                 ELEMENT_LIBRARY_INTERNAL_ID: sample.sample_name,
-                                ELEMENT_LANE: lane
+                                ELEMENT_LANE: lane,
+                                ELEMENT_ADAPTER_TRIM_R1: None,
+                                ELEMENT_ADAPTER_TRIM_R2: None
                             }
                         else:
                             run_element_id = '%s_%s_%s' % (self.run_id, lane, sample.barcode)
@@ -90,7 +99,9 @@ class RunCrawler(Crawler):
                                 ELEMENT_PROJECT_ID: project_id,
                                 ELEMENT_SAMPLE_INTERNAL_ID: sample.sample_id,
                                 ELEMENT_LIBRARY_INTERNAL_ID: sample.sample_name,
-                                ELEMENT_LANE: lane
+                                ELEMENT_LANE: lane,
+                                ELEMENT_ADAPTER_TRIM_R1: None,
+                                ELEMENT_ADAPTER_TRIM_R2: None
                             }
 
                         # Populate the libraries
@@ -138,6 +149,15 @@ class RunCrawler(Crawler):
                 self.lanes[lane_id][ELEMENT_RUN_ELEMENTS].append(unknown)
 
         self.run[ELEMENT_NUMBER_LANE] = len(self.lanes)
+
+    def _populate_barcode_info_from_adapter_file(self, adapter_trim_file):
+        has_barcode = self.samplesheet.has_barcode
+        parsed_trimed_adapters = (demultiplexing_parsers.parse_adapter_trim_file(adapter_trim_file, self.run_id))
+        run_element_adapters_trimmed = demultiplexing_parsers.convert_barcode_from_run_sample_lane(parsed_trimed_adapters)
+
+        for run_element_id in run_element_adapters_trimmed:
+            self.barcodes_info[run_element_id][ELEMENT_ADAPTER_TRIM_R1] = run_element_adapters_trimmed[run_element_id]['read_1_trimmed_bases']
+            self.barcodes_info[run_element_id][ELEMENT_ADAPTER_TRIM_R2] = run_element_adapters_trimmed[run_element_id]['read_2_trimmed_bases']
 
     def _populate_barcode_info_from_seqtk_fqchk_files(self, run_dir):
         for run_element_id in self.barcodes_info:
@@ -250,7 +270,6 @@ class RunCrawler(Crawler):
                     pp('projects', self.projects.values(), ELEMENT_PROJECT_ID, ['samples'])
                 )
             )
-
 
 class SampleCrawler(Crawler):
     gender_aliases = {'female': ['f', 'female', 'girl', 'woman'], 'male': ['m', 'male', 'boy', 'man']}

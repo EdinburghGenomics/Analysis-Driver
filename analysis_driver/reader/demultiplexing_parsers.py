@@ -1,7 +1,9 @@
 import math
+from itertools import islice
 from collections import Counter, defaultdict
 from xml.etree import ElementTree
 from egcg_core.clarity import get_species_from_sample
+from egcg_core import rest_communication
 from egcg_core.constants import ELEMENT_CONTAMINANT_UNIQUE_MAP, ELEMENT_PCNT_UNMAPPED_FOCAL,\
     ELEMENT_PCNT_UNMAPPED, ELEMENT_TOTAL_READS_MAPPED
 
@@ -114,8 +116,6 @@ def parse_conversion_stats(xml_file, has_barcode):
                                     nb_bases_r1_q30 += int(read.find('YieldQ30').text)
                                 if read.get('number') == "2":
                                     nb_bases_r2_q30 += int(read.find('YieldQ30').text)
-
-
 
                         all_barcodes_per_lanes.append(
                             (
@@ -308,5 +308,37 @@ def parse_welldup_file(welldup_file):
                 in_summary = False
     return dup_per_lane
 
+def parse_adapter_trim_file(adapter_trim_file, run_id):
+    adapters_trimmed_by_id = {}
+    with open(adapter_trim_file) as open_file:
+        open_file = open_file.read()
+        open_file = (open_file.split('\n\n')[0]).split('\n')
+        for line in islice(open_file, 1, None):
+            lane = line.split()[0]
+            read = line.split()[1]
+            sample_id = line.split()[3]
+            trimmed_bases = line.split()[6]
+            id = (run_id, sample_id, lane)
+            if not adapters_trimmed_by_id.get(id):
+                adapters_trimmed_by_id[id] = {}
+            adapters_trimmed_by_id[id]['read_%s_trimmed_bases' % (read)] = int(trimmed_bases)
+    return adapters_trimmed_by_id
 
+
+
+def convert_barcode_from_run_sample_lane(adapters_trimmed_by_id, has_barcode):
+    run_element_adapters_trimmed = {}
+    for id in adapters_trimmed_by_id:
+        run_id, sample_id, lane = id
+        if has_barcode:
+            data = rest_communication.get_documents('run_elements',
+                                               where={'run_id':run_id,
+                                                      'sample_id':sample_id,
+                                                      'lane_number':lane})
+            barcode = data.get('barcode')
+            run_element_id = '%s_%s_%s' % (run_id, lane, barcode)
+        else:
+            run_element_id = '%s_%s' % (run_id, lane)
+        run_element_adapters_trimmed[run_element_id] = adapters_trimmed_by_id[id]
+    return run_element_adapters_trimmed
 
