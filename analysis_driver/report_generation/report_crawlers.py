@@ -40,12 +40,13 @@ class Crawler(AppLogger):
 
 
 class RunCrawler(Crawler):
-    def __init__(self, run_id, samplesheet, adapter_trim_file, conversion_xml_file=None, run_dir=None):
+    def __init__(self, run_id, samplesheet, adapter_trim_file=None, conversion_xml_file=None, run_dir=None):
         self.run_id = run_id
         self.adapter_trim_file = adapter_trim_file
         self.samplesheet = samplesheet
         self._populate_barcode_info_from_sample_sheet(samplesheet)
-        self._populate_barcode_info_from_adapter_file(adapter_trim_file)
+        if adapter_trim_file:
+            self._populate_barcode_info_from_adapter_file(adapter_trim_file)
         if conversion_xml_file:
             self._populate_barcode_info_from_conversion_file(conversion_xml_file)
         if run_dir:
@@ -88,8 +89,6 @@ class RunCrawler(Crawler):
                                 ELEMENT_SAMPLE_INTERNAL_ID: sample.sample_id,
                                 ELEMENT_LIBRARY_INTERNAL_ID: sample.sample_name,
                                 ELEMENT_LANE: lane,
-                                ELEMENT_ADAPTER_TRIM_R1: None,
-                                ELEMENT_ADAPTER_TRIM_R2: None
                             }
                         else:
                             run_element_id = '%s_%s_%s' % (self.run_id, lane, sample.barcode)
@@ -101,8 +100,6 @@ class RunCrawler(Crawler):
                                 ELEMENT_SAMPLE_INTERNAL_ID: sample.sample_id,
                                 ELEMENT_LIBRARY_INTERNAL_ID: sample.sample_name,
                                 ELEMENT_LANE: lane,
-                                ELEMENT_ADAPTER_TRIM_R1: None,
-                                ELEMENT_ADAPTER_TRIM_R2: None
                             }
 
                         # Populate the libraries
@@ -154,8 +151,7 @@ class RunCrawler(Crawler):
     def _populate_barcode_info_from_adapter_file(self, adapter_trim_file):
         has_barcode = self.samplesheet.has_barcode
         parsed_trimed_adapters = (demultiplexing_parsers.parse_adapter_trim_file(adapter_trim_file, self.run_id))
-        run_element_adapters_trimmed = demultiplexing_parsers.convert_barcode_from_run_sample_lane(parsed_trimed_adapters)
-
+        run_element_adapters_trimmed = demultiplexing_parsers.convert_barcode_from_run_sample_lane(parsed_trimed_adapters, has_barcode)
         for run_element_id in run_element_adapters_trimmed:
             self.barcodes_info[run_element_id][ELEMENT_ADAPTER_TRIM_R1] = run_element_adapters_trimmed[run_element_id]['read_1_trimmed_bases']
             self.barcodes_info[run_element_id][ELEMENT_ADAPTER_TRIM_R2] = run_element_adapters_trimmed[run_element_id]['read_2_trimmed_bases']

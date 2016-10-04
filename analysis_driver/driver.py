@@ -161,6 +161,7 @@ def demultiplexing_pipeline(dataset):
 
     # Find conversion xml file and send the results to the rest API
     conversion_xml = os.path.join(fastq_dir, 'Stats', 'ConversionStats.xml')
+
     if os.path.exists(conversion_xml):
         app_logger.info('Found ConversionStats. Sending data.')
         crawler = RunCrawler(run_id, sample_sheet, conversion_xml, fastq_dir)
@@ -170,6 +171,15 @@ def demultiplexing_pipeline(dataset):
         crawler.send_data()
     else:
         app_logger.error('File not found: %s', conversion_xml)
+        exit_status += 1
+
+    adapter_trim_file = os.path.join(fastq_dir, 'Stats', 'AdapterTrimming.txt')
+    if os.path.exists(adapter_trim_file):
+        app_logger.info('Found AdapterTrimming. Sending data.')
+        crawler = RunCrawler(run_id, sample_sheet, adapter_trim_file)
+        crawler.send_data()
+    else:
+        app_logger.error('File not found: %s', adapter_trim_file)
         exit_status += 1
 
     write_versions_to_yaml(os.path.join(fastq_dir, 'program_versions.yaml'))
