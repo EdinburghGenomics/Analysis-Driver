@@ -3,7 +3,8 @@ from collections import Counter, defaultdict
 from egcg_core import util
 from egcg_core.app_logging import AppLogger
 from egcg_core.rest_communication import post_or_patch as pp
-from egcg_core.clarity import get_sample_gender, get_user_sample_name
+from egcg_core.clarity import get_sample_gender, get_sample
+from egcg_core import clarity
 from analysis_driver.exceptions import PipelineError
 from analysis_driver.reader import demultiplexing_parsers, mapping_stats_parsers
 from analysis_driver.reader.demultiplexing_parsers import get_fastqscreen_results, get_coverage_statistics, \
@@ -22,7 +23,27 @@ from egcg_core.constants import ELEMENT_RUN_NAME, ELEMENT_NUMBER_LANE, ELEMENT_R
     ELEMENT_GENOTYPE_VALIDATION, ELEMENT_COVERAGE_STATISTICS, ELEMENT_MEAN_COVERAGE, ELEMENT_COVERAGE_PERCENTILES, \
     ELEMENT_BASES_AT_COVERAGE, ELEMENT_MEDIAN_COVERAGE_SAMTOOLS, ELEMENT_COVERAGE_SD, ELEMENT_FREEMIX, ELEMENT_SAMPLE_CONTAMINATION, \
     ELEMENT_GENDER_VALIDATION, ELEMENT_GENDER_HETX, ELEMENT_LANE_PC_OPT_DUP, ELEMENT_GENDER_COVY, ELEMENT_SNPS_TI_TV, \
-    ELEMENT_SNPS_HET_HOM
+    ELEMENT_SNPS_HET_HOM, ELEMENT_SAMPLE_PLATE, ELEMENT_SAMPLE_SPECIES, ELEMENT_SAMPLE_EXPECTED_YIELD, ELEMENT_SAMPLE_EXPECTED_COVERAGE
+
+
+
+def get_sample_information_from_lims(sample_name):
+    lims_sample = get_sample()
+    gender = clarity.get_sample_gender()
+    plate_id, well = clarity.get_plate_id_and_well(sample_name)
+    species = clarity.get_species_from_sample(sample_name)
+    external_sample_name = clarity.get_user_sample_name(sample_name, lenient=True)
+    yield_q30 = clarity.get_expected_yield_for_sample()
+    coverage = lims_sample.udf.get('Coverage', '')
+    return {
+        ELEMENT_SAMPLE_EXTERNAL_ID: external_sample_name,
+        ELEMENT_SAMPLE_PLATE: plate_id,
+        ELEMENT_PROVIDED_GENDER: gender,
+        ELEMENT_SAMPLE_SPECIES: species,
+        ELEMENT_SAMPLE_EXPECTED_YIELD: yield_q30,
+        ELEMENT_SAMPLE_EXPECTED_COVERAGE: coverage
+    }
+
 
 
 class Crawler(AppLogger):
@@ -39,6 +60,7 @@ class RunCrawler(Crawler):
         self.run_id = run_id
         self.samplesheet = samplesheet
         self._populate_barcode_info_from_sample_sheet(samplesheet)
+        self._populate_from_lims()
         if conversion_xml_file:
             self._populate_barcode_info_from_conversion_file(conversion_xml_file)
         if run_dir:
@@ -139,6 +161,10 @@ class RunCrawler(Crawler):
                 self.lanes[lane_id][ELEMENT_RUN_ELEMENTS].append(unknown)
 
         self.run[ELEMENT_NUMBER_LANE] = len(self.lanes)
+
+    def _populate_from_lims(self):
+        for lib in self.libraries:
+            lib.update(get_sample_information_from_lims(lib[ELEMENT_SAMPLE_INTERNAL_ID]))
 
     def _populate_barcode_info_from_seqtk_fqchk_files(self, run_dir):
         for run_element_id in self.barcodes_info:
@@ -282,13 +308,15 @@ class SampleCrawler(Crawler):
         return 'unknown'
 
     def _populate_lib_info(self, sample_dir):
-        external_sample_name = get_user_sample_name(self.sample_id, lenient=True)
 
         sample = {
             ELEMENT_SAMPLE_INTERNAL_ID: self.sample_id,
             ELEMENT_PROJECT_ID: self.project_id,
-            ELEMENT_SAMPLE_EXTERNAL_ID: external_sample_name
         }
+
+        sample.update(get_sample_information_from_lims(self.sample_id))
+        external_sample_name = sample.get(ELEMENT_SAMPLE_EXTERNAL_ID)
+
         bamtools_path = self.search_file(sample_dir, 'bamtools_stats.txt')
         if bamtools_path:
             (total_reads, mapped_reads,
