@@ -3,12 +3,11 @@ from collections import Counter, defaultdict
 from egcg_core import util
 from egcg_core.app_logging import AppLogger
 from egcg_core.rest_communication import post_or_patch as pp
-from egcg_core.clarity import get_sample_gender, get_sample
 from egcg_core import clarity
 from analysis_driver.exceptions import PipelineError
 from analysis_driver.reader import demultiplexing_parsers, mapping_stats_parsers
-from analysis_driver.reader.demultiplexing_parsers import get_fastqscreen_results, get_coverage_statistics, \
-    parse_welldup_file, get_coverage_Y_chrom
+from analysis_driver.reader.demultiplexing_parsers import get_coverage_statistics, \
+    parse_welldup_file, get_coverage_Y_chrom, parse_fastqscreen_file
 from analysis_driver.reader.mapping_stats_parsers import parse_and_aggregate_genotype_concordance,\
     parse_vbi_selfSM, parse_vcf_stats
 from analysis_driver.config import default as cfg
@@ -28,8 +27,8 @@ from egcg_core.constants import ELEMENT_RUN_NAME, ELEMENT_NUMBER_LANE, ELEMENT_R
 
 
 def get_sample_information_from_lims(sample_name):
-    lims_sample = get_sample()
-    gender = clarity.get_sample_gender()
+    lims_sample = clarity.get_sample()
+    gender = SampleCrawler.gender_aliases(clarity.get_sample_gender())
     plate_id, well = clarity.get_plate_id_and_well(sample_name)
     species = clarity.get_species_from_sample(sample_name)
     external_sample_name = clarity.get_user_sample_name(sample_name, lenient=True)
@@ -163,8 +162,8 @@ class RunCrawler(Crawler):
         self.run[ELEMENT_NUMBER_LANE] = len(self.lanes)
 
     def _populate_from_lims(self):
-        for lib in self.libraries:
-            lib.update(get_sample_information_from_lims(lib[ELEMENT_SAMPLE_INTERNAL_ID]))
+        for libname in self.libraries:
+            self.libraries[libname].update(get_sample_information_from_lims(libname))
 
     def _populate_barcode_info_from_seqtk_fqchk_files(self, run_dir):
         for run_element_id in self.barcodes_info:
@@ -354,8 +353,6 @@ class SampleCrawler(Crawler):
         if sex_file_path:
             with open(sex_file_path) as f:
                 gender, het_x = f.read().strip().split()
-                gender_from_lims = get_sample_gender(self.sample_id)
-                sample[ELEMENT_PROVIDED_GENDER] = self._gender_alias(gender_from_lims)
                 sample[ELEMENT_CALLED_GENDER] = self._gender_alias(gender)
                 sample[ELEMENT_GENDER_VALIDATION] = {ELEMENT_GENDER_HETX: het_x}
 
@@ -370,7 +367,8 @@ class SampleCrawler(Crawler):
 
         species_contamination_path = self.search_file(sample_dir, '%s_R1_screen.txt' % external_sample_name)
         if species_contamination_path:
-            species_contamination_result = get_fastqscreen_results(species_contamination_path, self.sample_id)
+            species_contamination_result = parse_fastqscreen_file(species_contamination_path,
+                                                                   sample[ELEMENT_SAMPLE_SPECIES])
             if species_contamination_result:
                 sample[ELEMENT_SPECIES_CONTAMINATION] = species_contamination_result
             else:
