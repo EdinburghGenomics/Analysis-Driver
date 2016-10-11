@@ -27,12 +27,12 @@ from egcg_core.constants import ELEMENT_RUN_NAME, ELEMENT_NUMBER_LANE, ELEMENT_R
 
 
 def get_sample_information_from_lims(sample_name):
-    lims_sample = clarity.get_sample()
-    gender = SampleCrawler.gender_aliases(clarity.get_sample_gender())
+    lims_sample = clarity.get_sample(sample_name)
+    gender = SampleCrawler.gender_aliases(clarity.get_sample_gender(sample_name))
     plate_id, well = clarity.get_plate_id_and_well(sample_name)
     species = clarity.get_species_from_sample(sample_name)
     external_sample_name = clarity.get_user_sample_name(sample_name, lenient=True)
-    yield_q30 = clarity.get_expected_yield_for_sample()
+    yield_q30 = clarity.get_expected_yield_for_sample(sample_name)
     coverage = lims_sample.udf.get('Coverage', '')
     return {
         ELEMENT_SAMPLE_EXTERNAL_ID: external_sample_name,
