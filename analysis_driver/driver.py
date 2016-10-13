@@ -102,8 +102,8 @@ def demultiplexing_pipeline(dataset):
         *[bash_commands.fastq_filterer_an_pigz_in_place(fqs) for fqs in util.find_all_fastq_pairs(fastq_dir)],
         job_name='fastq_filterer',
         working_dir=job_dir,
-        cpus=1,
-        mem=2
+        cpus=18,
+        mem=10
     ).join()
     dataset.end_stage('fastq_filterer', exit_status)
     if exit_status:
