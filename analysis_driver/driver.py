@@ -96,16 +96,16 @@ def demultiplexing_pipeline(dataset):
     well_dup_exec = WellDuplicates(dataset, job_dir, fastq_dir, input_run_folder)
     well_dup_exec.start()
 
-    # Filter the adapter dimer from fastq with sickle
-    dataset.start_stage('sickle_filter')
+    # Filter the adapter dimer from fastq with fastq_filtered
+    dataset.start_stage('fastq_filterer')
     exit_status = executor.execute(
-        *[bash_commands.sickle_paired_end_in_place(fqs) for fqs in util.find_all_fastq_pairs(fastq_dir)],
-        job_name='sickle_filter',
+        *[bash_commands.fastq_filterer_an_pigz_in_place(fqs) for fqs in util.find_all_fastq_pairs(fastq_dir)],
+        job_name='fastq_filterer',
         working_dir=job_dir,
         cpus=1,
         mem=2
     ).join()
-    dataset.end_stage('sickle_filter', exit_status)
+    dataset.end_stage('fastq_filterer', exit_status)
     if exit_status:
         return exit_status
 

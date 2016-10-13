@@ -67,6 +67,31 @@ def sickle_paired_end_in_place(fastq_file_pair):
         app_logger.debug('Writing: ' + c)
     return '\n'.join(cmds)
 
+def fastq_filterer_an_pigz_in_place(fastq_file_pair, pigz_thread=10):
+    """
+    Run fastq filterer on a pair of fastq file which will remove any pair if one of the mate is shorter than 36 bases
+    """
+    if len(fastq_file_pair) != 2:
+        raise AnalysisDriverError('fastq-filterer only supports paired fastq files')
+
+    f1, f2 = sorted(fastq_file_pair)
+    name, ext = os.path.splitext(f1)
+    of1 = name + '_fastq_filterer' + ext
+    name, ext = os.path.splitext(f2)
+    of2 = name + '_fastq_filterer' + ext
+
+    cmds = []
+    cmd = "set -o pipefail; %s --i1 %s --i2 %s --o1 >($pigz -p %s > %s) --o2 >($pigz -p %s > %s) --threshold 36"
+    cmds.append(cmd % (cfg['tools']['fastq-filterer'], f1, f2, pigz_thread, of1, pigz_thread, of2))
+    # replace the original files with the new files to keep things clean
+    cmds.append('EXIT_CODE=$?')
+    cmds.append('(exit $EXIT_CODE) && mv %s %s' % (of1, f1))
+    cmds.append('(exit $EXIT_CODE) && mv %s %s' % (of2, f2))
+    cmds.append('(exit $EXIT_CODE)')
+    for c in cmds:
+        app_logger.debug('Writing: ' + c)
+    return '\n'.join(cmds)
+
 
 def bwa_mem_samblaster(fastq_pair, reference, expected_output_bam, read_group=None, thread=16):
     tmp_dir = os.path.dirname(expected_output_bam)
