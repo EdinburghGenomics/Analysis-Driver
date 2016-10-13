@@ -38,35 +38,6 @@ def seqtk_fqchk(fastq_file):
     return cmd
 
 
-def sickle_paired_end_in_place(fastq_file_pair):
-    """
-    Run sickle in paired end mode to do a very minimal trimming and filter reads shorter than 36 bases, i.e.
-    remove the adapter dimers flagged by bcl2fastq.
-    :param fastq_file_pair: A pair of fastqs to run sickle on
-    """
-    if len(fastq_file_pair) != 2:
-        raise AnalysisDriverError('sickle_paired_end only supports paired fastq files')
-
-    f1, f2 = sorted(fastq_file_pair)
-    name, ext = os.path.splitext(f1)
-    of1 = name + '_sickle' + ext
-    ofs = name + '_sickle_single' + ext
-    lf = name + '_sickle.log'
-    name, ext = os.path.splitext(f2)
-    of2 = name + '_sickle' + ext
-    cmds = []
-    cmd = cfg['tools']['sickle'] + ' pe -f %s -r %s -o %s -p %s -s %s -q 5  -l 36  -x  -g -t sanger > %s'
-    cmds.append(cmd % (f1, f2, of1, of2, ofs, lf))
-    # replace the original files with the new files and remove the the single file to keep things clean
-    cmds.append('EXIT_CODE=$?')
-    cmds.append('(exit $EXIT_CODE) && mv %s %s' % (of1, f1))
-    cmds.append('(exit $EXIT_CODE) && mv %s %s' % (of2, f2))
-    cmds.append('(exit $EXIT_CODE) && rm %s' % ofs)
-    cmds.append('(exit $EXIT_CODE)')
-    for c in cmds:
-        app_logger.debug('Writing: ' + c)
-    return '\n'.join(cmds)
-
 def fastq_filterer_an_pigz_in_place(fastq_file_pair, pigz_thread=10):
     """
     Run fastq filterer on a pair of fastq file which will remove any pair if one of the mate is shorter than 36 bases
