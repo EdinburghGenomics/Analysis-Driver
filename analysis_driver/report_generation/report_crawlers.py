@@ -24,11 +24,19 @@ from egcg_core.constants import ELEMENT_RUN_NAME, ELEMENT_NUMBER_LANE, ELEMENT_R
     ELEMENT_GENDER_VALIDATION, ELEMENT_GENDER_HETX, ELEMENT_LANE_PC_OPT_DUP, ELEMENT_GENDER_COVY, ELEMENT_SNPS_TI_TV, \
     ELEMENT_SNPS_HET_HOM, ELEMENT_SAMPLE_PLATE, ELEMENT_SAMPLE_SPECIES, ELEMENT_SAMPLE_EXPECTED_YIELD, ELEMENT_SAMPLE_EXPECTED_COVERAGE
 
+_gender_aliases = {'female': ['f', 'female', 'girl', 'woman'], 'male': ['m', 'male', 'boy', 'man']}
+
+
+def gender_alias(gender):
+    for key in _gender_aliases:
+        if str(gender).lower() in _gender_aliases[key]:
+            return key
+    return 'unknown'
 
 
 def get_sample_information_from_lims(sample_name):
     lims_sample = clarity.get_sample(sample_name)
-    gender = SampleCrawler.gender_aliases(clarity.get_sample_gender(sample_name))
+    gender = gender_alias(clarity.get_sample_gender(sample_name))
     plate_id, well = clarity.get_plate_id_and_well(sample_name)
     species = clarity.get_species_from_sample(sample_name)
     external_sample_name = clarity.get_user_sample_name(sample_name, lenient=True)
@@ -42,7 +50,6 @@ def get_sample_information_from_lims(sample_name):
         ELEMENT_SAMPLE_EXPECTED_YIELD: yield_q30,
         ELEMENT_SAMPLE_EXPECTED_COVERAGE: coverage
     }
-
 
 
 class Crawler(AppLogger):
@@ -279,7 +286,6 @@ class RunCrawler(Crawler):
 
 
 class SampleCrawler(Crawler):
-    gender_aliases = {'female': ['f', 'female', 'girl', 'woman'], 'male': ['m', 'male', 'boy', 'man']}
 
     def __init__(self, sample_id,  project_id,  sample_dir):
         self.sample_id = sample_id
@@ -298,13 +304,6 @@ class SampleCrawler(Crawler):
             f = util.find_file(*path)
             if f:
                 return f
-
-    @classmethod
-    def _gender_alias(cls, gender):
-        for key in cls.gender_aliases:
-            if str(gender).lower() in cls.gender_aliases[key]:
-                return key
-        return 'unknown'
 
     def _populate_lib_info(self, sample_dir):
 
@@ -353,7 +352,7 @@ class SampleCrawler(Crawler):
         if sex_file_path:
             with open(sex_file_path) as f:
                 gender, het_x = f.read().strip().split()
-                sample[ELEMENT_CALLED_GENDER] = self._gender_alias(gender)
+                sample[ELEMENT_CALLED_GENDER] = gender_alias(gender)
                 sample[ELEMENT_GENDER_VALIDATION] = {ELEMENT_GENDER_HETX: het_x}
 
         genotype_validation_path = self.search_file(sample_dir, '%s_genotype_validation.txt' % external_sample_name)
