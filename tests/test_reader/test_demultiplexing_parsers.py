@@ -2,8 +2,8 @@ import os
 from analysis_driver.reader.demultiplexing_parsers import parse_seqtk_fqchk_file, parse_conversion_stats, \
     parse_welldup_file, get_percentiles, read_histogram_file, collapse_histograms, get_coverage_Y_chrom
 from analysis_driver.reader.demultiplexing_parsers import parse_fastqscreen_file
-from analysis_driver.reader.demultiplexing_parsers import get_fastqscreen_results
-from analysis_driver.reader.demultiplexing_parsers import calculate_mean, calculate_median, calculate_sd, get_coverage_statistics, calculate_bases_at_coverage, parse_adapter_trim_file, convert_barcode_from_run_sample_lane
+from analysis_driver.reader.demultiplexing_parsers import get_fastqscreen_results, run_sample_lane_to_barcode
+from analysis_driver.reader.demultiplexing_parsers import calculate_mean, calculate_median, calculate_sd, get_coverage_statistics, calculate_bases_at_coverage, parse_adapter_trim_file
 from tests.test_analysisdriver import TestAnalysisDriver
 from egcg_core.constants import ELEMENT_CONTAMINANT_UNIQUE_MAP, ELEMENT_PCNT_UNMAPPED_FOCAL, ELEMENT_PCNT_UNMAPPED, ELEMENT_TOTAL_READS_MAPPED
 from unittest.mock import patch
@@ -143,29 +143,9 @@ class TestDemultiplexingStats(TestAnalysisDriver):
                     ('test_run_id', 'unknown', '1'): {'read_1_trimmed_bases': 184380158, 'read_2_trimmed_bases': 172552099}}
 
     def test_get_barcode_from_run_sample_lane(self):
-        returned_documents = {
-      "reviewed": "n/a",
-      "project_id": "n/a",
-      "pc_q30_r2": 0,
-      "useable": "n/a",
-      "sample_id": "n/a",
-      "yield_q30_in_gb": 0,
-      "pc_pass_filter": 0,
-      "pc_q30": 0,
-      "clean_yield_q30_in_gb": 0,
-      "pc_q30_r1": 0,
-      "clean_yield_in_gb": 0,
-      "barcode": "test_barcode",
-      "yield_in_gb": 0,
-      "lane_number": 7,
-      "_id": {
-        "$oid": "n/a"
-      },
-      "run_id": "n/a"
-    }
+        input = {('150723_E00306_0025_BHCHK3CCXX', '10015AT0001', '1'): {'read_1_trimmed_bases': 714309214, 'read_2_trimmed_bases': 684692293}}
+        has_barcode = True
+        barcodes_info = {'150723_E00306_0025_BHCHK3CCXX_1_ATTACTCG': {'run_id': '150723_E00306_0025_BHCHK3CCXX', 'lane': '1', 'run_element_id': '150723_E00306_0025_BHCHK3CCXX_1_ATTACTCG', 'sample_id': '10015AT0001', 'barcode': 'ATTACTCG', 'library_id': 'LP6002014-DTP_A01', 'project_id': '10015AT'}}
+        barcode_converted = run_sample_lane_to_barcode(input, barcodes_info, has_barcode)
+        assert barcode_converted == {'150723_E00306_0025_BHCHK3CCXX_1_ATTACTCG': {'read_1_trimmed_bases': 714309214, 'read_2_trimmed_bases': 684692293}}
 
-        with patch('analysis_driver.reader.demultiplexing_parsers.rest_communication.get_documents', return_value=returned_documents):
-            input = {('test_run_id', '10015AT0001', '1'): {'read_1_trimmed_bases': 714309214, 'read_2_trimmed_bases': 684692293}}
-            has_barcode = True
-            barcode_converted = convert_barcode_from_run_sample_lane(input, has_barcode)
-            assert barcode_converted == {'test_run_id_1_test_barcode': {'read_1_trimmed_bases': 714309214, 'read_2_trimmed_bases': 684692293}}

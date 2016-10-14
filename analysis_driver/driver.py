@@ -176,7 +176,7 @@ def demultiplexing_pipeline(dataset):
     adapter_trim_file = os.path.join(fastq_dir, 'Stats', 'AdapterTrimming.txt')
     if os.path.exists(adapter_trim_file):
         app_logger.info('Found AdapterTrimming. Sending data.')
-        crawler = RunCrawler(run_id, sample_sheet, adapter_trim_file)
+        crawler = RunCrawler(run_id, sample_sheet, adapter_trim_file=adapter_trim_file)
         crawler.send_data()
     else:
         app_logger.error('File not found: %s', adapter_trim_file)

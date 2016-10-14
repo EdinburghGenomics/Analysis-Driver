@@ -45,7 +45,7 @@ class TestRunCrawler(TestCrawler):
         return self._expected_output
 
     def setUp(self):
-        with patch('analysis_driver.reader.demultiplexing_parsers.convert_barcode_from_run_sample_lane',
+        with patch('analysis_driver.reader.demultiplexing_parsers.run_sample_lane_to_barcode',
                    return_value={"150723_E00306_0025_BHCHK3CCXX_1_unknown": {'read_1_trimmed_bases': 184380158, 'read_2_trimmed_bases': 172552099},
                                  "150723_E00306_0025_BHCHK3CCXX_2_unknown": {'read_1_trimmed_bases': 48149799, 'read_2_trimmed_bases': 48818739},
                                  "150723_E00306_0025_BHCHK3CCXX_1_TCCGGAGA": {'read_1_trimmed_bases': 1088149481, 'read_2_trimmed_bases': 1034179505},

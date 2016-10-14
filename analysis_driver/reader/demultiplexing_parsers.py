@@ -6,7 +6,8 @@ from egcg_core import rest_communication
 from egcg_core.clarity import get_species_from_sample
 from egcg_core.constants import ELEMENT_CONTAMINANT_UNIQUE_MAP, ELEMENT_PCNT_UNMAPPED_FOCAL, \
     ELEMENT_PCNT_UNMAPPED, ELEMENT_TOTAL_READS_MAPPED, ELEMENT_PERCENTILE_5, ELEMENT_PERCENTILE_25, ELEMENT_PERCENTILE_50, \
-    ELEMENT_PERCENTILE_75, ELEMENT_PERCENTILE_95, ELEMENT_BASES_AT_5X, ELEMENT_BASES_AT_15X, ELEMENT_BASES_AT_30X
+    ELEMENT_PERCENTILE_75, ELEMENT_PERCENTILE_95, ELEMENT_BASES_AT_5X, ELEMENT_BASES_AT_15X, ELEMENT_BASES_AT_30X, \
+    ELEMENT_BARCODE, ELEMENT_RUN_NAME, ELEMENT_SAMPLE_INTERNAL_ID, ELEMENT_LANE, ELEMENT_RUN_ELEMENT_ID
 
 from egcg_core.app_logging import logging_default as log_cfg
 app_logger = log_cfg.get_logger(__name__)
@@ -336,27 +337,25 @@ def parse_adapter_trim_file(adapter_trim_file, run_id):
             read = line.split()[1]
             sample_id = line.split()[3]
             trimmed_bases = line.split()[6]
-            id = (run_id, sample_id, lane)
-            if not adapters_trimmed_by_id.get(id):
-                adapters_trimmed_by_id[id] = {}
-            adapters_trimmed_by_id[id]['read_%s_trimmed_bases' % (read)] = int(trimmed_bases)
+            run_element_info = (run_id, sample_id, lane)
+            if not adapters_trimmed_by_id.get(run_element_info):
+                adapters_trimmed_by_id[run_element_info] = {}
+            adapters_trimmed_by_id[run_element_info]['read_%s_trimmed_bases' % (read)] = int(trimmed_bases)
     return adapters_trimmed_by_id
 
-
-
-def convert_barcode_from_run_sample_lane(adapters_trimmed_by_id, has_barcode):
+def run_sample_lane_to_barcode(adapters_trimmed_by_id, barcodes_info, has_barcode):
     run_element_adapters_trimmed = {}
-    for id in adapters_trimmed_by_id:
-        run_id, sample_id, lane = id
+    for adapter_id in adapters_trimmed_by_id:
+        run_element_id = None
+        run_id, sample_id, lane = adapter_id
         if has_barcode:
-            data = rest_communication.get_documents('run_elements',
-                                               where={'run_id':run_id,
-                                                      'sample_id':sample_id,
-                                                      'lane_number':lane})
-            barcode = data.get('barcode')
-            run_element_id = '%s_%s_%s' % (run_id, lane, barcode)
+            for i in barcodes_info:
+                if barcodes_info[i][ELEMENT_RUN_NAME] == run_id:
+                    if barcodes_info[i][ELEMENT_SAMPLE_INTERNAL_ID] == sample_id:
+                        if barcodes_info[i][ELEMENT_LANE] == lane:
+                            run_element_id = barcodes_info[i][ELEMENT_RUN_ELEMENT_ID]
         else:
             run_element_id = '%s_%s' % (run_id, lane)
-        run_element_adapters_trimmed[run_element_id] = adapters_trimmed_by_id[id]
-    return run_element_adapters_trimmed
+        run_element_adapters_trimmed[run_element_id] = adapters_trimmed_by_id[adapter_id]
 
+    return run_element_adapters_trimmed

@@ -88,7 +88,7 @@ class RunCrawler(Crawler):
                                 ELEMENT_PROJECT_ID: project_id,
                                 ELEMENT_SAMPLE_INTERNAL_ID: sample.sample_id,
                                 ELEMENT_LIBRARY_INTERNAL_ID: sample.sample_name,
-                                ELEMENT_LANE: lane,
+                                ELEMENT_LANE: lane
                             }
                         else:
                             run_element_id = '%s_%s_%s' % (self.run_id, lane, sample.barcode)
@@ -99,7 +99,7 @@ class RunCrawler(Crawler):
                                 ELEMENT_PROJECT_ID: project_id,
                                 ELEMENT_SAMPLE_INTERNAL_ID: sample.sample_id,
                                 ELEMENT_LIBRARY_INTERNAL_ID: sample.sample_name,
-                                ELEMENT_LANE: lane,
+                                ELEMENT_LANE: lane
                             }
 
                         # Populate the libraries
@@ -150,8 +150,8 @@ class RunCrawler(Crawler):
 
     def _populate_barcode_info_from_adapter_file(self, adapter_trim_file):
         has_barcode = self.samplesheet.has_barcode
-        parsed_trimed_adapters = (demultiplexing_parsers.parse_adapter_trim_file(adapter_trim_file, self.run_id))
-        run_element_adapters_trimmed = demultiplexing_parsers.convert_barcode_from_run_sample_lane(parsed_trimed_adapters, has_barcode)
+        parsed_trimmed_adapters = demultiplexing_parsers.parse_adapter_trim_file(adapter_trim_file, self.run_id)
+        run_element_adapters_trimmed = demultiplexing_parsers.run_sample_lane_to_barcode(parsed_trimmed_adapters, self.barcodes_info, has_barcode)
         for run_element_id in run_element_adapters_trimmed:
             self.barcodes_info[run_element_id][ELEMENT_ADAPTER_TRIM_R1] = run_element_adapters_trimmed[run_element_id]['read_1_trimmed_bases']
             self.barcodes_info[run_element_id][ELEMENT_ADAPTER_TRIM_R2] = run_element_adapters_trimmed[run_element_id]['read_2_trimmed_bases']
