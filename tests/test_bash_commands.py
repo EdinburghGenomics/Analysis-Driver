@@ -112,10 +112,12 @@ def test_seqtk_fqchk():
 def test_fastq_filterer_an_pigz_in_place():
 
     fastq_file_pair=['file1.fastq.gz', 'file2.fastq.gz']
-    expected_command = """set -o pipefail; path/to/fastq-filterer --i1 file1.fastq.gz --i2 file2.fastq.gz --o1 >($pigz -p 10 > file1.fastq_fastq_filterer.gz) --o2 >($pigz -p 10 > file2.fastq_fastq_filterer.gz) --threshold 36
-EXIT_CODE=$?
-(exit $EXIT_CODE) && mv file1.fastq_fastq_filterer.gz file1.fastq.gz
-(exit $EXIT_CODE) && mv file2.fastq_fastq_filterer.gz file2.fastq.gz
-(exit $EXIT_CODE)"""
+    expected_command = "set -o pipefail; path/to/fastq-filterer --i1 file1.fastq.gz --i2 file2.fastq.gz " \
+                       "--o1 >(pigz -c -p 10 > file1.fastq_fastq_filterer.gz) " \
+                       "--o2 >(pigz -c -p 10 > file2.fastq_fastq_filterer.gz) --threshold 36\n" \
+                       "EXIT_CODE=$?\n" \
+                       "(exit $EXIT_CODE) && mv file1.fastq_fastq_filterer.gz file1.fastq.gz\n" \
+                       "(exit $EXIT_CODE) && mv file2.fastq_fastq_filterer.gz file2.fastq.gz\n" \
+                       "(exit $EXIT_CODE)"
     command = bash_commands.fastq_filterer_an_pigz_in_place(fastq_file_pair)
     assert command == expected_command

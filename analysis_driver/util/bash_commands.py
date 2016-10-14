@@ -52,8 +52,12 @@ def fastq_filterer_an_pigz_in_place(fastq_file_pair, pigz_thread=10):
     of2 = name + '_fastq_filterer' + ext
 
     cmds = []
-    cmd = "set -o pipefail; %s --i1 %s --i2 %s --o1 >($pigz -p %s > %s) --o2 >($pigz -p %s > %s) --threshold 36"
-    cmds.append(cmd % (cfg['tools']['fastq-filterer'], f1, f2, pigz_thread, of1, pigz_thread, of2))
+    cmd = "set -o pipefail; {ff} --i1 {f1} --i2 {f2} --o1 >({pz} -c -p {pzt} > {of1}) --o2 >({pz} -c -p {pzt} > {of2})" \
+          " --threshold {lent}"
+    cmds.append(cmd.format(ff=cfg.query('tools', 'fastq-filterer'),
+                           pz=cfg.query('tools', 'pigz', ret_default='pigz'), pzt=pigz_thread,
+                           f1=f1, f2=f2, of1=of1, of2=of2,
+                           lent=cfg.query('fastq_filterer', 'min_length', ret_default='36')))
     # replace the original files with the new files to keep things clean
     cmds.append('EXIT_CODE=$?')
     cmds.append('(exit $EXIT_CODE) && mv %s %s' % (of1, f1))
