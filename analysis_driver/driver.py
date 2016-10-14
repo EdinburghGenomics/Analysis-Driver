@@ -102,8 +102,8 @@ def demultiplexing_pipeline(dataset):
         *[bash_commands.sickle_paired_end_in_place(fqs) for fqs in util.find_all_fastq_pairs(fastq_dir)],
         job_name='sickle_filter',
         working_dir=job_dir,
-        cpus=1,
-        mem=2
+        cpus=18,
+        mem=10
     ).join()
     dataset.end_stage('sickle_filter', exit_status)
     if exit_status:
