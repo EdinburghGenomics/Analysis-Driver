@@ -231,8 +231,6 @@ def collapse_histograms(histograms):
         res.update(histogram)
     return res
 
-
-
 def get_percentiles(histogram, percentile):
     """
     Calculate the percentiles of the histogram.
@@ -350,12 +348,13 @@ def run_sample_lane_to_barcode(adapters_trimmed_by_id, barcodes_info, has_barcod
         run_id, sample_id, lane = adapter_id
         if has_barcode:
             for i in barcodes_info:
-                if barcodes_info[i][ELEMENT_RUN_NAME] == run_id:
-                    if barcodes_info[i][ELEMENT_SAMPLE_INTERNAL_ID] == sample_id:
-                        if barcodes_info[i][ELEMENT_LANE] == lane:
-                            run_element_id = barcodes_info[i][ELEMENT_RUN_ELEMENT_ID]
-        else:
-            run_element_id = '%s_%s' % (run_id, lane)
+                if barcodes_info[i][ELEMENT_RUN_NAME] == run_id \
+                        and barcodes_info[i][ELEMENT_SAMPLE_INTERNAL_ID] == sample_id \
+                        and barcodes_info[i][ELEMENT_LANE] == lane:
+                    run_element_id = barcodes_info[i][ELEMENT_RUN_ELEMENT_ID]
+                    break
+                else:
+                    run_element_id = '%s_%s' % (run_id, lane)
         run_element_adapters_trimmed[run_element_id] = adapters_trimmed_by_id[adapter_id]
 
     return run_element_adapters_trimmed
