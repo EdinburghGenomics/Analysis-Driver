@@ -170,7 +170,9 @@ class RunCrawler(Crawler):
 
     def _populate_from_lims(self):
         for libname in self.libraries:
-            self.libraries[libname].update(get_sample_information_from_lims(libname))
+            self.libraries[libname].update(
+                get_sample_information_from_lims(self.libraries[libname][ELEMENT_SAMPLE_INTERNAL_ID])
+            )
 
     def _populate_barcode_info_from_seqtk_fqchk_files(self, run_dir):
         for run_element_id in self.barcodes_info:
