@@ -23,6 +23,6 @@ class TestVersion(TestAnalysisDriver):
 
         expected_keys = ['bamtools', 'bcbio', 'bcftools', 'bcl2fastq', 'bwa', 'fastqc',
                          'fastqscreen', 'gatk', 'sambamba', 'samblaster', 'samtools',
-                         'seqtk', 'sickle', 'tabix', 'verifybamid', 'well_duplicate']
+                         'seqtk', 'tabix', 'verifybamid', 'well_duplicate']
         expected = dict((k, '1.2') for k in expected_keys)
         assert observed == expected
