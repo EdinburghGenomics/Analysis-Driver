@@ -160,7 +160,7 @@ def parse_seqtk_fqchk_file(fqchk_file, q_threshold):
         return  nb_read, nb_base, lo_q, hi_q
 
 
-def parse_fastqscreen_file(filename, myFocalSpecies):
+def parse_fastqscreen_file(filename, focal_species):
     """
     parse the fastq screen outfile
     :return dict: the maximum number of reads mapped uniquely (singly or multiple times) to a contaminant species
@@ -168,6 +168,10 @@ def parse_fastqscreen_file(filename, myFocalSpecies):
     :return float: % reads with no hits to any of the genomes provided
     :return int: number of reads mapped in total
     """
+    if focal_species is None:
+        app_logger.warning('No species name available')
+        return None
+
     uniquelyMapped = {}
     focalSpeciesPercentUnmapped = ''
     speciesList = []
@@ -181,7 +185,7 @@ def parse_fastqscreen_file(filename, myFocalSpecies):
             speciesName = speciesName.replace('_',' ')
             speciesList.append(speciesName)
 
-    if myFocalSpecies in speciesList:
+    if focal_species in speciesList:
         for result in speciesResults:
             speciesName = result.split('\t')[0]
             speciesName = speciesName.replace('_',' ')
@@ -190,7 +194,7 @@ def parse_fastqscreen_file(filename, myFocalSpecies):
 
             numberUniquelyMapped = int(result.split('\t')[4]) + int(result.split('\t')[6])
             uniquelyMapped[speciesName] = numberUniquelyMapped
-            if speciesName == myFocalSpecies:
+            if speciesName == focal_species:
                 focalSpeciesPercentUnmapped = float(speciesResults[2])
         uniquelyMapped = {k:v for k,v in uniquelyMapped.items() if v != 0}
         fastqscreen_result = {ELEMENT_CONTAMINANT_UNIQUE_MAP:uniquelyMapped,
@@ -203,14 +207,6 @@ def parse_fastqscreen_file(filename, myFocalSpecies):
         fastqscreen_result = None
         return fastqscreen_result
 
-def get_fastqscreen_results(filename, sample_id):
-    myFocalSpecies = get_species_from_sample(sample_id)
-    if myFocalSpecies is None:
-        app_logger.warning('No species name available')
-        return None
-    else:
-        fastqscreen_results = parse_fastqscreen_file(filename, myFocalSpecies)
-        return fastqscreen_results
 
 def read_histogram_file(input_file):
     histograms = defaultdict(Counter)

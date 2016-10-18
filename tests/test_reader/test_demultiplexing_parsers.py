@@ -2,7 +2,6 @@ import os
 from analysis_driver.reader.demultiplexing_parsers import parse_seqtk_fqchk_file, parse_conversion_stats, \
     parse_welldup_file, get_percentiles, read_histogram_file, collapse_histograms, get_coverage_Y_chrom
 from analysis_driver.reader.demultiplexing_parsers import parse_fastqscreen_file
-from analysis_driver.reader.demultiplexing_parsers import get_fastqscreen_results
 from analysis_driver.reader.demultiplexing_parsers import calculate_mean, calculate_median, calculate_sd, get_coverage_statistics, calculate_bases_at_coverage
 from tests.test_analysisdriver import TestAnalysisDriver
 from egcg_core.constants import ELEMENT_CONTAMINANT_UNIQUE_MAP, ELEMENT_PCNT_UNMAPPED_FOCAL, ELEMENT_PCNT_UNMAPPED, ELEMENT_TOTAL_READS_MAPPED
@@ -60,20 +59,6 @@ class TestDemultiplexingStats(TestAnalysisDriver):
         testFile = os.path.join(self.assets_path, "test_sample_R1_screen.txt")
         result = parse_fastqscreen_file(testFile, 'Mellivora capensis')
         assert result is None
-
-    @patch('analysis_driver.reader.demultiplexing_parsers.get_species_from_sample', autospec=True)
-    def test_get_fastqscreen_results1(self, mocked_species_sample):
-        testFile = os.path.join(self.assets_path, "test_sample_R1_screen.txt")
-        mocked_species_sample.return_value = None
-        result = get_fastqscreen_results(testFile, 'testSampleID')
-        assert result is None
-
-    @patch('analysis_driver.reader.demultiplexing_parsers.get_species_from_sample', autospec=True)
-    def test_get_fastqscreen_results2(self, mocked_species_sample):
-        testFile = os.path.join(self.assets_path, "test_sample_R1_screen.txt")
-        mocked_species_sample.return_value = 'Homo sapiens'
-        result = get_fastqscreen_results(testFile, 'testSampleID')
-        assert result == {ELEMENT_PCNT_UNMAPPED: 1.06, ELEMENT_TOTAL_READS_MAPPED: 100000, ELEMENT_PCNT_UNMAPPED_FOCAL: 1.09, ELEMENT_CONTAMINANT_UNIQUE_MAP: {'Gallus gallus': 1, 'Felis catus': 4, 'Bos taurus': 1, 'Ovis aries': 2, 'Mus musculus': 4, 'Homo sapiens': 74144}}
 
     def test_calculate_mean(self):
         hist_file = os.path.join(self.assets_path, 'test_sample.depth')
