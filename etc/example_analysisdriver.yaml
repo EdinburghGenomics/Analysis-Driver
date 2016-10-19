@@ -46,6 +46,7 @@ default:
         verifybamid: path/to/verifybamid
         well_duplicate: path/to/well_duplicate
         echo: echo
+        blastn: path/to/blastn
     versions:
         bwa: '0.9'
 
@@ -75,6 +76,7 @@ default:
     contamination-check:
       fastqscreen_conf: path/to/fastqscreen/conf
       population_vcf:   path/to/population_vcf
+      nt_db:            path/to/nt_db
 
     well_duplicate:
       coord_file: path/to/coord_file

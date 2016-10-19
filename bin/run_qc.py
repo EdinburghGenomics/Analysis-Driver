@@ -16,6 +16,7 @@ from analysis_driver.util.bash_commands import rsync_from_to, is_remote_path
 from analysis_driver.quality_control.gender_validation import GenderValidation
 from analysis_driver.quality_control.genotype_validation import GenotypeValidation
 from analysis_driver.quality_control.contamination_checks import ContaminationCheck, VerifyBamId
+from analysis_driver.quality_control.contamination_blast import ContaminationBlast
 from analysis_driver.reader.demultiplexing_parsers import get_fastqscreen_results
 
 
@@ -62,8 +63,13 @@ def _parse_args():
     median_coverage_parser.add_argument('--sample_id', required=True)
     median_coverage_parser.set_defaults(func=median_coverage)
 
-    return parser.parse_args()
+    contamination_blast_parser = subparsers.add_parser('contamination_blast')
+    contamination_blast_parser.add_argument('--fastq_files', required=True, nargs='+', help='list of fastq files to check for contamination')
+    contamination_blast_parser.add_argument('--work_dir', required=True)
+    contamination_blast_parser.add_argument('--sample_id', required=True)
+    contamination_blast_parser.set_defaults(func=contamination_blast)
 
+    return parser.parse_args()
 
 def run_genotype_validation(args):
     def retrieve_data(paths, work_dir, allow_fail=False):
@@ -183,6 +189,20 @@ def median_coverage(args):
     c.start()
     coverage = c.join()
     print(coverage)
+
+
+def contamination_blast(args):
+    if args.work_dir:
+        work_dir = args.work_dir
+    else:
+        work_dir = os.path.join(cfg['jobs_dir'], args.sample_id)
+    os.makedirs(work_dir, exist_ok=True)
+    dataset = NoCommunicationDataset(args.sample_id)
+    contamination = ContaminationBlast(dataset, work_dir, args.fastq_files)
+    contamination.start()
+    taxa_identified = contamination.join()
+    for taxon in taxa_identified:
+        print('taxon ' + taxon + ' has ' + str(taxa_identified[taxon]) + ' reads identified in the fastq files')
 
 if __name__ == '__main__':
     sys.exit(main())
