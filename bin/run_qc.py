@@ -200,9 +200,8 @@ def contamination_blast(args):
     dataset = NoCommunicationDataset(args.sample_id)
     contamination = ContaminationBlast(dataset, work_dir, args.fastq_files)
     contamination.start()
-    taxa_identified = contamination.join()
-    for taxon in taxa_identified:
-        print('taxon ' + taxon + ' has ' + str(taxa_identified[taxon]) + ' reads identified in the fastq files')
+    return contamination.join()
+
 
 if __name__ == '__main__':
     sys.exit(main())

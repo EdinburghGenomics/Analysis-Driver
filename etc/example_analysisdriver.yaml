@@ -77,6 +77,7 @@ default:
       fastqscreen_conf: path/to/fastqscreen/conf
       population_vcf:   path/to/population_vcf
       nt_db:            path/to/nt_db
+      ete_db:           path/to/ete_db
 
     well_duplicate:
       coord_file: path/to/coord_file
