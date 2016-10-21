@@ -8,10 +8,10 @@ from analysis_driver.exceptions import AnalysisDriverError
 
 class ContaminationBlast(QualityControl):
 
-    def __init__(self, dataset, working_dir, fastq_files):
+    def __init__(self, dataset, working_dir, fastq_file):
         super().__init__(dataset, working_dir)
         self.working_dir = working_dir
-        self.fastq_files = fastq_files
+        self.fastq_file = fastq_file
 
 
     def sample_fastq_command(self, fastq_file):
@@ -25,9 +25,8 @@ class ContaminationBlast(QualityControl):
         blastn_bin = cfg['tools']['blastn']
         nt_db = cfg['contamination-check']['nt_db']
         blast_outfile = fasta_file.split('.')[0] + '_blastn'
-        blast_cmd = "%s -query %s -db %s -out %s -outfmt '6 qseqid sseqid length pident evalue sgi sacc staxids sscinames scomnames stitle'" % (blastn_bin, fasta_file, nt_db, blast_outfile)
+        blast_cmd = "%s -query %s -db %s -out %s -num_threads 12 -outfmt '6 qseqid sseqid length pident evalue sgi sacc staxids sscinames scomnames stitle'" % (blastn_bin, fasta_file, nt_db, blast_outfile)
         return blast_cmd, blast_outfile
-
 
     def check_db_exists(self, db_path):
         if os.path.exists(db_path):
@@ -59,25 +58,26 @@ class ContaminationBlast(QualityControl):
         return taxids
 
 
-    def update_classes(self, taxon, classes, taxids, db_path):
-        num_reads = taxids[taxon]
+    def get_all_taxa_identified(self, taxon, taxids, db_path):
+        taxa_identified = {}
+        num_reads = taxids.get(taxon)
         names, class_taxid = self.taxon_info(taxon, db_path)
         if class_taxid:
-            class_name = names[class_taxid[0]]
-            if class_name not in classes:
-                classes[class_name] = num_reads
+            taxon_id = names.get(class_taxid[0])
+            if taxon_id not in taxa_identified:
+                taxa_identified[taxon_id] = num_reads
             else:
-                classes[class_name]+=num_reads
-        return classes
+                taxa_identified[taxon_id]+=num_reads
+        return taxa_identified
 
 
     def retrieve_identified_taxa(self, blast):
-        classes = {}
+        taxa_identified = {}
         db_path = cfg['contamination-check']['ete_db']
         taxids = self.get_taxids(blast)
         for taxon in taxids:
-            classes = self.update_classes(taxon, classes, taxids, db_path)
-        return classes
+            taxa_identified = self.get_all_taxa_identified(taxon, taxids, db_path)
+        return taxa_identified
 
 
     def run_sample_fastq(self, fastq_file):
@@ -112,24 +112,21 @@ class ContaminationBlast(QualityControl):
 
     def check_for_contamination(self):
         taxa_identified = {}
-        for fastq_file in self.fastq_files:
-            fasta_outfile = self.run_sample_fastq(fastq_file)
-            blast_outfile = self.run_blast(fasta_outfile)
-            taxa = self.retrieve_identified_taxa(blast_outfile)
-            for taxon in taxa:
-                if taxon not in taxa_identified:
-                    taxa_identified[taxon] = taxa[taxon]
-                else:
-                    taxa_identified[taxon] += taxa[taxon]
+        fasta_outfile = self.run_sample_fastq(self.fastq_file)
+        blast_outfile = self.run_blast(fasta_outfile)
+        taxa = self.retrieve_identified_taxa(blast_outfile)
+        for taxon in taxa:
+            if taxon not in taxa_identified:
+                taxa_identified[taxon] = taxa[taxon]
+            else:
+                taxa_identified[taxon] += taxa[taxon]
 
-
-        with open('taxa_identified.json', 'w') as outfile:
+        outpath = os.path.join(self.working_dir, 'taxa_identified.json')
+        with open(outpath, 'w') as outfile:
             taxa_identified_json = json.dumps(taxa_identified,
                                             sort_keys=True, indent=4,
                                             separators=(',', ':'))
             outfile.write(taxa_identified_json)
-
-
 
 
     def run(self):

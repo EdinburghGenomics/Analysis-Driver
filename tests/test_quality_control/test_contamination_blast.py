@@ -19,7 +19,7 @@ class TestContaminationBlast(QCTester):
 
     def test_fasta_blast_command(self):
         command, outfile = self.contamination_blast.fasta_blast_command(self.fasta_file)
-        assert command == "path/to/blastn -query fastaFile1.fasta -db path/to/nt_db -out fastaFile1_blastn -outfmt '6 qseqid sseqid length pident evalue sgi sacc staxids sscinames scomnames stitle'"
+        assert command == "path/to/blastn -query fastaFile1.fasta -db path/to/nt_db -out fastaFile1_blastn -num_threads 12 -outfmt '6 qseqid sseqid length pident evalue sgi sacc staxids sscinames scomnames stitle'"
         assert outfile =='fastaFile1_blastn'
 
     def test_get_taxids(self):
@@ -27,11 +27,8 @@ class TestContaminationBlast(QCTester):
         taxids = self.contamination_blast.get_taxids(blast_file)
         assert taxids == {'9598': 2, '9606': 197, '99802': 2}
 
-    def test_update_classes(self):
-        taxon = '9606'
-        classes = {}
-        taxids = {'99802': 2, '9598': 2, '9606': 197}
-        db_path = 'test/db/path'
+
+    def test_get_all_taxa_identified(self):
         patch_names = {1: u'root',
                        33154: u'Opisthokonta',
                        9347: u'Eutheria',
@@ -64,20 +61,18 @@ class TestContaminationBlast(QCTester):
                        207598: u'Homininae',
                        131567: u'cellular organisms',
                        89593: u'Craniata'}
+
         patch_class_taxid = [9604]
-        with patch('analysis_driver.quality_control.ContaminationBlast.taxon_info', return_value=(patch_names, patch_class_taxid)):
-            classes = self.contamination_blast.update_classes(taxon, classes, taxids, db_path)
-            assert classes == {'Hominidae': 197}
 
-        classes = {'Hominidae': 197}
         with patch('analysis_driver.quality_control.ContaminationBlast.taxon_info', return_value=(patch_names, patch_class_taxid)):
-            classes = self.contamination_blast.update_classes(taxon, classes, taxids, db_path)
-            assert classes == {'Hominidae': 394}
-
-        classes = {'Diphyllobothriidae': 3}
-        with patch('analysis_driver.quality_control.ContaminationBlast.taxon_info', return_value=(patch_names, patch_class_taxid)):
-            classes = self.contamination_blast.update_classes(taxon, classes, taxids, db_path)
-            assert classes == {'Diphyllobothriidae': 3, 'Hominidae': 197}
+            taxon = '9606'
+            taxids = {'99802': 2, '9598': 2, '9606': 197}
+            db_path = 'test/db/path'
+            taxa_identified = self.contamination_blast.get_all_taxa_identified(taxon, taxids, db_path)
+            assert taxa_identified == {'Hominidae': 197}
+            taxon = '100'
+            taxa_identified = self.contamination_blast.get_all_taxa_identified(taxon, taxids, db_path)
+            assert taxa_identified == {'Hominidae': None}
 
 
     @patch('analysis_driver.dataset.rest_communication')
@@ -103,7 +98,7 @@ class TestContaminationBlast(QCTester):
         blast_outfile = self.contamination_blast.run_blast(self.fasta_file)
         assert blast_outfile == 'fastaFile1_blastn'
         mocked_execute.assert_called_once_with(
-            "path/to/blastn -query fastaFile1.fasta -db path/to/nt_db -out fastaFile1_blastn -outfmt '6 qseqid sseqid length pident evalue sgi sacc staxids sscinames scomnames stitle'",
+            "path/to/blastn -query fastaFile1.fasta -db path/to/nt_db -out fastaFile1_blastn -num_threads 12 -outfmt '6 qseqid sseqid length pident evalue sgi sacc staxids sscinames scomnames stitle'",
             working_dir='test_run',
             mem=10,
             cpus=12,

@@ -64,7 +64,7 @@ def _parse_args():
     median_coverage_parser.set_defaults(func=median_coverage)
 
     contamination_blast_parser = subparsers.add_parser('contamination_blast')
-    contamination_blast_parser.add_argument('--fastq_files', required=True, nargs='+', help='list of fastq files to check for contamination')
+    contamination_blast_parser.add_argument('--fastq_file', required=True, nargs='+', help='a fastq file to check for contamination')
     contamination_blast_parser.add_argument('--work_dir', required=True)
     contamination_blast_parser.add_argument('--sample_id', required=True)
     contamination_blast_parser.set_defaults(func=contamination_blast)
@@ -198,7 +198,7 @@ def contamination_blast(args):
         work_dir = os.path.join(cfg['jobs_dir'], args.sample_id)
     os.makedirs(work_dir, exist_ok=True)
     dataset = NoCommunicationDataset(args.sample_id)
-    contamination = ContaminationBlast(dataset, work_dir, args.fastq_files)
+    contamination = ContaminationBlast(dataset, work_dir, args.fastq_file)
     contamination.start()
     return contamination.join()
 
