@@ -1,6 +1,7 @@
 import os
 from analysis_driver.reader.demultiplexing_parsers import parse_seqtk_fqchk_file, parse_conversion_stats, \
-    parse_welldup_file, get_percentiles, read_histogram_file, collapse_histograms, get_coverage_Y_chrom
+    parse_welldup_file, get_percentiles, read_histogram_file, collapse_histograms, get_coverage_Y_chrom, \
+    calculate_size_genome
 from analysis_driver.reader.demultiplexing_parsers import parse_fastqscreen_file
 from analysis_driver.reader.demultiplexing_parsers import calculate_mean, calculate_median, calculate_sd, get_coverage_statistics, calculate_bases_at_coverage
 from tests.test_analysisdriver import TestAnalysisDriver
@@ -100,11 +101,19 @@ class TestDemultiplexingStats(TestAnalysisDriver):
 
     def test_get_coverage_statistics(self):
         hist_file = os.path.join(self.assets_path, 'test_sample.depth')
-        mean, median, sd, coverage_percentiles, bases_at_coverage = get_coverage_statistics(hist_file)
+        mean, median, sd, coverage_percentiles, bases_at_coverage, genome_size = get_coverage_statistics(hist_file)
         assert mean == 438.8514851485148
         assert median == 478
         assert sd == 189.1911391390011
         assert coverage_percentiles == {'percentile_5': 102, 'percentile_25': 279, 'percentile_50': 478, 'percentile_75': 625, 'percentile_95': 648}
+        print(genome_size)
+        assert genome_size == 101
+
+
+    def test_calculate_size_genome(self):
+        histogram = {1: 5, 2: 2, 3: 4, 4: 6, 5: 3}
+        assert calculate_size_genome(histogram) == 20
+
 
     def test_get_coverage_Y_chrom(self):
         hist_file = os.path.join(self.assets_path, 'test_sample_chrY.depth')

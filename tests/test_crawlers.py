@@ -101,11 +101,18 @@ class TestSampleCrawler(TestCrawler):
         },
         "sample_contamination": {"het_hom_ratio": 1.6, "ti_tv_ratio": 2.01},
         'gender_validation': {'hetX': '0.10'},
-        'coverage': {'median': 478,
-                     'std_dev': 189.1911391390011,
-                     'coverage_percentiles': {"percentile_25": 279, "percentile_5": 102, "percentile_50": 478, "percentile_75": 625, "percentile_95": 648},
-                     'mean': 438.8514851485148,
-                     'bases_at_coverage': {'bases_at_5X': 100, 'bases_at_30X': 99, 'bases_at_15X': 100}}
+        'coverage': {
+            'median': 478,
+            'std_dev': 189.1911391390011,
+            'coverage_percentiles': {
+                "percentile_25": 279, "percentile_5": 102,
+                "percentile_50": 478, "percentile_75": 625,
+                "percentile_95": 648
+            },
+            'mean': 438.8514851485148,
+            'bases_at_coverage': {'bases_at_5X': 100, 'bases_at_30X': 99, 'bases_at_15X': 100},
+            "genome_size": 101,
+        }
     }
 
     def setUp(self):
