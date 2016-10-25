@@ -45,6 +45,12 @@ class TestRunCrawler(TestCrawler):
         return self._expected_output
 
     def setUp(self):
+        with patch('analysis_driver.report_generation.report_crawlers.get_sample_information_from_lims'):
+            self.crawler = report_generation.RunCrawler(
+                self.run_id,
+                SampleSheet(os.path.join(self.test_data, 'SampleSheet_analysis_driver.csv')),
+                os.path.join(self.test_data, 'ConversionStats.xml')
+            )
         with patch('analysis_driver.report_generation.report_crawlers.RunCrawler._run_sample_lane_to_barcode',
                    return_value={"150723_E00306_0025_BHCHK3CCXX_1_unknown": {'read_1_trimmed_bases': 184380158, 'read_2_trimmed_bases': 172552099},
                                  "150723_E00306_0025_BHCHK3CCXX_2_unknown": {'read_1_trimmed_bases': 48149799, 'read_2_trimmed_bases': 48818739},
@@ -98,6 +104,7 @@ class TestSampleCrawler(TestCrawler):
         'mapped_reads': 7892452,
         'called_gender': 'male',
         'provided_gender': 'female',
+        "species_name": "Homo sapiens",
         'species_contamination': {
             'contaminant_unique_mapped': {
                 'Bos taurus': 1,
@@ -121,13 +128,13 @@ class TestSampleCrawler(TestCrawler):
     }
 
     def setUp(self):
-        with patch('analysis_driver.report_generation.report_crawlers.get_user_sample_name',
-                   return_value='test_sample'):
-            with patch('analysis_driver.report_generation.report_crawlers.get_sample_gender',
-                       return_value='female'):
-                with patch('analysis_driver.reader.demultiplexing_parsers.get_species_from_sample',
-                           return_value='Homo sapiens'):
-                    self.crawler = report_generation.SampleCrawler('test_sample', 'test_project', self.test_data)
+        with patch('analysis_driver.report_generation.report_crawlers.get_sample_information_from_lims',
+                   return_value={
+                       'user_sample_id': 'test_sample',
+                       'provided_gender': 'female',
+                       'species_name': 'Homo sapiens'
+                   }):
+            self.crawler = report_generation.SampleCrawler('test_sample', 'test_project', self.test_data)
 
     def test_sample(self):
         self.compare_jsons(self.crawler.sample, self.expected_sample)

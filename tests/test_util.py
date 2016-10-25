@@ -4,8 +4,7 @@ from unittest.mock import patch
 from tests.test_analysisdriver import TestAnalysisDriver
 from analysis_driver import transfer_data
 from analysis_driver.util import bcbio_prepare_samples_cmd
-from analysis_driver.util.bash_commands import sickle_paired_end_in_place
-from analysis_driver.config import default as cfg, _etc_config
+from analysis_driver.config import default as cfg
 
 
 def ppath(*parts):
@@ -18,19 +17,6 @@ def patched_get_user_sample_name(sample_id):
 
 def patched_find_project_from_sample(sample_id):
     return patch(ppath('find_project_name_from_sample'), return_value='proj_' + sample_id)
-
-
-def test_sickle_paired_end_in_place():
-    cfg.load_config_file(_etc_config('example_analysisdriver.yaml'))
-    expected_command = "path/to/sickle pe -f fastqfile1_R1.fastq.gz -r fastqfile1_R2.fastq.gz " \
-                       "-o fastqfile1_R1.fastq_sickle.gz -p fastqfile1_R2.fastq_sickle.gz -s " \
-                       "fastqfile1_R1.fastq_sickle_single.gz -q 5  -l 36  -x  -g -t sanger > " \
-                       "fastqfile1_R1.fastq_sickle.log\nEXIT_CODE=$?\n" \
-                       "(exit $EXIT_CODE) && mv fastqfile1_R1.fastq_sickle.gz fastqfile1_R1.fastq.gz\n" \
-                       "(exit $EXIT_CODE) && mv fastqfile1_R2.fastq_sickle.gz fastqfile1_R2.fastq.gz\n" \
-                       "(exit $EXIT_CODE) && rm fastqfile1_R1.fastq_sickle_single.gz\n(exit $EXIT_CODE)"
-    cmd = sickle_paired_end_in_place(('fastqfile1_R1.fastq.gz', 'fastqfile1_R2.fastq.gz'))
-    assert cmd == expected_command
 
 
 class TestTransferData(TestAnalysisDriver):

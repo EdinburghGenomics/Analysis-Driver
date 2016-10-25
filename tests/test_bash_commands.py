@@ -68,8 +68,6 @@ def test_bwa_mem_samblaster_read_groups():
         'path/to/samtools view -b - | '
         'path/to/sambamba sort -m 5G --tmpdir output -t 16 -o output/out.bam /dev/stdin'
     )
-    print(cmd)
-    print(expected_cmd)
     assert cmd == expected_cmd
 
 
@@ -110,3 +108,16 @@ def test_seqtk_fqchk():
     fastq_file = 'path/to/fastq_R1.fastq.gz'
     expected = '%s fqchk -q 0 %s > %s.fqchk' % (cfg['tools']['seqtk'], fastq_file, fastq_file)
     assert bash_commands.seqtk_fqchk(fastq_file) == expected
+
+def test_fastq_filterer_an_pigz_in_place():
+
+    fastq_file_pair=['file1.fastq.gz', 'file2.fastq.gz']
+    expected_command = "set -o pipefail; path/to/fastq-filterer --i1 file1.fastq.gz --i2 file2.fastq.gz " \
+                       "--o1 >(pigz -c -p 10 > file1.fastq_fastq_filterer.gz) " \
+                       "--o2 >(pigz -c -p 10 > file2.fastq_fastq_filterer.gz) --threshold 36\n" \
+                       "EXIT_CODE=$?\n" \
+                       "(exit $EXIT_CODE) && mv file1.fastq_fastq_filterer.gz file1.fastq.gz\n" \
+                       "(exit $EXIT_CODE) && mv file2.fastq_fastq_filterer.gz file2.fastq.gz\n" \
+                       "(exit $EXIT_CODE)"
+    command = bash_commands.fastq_filterer_an_pigz_in_place(fastq_file_pair)
+    assert command == expected_command

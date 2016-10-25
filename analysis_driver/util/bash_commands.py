@@ -38,30 +38,30 @@ def seqtk_fqchk(fastq_file):
     return cmd
 
 
-def sickle_paired_end_in_place(fastq_file_pair):
+def fastq_filterer_an_pigz_in_place(fastq_file_pair, pigz_thread=10):
     """
-    Run sickle in paired end mode to do a very minimal trimming and filter reads shorter than 36 bases, i.e.
-    remove the adapter dimers flagged by bcl2fastq.
-    :param fastq_file_pair: A pair of fastqs to run sickle on
+    Run fastq filterer on a pair of fastq file which will remove any pair if one of the mate is shorter than 36 bases
     """
     if len(fastq_file_pair) != 2:
-        raise AnalysisDriverError('sickle_paired_end only supports paired fastq files')
+        raise AnalysisDriverError('fastq-filterer only supports paired fastq files')
 
     f1, f2 = sorted(fastq_file_pair)
     name, ext = os.path.splitext(f1)
-    of1 = name + '_sickle' + ext
-    ofs = name + '_sickle_single' + ext
-    lf = name + '_sickle.log'
+    of1 = name + '_fastq_filterer' + ext
     name, ext = os.path.splitext(f2)
-    of2 = name + '_sickle' + ext
+    of2 = name + '_fastq_filterer' + ext
+
     cmds = []
-    cmd = cfg['tools']['sickle'] + ' pe -f %s -r %s -o %s -p %s -s %s -q 5  -l 36  -x  -g -t sanger > %s'
-    cmds.append(cmd % (f1, f2, of1, of2, ofs, lf))
-    # replace the original files with the new files and remove the the single file to keep things clean
+    cmd = "set -o pipefail; {ff} --i1 {f1} --i2 {f2} --o1 >({pz} -c -p {pzt} > {of1}) --o2 >({pz} -c -p {pzt} > {of2})" \
+          " --threshold {lent}"
+    cmds.append(cmd.format(ff=cfg.query('tools', 'fastq-filterer'),
+                           pz=cfg.query('tools', 'pigz', ret_default='pigz'), pzt=pigz_thread,
+                           f1=f1, f2=f2, of1=of1, of2=of2,
+                           lent=cfg.query('fastq_filterer', 'min_length', ret_default='36')))
+    # replace the original files with the new files to keep things clean
     cmds.append('EXIT_CODE=$?')
     cmds.append('(exit $EXIT_CODE) && mv %s %s' % (of1, f1))
     cmds.append('(exit $EXIT_CODE) && mv %s %s' % (of2, f2))
-    cmds.append('(exit $EXIT_CODE) && rm %s' % ofs)
     cmds.append('(exit $EXIT_CODE)')
     for c in cmds:
         app_logger.debug('Writing: ' + c)
