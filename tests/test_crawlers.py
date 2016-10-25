@@ -45,7 +45,7 @@ class TestRunCrawler(TestCrawler):
         return self._expected_output
 
     def setUp(self):
-        with patch('analysis_driver.reader.demultiplexing_parsers.run_sample_lane_to_barcode',
+        with patch('analysis_driver.report_generation.report_crawlers.RunCrawler._run_sample_lane_to_barcode',
                    return_value={"150723_E00306_0025_BHCHK3CCXX_1_unknown": {'read_1_trimmed_bases': 184380158, 'read_2_trimmed_bases': 172552099},
                                  "150723_E00306_0025_BHCHK3CCXX_2_unknown": {'read_1_trimmed_bases': 48149799, 'read_2_trimmed_bases': 48818739},
                                  "150723_E00306_0025_BHCHK3CCXX_1_TCCGGAGA": {'read_1_trimmed_bases': 1088149481, 'read_2_trimmed_bases': 1034179505},
@@ -77,6 +77,13 @@ class TestRunCrawler(TestCrawler):
 
     def test_projects(self):
         self.compare_jsons(dict(self.crawler.projects), self.expected_output['projects'])
+
+    def test_run_sample_lane_to_barcode(self):
+        print(self.crawler.barcodes_info)
+        has_barcode = True
+        input = {('150723_E00306_0025_BHCHK3CCXX', '10015AT0001', '1'): {'read_1_trimmed_bases': 714309214, 'read_2_trimmed_bases': 684692293}}
+        test = self.crawler._run_sample_lane_to_barcode(input, has_barcode)
+        assert test == {'150723_E00306_0025_BHCHK3CCXX_1_ATTACTCG': {'read_1_trimmed_bases': 714309214, 'read_2_trimmed_bases': 684692293}}
 
 class TestSampleCrawler(TestCrawler):
     expected_sample = {

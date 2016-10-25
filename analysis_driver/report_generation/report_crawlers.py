@@ -32,7 +32,6 @@ class Crawler(AppLogger):
             self.warning('rest_api is not configured. Cancel upload')
             return False
 
-
 class RunCrawler(Crawler):
     def __init__(self, run_id, samplesheet, adapter_trim_file=None, conversion_xml_file=None, run_dir=None):
         self.run_id = run_id
@@ -142,10 +141,28 @@ class RunCrawler(Crawler):
 
         self.run[ELEMENT_NUMBER_LANE] = len(self.lanes)
 
+    def _run_sample_lane_to_barcode(self, adapters_trimmed_by_id, has_barcode):
+        run_element_adapters_trimmed = {}
+        for adapter_id in adapters_trimmed_by_id:
+            run_element_id = None
+            run_id, sample_id, lane = adapter_id
+            if has_barcode:
+                for i in self.barcodes_info:
+                    if self.barcodes_info[i][ELEMENT_RUN_NAME] == run_id \
+                            and self.barcodes_info[i][ELEMENT_SAMPLE_INTERNAL_ID] == sample_id \
+                            and self.barcodes_info[i][ELEMENT_LANE] == lane:
+                        run_element_id = self.barcodes_info[i][ELEMENT_RUN_ELEMENT_ID]
+                        break
+                    else:
+                        run_element_id = '%s_%s' % (run_id, lane)
+            run_element_adapters_trimmed[run_element_id] = adapters_trimmed_by_id[adapter_id]
+
+            return run_element_adapters_trimmed
+
     def _populate_barcode_info_from_adapter_file(self, adapter_trim_file):
         has_barcode = self.samplesheet.has_barcode
         parsed_trimmed_adapters = demultiplexing_parsers.parse_adapter_trim_file(adapter_trim_file, self.run_id)
-        run_element_adapters_trimmed = demultiplexing_parsers.run_sample_lane_to_barcode(parsed_trimmed_adapters, self.barcodes_info, has_barcode)
+        run_element_adapters_trimmed = self._run_sample_lane_to_barcode(parsed_trimmed_adapters, has_barcode)
         for run_element_id in run_element_adapters_trimmed:
             self.barcodes_info[run_element_id][ELEMENT_ADAPTER_TRIM_R1] = run_element_adapters_trimmed[run_element_id]['read_1_trimmed_bases']
             self.barcodes_info[run_element_id][ELEMENT_ADAPTER_TRIM_R2] = run_element_adapters_trimmed[run_element_id]['read_2_trimmed_bases']

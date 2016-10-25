@@ -2,7 +2,7 @@ import os
 from analysis_driver.reader.demultiplexing_parsers import parse_seqtk_fqchk_file, parse_conversion_stats, \
     parse_welldup_file, get_percentiles, read_histogram_file, collapse_histograms, get_coverage_Y_chrom
 from analysis_driver.reader.demultiplexing_parsers import parse_fastqscreen_file
-from analysis_driver.reader.demultiplexing_parsers import get_fastqscreen_results, run_sample_lane_to_barcode
+from analysis_driver.reader.demultiplexing_parsers import get_fastqscreen_results
 from analysis_driver.reader.demultiplexing_parsers import calculate_mean, calculate_median, calculate_sd, get_coverage_statistics, calculate_bases_at_coverage, parse_adapter_trim_file
 from tests.test_analysisdriver import TestAnalysisDriver
 from egcg_core.constants import ELEMENT_CONTAMINANT_UNIQUE_MAP, ELEMENT_PCNT_UNMAPPED_FOCAL, ELEMENT_PCNT_UNMAPPED, ELEMENT_TOTAL_READS_MAPPED
@@ -141,11 +141,3 @@ class TestDemultiplexingStats(TestAnalysisDriver):
                     ('test_run_id', 'unknown', '2'): {'read_1_trimmed_bases': 48149799, 'read_2_trimmed_bases': 48818739},
                     ('test_run_id', '10015AT0002', '1'): {'read_1_trimmed_bases': 1088149481, 'read_2_trimmed_bases': 1034179505},
                     ('test_run_id', 'unknown', '1'): {'read_1_trimmed_bases': 184380158, 'read_2_trimmed_bases': 172552099}}
-
-    def test_get_barcode_from_run_sample_lane(self):
-        input = {('150723_E00306_0025_BHCHK3CCXX', '10015AT0001', '1'): {'read_1_trimmed_bases': 714309214, 'read_2_trimmed_bases': 684692293}}
-        has_barcode = True
-        barcodes_info = {'150723_E00306_0025_BHCHK3CCXX_1_ATTACTCG': {'run_id': '150723_E00306_0025_BHCHK3CCXX', 'lane': '1', 'run_element_id': '150723_E00306_0025_BHCHK3CCXX_1_ATTACTCG', 'sample_id': '10015AT0001', 'barcode': 'ATTACTCG', 'library_id': 'LP6002014-DTP_A01', 'project_id': '10015AT'}}
-        barcode_converted = run_sample_lane_to_barcode(input, barcodes_info, has_barcode)
-        assert barcode_converted == {'150723_E00306_0025_BHCHK3CCXX_1_ATTACTCG': {'read_1_trimmed_bases': 714309214, 'read_2_trimmed_bases': 684692293}}
-

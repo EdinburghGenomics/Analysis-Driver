@@ -329,8 +329,8 @@ def parse_adapter_trim_file(adapter_trim_file, run_id):
     adapters_trimmed_by_id = {}
     with open(adapter_trim_file) as open_file:
         open_file = open_file.read()
-        open_file = (open_file.split('\n\n')[0]).split('\n')
-        for line in islice(open_file, 1, None):
+        adapter_trim_info = (open_file.split('\n\n')[0]).split('\n')
+        for line in islice(adapter_trim_info, 1, None):
             lane = line.split()[0]
             read = line.split()[1]
             sample_id = line.split()[3]
@@ -341,20 +341,3 @@ def parse_adapter_trim_file(adapter_trim_file, run_id):
             adapters_trimmed_by_id[run_element_info]['read_%s_trimmed_bases' % (read)] = int(trimmed_bases)
     return adapters_trimmed_by_id
 
-def run_sample_lane_to_barcode(adapters_trimmed_by_id, barcodes_info, has_barcode):
-    run_element_adapters_trimmed = {}
-    for adapter_id in adapters_trimmed_by_id:
-        run_element_id = None
-        run_id, sample_id, lane = adapter_id
-        if has_barcode:
-            for i in barcodes_info:
-                if barcodes_info[i][ELEMENT_RUN_NAME] == run_id \
-                        and barcodes_info[i][ELEMENT_SAMPLE_INTERNAL_ID] == sample_id \
-                        and barcodes_info[i][ELEMENT_LANE] == lane:
-                    run_element_id = barcodes_info[i][ELEMENT_RUN_ELEMENT_ID]
-                    break
-                else:
-                    run_element_id = '%s_%s' % (run_id, lane)
-        run_element_adapters_trimmed[run_element_id] = adapters_trimmed_by_id[adapter_id]
-
-    return run_element_adapters_trimmed
