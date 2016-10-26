@@ -65,13 +65,10 @@ class TestContaminationBlast(QCTester):
         patch_class_taxid = [9604]
 
         with patch('analysis_driver.quality_control.ContaminationBlast.taxon_info', return_value=(patch_names, patch_class_taxid)):
-            taxon = '9606'
             taxids = {'99802': 2, '9598': 2, '9606': 197}
-            db_path = 'test/db/path'
-            taxa_identified = self.contamination_blast.get_all_taxa_identified(taxon, taxids, db_path)
+            taxa_identified = self.contamination_blast.get_all_taxa_identified(taxids)
             assert taxa_identified == {'Hominidae': 197}
-            taxon = '100'
-            taxa_identified = self.contamination_blast.get_all_taxa_identified(taxon, taxids, db_path)
+            taxa_identified = self.contamination_blast.get_all_taxa_identified(taxids)
             assert taxa_identified == {'Hominidae': None}
 
 

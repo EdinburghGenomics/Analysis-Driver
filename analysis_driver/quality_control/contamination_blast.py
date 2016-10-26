@@ -1,6 +1,7 @@
 import os
 import json
 from ete3 import NCBITaxa
+from collections import Counter
 from egcg_core import executor
 from .quality_control_base import QualityControl
 from analysis_driver.config import default as cfg
@@ -46,39 +47,25 @@ class ContaminationBlast(QualityControl):
 
 
     def get_taxids(self, blast):
-        taxids = {}
+        taxids = Counter()
         with open(blast) as openfile:
             blast = openfile.readlines()
             for line in blast:
                 taxid = line.split()[7]
-                if taxid not in taxids:
-                    taxids[taxid] = 1
-                else:
-                    taxids[taxid] += 1
+                taxids[taxid] +=1
         return taxids
 
 
-    def get_all_taxa_identified(self, taxon, taxids, db_path):
-        taxa_identified = {}
-        num_reads = taxids.get(taxon)
-        names, class_taxid = self.taxon_info(taxon, db_path)
-        if class_taxid:
-            taxon_id = names.get(class_taxid[0])
-            if taxon_id not in taxa_identified:
-                taxa_identified[taxon_id] = num_reads
-            else:
-                taxa_identified[taxon_id]+=num_reads
-        return taxa_identified
-
-
-    def retrieve_identified_taxa(self, blast):
-        taxa_identified = {}
+    def get_all_taxa_identified(self, taxids):
+        taxa_identified = Counter()
         db_path = cfg['contamination-check']['ete_db']
-        taxids = self.get_taxids(blast)
         for taxon in taxids:
-            taxa_identified = self.get_all_taxa_identified(taxon, taxids, db_path)
+            num_reads = taxids.get(taxon, 0)
+            names, class_taxid = self.taxon_info(taxon, db_path)
+            if class_taxid:
+                taxon_id = names.get(class_taxid[0])
+                taxa_identified[taxon_id] += num_reads
         return taxa_identified
-
 
     def run_sample_fastq(self, fastq_file):
         self.dataset.start_stage('sample_fastq')
@@ -111,16 +98,13 @@ class ContaminationBlast(QualityControl):
 
 
     def check_for_contamination(self):
-        taxa_identified = {}
+        taxa_identified = Counter()
         fasta_outfile = self.run_sample_fastq(self.fastq_file)
         blast_outfile = self.run_blast(fasta_outfile)
-        taxa = self.retrieve_identified_taxa(blast_outfile)
+        taxids = self.get_taxids(blast_outfile)
+        taxa = self.get_all_taxa_identified(taxids)
         for taxon in taxa:
-            if taxon not in taxa_identified:
-                taxa_identified[taxon] = taxa[taxon]
-            else:
-                taxa_identified[taxon] += taxa[taxon]
-
+            taxa_identified[taxon] += taxa[taxon]
         outpath = os.path.join(self.working_dir, 'taxa_identified.json')
         with open(outpath, 'w') as outfile:
             taxa_identified_json = json.dumps(taxa_identified,
