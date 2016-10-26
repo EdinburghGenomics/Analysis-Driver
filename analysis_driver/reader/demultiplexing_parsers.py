@@ -278,6 +278,8 @@ def calculate_bases_at_coverage(histogram):
     bases_30X = sum([histogram[i] for i in histogram.keys() if i > 30])
     return bases_5X, bases_15X, bases_30X
 
+def calculate_size_genome(histogram):
+    return sum(histogram.values())
 
 def get_coverage_statistics(histogram_file):
     # Read the histogram file keeping each chrom separated
@@ -297,7 +299,8 @@ def get_coverage_statistics(histogram_file):
     bases_5X, bases_15X, bases_30X = calculate_bases_at_coverage(histogram)
     bases_at_coverage = {ELEMENT_BASES_AT_5X: bases_5X, ELEMENT_BASES_AT_15X: bases_15X, ELEMENT_BASES_AT_30X: bases_30X}
 
-    return coverage_mean, coverage_median, coverage_sd, coverage_percentiles, bases_at_coverage
+    genome_size = calculate_size_genome(histogram)
+    return coverage_mean, coverage_median, coverage_sd, coverage_percentiles, bases_at_coverage, genome_size
 
 def get_coverage_Y_chrom(histogram_file, chr_name='chrY'):
     # Read the histogram file keeping each chrom separated
