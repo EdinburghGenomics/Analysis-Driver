@@ -41,16 +41,17 @@ def get_sample_information_from_lims(sample_name):
     species = clarity.get_species_from_sample(sample_name)
     external_sample_name = clarity.get_user_sample_name(sample_name, lenient=True)
     yield_q30 = clarity.get_expected_yield_for_sample(sample_name)
-    coverage = lims_sample.udf.get('Coverage', '')
-    return {
+    ret_values = {
         ELEMENT_SAMPLE_EXTERNAL_ID: external_sample_name,
         ELEMENT_SAMPLE_PLATE: plate_id,
         ELEMENT_PROVIDED_GENDER: gender,
         ELEMENT_SAMPLE_SPECIES: species,
         ELEMENT_SAMPLE_EXPECTED_YIELD: yield_q30,
-        ELEMENT_SAMPLE_EXPECTED_COVERAGE: coverage
     }
-
+    coverage = lims_sample.udf.get('Coverage', '')
+    if coverage:
+        ret_values[ELEMENT_SAMPLE_EXPECTED_COVERAGE] = coverage
+    return ret_values
 
 class Crawler(AppLogger):
     def _check_config(self):
