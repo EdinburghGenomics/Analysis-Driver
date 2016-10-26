@@ -38,28 +38,36 @@ def seqtk_fqchk(fastq_file):
     return cmd
 
 
-def fastq_filterer_an_pigz_in_place(fastq_file_pair, pigz_thread=10):
+def fastq_filterer_and_pigz_in_place(fastq_file_pair, pigz_threads=10):
     """
-    Run fastq filterer on a pair of fastq file which will remove any pair if one of the mate is shorter than 36 bases
+    :param tuple[str,str] fastq_file_pair: Paired-end fastqs to filter
+    :param int pigz_threads: nthreads to assign pigz (note that two pigzs run, so this is will be doubled)
+    Run fastq filterer on a pair of fastqs, removing pairs where one is shorter than 36 bases
     """
     if len(fastq_file_pair) != 2:
         raise AnalysisDriverError('fastq-filterer only supports paired fastq files')
 
     f1, f2 = sorted(fastq_file_pair)
-    name, ext = os.path.splitext(f1)
-    of1 = name + '_fastq_filterer' + ext
-    name, ext = os.path.splitext(f2)
-    of2 = name + '_fastq_filterer' + ext
+    f1_base = f1.replace('.fastq.gz', '')
+    int1 = f1_base + '_filtered.fastq'
+    of1 = f1_base + '_filtered.fastq.gz'
+    f2_base = f2.replace('.fastq.gz', '')
+    int2 = f2_base + '_filtered.fastq'
+    of2 = f2_base + '_filtered.fastq.gz'
+    cmds = ['mkfifo ' + int1, 'mkfifo ' + int2]
+    c = (
+        'set -e; {ff} --i1 {f1} --i2 {f2} --o1 {int1} --o2 {int2} --threshold {lent} & '
+        '{pz} -c -p {pzt} {int1} > {of1} & '
+        '{pz} -c -p {pzt} {int2} > {of2}'
+    )
+    cmds.append(
+        c.format(ff=cfg.query('tools', 'fastq-filterer'), pz=cfg.query('tools', 'pigz', ret_default='pigz'),
+                 pzt=pigz_threads, f1=f1, f2=f2, of1=of1, of2=of2, int1=int1, int2=int2,
+                 lent=cfg.query('fastq_filterer', 'min_length', ret_default='36'))
+    )
+    cmds.extend(['EXIT_CODE=$?', 'rm ' + int1 + ' ' + int2])
 
-    cmds = []
-    cmd = "set -o pipefail; {ff} --i1 {f1} --i2 {f2} --o1 >({pz} -c -p {pzt} > {of1}) --o2 >({pz} -c -p {pzt} > {of2})" \
-          " --threshold {lent}"
-    cmds.append(cmd.format(ff=cfg.query('tools', 'fastq-filterer'),
-                           pz=cfg.query('tools', 'pigz', ret_default='pigz'), pzt=pigz_thread,
-                           f1=f1, f2=f2, of1=of1, of2=of2,
-                           lent=cfg.query('fastq_filterer', 'min_length', ret_default='36')))
     # replace the original files with the new files to keep things clean
-    cmds.append('EXIT_CODE=$?')
     cmds.append('(exit $EXIT_CODE) && mv %s %s' % (of1, f1))
     cmds.append('(exit $EXIT_CODE) && mv %s %s' % (of2, f2))
     cmds.append('(exit $EXIT_CODE)')

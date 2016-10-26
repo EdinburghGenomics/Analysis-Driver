@@ -148,7 +148,8 @@ class TestSampleScanner(TestScanner):
         mocked_get.assert_any_call(
             'aggregate/samples',
             match={'proc_status': None},
-            paginate=False
+            paginate=False,
+            quiet=True
         )
 
     @patched_get([{'sample_id': 'a_sample_id'}])
@@ -161,7 +162,7 @@ class TestSampleScanner(TestScanner):
             d = self.scanner._get_datasets_for_statuses([DATASET_NEW])[0]
         assert d.name == 'a_sample_id'
         assert d._data_threshold == 1000000000
-        mocked_get.assert_any_call('aggregate/samples', match={'proc_status': None}, paginate=False)
+        mocked_get.assert_any_call('aggregate/samples', match={'proc_status': None}, paginate=False, quiet=True)
         assert d.run_elements == [{'sample_id': 'a_sample_id'}]
         mocked_get.assert_any_call('run_elements', where={'useable': 'yes', 'sample_id': 'a_sample_id'})
 
@@ -169,9 +170,9 @@ class TestSampleScanner(TestScanner):
         fake_datasets = {DATASET_NEW: []}
         with patched_get():
             for x in ('other', 'that', 'this'):
-                d = SampleDataset(x)
-                assert d.most_recent_proc.entity
-                fake_datasets[DATASET_NEW].append(d)
+                s = SampleDataset(x)
+                assert s.most_recent_proc.entity
+                fake_datasets[DATASET_NEW].append(s)
 
         def fake_get_datasets(*args):
             return [d for arg in args[1] for d in fake_datasets.get(arg)]
