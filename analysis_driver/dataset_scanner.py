@@ -43,18 +43,18 @@ class DatasetScanner(AppLogger):
 
     def _get_dataset_records_for_statuses(self, statuses):
         self.debug('Querying Rest API for status %s', ', '.join(statuses))
-        if DATASET_NEW in statuses :
+        if DATASET_NEW in statuses:
             statuses = list(statuses)
             statuses.remove(DATASET_NEW)
             statuses.append(None)
         if len(statuses) > 1:
-            match={'$or': [ {'proc_status': status} for status in statuses ]}
+            match = {'$or': [{'proc_status': status} for status in statuses]}
         else:
-            match={'proc_status': statuses[0]}
+            match = {'proc_status': statuses[0]}
         return [
-            d for d in rest_communication.get_documents(self.endpoint, match=match, paginate=False)
+            d for d in rest_communication.get_documents(self.endpoint, match=match, paginate=False, quiet=True)
             if d[self.item_id] not in self._triggerignore
-            ]
+        ]
 
     def _get_datasets_for_statuses(self, statuses):
         self.debug('Creating Datasets for status %s', ', '.join(statuses))

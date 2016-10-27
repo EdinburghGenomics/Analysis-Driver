@@ -23,7 +23,7 @@ from egcg_core.constants import ELEMENT_RUN_NAME, ELEMENT_NUMBER_LANE, ELEMENT_R
     ELEMENT_BASES_AT_COVERAGE, ELEMENT_MEDIAN_COVERAGE_SAMTOOLS, ELEMENT_COVERAGE_SD, ELEMENT_FREEMIX, ELEMENT_SAMPLE_CONTAMINATION, \
     ELEMENT_GENDER_VALIDATION, ELEMENT_GENDER_HETX, ELEMENT_LANE_PC_OPT_DUP, ELEMENT_GENDER_COVY, ELEMENT_SNPS_TI_TV, \
     ELEMENT_SNPS_HET_HOM, ELEMENT_ADAPTER_TRIM_R1, ELEMENT_ADAPTER_TRIM_R2, ELEMENT_SAMPLE_PLATE, ELEMENT_SAMPLE_SPECIES, \
-    ELEMENT_SAMPLE_EXPECTED_YIELD, ELEMENT_SAMPLE_EXPECTED_COVERAGE
+    ELEMENT_SAMPLE_EXPECTED_YIELD, ELEMENT_SAMPLE_EXPECTED_COVERAGE, ELEMENT_SAMPLE_GENOME_SIZE
 
 _gender_aliases = {'female': ['f', 'female', 'girl', 'woman'], 'male': ['m', 'male', 'boy', 'man']}
 
@@ -36,21 +36,19 @@ def gender_alias(gender):
 
 
 def get_sample_information_from_lims(sample_name):
-    lims_sample = clarity.get_sample(sample_name)
-    gender = gender_alias(clarity.get_sample_gender(sample_name))
-    plate_id, well = clarity.get_plate_id_and_well(sample_name)
-    species = clarity.get_species_from_sample(sample_name)
-    external_sample_name = clarity.get_user_sample_name(sample_name, lenient=True)
-    yield_q30 = clarity.get_expected_yield_for_sample(sample_name)
-    coverage = lims_sample.udf.get('Coverage', '')
-    return {
-        ELEMENT_SAMPLE_EXTERNAL_ID: external_sample_name,
-        ELEMENT_SAMPLE_PLATE: plate_id,
-        ELEMENT_PROVIDED_GENDER: gender,
-        ELEMENT_SAMPLE_SPECIES: species,
-        ELEMENT_SAMPLE_EXPECTED_YIELD: yield_q30,
-        ELEMENT_SAMPLE_EXPECTED_COVERAGE: coverage
+    sample_info = {
+        ELEMENT_SAMPLE_EXTERNAL_ID: clarity.get_user_sample_name(sample_name, lenient=True),
+        ELEMENT_SAMPLE_PLATE: clarity.get_plate_id_and_well(sample_name)[0],  # returns [plate_id, well]
+        ELEMENT_PROVIDED_GENDER: gender_alias(clarity.get_sample_gender(sample_name)),
+        ELEMENT_SAMPLE_SPECIES: clarity.get_species_from_sample(sample_name),
+        ELEMENT_SAMPLE_EXPECTED_YIELD: clarity.get_expected_yield_for_sample(sample_name)
     }
+    lims_sample = clarity.get_sample(sample_name)
+    coverage = lims_sample.udf.get('Coverage')
+    if coverage:
+        sample_info[ELEMENT_SAMPLE_EXPECTED_COVERAGE] = coverage
+
+    return sample_info
 
 
 class Crawler(AppLogger):
@@ -397,7 +395,7 @@ class SampleCrawler(Crawler):
         species_contamination_path = self.search_file(sample_dir, '%s_R1_screen.txt' % external_sample_name)
         if species_contamination_path:
             species_contamination_result = parse_fastqscreen_file(species_contamination_path,
-                                                                   sample[ELEMENT_SAMPLE_SPECIES])
+                                                                  sample[ELEMENT_SAMPLE_SPECIES])
             if species_contamination_result:
                 sample[ELEMENT_SPECIES_CONTAMINATION] = species_contamination_result
             else:
@@ -415,17 +413,21 @@ class SampleCrawler(Crawler):
 
         coverage_statistics_path = self.search_file(sample_dir, '%s.depth' % external_sample_name)
         if coverage_statistics_path:
-            mean, median, sd, coverage_percentiles, bases_at_coverage = get_coverage_statistics(coverage_statistics_path)
-            coverage_statistics = {ELEMENT_MEAN_COVERAGE: mean,
-                                   ELEMENT_MEDIAN_COVERAGE_SAMTOOLS: median,
-                                   ELEMENT_COVERAGE_SD: sd,
-                                   ELEMENT_COVERAGE_PERCENTILES: coverage_percentiles,
-                                   ELEMENT_BASES_AT_COVERAGE: bases_at_coverage}
+            mean, median, sd, coverage_percentiles, bases_at_coverage, genome_size = get_coverage_statistics(coverage_statistics_path)
+            coverage_statistics = {
+                ELEMENT_MEAN_COVERAGE: mean,
+                ELEMENT_MEDIAN_COVERAGE_SAMTOOLS: median,
+                ELEMENT_COVERAGE_SD: sd,
+                ELEMENT_COVERAGE_PERCENTILES: coverage_percentiles,
+                ELEMENT_BASES_AT_COVERAGE: bases_at_coverage,
+                ELEMENT_SAMPLE_GENOME_SIZE: genome_size
+            }
             sample[ELEMENT_COVERAGE_STATISTICS] = coverage_statistics
             sample[ELEMENT_MEDIAN_COVERAGE] = median
             if ELEMENT_GENDER_VALIDATION in sample:
-                covY = get_coverage_Y_chrom(coverage_statistics_path)
-                if covY: sample[ELEMENT_GENDER_VALIDATION][ELEMENT_GENDER_COVY] = covY
+                cov_y = get_coverage_Y_chrom(coverage_statistics_path)
+                if cov_y:
+                    sample[ELEMENT_GENDER_VALIDATION][ELEMENT_GENDER_COVY] = cov_y
         else:
             self.critical('coverage statistics unavailable for %s', self.sample_id)
 
@@ -436,8 +438,7 @@ class SampleCrawler(Crawler):
                 sample[ELEMENT_SAMPLE_CONTAMINATION][ELEMENT_SNPS_TI_TV] = ti_tv
                 sample[ELEMENT_SAMPLE_CONTAMINATION][ELEMENT_SNPS_HET_HOM] = het_hom
             else:
-                sample[ELEMENT_SAMPLE_CONTAMINATION]={ELEMENT_SNPS_TI_TV: ti_tv, ELEMENT_SNPS_HET_HOM:het_hom}
-
+                sample[ELEMENT_SAMPLE_CONTAMINATION] = {ELEMENT_SNPS_TI_TV: ti_tv, ELEMENT_SNPS_HET_HOM: het_hom}
         return sample
 
     def send_data(self):

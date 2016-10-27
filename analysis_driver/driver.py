@@ -99,7 +99,7 @@ def demultiplexing_pipeline(dataset):
     # Filter the adapter dimer from fastq with fastq_filtered
     dataset.start_stage('fastq_filterer')
     exit_status = executor.execute(
-        *[bash_commands.fastq_filterer_an_pigz_in_place(fqs) for fqs in util.find_all_fastq_pairs(fastq_dir)],
+        *[bash_commands.fastq_filterer_and_pigz_in_place(fqs) for fqs in util.find_all_fastq_pairs(fastq_dir)],
         job_name='fastq_filterer',
         working_dir=job_dir,
         cpus=18,
@@ -259,7 +259,7 @@ def bcbio_var_calling_pipeline(dataset):
     gender_validation = qc.GenderValidation(dataset, sample_dir, vcf_file)
     gender_validation.start()
 
-    #vcf stats
+    # vcf stats
     vcf_stats = qc.VCFStats(dataset, sample_dir, vcf_file)
     vcf_stats.start()
 
