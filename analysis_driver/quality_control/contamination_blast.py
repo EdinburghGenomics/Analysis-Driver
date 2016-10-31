@@ -24,9 +24,10 @@ class ContaminationBlast(QualityControl):
 
     def fasta_blast_command(self, fasta_file):
         blastn_bin = cfg['tools']['blastn']
-        nt_db = cfg['contamination-check']['nt_db']
+        db_dir = cfg['contamination-check']['db_dir']
+        nt_db = os.path.join(db_dir, 'nt')
         blast_outfile = fasta_file.split('.')[0] + '_blastn'
-        blast_cmd = "%s -query %s -db %s -out %s -num_threads 12 -outfmt '6 qseqid sseqid length pident evalue sgi sacc staxids sscinames scomnames stitle'" % (blastn_bin, fasta_file, nt_db, blast_outfile)
+        blast_cmd = "export PATH=$PATH:/%s; %s -query %s -db %s -out %s -num_threads 12 -outfmt '6 qseqid sseqid length pident evalue sgi sacc staxids sscinames scomnames stitle'" % (db_dir, blastn_bin, fasta_file, nt_db, blast_outfile)
         return blast_cmd, blast_outfile
 
     def check_db_exists(self, db_path):

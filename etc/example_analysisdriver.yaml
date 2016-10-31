@@ -76,7 +76,7 @@ default:
     contamination-check:
       fastqscreen_conf: path/to/fastqscreen/conf
       population_vcf:   path/to/population_vcf
-      nt_db:            path/to/nt_db
+      db_dir:           path/to/db/dir
       ete_db:           path/to/ete_db
 
     well_duplicate:
