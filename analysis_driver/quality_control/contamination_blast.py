@@ -36,17 +36,6 @@ class ContaminationBlast(QualityControl):
         else:
             raise AnalysisDriverError('Cannot locate the ETE taxon database')
 
-
-    def taxon_info(self, taxon, db_path):
-        if self.check_db_exists(db_path):
-            ncbi = NCBITaxa(dbfile=db_path)
-            lineage = ncbi.get_lineage(taxon)
-            names = ncbi.get_taxid_translator(lineage)
-            rank = ncbi.get_rank(lineage)
-            class_taxid = [i for i in rank if rank[i] == 'family']
-            return names, class_taxid
-
-
     def get_taxids(self, blast):
         taxids = Counter()
         with open(blast) as openfile:
@@ -56,17 +45,61 @@ class ContaminationBlast(QualityControl):
                 taxids[taxid] +=1
         return taxids
 
+    def get_all_taxa_identified(self, taxon_dict, taxon, taxids, ncbi):
+        num_reads = taxids[taxon]
+        l = ncbi.get_lineage(taxon)
+        rank = ncbi.get_rank(l)
+        kingdom_taxid = [i for i in rank if rank[i] == 'kingdom']
+        phylum_taxid = [i for i in rank if rank[i] == 'phylum']
+        class_taxid = [i for i in rank if rank[i] == 'class']
+        order_taxid = [i for i in rank if rank[i] == 'order']
+        family_taxid = [i for i in rank if rank[i] == 'family']
+        genus_taxid = [i for i in rank if rank[i] == 'genus']
+        species_taxid = [i for i in rank if rank[i] == 'species']
+        taxon_kingdom = list((ncbi.get_taxid_translator(kingdom_taxid)).values())[0]
+        taxon_phylum = list((ncbi.get_taxid_translator(phylum_taxid)).values())[0]
+        taxon_class = list((ncbi.get_taxid_translator(class_taxid)).values())[0]
+        taxon_order = list((ncbi.get_taxid_translator(order_taxid)).values())[0]
+        taxon_family = list((ncbi.get_taxid_translator(family_taxid)).values())[0]
+        taxon_genus = list((ncbi.get_taxid_translator(genus_taxid)).values())[0]
+        taxon_species = list((ncbi.get_taxid_translator(species_taxid)).values())[0]
+        if taxon_kingdom not in taxon_dict:
+            taxon_dict[taxon_kingdom] = {}
+            taxon_dict['reads'] = num_reads
+        else:
+            taxon_dict['reads'] += num_reads
+        if taxon_phylum not in taxon_dict.get(taxon_kingdom, {}):
+            taxon_dict[taxon_kingdom][taxon_phylum] = {}
+            taxon_dict[taxon_kingdom]['reads'] = num_reads
+        else:
+            taxon_dict[taxon_kingdom]['reads'] += num_reads
+        if taxon_class not in taxon_dict.get(taxon_kingdom, {}).get(taxon_phylum, {}):
+            taxon_dict[taxon_kingdom][taxon_phylum][taxon_class] = {}
+            taxon_dict[taxon_kingdom][taxon_phylum]['reads'] = num_reads
+        else:
+            taxon_dict[taxon_kingdom][taxon_phylum]['reads'] += num_reads
+        if taxon_order not in taxon_dict.get(taxon_kingdom, {}).get(taxon_phylum, {}).get(taxon_class, {}):
+            taxon_dict[taxon_kingdom][taxon_phylum][taxon_class][taxon_order] = {}
+            taxon_dict[taxon_kingdom][taxon_phylum][taxon_class]['reads'] = num_reads
+        else:
+            taxon_dict[taxon_kingdom][taxon_phylum][taxon_class]['reads'] += num_reads
+        if taxon_family not in taxon_dict.get(taxon_kingdom, {}).get(taxon_phylum, {}).get(taxon_class, {}).get(taxon_order, {}):
+            taxon_dict[taxon_kingdom][taxon_phylum][taxon_class][taxon_order][taxon_family] = {}
+            taxon_dict[taxon_kingdom][taxon_phylum][taxon_class][taxon_order]['reads'] = num_reads
+        else:
+            taxon_dict[taxon_kingdom][taxon_phylum][taxon_class][taxon_order]['reads'] += num_reads
+        if taxon_genus not in taxon_dict.get(taxon_kingdom, {}).get(taxon_phylum, {}).get(taxon_class, {}).get(taxon_order, {}).get(taxon_family, {}):
+            taxon_dict[taxon_kingdom][taxon_phylum][taxon_class][taxon_order][taxon_family][taxon_genus] = {}
+            taxon_dict[taxon_kingdom][taxon_phylum][taxon_class][taxon_order][taxon_family]['reads'] = num_reads
+        else:
+            taxon_dict[taxon_kingdom][taxon_phylum][taxon_class][taxon_order][taxon_family]['reads'] += num_reads
+        if taxon_species not in taxon_dict.get(taxon_kingdom, {}).get(taxon_phylum, {}).get(taxon_class, {}).get(taxon_order, {}).get(taxon_family, {}).get(taxon_genus, {}):
+            taxon_dict[taxon_kingdom][taxon_phylum][taxon_class][taxon_order][taxon_family][taxon_genus][taxon_species] = ''
+            taxon_dict[taxon_kingdom][taxon_phylum][taxon_class][taxon_order][taxon_family][taxon_genus]['reads'] = num_reads
+        else:
+            taxon_dict[taxon_kingdom][taxon_phylum][taxon_class][taxon_order][taxon_family][taxon_genus]['reads'] += num_reads
 
-    def get_all_taxa_identified(self, taxids):
-        taxa_identified = Counter()
-        db_path = cfg['contamination-check']['ete_db']
-        for taxon in taxids:
-            num_reads = taxids.get(taxon, 0)
-            names, class_taxid = self.taxon_info(taxon, db_path)
-            if class_taxid:
-                taxon_id = names.get(class_taxid[0])
-                taxa_identified[taxon_id] += num_reads
-        return taxa_identified
+        return taxon_dict
 
     def run_sample_fastq(self, fastq_file):
         self.dataset.start_stage('sample_fastq')
@@ -82,7 +115,6 @@ class ContaminationBlast(QualityControl):
         self.dataset.end_stage('sample_fastq', exit_status)
         return fasta_outfile
 
-
     def run_blast(self, fasta_file):
         self.dataset.start_stage('contamination_blast')
         fasta_blast_command, blast_outfile = self.fasta_blast_command(fasta_file)
@@ -91,24 +123,27 @@ class ContaminationBlast(QualityControl):
             job_name='contamination_blast',
             working_dir=self.working_dir,
             cpus=12,
-            mem=10
+            mem=20
         )
         exit_status = contamination_blast_executor.join()
         self.dataset.end_stage('contamination_blast', exit_status)
         return blast_outfile
 
-
     def check_for_contamination(self):
-        taxa_identified = Counter()
         fasta_outfile = self.run_sample_fastq(self.fastq_file)
         blast_outfile = self.run_blast(fasta_outfile)
         taxids = self.get_taxids(blast_outfile)
-        taxa = self.get_all_taxa_identified(taxids)
-        for taxon in taxa:
-            taxa_identified[taxon] += taxa[taxon]
+        db_path = cfg['contamination-check']['ete_db']
+        if self.check_db_exists(db_path):
+            ncbi = NCBITaxa(dbfile=db_path)
+            taxon_dict = {}
+            for taxon in taxids:
+                taxon_dict = self.get_all_taxa_identified(taxon_dict, taxon, taxids, ncbi)
+
+
         outpath = os.path.join(self.working_dir, 'taxa_identified.json')
         with open(outpath, 'w') as outfile:
-            taxa_identified_json = json.dumps(taxa_identified,
+            taxa_identified_json = json.dumps(taxon_dict,
                                             sort_keys=True, indent=4,
                                             separators=(',', ':'))
             outfile.write(taxa_identified_json)
