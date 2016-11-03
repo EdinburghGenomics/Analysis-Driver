@@ -106,7 +106,6 @@ class TestDemultiplexingStats(TestAnalysisDriver):
         assert median == 478
         assert sd == 189.1911391390011
         assert coverage_percentiles == {'percentile_5': 102, 'percentile_25': 279, 'percentile_50': 478, 'percentile_75': 625, 'percentile_95': 648}
-        print(genome_size)
         assert genome_size == 101
         assert evenness == 0.8139335573648481
 
