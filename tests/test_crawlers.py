@@ -112,6 +112,7 @@ class TestSampleCrawler(TestCrawler):
             'mean': 438.8514851485148,
             'bases_at_coverage': {'bases_at_5X': 100, 'bases_at_30X': 99, 'bases_at_15X': 100},
             "genome_size": 101,
+            'evenness': 0.8139335573648481
         }
     }
 

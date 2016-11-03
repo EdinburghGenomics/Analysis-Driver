@@ -101,13 +101,14 @@ class TestDemultiplexingStats(TestAnalysisDriver):
 
     def test_get_coverage_statistics(self):
         hist_file = os.path.join(self.assets_path, 'test_sample.depth')
-        mean, median, sd, coverage_percentiles, bases_at_coverage, genome_size = get_coverage_statistics(hist_file)
+        mean, median, sd, coverage_percentiles, bases_at_coverage, genome_size, evenness = get_coverage_statistics(hist_file)
         assert mean == 438.8514851485148
         assert median == 478
         assert sd == 189.1911391390011
         assert coverage_percentiles == {'percentile_5': 102, 'percentile_25': 279, 'percentile_50': 478, 'percentile_75': 625, 'percentile_95': 648}
         print(genome_size)
         assert genome_size == 101
+        assert evenness == 0.8139335573648481
 
 
     def test_calculate_size_genome(self):
@@ -116,9 +117,10 @@ class TestDemultiplexingStats(TestAnalysisDriver):
 
     def test_calculate_evenness(self):
         histogram = {1: 5, 2: 2, 3: 4, 4: 6, 5: 3}
-        print(calculate_evenness(histogram))
+        e = calculate_evenness(histogram)
+        assert e == 0.8
         histogram = {1: 5, 2: 2, 3: 4, 4: 6, 5: 3, 100:5}
-        print(calculate_evenness(histogram))
+        assert calculate_evenness(histogram) < e
 
     def test_get_coverage_Y_chrom(self):
         hist_file = os.path.join(self.assets_path, 'test_sample_chrY.depth')
