@@ -1,7 +1,7 @@
 import os
 from analysis_driver.reader.demultiplexing_parsers import parse_seqtk_fqchk_file, parse_conversion_stats, \
     parse_welldup_file, get_percentiles, read_histogram_file, collapse_histograms, get_coverage_Y_chrom, \
-    calculate_size_genome
+    calculate_size_genome, calculate_evenness
 from analysis_driver.reader.demultiplexing_parsers import parse_fastqscreen_file
 from analysis_driver.reader.demultiplexing_parsers import calculate_mean, calculate_median, calculate_sd, get_coverage_statistics, calculate_bases_at_coverage
 from tests.test_analysisdriver import TestAnalysisDriver
@@ -114,6 +114,11 @@ class TestDemultiplexingStats(TestAnalysisDriver):
         histogram = {1: 5, 2: 2, 3: 4, 4: 6, 5: 3}
         assert calculate_size_genome(histogram) == 20
 
+    def test_calculate_evenness(self):
+        histogram = {1: 5, 2: 2, 3: 4, 4: 6, 5: 3}
+        print(calculate_evenness(histogram))
+        histogram = {1: 5, 2: 2, 3: 4, 4: 6, 5: 3, 100:5}
+        print(calculate_evenness(histogram))
 
     def test_get_coverage_Y_chrom(self):
         hist_file = os.path.join(self.assets_path, 'test_sample_chrY.depth')

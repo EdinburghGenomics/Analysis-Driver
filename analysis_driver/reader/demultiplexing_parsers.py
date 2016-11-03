@@ -281,6 +281,23 @@ def calculate_bases_at_coverage(histogram):
 def calculate_size_genome(histogram):
     return sum(histogram.values())
 
+def calculate_evenness(histogram):
+    """
+    Calculation of evenness based on http://www.nature.com/jhg/journal/v61/n7/full/jhg201621a.html.
+    R code extracted from the paper:
+    C=round(mean(D))
+    D2=D[D<=C]
+    E=1-(length(D2)-sum(D2)/C)/length(D)
+    Where D is a vector of number representing the coverage at every bases.
+    """
+    rounded_mean = round(calculate_mean(histogram))
+    low_half_hist = dict([(k, v) for k, v in histogram.items() if k <= rounded_mean])
+
+    A = sum(low_half_hist.values())
+    B = sum([k * v for k, v in low_half_hist.items()]) / rounded_mean
+    evenness = 1 - ((A - B) / sum(histogram.values()))
+    return evenness
+
 def get_coverage_statistics(histogram_file):
     # Read the histogram file keeping each chrom separated
     histograms = read_histogram_file(histogram_file)
@@ -300,7 +317,9 @@ def get_coverage_statistics(histogram_file):
     bases_at_coverage = {ELEMENT_BASES_AT_5X: bases_5X, ELEMENT_BASES_AT_15X: bases_15X, ELEMENT_BASES_AT_30X: bases_30X}
 
     genome_size = calculate_size_genome(histogram)
-    return coverage_mean, coverage_median, coverage_sd, coverage_percentiles, bases_at_coverage, genome_size
+    evenness = calculate_evenness(histogram)
+
+    return coverage_mean, coverage_median, coverage_sd, coverage_percentiles, bases_at_coverage, genome_size, evenness
 
 def get_coverage_Y_chrom(histogram_file, chr_name='chrY'):
     # Read the histogram file keeping each chrom separated
