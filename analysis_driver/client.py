@@ -1,11 +1,16 @@
 import os
+import sys
 import logging
 import argparse
+import signal
+from egcg_core.executor import stop_running_jobs
 from egcg_core.app_logging import logging_default as log_cfg
 from analysis_driver import exceptions
 from analysis_driver.config import default as cfg, load_config
 from analysis_driver.notification import default as ntf, LogNotification, EmailNotification, AsanaNotification
 from analysis_driver.dataset_scanner import RunScanner, SampleScanner, DATASET_READY, DATASET_FORCE_READY, DATASET_NEW, DATASET_REPROCESS
+
+app_logger = log_cfg.get_logger('client')
 
 
 def main():
@@ -29,7 +34,7 @@ def main():
             cfg.merge(cfg['sample'])
         scanner = SampleScanner(cfg)
 
-    if any([args.abort, args.skip, args.reset, args.force, args.report, args.report_all]):
+    if any([args.abort, args.skip, args.reset, args.force, args.report, args.report_all, args.stop]):
         for d in args.abort:
             scanner.get_dataset(d).abort()
         for d in args.skip:
@@ -41,6 +46,10 @@ def main():
             scanner.get_dataset(d).reset()
         for d in args.force:
             scanner.get_dataset(d).force()
+        for d in args.stop:
+            pid = scanner.get_dataset(d).most_recent_proc.pid
+            if pid:
+                os.kill(pid, 15)
 
         if args.report:
             scanner.report()
@@ -75,8 +84,6 @@ def _process_dataset(d):
     :param Dataset d: Run or Sample to process
     :return: exit status (9 if stacktrace)
     """
-    app_logger = log_cfg.get_logger('client')
-
     dataset_job_dir = os.path.join(cfg['jobs_dir'], d.name)
     if not os.path.isdir(dataset_job_dir):
         os.makedirs(dataset_job_dir)
@@ -98,6 +105,24 @@ def _process_dataset(d):
         (AsanaNotification, d, cfg.query('notification', 'asana'))
     )
 
+    def _handle_exception(exception):
+        import traceback
+        stacktrace = traceback.format_exc()
+        app_logger.critical('Encountered a %s exception: %s', exception.__class__.__name__, str(exception))
+        app_logger.info('Stack trace below:\n' + stacktrace)
+        _handle_termination(9)
+        ntf.crash_report(stacktrace)
+
+    def _sigterm_handler(sig, frame):
+        app_logger.info('Received signal %s. Cleaning up running jobs', sig)
+        _handle_termination(sig)
+
+    def _handle_termination(_exit_status):
+        stop_running_jobs()
+        d.fail(_exit_status)
+        sys.exit(_exit_status)
+
+    signal.signal(15, _sigterm_handler)
     exit_status = 9
     try:
         from analysis_driver import driver
@@ -111,12 +136,7 @@ def _process_dataset(d):
         d.abort()
 
     except Exception as e:
-        app_logger.critical('Encountered a %s exception: %s', e.__class__.__name__, str(e))
-        import traceback
-        stacktrace = traceback.format_exc()
-        app_logger.info('Stack trace below:\n' + stacktrace)
-        d.fail(exit_status)
-        ntf.crash_report(stacktrace)
+        _handle_exception(e)
 
     else:
         if exit_status == 0:
