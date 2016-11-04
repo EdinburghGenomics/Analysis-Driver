@@ -48,7 +48,8 @@ executable_commands = {
     'well_duplicate': None,
     'fastq_filterer': None,
     'gatk': 'java -jar {executable} -h 2>&1 | grep "The Genome Analysis Toolkit (GATK)" | cut -d " " -f 6 | cut -d "," -f 1',
-    'rtg': '{executable} version 2>&1 | grep "Product: RTG Tools" | cut -d ' ' -f 4'
+    'rtg': '{executable} version 2>&1 | grep "Product: RTG Tools" | cut -d ' ' -f 4',
+    'biobambam_sortmapdup': '''{executable}  -v 2>&1 | head -1 | awk '{print substr($5,1,length($5)-1)}' '''
 }
 
 

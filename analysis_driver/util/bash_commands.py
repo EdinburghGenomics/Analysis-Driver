@@ -89,7 +89,25 @@ def bwa_mem_samblaster(fastq_pair, reference, expected_output_bam, read_group=No
     command_sambamba = '%s sort -m 5G --tmpdir %s -t %s -o %s /dev/stdin' % (
         cfg['tools']['sambamba'], tmp_dir, thread, expected_output_bam
     )
-    cmd = ' | '.join([command_bwa, cfg['tools']['samblaster'], command_samtools, command_sambamba])
+    cmd = 'set -o pipefail; ' + ' | '.join([command_bwa, cfg['tools']['samblaster'], command_samtools, command_sambamba])
+    app_logger.debug('Writing: ' + cmd)
+    return cmd
+
+
+def bwa_mem_biobambam(fastq_pair, reference, expected_output_bam, read_group=None, thread=16):
+    tmp_file = expected_output_bam
+    index = expected_output_bam + '.bai'
+    command_bwa = '%s mem -M -t %s' % (cfg['tools']['bwa'], thread)
+
+    if read_group:
+        read_group_str = '@RG\\t%s' % '\\t'.join(['%s:%s' % (k, read_group[k]) for k in sorted(read_group)])
+        command_bwa += ' -R \'%s\'' % read_group_str
+
+    command_bwa += ' %s %s' % (reference, ' '.join(fastq_pair))
+    command_bambam = '%s inputformat=sam SO=coordinate tmpfile=%s threads=%s indexfilename=%s > %s'
+    command_bambam = command_bambam%(cfg['tools']['biobambam_sortmapdup'], tmp_file, thread, index, expected_output_bam)
+
+    cmd = 'set -o pipefail; ' + ' | '.join([command_bwa, command_bambam])
     app_logger.debug('Writing: ' + cmd)
     return cmd
 

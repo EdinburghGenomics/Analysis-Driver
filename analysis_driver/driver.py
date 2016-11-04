@@ -324,7 +324,7 @@ def _bam_file_production(dataset, species):
     app_logger.info('align %s to %s genome found at %s', sample_id, species, reference)
     dataset.start_stage('sample_bwa')
     bwa_mem_executor = executor.execute(
-        bash_commands.bwa_mem_samblaster(
+        bash_commands.bwa_mem_biobambam(
             fastq_pair,
             reference,
             expected_output_bam,
