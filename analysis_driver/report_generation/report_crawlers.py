@@ -13,20 +13,18 @@ from analysis_driver.reader.mapping_stats_parsers import parse_and_aggregate_gen
 from analysis_driver.config import default as cfg
 from egcg_core.constants import ELEMENT_RUN_NAME, ELEMENT_NUMBER_LANE, ELEMENT_RUN_ELEMENTS, \
     ELEMENT_BARCODE, ELEMENT_RUN_ELEMENT_ID, ELEMENT_SAMPLE_INTERNAL_ID, ELEMENT_LIBRARY_INTERNAL_ID, \
-    ELEMENT_LANE, ELEMENT_SAMPLES, ELEMENT_NB_READS_SEQUENCED, ELEMENT_NB_READS_PASS_FILTER, \
-    ELEMENT_NB_BASE_R1, ELEMENT_NB_BASE_R2, ELEMENT_NB_Q30_R1, ELEMENT_NB_Q30_R2, ELEMENT_PC_READ_IN_LANE, \
-    ELEMENT_LANE_ID, ELEMENT_PROJECT_ID, ELEMENT_SAMPLE_EXTERNAL_ID, ELEMENT_NB_READS_IN_BAM, \
-    ELEMENT_NB_MAPPED_READS, ELEMENT_NB_DUPLICATE_READS, ELEMENT_NB_PROPERLY_MAPPED, ELEMENT_MEDIAN_COVERAGE,\
-    ELEMENT_PC_BASES_CALLABLE, ELEMENT_LANE_NUMBER, ELEMENT_CALLED_GENDER, ELEMENT_PROVIDED_GENDER, \
-    ELEMENT_NB_READS_CLEANED, ELEMENT_NB_Q30_R1_CLEANED, ELEMENT_SPECIES_CONTAMINATION, \
-    ELEMENT_NB_BASE_R2_CLEANED, ELEMENT_NB_Q30_R2_CLEANED, ELEMENT_NB_BASE_R1_CLEANED, \
-    ELEMENT_GENOTYPE_VALIDATION, ELEMENT_COVERAGE_STATISTICS, ELEMENT_MEAN_COVERAGE, \
-    ELEMENT_COVERAGE_PERCENTILES, ELEMENT_BASES_AT_COVERAGE, ELEMENT_MEDIAN_COVERAGE_SAMTOOLS, \
-    ELEMENT_COVERAGE_SD, ELEMENT_FREEMIX, ELEMENT_SAMPLE_CONTAMINATION, ELEMENT_GENDER_VALIDATION, \
-    ELEMENT_GENDER_HETX, ELEMENT_LANE_PC_OPT_DUP, ELEMENT_GENDER_COVY, ELEMENT_SNPS_TI_TV, \
-    ELEMENT_SNPS_HET_HOM, ELEMENT_SAMPLE_PLATE, ELEMENT_SAMPLE_SPECIES, ELEMENT_SAMPLE_EXPECTED_YIELD, \
-    ELEMENT_SAMPLE_EXPECTED_COVERAGE, ELEMENT_SAMPLE_GENOME_SIZE, ELEMENT_COVERAGE_EVENNESS
-
+    ELEMENT_LANE, ELEMENT_SAMPLES, ELEMENT_NB_READS_SEQUENCED, ELEMENT_NB_READS_PASS_FILTER, ELEMENT_NB_BASE_R1, \
+    ELEMENT_NB_BASE_R2, ELEMENT_NB_Q30_R1, ELEMENT_NB_Q30_R2, ELEMENT_PC_READ_IN_LANE, ELEMENT_LANE_ID, \
+    ELEMENT_PROJECT_ID, ELEMENT_SAMPLE_EXTERNAL_ID, ELEMENT_NB_READS_IN_BAM, ELEMENT_NB_MAPPED_READS, \
+    ELEMENT_NB_DUPLICATE_READS, ELEMENT_NB_PROPERLY_MAPPED, ELEMENT_MEDIAN_COVERAGE, ELEMENT_PC_BASES_CALLABLE, \
+    ELEMENT_LANE_NUMBER, ELEMENT_CALLED_GENDER, ELEMENT_PROVIDED_GENDER, ELEMENT_NB_READS_CLEANED, ELEMENT_NB_Q30_R1_CLEANED, \
+    ELEMENT_SPECIES_CONTAMINATION, ELEMENT_NB_BASE_R2_CLEANED, ELEMENT_NB_Q30_R2_CLEANED, ELEMENT_NB_BASE_R1_CLEANED, \
+    ELEMENT_GENOTYPE_VALIDATION, ELEMENT_COVERAGE_STATISTICS, ELEMENT_MEAN_COVERAGE, ELEMENT_COVERAGE_PERCENTILES, \
+    ELEMENT_BASES_AT_COVERAGE, ELEMENT_MEDIAN_COVERAGE_SAMTOOLS, ELEMENT_COVERAGE_SD, ELEMENT_FREEMIX, ELEMENT_SAMPLE_CONTAMINATION, \
+    ELEMENT_GENDER_VALIDATION, ELEMENT_GENDER_HETX, ELEMENT_LANE_PC_OPT_DUP, ELEMENT_GENDER_COVY, ELEMENT_SNPS_TI_TV, \
+    ELEMENT_SNPS_HET_HOM, ELEMENT_ADAPTER_TRIM_R1, ELEMENT_ADAPTER_TRIM_R2, ELEMENT_SAMPLE_PLATE, ELEMENT_SAMPLE_SPECIES, \
+    ELEMENT_SAMPLE_EXPECTED_YIELD, ELEMENT_SAMPLE_EXPECTED_COVERAGE, ELEMENT_SAMPLE_GENOME_SIZE, \
+    ELEMENT_COVERAGE_EVENNESS
 
 _gender_aliases = {'female': ['f', 'female', 'girl', 'woman'], 'male': ['m', 'male', 'boy', 'man']}
 
@@ -62,13 +60,15 @@ class Crawler(AppLogger):
             self.warning('rest_api is not configured. Cancel upload')
             return False
 
-
 class RunCrawler(Crawler):
-    def __init__(self, run_id, samplesheet, conversion_xml_file=None, run_dir=None):
+    def __init__(self, run_id, samplesheet, adapter_trim_file=None, conversion_xml_file=None, run_dir=None):
         self.run_id = run_id
+        self.adapter_trim_file = adapter_trim_file
         self.samplesheet = samplesheet
         self._populate_barcode_info_from_sample_sheet(samplesheet)
         self._populate_from_lims()
+        if adapter_trim_file:
+            self._populate_barcode_info_from_adapter_file(adapter_trim_file)
         if conversion_xml_file:
             self._populate_barcode_info_from_conversion_file(conversion_xml_file)
         if run_dir:
@@ -176,6 +176,32 @@ class RunCrawler(Crawler):
                 get_sample_information_from_lims(self.libraries[libname][ELEMENT_SAMPLE_INTERNAL_ID])
             )
 
+    def _run_sample_lane_to_barcode(self, adapters_trimmed_by_id, has_barcode):
+        run_element_adapters_trimmed = {}
+        for adapter_id in adapters_trimmed_by_id:
+            run_element_id = None
+            run_id, sample_id, lane = adapter_id
+            if has_barcode:
+                for i in self.barcodes_info:
+                    if self.barcodes_info[i][ELEMENT_RUN_NAME] == run_id \
+                            and self.barcodes_info[i][ELEMENT_LANE] == lane:
+                        if self.barcodes_info[i][ELEMENT_SAMPLE_INTERNAL_ID] == sample_id:
+                            run_element_id = self.barcodes_info[i][ELEMENT_RUN_ELEMENT_ID]
+                        elif self.barcodes_info[i][ELEMENT_SAMPLE_INTERNAL_ID] == 'Undetermined' and sample_id == 'unknown':
+                            run_element_id = self.barcodes_info[i][ELEMENT_RUN_ELEMENT_ID]
+            else:
+                run_element_id = '%s_%s' % (run_id, lane)
+            run_element_adapters_trimmed[run_element_id] = adapters_trimmed_by_id[adapter_id]
+        return run_element_adapters_trimmed
+
+    def _populate_barcode_info_from_adapter_file(self, adapter_trim_file):
+        has_barcode = self.samplesheet.has_barcode
+        parsed_trimmed_adapters = demultiplexing_parsers.parse_adapter_trim_file(adapter_trim_file, self.run_id)
+        run_element_adapters_trimmed = self._run_sample_lane_to_barcode(parsed_trimmed_adapters, has_barcode)
+        for run_element_id in self.barcodes_info:
+            self.barcodes_info[run_element_id][ELEMENT_ADAPTER_TRIM_R1] = run_element_adapters_trimmed[run_element_id]['read_1_trimmed_bases']
+            self.barcodes_info[run_element_id][ELEMENT_ADAPTER_TRIM_R2] = run_element_adapters_trimmed[run_element_id]['read_2_trimmed_bases']
+
     def _populate_barcode_info_from_seqtk_fqchk_files(self, run_dir):
         for run_element_id in self.barcodes_info:
             barcode_info = self.barcodes_info.get(run_element_id)
@@ -231,7 +257,7 @@ class RunCrawler(Crawler):
             barcodes = all_barcodes
 
         for (project, library, lane, barcode, clust_count,
-             clust_count_pf, nb_bases, nb_bases_r1_q30, nb_bases_r2_q30) in barcodes:
+            clust_count_pf, nb_bases, nb_bases_r1_q30, nb_bases_r2_q30) in barcodes:
             reads_per_lane[lane] += clust_count_pf
             # For the moment, assume that nb_bases for r1 and r2 are the same.
             # TODO: remove this assumption by parsing ConversionStats.xml
@@ -287,7 +313,6 @@ class RunCrawler(Crawler):
                     pp('projects', self.projects.values(), ELEMENT_PROJECT_ID, ['samples'])
                 )
             )
-
 
 class SampleCrawler(Crawler):
 

@@ -159,17 +159,19 @@ def demultiplexing_pipeline(dataset):
     if not os.path.exists(os.path.join(fastq_dir, 'InterOp')):
         shutil.copytree(os.path.join(input_run_folder, 'InterOp'), os.path.join(fastq_dir, 'InterOp'))
 
-    # Find conversion xml file and send the results to the rest API
+    # Find conversion xml file and adapter file, and send the results to the rest API
     conversion_xml = os.path.join(fastq_dir, 'Stats', 'ConversionStats.xml')
-    if os.path.exists(conversion_xml):
-        app_logger.info('Found ConversionStats. Sending data.')
-        crawler = RunCrawler(run_id, sample_sheet, conversion_xml, fastq_dir)
+    adapter_trim_file = os.path.join(fastq_dir, 'Stats', 'AdapterTrimming.txt')
+
+    if os.path.exists(conversion_xml) and os.path.exists(adapter_trim_file):
+        app_logger.info('Found ConversionStats and AdaptorTrimming. Sending data.')
+        crawler = RunCrawler(run_id, sample_sheet, adapter_trim_file=adapter_trim_file, conversion_xml_file=conversion_xml, run_dir=fastq_dir)
         # TODO: review whether we need this
         json_file = os.path.join(fastq_dir, 'demultiplexing_results.json')
         crawler.write_json(json_file)
         crawler.send_data()
     else:
-        app_logger.error('File not found: %s', conversion_xml)
+        app_logger.error('ConversionStats or AdaptorTrimming not found.')
         exit_status += 1
 
     write_versions_to_yaml(os.path.join(fastq_dir, 'program_versions.yaml'))
