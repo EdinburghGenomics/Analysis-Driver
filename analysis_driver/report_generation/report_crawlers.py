@@ -23,7 +23,8 @@ from egcg_core.constants import ELEMENT_RUN_NAME, ELEMENT_NUMBER_LANE, ELEMENT_R
     ELEMENT_BASES_AT_COVERAGE, ELEMENT_MEDIAN_COVERAGE_SAMTOOLS, ELEMENT_COVERAGE_SD, ELEMENT_FREEMIX, ELEMENT_SAMPLE_CONTAMINATION, \
     ELEMENT_GENDER_VALIDATION, ELEMENT_GENDER_HETX, ELEMENT_LANE_PC_OPT_DUP, ELEMENT_GENDER_COVY, ELEMENT_SNPS_TI_TV, \
     ELEMENT_SNPS_HET_HOM, ELEMENT_ADAPTER_TRIM_R1, ELEMENT_ADAPTER_TRIM_R2, ELEMENT_SAMPLE_PLATE, ELEMENT_SAMPLE_SPECIES, \
-    ELEMENT_SAMPLE_EXPECTED_YIELD, ELEMENT_SAMPLE_EXPECTED_COVERAGE, ELEMENT_SAMPLE_GENOME_SIZE
+    ELEMENT_SAMPLE_EXPECTED_YIELD, ELEMENT_SAMPLE_EXPECTED_COVERAGE, ELEMENT_SAMPLE_GENOME_SIZE, \
+    ELEMENT_COVERAGE_EVENNESS
 
 _gender_aliases = {'female': ['f', 'female', 'girl', 'woman'], 'male': ['m', 'male', 'boy', 'man']}
 
@@ -413,14 +414,16 @@ class SampleCrawler(Crawler):
 
         coverage_statistics_path = self.search_file(sample_dir, '%s.depth' % external_sample_name)
         if coverage_statistics_path:
-            mean, median, sd, coverage_percentiles, bases_at_coverage, genome_size = get_coverage_statistics(coverage_statistics_path)
+            mean, median, sd, coverage_percentiles, bases_at_coverage, \
+            genome_size, evenness = get_coverage_statistics(coverage_statistics_path)
             coverage_statistics = {
                 ELEMENT_MEAN_COVERAGE: mean,
                 ELEMENT_MEDIAN_COVERAGE_SAMTOOLS: median,
                 ELEMENT_COVERAGE_SD: sd,
                 ELEMENT_COVERAGE_PERCENTILES: coverage_percentiles,
                 ELEMENT_BASES_AT_COVERAGE: bases_at_coverage,
-                ELEMENT_SAMPLE_GENOME_SIZE: genome_size
+                ELEMENT_SAMPLE_GENOME_SIZE: genome_size,
+                ELEMENT_COVERAGE_EVENNESS: evenness
             }
             sample[ELEMENT_COVERAGE_STATISTICS] = coverage_statistics
             sample[ELEMENT_MEDIAN_COVERAGE] = median
