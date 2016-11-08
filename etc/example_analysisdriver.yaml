@@ -45,6 +45,7 @@ default:
         fastqscreen: path/to/fastqscreen
         verifybamid: path/to/verifybamid
         well_duplicate: path/to/well_duplicate
+        fastq-filterer: path/to/fastq-filterer
         echo: echo
         blastn: path/to/blastn
     versions:

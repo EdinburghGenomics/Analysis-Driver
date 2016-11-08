@@ -96,16 +96,16 @@ def demultiplexing_pipeline(dataset):
     well_dup_exec = WellDuplicates(dataset, job_dir, fastq_dir, input_run_folder)
     well_dup_exec.start()
 
-    # Filter the adapter dimer from fastq with sickle
-    dataset.start_stage('sickle_filter')
+    # Filter the adapter dimer from fastq with fastq_filtered
+    dataset.start_stage('fastq_filterer')
     exit_status = executor.execute(
-        *[bash_commands.sickle_paired_end_in_place(fqs) for fqs in util.find_all_fastq_pairs(fastq_dir)],
-        job_name='sickle_filter',
+        *[bash_commands.fastq_filterer_and_pigz_in_place(fqs) for fqs in util.find_all_fastq_pairs(fastq_dir)],
+        job_name='fastq_filterer',
         working_dir=job_dir,
         cpus=18,
         mem=10
     ).join()
-    dataset.end_stage('sickle_filter', exit_status)
+    dataset.end_stage('fastq_filterer', exit_status)
     if exit_status:
         return exit_status
 
@@ -159,17 +159,19 @@ def demultiplexing_pipeline(dataset):
     if not os.path.exists(os.path.join(fastq_dir, 'InterOp')):
         shutil.copytree(os.path.join(input_run_folder, 'InterOp'), os.path.join(fastq_dir, 'InterOp'))
 
-    # Find conversion xml file and send the results to the rest API
+    # Find conversion xml file and adapter file, and send the results to the rest API
     conversion_xml = os.path.join(fastq_dir, 'Stats', 'ConversionStats.xml')
-    if os.path.exists(conversion_xml):
-        app_logger.info('Found ConversionStats. Sending data.')
-        crawler = RunCrawler(run_id, sample_sheet, conversion_xml, fastq_dir)
+    adapter_trim_file = os.path.join(fastq_dir, 'Stats', 'AdapterTrimming.txt')
+
+    if os.path.exists(conversion_xml) and os.path.exists(adapter_trim_file):
+        app_logger.info('Found ConversionStats and AdaptorTrimming. Sending data.')
+        crawler = RunCrawler(run_id, sample_sheet, adapter_trim_file=adapter_trim_file, conversion_xml_file=conversion_xml, run_dir=fastq_dir)
         # TODO: review whether we need this
         json_file = os.path.join(fastq_dir, 'demultiplexing_results.json')
         crawler.write_json(json_file)
         crawler.send_data()
     else:
-        app_logger.error('File not found: %s', conversion_xml)
+        app_logger.error('ConversionStats or AdaptorTrimming not found.')
         exit_status += 1
 
     write_versions_to_yaml(os.path.join(fastq_dir, 'program_versions.yaml'))
@@ -257,7 +259,7 @@ def bcbio_var_calling_pipeline(dataset):
     gender_validation = qc.GenderValidation(dataset, sample_dir, vcf_file)
     gender_validation.start()
 
-    #vcf stats
+    # vcf stats
     vcf_stats = qc.VCFStats(dataset, sample_dir, vcf_file)
     vcf_stats.start()
 

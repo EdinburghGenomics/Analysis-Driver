@@ -3,7 +3,7 @@ import sys
 import glob
 import logging
 import argparse
-from egcg_core import executor
+from egcg_core import executor, clarity
 from egcg_core.clarity import get_user_sample_name
 from egcg_core.app_logging import logging_default as log_cfg
 
@@ -17,7 +17,7 @@ from analysis_driver.quality_control.gender_validation import GenderValidation
 from analysis_driver.quality_control.genotype_validation import GenotypeValidation
 from analysis_driver.quality_control.contamination_checks import ContaminationCheck, VerifyBamId
 from analysis_driver.quality_control.contamination_blast import ContaminationBlast
-from analysis_driver.reader.demultiplexing_parsers import get_fastqscreen_results
+from analysis_driver.reader.demultiplexing_parsers import parse_fastqscreen_file
 
 
 def main():
@@ -152,7 +152,8 @@ def run_species_contamination_check(args):
     species_contamination_check.start()
     expected_output_files = species_contamination_check.join()
     expected_output_files = (''.join(expected_output_files))
-    fastqscreen_result = get_fastqscreen_results(expected_output_files, args.sample_id)
+    species_name = clarity.get_species_from_sample(args.sample_id)
+    fastqscreen_result = parse_fastqscreen_file(expected_output_files, species_name)
     print(fastqscreen_result)
 
 

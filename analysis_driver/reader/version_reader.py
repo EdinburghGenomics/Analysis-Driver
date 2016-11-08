@@ -44,9 +44,9 @@ executable_commands = {
     'tabix': grep_version,
     'bgzip': '{executable} --help 2>&1 | grep "Version" | cut -d " " -f 2',
     'fastqscreen': '{executable} -v 2>&1 | grep "fastq_screen" | cut -d " " -f 2 | head -n1',
-    'sickle': '{executable} --version | grep "{toolname}" | cut -d " " -f 3 | head -n1',
     'verifybamid': '{executable} 2>&1 | grep "verifyBamID" | cut -d " " -f 2 | head -n1',
     'well_duplicate': None,
+    'fastq_filterer': None,
     'gatk': 'java -jar {executable} -h 2>&1 | grep "The Genome Analysis Toolkit (GATK)" | cut -d " " -f 6 | cut -d "," -f 1',
     'rtg': '{executable} version 2>&1 | grep "Product: RTG Tools" | cut -d ' ' -f 4'
 }

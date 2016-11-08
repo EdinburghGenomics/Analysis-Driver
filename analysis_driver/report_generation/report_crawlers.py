@@ -3,11 +3,11 @@ from collections import Counter, defaultdict
 from egcg_core import util
 from egcg_core.app_logging import AppLogger
 from egcg_core.rest_communication import post_or_patch as pp
-from egcg_core.clarity import get_sample_gender, get_user_sample_name
+from egcg_core import clarity
 from analysis_driver.exceptions import PipelineError
 from analysis_driver.reader import demultiplexing_parsers, mapping_stats_parsers
-from analysis_driver.reader.demultiplexing_parsers import get_fastqscreen_results, get_coverage_statistics, \
-    parse_welldup_file, get_coverage_Y_chrom
+from analysis_driver.reader.demultiplexing_parsers import get_coverage_statistics, \
+    parse_welldup_file, get_coverage_Y_chrom, parse_fastqscreen_file
 from analysis_driver.reader.mapping_stats_parsers import parse_and_aggregate_genotype_concordance,\
     parse_vbi_selfSM, parse_vcf_stats
 from analysis_driver.config import default as cfg
@@ -22,7 +22,34 @@ from egcg_core.constants import ELEMENT_RUN_NAME, ELEMENT_NUMBER_LANE, ELEMENT_R
     ELEMENT_GENOTYPE_VALIDATION, ELEMENT_COVERAGE_STATISTICS, ELEMENT_MEAN_COVERAGE, ELEMENT_COVERAGE_PERCENTILES, \
     ELEMENT_BASES_AT_COVERAGE, ELEMENT_MEDIAN_COVERAGE_SAMTOOLS, ELEMENT_COVERAGE_SD, ELEMENT_FREEMIX, ELEMENT_SAMPLE_CONTAMINATION, \
     ELEMENT_GENDER_VALIDATION, ELEMENT_GENDER_HETX, ELEMENT_LANE_PC_OPT_DUP, ELEMENT_GENDER_COVY, ELEMENT_SNPS_TI_TV, \
-    ELEMENT_SNPS_HET_HOM
+    ELEMENT_SNPS_HET_HOM, ELEMENT_ADAPTER_TRIM_R1, ELEMENT_ADAPTER_TRIM_R2, ELEMENT_SAMPLE_PLATE, ELEMENT_SAMPLE_SPECIES, \
+    ELEMENT_SAMPLE_EXPECTED_YIELD, ELEMENT_SAMPLE_EXPECTED_COVERAGE, ELEMENT_SAMPLE_GENOME_SIZE, \
+    ELEMENT_COVERAGE_EVENNESS
+
+_gender_aliases = {'female': ['f', 'female', 'girl', 'woman'], 'male': ['m', 'male', 'boy', 'man']}
+
+
+def gender_alias(gender):
+    for key in _gender_aliases:
+        if str(gender).lower() in _gender_aliases[key]:
+            return key
+    return 'unknown'
+
+
+def get_sample_information_from_lims(sample_name):
+    sample_info = {
+        ELEMENT_SAMPLE_EXTERNAL_ID: clarity.get_user_sample_name(sample_name, lenient=True),
+        ELEMENT_SAMPLE_PLATE: clarity.get_plate_id_and_well(sample_name)[0],  # returns [plate_id, well]
+        ELEMENT_PROVIDED_GENDER: gender_alias(clarity.get_sample_gender(sample_name)),
+        ELEMENT_SAMPLE_SPECIES: clarity.get_species_from_sample(sample_name),
+        ELEMENT_SAMPLE_EXPECTED_YIELD: clarity.get_expected_yield_for_sample(sample_name)
+    }
+    lims_sample = clarity.get_sample(sample_name)
+    coverage = lims_sample.udf.get('Coverage')
+    if coverage:
+        sample_info[ELEMENT_SAMPLE_EXPECTED_COVERAGE] = coverage
+
+    return sample_info
 
 
 class Crawler(AppLogger):
@@ -33,12 +60,15 @@ class Crawler(AppLogger):
             self.warning('rest_api is not configured. Cancel upload')
             return False
 
-
 class RunCrawler(Crawler):
-    def __init__(self, run_id, samplesheet, conversion_xml_file=None, run_dir=None):
+    def __init__(self, run_id, samplesheet, adapter_trim_file=None, conversion_xml_file=None, run_dir=None):
         self.run_id = run_id
+        self.adapter_trim_file = adapter_trim_file
         self.samplesheet = samplesheet
         self._populate_barcode_info_from_sample_sheet(samplesheet)
+        self._populate_from_lims()
+        if adapter_trim_file:
+            self._populate_barcode_info_from_adapter_file(adapter_trim_file)
         if conversion_xml_file:
             self._populate_barcode_info_from_conversion_file(conversion_xml_file)
         if run_dir:
@@ -140,6 +170,38 @@ class RunCrawler(Crawler):
 
         self.run[ELEMENT_NUMBER_LANE] = len(self.lanes)
 
+    def _populate_from_lims(self):
+        for libname in self.libraries:
+            self.libraries[libname].update(
+                get_sample_information_from_lims(self.libraries[libname][ELEMENT_SAMPLE_INTERNAL_ID])
+            )
+
+    def _run_sample_lane_to_barcode(self, adapters_trimmed_by_id, has_barcode):
+        run_element_adapters_trimmed = {}
+        for adapter_id in adapters_trimmed_by_id:
+            run_element_id = None
+            run_id, sample_id, lane = adapter_id
+            if has_barcode:
+                for i in self.barcodes_info:
+                    if self.barcodes_info[i][ELEMENT_RUN_NAME] == run_id \
+                            and self.barcodes_info[i][ELEMENT_LANE] == lane:
+                        if self.barcodes_info[i][ELEMENT_SAMPLE_INTERNAL_ID] == sample_id:
+                            run_element_id = self.barcodes_info[i][ELEMENT_RUN_ELEMENT_ID]
+                        elif self.barcodes_info[i][ELEMENT_SAMPLE_INTERNAL_ID] == 'Undetermined' and sample_id == 'unknown':
+                            run_element_id = self.barcodes_info[i][ELEMENT_RUN_ELEMENT_ID]
+            else:
+                run_element_id = '%s_%s' % (run_id, lane)
+            run_element_adapters_trimmed[run_element_id] = adapters_trimmed_by_id[adapter_id]
+        return run_element_adapters_trimmed
+
+    def _populate_barcode_info_from_adapter_file(self, adapter_trim_file):
+        has_barcode = self.samplesheet.has_barcode
+        parsed_trimmed_adapters = demultiplexing_parsers.parse_adapter_trim_file(adapter_trim_file, self.run_id)
+        run_element_adapters_trimmed = self._run_sample_lane_to_barcode(parsed_trimmed_adapters, has_barcode)
+        for run_element_id in self.barcodes_info:
+            self.barcodes_info[run_element_id][ELEMENT_ADAPTER_TRIM_R1] = run_element_adapters_trimmed[run_element_id]['read_1_trimmed_bases']
+            self.barcodes_info[run_element_id][ELEMENT_ADAPTER_TRIM_R2] = run_element_adapters_trimmed[run_element_id]['read_2_trimmed_bases']
+
     def _populate_barcode_info_from_seqtk_fqchk_files(self, run_dir):
         for run_element_id in self.barcodes_info:
             barcode_info = self.barcodes_info.get(run_element_id)
@@ -195,7 +257,7 @@ class RunCrawler(Crawler):
             barcodes = all_barcodes
 
         for (project, library, lane, barcode, clust_count,
-             clust_count_pf, nb_bases, nb_bases_r1_q30, nb_bases_r2_q30) in barcodes:
+            clust_count_pf, nb_bases, nb_bases_r1_q30, nb_bases_r2_q30) in barcodes:
             reads_per_lane[lane] += clust_count_pf
             # For the moment, assume that nb_bases for r1 and r2 are the same.
             # TODO: remove this assumption by parsing ConversionStats.xml
@@ -252,9 +314,7 @@ class RunCrawler(Crawler):
                 )
             )
 
-
 class SampleCrawler(Crawler):
-    gender_aliases = {'female': ['f', 'female', 'girl', 'woman'], 'male': ['m', 'male', 'boy', 'man']}
 
     def __init__(self, sample_id,  project_id,  sample_dir):
         self.sample_id = sample_id
@@ -274,21 +334,16 @@ class SampleCrawler(Crawler):
             if f:
                 return f
 
-    @classmethod
-    def _gender_alias(cls, gender):
-        for key in cls.gender_aliases:
-            if str(gender).lower() in cls.gender_aliases[key]:
-                return key
-        return 'unknown'
-
     def _populate_lib_info(self, sample_dir):
-        external_sample_name = get_user_sample_name(self.sample_id, lenient=True)
 
         sample = {
             ELEMENT_SAMPLE_INTERNAL_ID: self.sample_id,
             ELEMENT_PROJECT_ID: self.project_id,
-            ELEMENT_SAMPLE_EXTERNAL_ID: external_sample_name
         }
+
+        sample.update(get_sample_information_from_lims(self.sample_id))
+        external_sample_name = sample.get(ELEMENT_SAMPLE_EXTERNAL_ID)
+
         bamtools_path = self.search_file(sample_dir, 'bamtools_stats.txt')
         if bamtools_path:
             (total_reads, mapped_reads,
@@ -326,9 +381,7 @@ class SampleCrawler(Crawler):
         if sex_file_path:
             with open(sex_file_path) as f:
                 gender, het_x = f.read().strip().split()
-                gender_from_lims = get_sample_gender(self.sample_id)
-                sample[ELEMENT_PROVIDED_GENDER] = self._gender_alias(gender_from_lims)
-                sample[ELEMENT_CALLED_GENDER] = self._gender_alias(gender)
+                sample[ELEMENT_CALLED_GENDER] = gender_alias(gender)
                 sample[ELEMENT_GENDER_VALIDATION] = {ELEMENT_GENDER_HETX: het_x}
 
         genotype_validation_path = self.search_file(sample_dir, '%s_genotype_validation.txt' % external_sample_name)
@@ -342,7 +395,8 @@ class SampleCrawler(Crawler):
 
         species_contamination_path = self.search_file(sample_dir, '%s_R1_screen.txt' % external_sample_name)
         if species_contamination_path:
-            species_contamination_result = get_fastqscreen_results(species_contamination_path, self.sample_id)
+            species_contamination_result = parse_fastqscreen_file(species_contamination_path,
+                                                                  sample[ELEMENT_SAMPLE_SPECIES])
             if species_contamination_result:
                 sample[ELEMENT_SPECIES_CONTAMINATION] = species_contamination_result
             else:
@@ -360,17 +414,23 @@ class SampleCrawler(Crawler):
 
         coverage_statistics_path = self.search_file(sample_dir, '%s.depth' % external_sample_name)
         if coverage_statistics_path:
-            mean, median, sd, coverage_percentiles, bases_at_coverage = get_coverage_statistics(coverage_statistics_path)
-            coverage_statistics = {ELEMENT_MEAN_COVERAGE: mean,
-                                   ELEMENT_MEDIAN_COVERAGE_SAMTOOLS: median,
-                                   ELEMENT_COVERAGE_SD: sd,
-                                   ELEMENT_COVERAGE_PERCENTILES: coverage_percentiles,
-                                   ELEMENT_BASES_AT_COVERAGE: bases_at_coverage}
+            mean, median, sd, coverage_percentiles, bases_at_coverage, \
+            genome_size, evenness = get_coverage_statistics(coverage_statistics_path)
+            coverage_statistics = {
+                ELEMENT_MEAN_COVERAGE: mean,
+                ELEMENT_MEDIAN_COVERAGE_SAMTOOLS: median,
+                ELEMENT_COVERAGE_SD: sd,
+                ELEMENT_COVERAGE_PERCENTILES: coverage_percentiles,
+                ELEMENT_BASES_AT_COVERAGE: bases_at_coverage,
+                ELEMENT_SAMPLE_GENOME_SIZE: genome_size,
+                ELEMENT_COVERAGE_EVENNESS: evenness
+            }
             sample[ELEMENT_COVERAGE_STATISTICS] = coverage_statistics
             sample[ELEMENT_MEDIAN_COVERAGE] = median
             if ELEMENT_GENDER_VALIDATION in sample:
-                covY = get_coverage_Y_chrom(coverage_statistics_path)
-                if covY: sample[ELEMENT_GENDER_VALIDATION][ELEMENT_GENDER_COVY] = covY
+                cov_y = get_coverage_Y_chrom(coverage_statistics_path)
+                if cov_y:
+                    sample[ELEMENT_GENDER_VALIDATION][ELEMENT_GENDER_COVY] = cov_y
         else:
             self.critical('coverage statistics unavailable for %s', self.sample_id)
 
@@ -381,8 +441,7 @@ class SampleCrawler(Crawler):
                 sample[ELEMENT_SAMPLE_CONTAMINATION][ELEMENT_SNPS_TI_TV] = ti_tv
                 sample[ELEMENT_SAMPLE_CONTAMINATION][ELEMENT_SNPS_HET_HOM] = het_hom
             else:
-                sample[ELEMENT_SAMPLE_CONTAMINATION]={ELEMENT_SNPS_TI_TV: ti_tv, ELEMENT_SNPS_HET_HOM:het_hom}
-
+                sample[ELEMENT_SAMPLE_CONTAMINATION] = {ELEMENT_SNPS_TI_TV: ti_tv, ELEMENT_SNPS_HET_HOM: het_hom}
         return sample
 
     def send_data(self):
