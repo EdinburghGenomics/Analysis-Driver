@@ -1,0 +1,12 @@
+# Template for whole genome Illumina variant calling with freebayes pipeline
+---
+details:
+- algorithm:
+    aligner: bwa
+    mark_duplicates: true
+    realign: false
+    recalibrate: false
+    variantcaller: freebayes
+    jointcaller: freebayes-joint
+  analysis: variant2
+  genome_build: GRCh37
