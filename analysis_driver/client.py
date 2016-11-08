@@ -47,7 +47,7 @@ def main():
         for d in args.force:
             scanner.get_dataset(d).force()
         for d in args.stop:
-            pid = scanner.get_dataset(d).most_recent_proc.pid
+            pid = scanner.get_dataset(d).most_recent_proc.get('pid')
             if pid:
                 os.kill(pid, 15)
 
@@ -166,5 +166,6 @@ def _parse_args():
         default=[],
         help='mark a sample for processing, even if below the data threshold'
     )
+    p.add_argument('--stop', nargs='+', default=[], help='stop a currently processing run/sample')
 
     return p.parse_args()
