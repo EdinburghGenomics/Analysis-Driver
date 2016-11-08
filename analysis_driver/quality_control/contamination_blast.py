@@ -27,7 +27,7 @@ class ContaminationBlast(QualityControl):
         db_dir = cfg['contamination-check']['db_dir']
         nt_db = os.path.join(db_dir, 'nt')
         blast_outfile = fasta_file.split('.')[0] + '_blastn'
-        blast_cmd = "export PATH=$PATH:/%s; %s -query %s -db %s -out %s -num_threads 12 -outfmt '6 qseqid sseqid length pident evalue sgi sacc staxids sscinames scomnames stitle'" % (db_dir, blastn_bin, fasta_file, nt_db, blast_outfile)
+        blast_cmd = "export PATH=$PATH:/%s; %s -query %s -db %s -out %s -num_threads 12 -max_target_seqs 1 -max_hsps 1 -outfmt '6 qseqid sseqid length pident evalue sgi sacc staxids sscinames scomnames stitle'" % (db_dir, blastn_bin, fasta_file, nt_db, blast_outfile)
         return blast_cmd, blast_outfile
 
 
@@ -51,74 +51,77 @@ class ContaminationBlast(QualityControl):
 
 
     def get_rank(self, taxon):
-        ncbi = self.ncbi()
-        l = ncbi.get_lineage(taxon)
-        rank = ncbi.get_rank(l)
-        return rank
-
-
-    def taxid_translator(self, taxid):
-        if taxid:
+        taxon = taxon.split(';')[0]
+        if not taxon == 'N/A':
             ncbi = self.ncbi()
-            taxid_name = list((ncbi.get_taxid_translator(taxid)).values())[0]
-            return taxid_name
-        else:
-            return None
+            l = ncbi.get_lineage(int(taxon))
+            rank = ncbi.get_rank(l)
+            return rank
+
+
+    def taxid_translator(self, taxids):
+        translated_taxids = []
+        for taxon in taxids:
+            if taxon:
+                ncbi = self.ncbi()
+                taxid_name = list((ncbi.get_taxid_translator(taxon)).values())[0]
+                translated_taxids.append(taxid_name)
+            else:
+                taxid_name = 'Unavailable'
+                translated_taxids.append(taxid_name)
+        return tuple(translated_taxids)
 
 
     def get_all_taxa_identified(self, taxon_dict, taxon, taxids):
         num_reads = taxids[taxon]
         rank = self.get_rank(taxon)
-        kingdom_taxid = [i for i in rank if rank[i] == 'kingdom']
-        phylum_taxid = [i for i in rank if rank[i] == 'phylum']
-        class_taxid = [i for i in rank if rank[i] == 'class']
-        order_taxid = [i for i in rank if rank[i] == 'order']
-        family_taxid = [i for i in rank if rank[i] == 'family']
-        genus_taxid = [i for i in rank if rank[i] == 'genus']
-        species_taxid = [i for i in rank if rank[i] == 'species']
-        taxon_kingdom = self.taxid_translator(kingdom_taxid)
-        taxon_phylum = self.taxid_translator(phylum_taxid)
-        taxon_class = self.taxid_translator(class_taxid)
-        taxon_order = self.taxid_translator(order_taxid)
-        taxon_family = self.taxid_translator(family_taxid)
-        taxon_genus = self.taxid_translator(genus_taxid)
-        taxon_species = self.taxid_translator(species_taxid)
+        if rank:
+            kingdom_taxid = [i for i in rank if rank[i] == 'kingdom']
+            phylum_taxid = [i for i in rank if rank[i] == 'phylum']
+            class_taxid = [i for i in rank if rank[i] == 'class']
+            order_taxid = [i for i in rank if rank[i] == 'order']
+            family_taxid = [i for i in rank if rank[i] == 'family']
+            genus_taxid = [i for i in rank if rank[i] == 'genus']
+            species_taxid = [i for i in rank if rank[i] == 'species']
 
-        if taxon_kingdom and taxon_kingdom not in taxon_dict:
-            taxon_dict[taxon_kingdom] = {}
-            taxon_dict['reads'] = num_reads
-        elif taxon_kingdom:
-            taxon_dict['reads'] += num_reads
-        if taxon_phylum and taxon_phylum not in taxon_dict.get(taxon_kingdom, {}):
-            taxon_dict[taxon_kingdom][taxon_phylum] = {}
-            taxon_dict[taxon_kingdom]['reads'] = num_reads
-        elif taxon_phylum:
-            taxon_dict[taxon_kingdom]['reads'] += num_reads
-        if taxon_class and taxon_class not in taxon_dict.get(taxon_kingdom, {}).get(taxon_phylum, {}):
-            taxon_dict[taxon_kingdom][taxon_phylum][taxon_class] = {}
-            taxon_dict[taxon_kingdom][taxon_phylum]['reads'] = num_reads
-        elif taxon_class:
-            taxon_dict[taxon_kingdom][taxon_phylum]['reads'] += num_reads
-        if taxon_order and taxon_order not in taxon_dict.get(taxon_kingdom, {}).get(taxon_phylum, {}).get(taxon_class, {}):
-            taxon_dict[taxon_kingdom][taxon_phylum][taxon_class][taxon_order] = {}
-            taxon_dict[taxon_kingdom][taxon_phylum][taxon_class]['reads'] = num_reads
-        elif taxon_order:
-            taxon_dict[taxon_kingdom][taxon_phylum][taxon_class]['reads'] += num_reads
-        if taxon_family and taxon_family not in taxon_dict.get(taxon_kingdom, {}).get(taxon_phylum, {}).get(taxon_class, {}).get(taxon_order, {}):
-            taxon_dict[taxon_kingdom][taxon_phylum][taxon_class][taxon_order][taxon_family] = {}
-            taxon_dict[taxon_kingdom][taxon_phylum][taxon_class][taxon_order]['reads'] = num_reads
-        elif taxon_family:
-            taxon_dict[taxon_kingdom][taxon_phylum][taxon_class][taxon_order]['reads'] += num_reads
-        if taxon_genus and taxon_genus not in taxon_dict.get(taxon_kingdom, {}).get(taxon_phylum, {}).get(taxon_class, {}).get(taxon_order, {}).get(taxon_family, {}):
-            taxon_dict[taxon_kingdom][taxon_phylum][taxon_class][taxon_order][taxon_family][taxon_genus] = {}
-            taxon_dict[taxon_kingdom][taxon_phylum][taxon_class][taxon_order][taxon_family]['reads'] = num_reads
-        elif taxon_genus:
-            taxon_dict[taxon_kingdom][taxon_phylum][taxon_class][taxon_order][taxon_family]['reads'] += num_reads
-        if taxon_species and taxon_species not in taxon_dict.get(taxon_kingdom, {}).get(taxon_phylum, {}).get(taxon_class, {}).get(taxon_order, {}).get(taxon_family, {}).get(taxon_genus, {}):
-            taxon_dict[taxon_kingdom][taxon_phylum][taxon_class][taxon_order][taxon_family][taxon_genus][taxon_species] = ''
-            taxon_dict[taxon_kingdom][taxon_phylum][taxon_class][taxon_order][taxon_family][taxon_genus]['reads'] = num_reads
-        elif taxon_species:
-            taxon_dict[taxon_kingdom][taxon_phylum][taxon_class][taxon_order][taxon_family][taxon_genus]['reads'] += num_reads
+            list_of_taxids = [kingdom_taxid, phylum_taxid, class_taxid, order_taxid, family_taxid, genus_taxid, species_taxid]
+            taxon_kingdom, taxon_phylum, taxon_class, taxon_order, taxon_family, taxon_genus, taxon_species = self.taxid_translator(list_of_taxids)
+
+            if taxon_kingdom and taxon_kingdom not in taxon_dict:
+                taxon_dict[taxon_kingdom] = {}
+                taxon_dict['reads'] = num_reads
+            elif taxon_kingdom:
+                taxon_dict['reads'] += num_reads
+            if taxon_phylum and taxon_phylum not in taxon_dict.get(taxon_kingdom, {}):
+                taxon_dict[taxon_kingdom][taxon_phylum] = {}
+                taxon_dict[taxon_kingdom]['reads'] = num_reads
+            elif taxon_phylum:
+                taxon_dict[taxon_kingdom]['reads'] += num_reads
+            if taxon_class and taxon_class not in taxon_dict.get(taxon_kingdom, {}).get(taxon_phylum, {}):
+                taxon_dict[taxon_kingdom][taxon_phylum][taxon_class] = {}
+                taxon_dict[taxon_kingdom][taxon_phylum]['reads'] = num_reads
+            elif taxon_class:
+                taxon_dict[taxon_kingdom][taxon_phylum]['reads'] += num_reads
+            if taxon_order and taxon_order not in taxon_dict.get(taxon_kingdom, {}).get(taxon_phylum, {}).get(taxon_class, {}):
+                taxon_dict[taxon_kingdom][taxon_phylum][taxon_class][taxon_order] = {}
+                taxon_dict[taxon_kingdom][taxon_phylum][taxon_class]['reads'] = num_reads
+            elif taxon_order:
+                taxon_dict[taxon_kingdom][taxon_phylum][taxon_class]['reads'] += num_reads
+            if taxon_family and taxon_family not in taxon_dict.get(taxon_kingdom, {}).get(taxon_phylum, {}).get(taxon_class, {}).get(taxon_order, {}):
+                taxon_dict[taxon_kingdom][taxon_phylum][taxon_class][taxon_order][taxon_family] = {}
+                taxon_dict[taxon_kingdom][taxon_phylum][taxon_class][taxon_order]['reads'] = num_reads
+            elif taxon_family:
+                taxon_dict[taxon_kingdom][taxon_phylum][taxon_class][taxon_order]['reads'] += num_reads
+            if taxon_genus and taxon_genus not in taxon_dict.get(taxon_kingdom, {}).get(taxon_phylum, {}).get(taxon_class, {}).get(taxon_order, {}).get(taxon_family, {}):
+                taxon_dict[taxon_kingdom][taxon_phylum][taxon_class][taxon_order][taxon_family][taxon_genus] = {}
+                taxon_dict[taxon_kingdom][taxon_phylum][taxon_class][taxon_order][taxon_family]['reads'] = num_reads
+            elif taxon_genus:
+                taxon_dict[taxon_kingdom][taxon_phylum][taxon_class][taxon_order][taxon_family]['reads'] += num_reads
+            if taxon_species and taxon_species not in taxon_dict.get(taxon_kingdom, {}).get(taxon_phylum, {}).get(taxon_class, {}).get(taxon_order, {}).get(taxon_family, {}).get(taxon_genus, {}):
+                taxon_dict[taxon_kingdom][taxon_phylum][taxon_class][taxon_order][taxon_family][taxon_genus][taxon_species] = ''
+                taxon_dict[taxon_kingdom][taxon_phylum][taxon_class][taxon_order][taxon_family][taxon_genus]['reads'] = num_reads
+            elif taxon_species:
+                taxon_dict[taxon_kingdom][taxon_phylum][taxon_class][taxon_order][taxon_family][taxon_genus]['reads'] += num_reads
         return taxon_dict
 
     def run_sample_fastq(self, fastq_file):
@@ -150,11 +153,9 @@ class ContaminationBlast(QualityControl):
         return blast_outfile
 
     def check_for_contamination(self):
-        fasta_outfile = self.run_sample_fastq(self.fastq_file)
+        fasta_outfile = self.run_sample_fastq(self.fastq_file[0])
         blast_outfile = self.run_blast(fasta_outfile)
         taxids = self.get_taxids(blast_outfile)
-
-
         taxon_dict = {}
         for taxon in taxids:
             taxon_dict = self.get_all_taxa_identified(taxon_dict, taxon, taxids)
@@ -165,13 +166,11 @@ class ContaminationBlast(QualityControl):
                                             separators=(',', ':'))
             outfile.write(taxa_identified_json)
 
-
     def run(self):
         try:
             self.taxa_identified = self.check_for_contamination()
         except Exception as e:
             self.exception = e
-
 
     def join(self, timeout=None):
         super().join(timeout=timeout)
