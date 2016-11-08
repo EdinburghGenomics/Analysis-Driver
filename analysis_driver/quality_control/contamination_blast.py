@@ -14,10 +14,9 @@ class ContaminationBlast(QualityControl):
         self.working_dir = working_dir
         self.fastq_file = fastq_file
 
-
     def sample_fastq_command(self, fastq_file):
         seqtk_bin = cfg['tools']['seqtk']
-        fasta_outfile = os.path.join(self.working_dir, self.dataset.name, fastq_file.split('.')[0] + '_sample3000.fasta')
+        fasta_outfile = os.path.join(self.working_dir, os.path.basename(fastq_file).split('.')[0] + '_sample3000.fasta')
         seqtk_sample_cmd = 'set -o pipefail; {seqtk} sample {fastq} 3000 | {seqtk} seq -a > {fasta}'.format(seqtk=seqtk_bin, fastq=fastq_file, fasta=fasta_outfile)
         return seqtk_sample_cmd, fasta_outfile
 
@@ -26,7 +25,7 @@ class ContaminationBlast(QualityControl):
         blastn_bin = cfg['tools']['blastn']
         db_dir = cfg['contamination-check']['db_dir']
         nt_db = os.path.join(db_dir, 'nt')
-        blast_outfile = fasta_file.split('.')[0] + '_blastn'
+        blast_outfile = os.path.join(self.working_dir, os.path.basename(fasta_file).split('.')[0] + '_blastn')
         blast_cmd = "export PATH=$PATH:/%s; %s -query %s -db %s -out %s -num_threads 12 -max_target_seqs 1 -max_hsps 1 -outfmt '6 qseqid sseqid length pident evalue sgi sacc staxids sscinames scomnames stitle'" % (db_dir, blastn_bin, fasta_file, nt_db, blast_outfile)
         return blast_cmd, blast_outfile
 

@@ -65,10 +65,8 @@ def _parse_args():
 
     contamination_blast_parser = subparsers.add_parser('contamination_blast')
     contamination_blast_parser.add_argument('--fastq_file', required=True, nargs='+', help='a fastq file to check for contamination')
-    contamination_blast_parser.add_argument('--work_dir', required=True)
     contamination_blast_parser.add_argument('--sample_id', required=True)
     contamination_blast_parser.set_defaults(func=contamination_blast)
-
     return parser.parse_args()
 
 def run_genotype_validation(args):
@@ -193,10 +191,7 @@ def median_coverage(args):
 
 
 def contamination_blast(args):
-    if args.work_dir:
-        work_dir = args.work_dir
-    else:
-        work_dir = os.path.join(cfg['jobs_dir'], args.sample_id)
+    work_dir = os.path.join(cfg['jobs_dir'], args.sample_id)
     os.makedirs(work_dir, exist_ok=True)
     dataset = NoCommunicationDataset(args.sample_id)
     contamination = ContaminationBlast(dataset, work_dir, args.fastq_file)
