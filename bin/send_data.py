@@ -11,8 +11,6 @@ from analysis_driver.report_generation.report_crawlers import SampleCrawler, Run
 from analysis_driver.config import default as cfg, load_config
 from analysis_driver.reader.run_info import RunInfo
 
-
-
 def main():
     if 'run' not in sys.argv and 'sample' not in sys.argv:
         print("no mode specified - use either 'run' or 'sample'")
@@ -26,6 +24,7 @@ def main():
     run_parser.add_argument('run_id')
     run_parser.add_argument('--samplesheet')
     run_parser.add_argument('--conversion_stats', nargs='?', default=None)
+    run_parser.add_argument('--adapter_trim_file', nargs='?', default=None)
     run_parser.add_argument('--run_dir', help='e.g. jobs/<run_id>')
     run_parser.set_defaults(func=run_crawler)
 
@@ -54,6 +53,10 @@ def run_crawler(args):
         conversion_stats = args.conversion_stats
     else:
         conversion_stats = os.path.join(run_dir, 'Stats', 'ConversionStats.xml')
+    if args.adapter_trim_file:
+        adapter_trim_file = args.adapter_trim_file
+    else:
+        adapter_trim_file = os.path.join(run_dir, 'Stats', 'AdapterTrimming.txt')
     run_info = RunInfo(os.path.join(run_dir))
     if args.samplesheet:
         samplesheet = SampleSheet(args.samplesheet, has_barcode=run_info.mask.has_barcodes)
@@ -61,7 +64,7 @@ def run_crawler(args):
         samplesheet = SampleSheet(os.path.join(run_dir, 'SampleSheet_analysis_driver.csv'),
                                   has_barcode=run_info.mask.has_barcodes)
 
-    c = RunCrawler(args.run_id, samplesheet, conversion_stats, run_dir)
+    c = RunCrawler(args.run_id, samplesheet, adapter_trim_file=adapter_trim_file, conversion_xml_file=conversion_stats, run_dir=run_dir)
     if args.test:
         print(
             json.dumps(

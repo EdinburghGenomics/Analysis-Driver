@@ -1,10 +1,13 @@
 import math
+from itertools import islice
 from collections import Counter, defaultdict
 from xml.etree import ElementTree
+from egcg_core import rest_communication
 from egcg_core.clarity import get_species_from_sample
 from egcg_core.constants import ELEMENT_CONTAMINANT_UNIQUE_MAP, ELEMENT_PCNT_UNMAPPED_FOCAL, \
     ELEMENT_PCNT_UNMAPPED, ELEMENT_TOTAL_READS_MAPPED, ELEMENT_PERCENTILE_5, ELEMENT_PERCENTILE_25, ELEMENT_PERCENTILE_50, \
-    ELEMENT_PERCENTILE_75, ELEMENT_PERCENTILE_95, ELEMENT_BASES_AT_5X, ELEMENT_BASES_AT_15X, ELEMENT_BASES_AT_30X
+    ELEMENT_PERCENTILE_75, ELEMENT_PERCENTILE_95, ELEMENT_BASES_AT_5X, ELEMENT_BASES_AT_15X, ELEMENT_BASES_AT_30X, \
+    ELEMENT_BARCODE, ELEMENT_RUN_NAME, ELEMENT_SAMPLE_INTERNAL_ID, ELEMENT_LANE, ELEMENT_RUN_ELEMENT_ID
 
 from egcg_core.app_logging import logging_default as log_cfg
 app_logger = log_cfg.get_logger(__name__)
@@ -116,8 +119,6 @@ def parse_conversion_stats(xml_file, has_barcode):
                                 if read.get('number') == "2":
                                     nb_bases_r2_q30 += int(read.find('YieldQ30').text)
 
-
-
                         all_barcodes_per_lanes.append(
                             (
                                 project.get('name'),
@@ -226,8 +227,6 @@ def collapse_histograms(histograms):
         res.update(histogram)
     return res
 
-
-
 def get_percentiles(histogram, percentile):
     """
     Calculate the percentiles of the histogram.
@@ -281,6 +280,23 @@ def calculate_bases_at_coverage(histogram):
 def calculate_size_genome(histogram):
     return sum(histogram.values())
 
+def calculate_evenness(histogram):
+    """
+    Calculation of evenness based on http://www.nature.com/jhg/journal/v61/n7/full/jhg201621a.html.
+    R code extracted from the paper:
+    C=round(mean(D))
+    D2=D[D<=C]
+    E=1-(length(D2)-sum(D2)/C)/length(D)
+    Where D is a vector of number representing the coverage at every bases.
+    """
+    rounded_mean = round(calculate_mean(histogram))
+    low_half_hist = dict([(k, v) for k, v in histogram.items() if k <= rounded_mean])
+
+    A = sum(low_half_hist.values())
+    B = sum([k * v for k, v in low_half_hist.items()]) / rounded_mean
+    evenness = 1 - ((A - B) / sum(histogram.values()))
+    return evenness
+
 def get_coverage_statistics(histogram_file):
     # Read the histogram file keeping each chrom separated
     histograms = read_histogram_file(histogram_file)
@@ -300,7 +316,9 @@ def get_coverage_statistics(histogram_file):
     bases_at_coverage = {ELEMENT_BASES_AT_5X: bases_5X, ELEMENT_BASES_AT_15X: bases_15X, ELEMENT_BASES_AT_30X: bases_30X}
 
     genome_size = calculate_size_genome(histogram)
-    return coverage_mean, coverage_median, coverage_sd, coverage_percentiles, bases_at_coverage, genome_size
+    evenness = calculate_evenness(histogram)
+
+    return coverage_mean, coverage_median, coverage_sd, coverage_percentiles, bases_at_coverage, genome_size, evenness
 
 def get_coverage_Y_chrom(histogram_file, chr_name='chrY'):
     # Read the histogram file keeping each chrom separated
@@ -325,5 +343,19 @@ def parse_welldup_file(welldup_file):
                 in_summary = False
     return dup_per_lane
 
-
+def parse_adapter_trim_file(adapter_trim_file, run_id):
+    adapters_trimmed_by_id = {}
+    with open(adapter_trim_file) as open_file:
+        open_file = open_file.read()
+        adapter_trim_info = (open_file.split('\n\n')[0]).split('\n')
+        for line in islice(adapter_trim_info, 1, None):
+            lane = line.split()[0]
+            read = line.split()[1]
+            sample_id = line.split()[3]
+            trimmed_bases = line.split()[6]
+            run_element_info = (run_id, sample_id, lane)
+            if not adapters_trimmed_by_id.get(run_element_info):
+                adapters_trimmed_by_id[run_element_info] = {}
+            adapters_trimmed_by_id[run_element_info]['read_%s_trimmed_bases' % (read)] = int(trimmed_bases)
+    return adapters_trimmed_by_id
 

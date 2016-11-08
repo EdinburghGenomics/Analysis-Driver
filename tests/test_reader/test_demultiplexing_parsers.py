@@ -1,12 +1,11 @@
 import os
 from analysis_driver.reader.demultiplexing_parsers import parse_seqtk_fqchk_file, parse_conversion_stats, \
-    parse_welldup_file, get_percentiles, read_histogram_file, collapse_histograms, get_coverage_Y_chrom, \
-    calculate_size_genome
+    parse_adapter_trim_file, parse_welldup_file, get_percentiles, read_histogram_file, collapse_histograms, \
+    get_coverage_Y_chrom, calculate_size_genome, calculate_evenness
 from analysis_driver.reader.demultiplexing_parsers import parse_fastqscreen_file
 from analysis_driver.reader.demultiplexing_parsers import calculate_mean, calculate_median, calculate_sd, get_coverage_statistics, calculate_bases_at_coverage
 from tests.test_analysisdriver import TestAnalysisDriver
 from egcg_core.constants import ELEMENT_CONTAMINANT_UNIQUE_MAP, ELEMENT_PCNT_UNMAPPED_FOCAL, ELEMENT_PCNT_UNMAPPED, ELEMENT_TOTAL_READS_MAPPED
-from unittest.mock import patch
 __author__ = 'tcezard'
 
 
@@ -101,19 +100,25 @@ class TestDemultiplexingStats(TestAnalysisDriver):
 
     def test_get_coverage_statistics(self):
         hist_file = os.path.join(self.assets_path, 'test_sample.depth')
-        mean, median, sd, coverage_percentiles, bases_at_coverage, genome_size = get_coverage_statistics(hist_file)
+        mean, median, sd, coverage_percentiles, bases_at_coverage, genome_size, evenness = get_coverage_statistics(hist_file)
         assert mean == 438.8514851485148
         assert median == 478
         assert sd == 189.1911391390011
         assert coverage_percentiles == {'percentile_5': 102, 'percentile_25': 279, 'percentile_50': 478, 'percentile_75': 625, 'percentile_95': 648}
-        print(genome_size)
         assert genome_size == 101
+        assert evenness == 0.8139335573648481
 
 
     def test_calculate_size_genome(self):
         histogram = {1: 5, 2: 2, 3: 4, 4: 6, 5: 3}
         assert calculate_size_genome(histogram) == 20
 
+    def test_calculate_evenness(self):
+        histogram = {1: 5, 2: 2, 3: 4, 4: 6, 5: 3}
+        e = calculate_evenness(histogram)
+        assert e == 0.8
+        histogram = {1: 5, 2: 2, 3: 4, 4: 6, 5: 3, 100:5}
+        assert calculate_evenness(histogram) < e
 
     def test_get_coverage_Y_chrom(self):
         hist_file = os.path.join(self.assets_path, 'test_sample_chrY.depth')
@@ -124,3 +129,14 @@ class TestDemultiplexingStats(TestAnalysisDriver):
         welldup_file = os.path.join(self.assets_path, 'test_crawlers', 'test_run.well_dup')
         dup_per_lane = parse_welldup_file(welldup_file)
         assert dup_per_lane == {1: 11.747, 2: 14.576, 3: 0, 4: 20.496, 5: 5.981, 6: 10.917, 7: 14.611, 8: 26.416}
+
+    def test_parse_adapter_trim_file(self):
+        adapter_trim_file = os.path.join(self.assets_path, 'test_crawlers', 'AdapterTrimming.txt')
+        run_id = 'test_run_id'
+        parsed_trim_file = parse_adapter_trim_file(adapter_trim_file, run_id)
+        assert parsed_trim_file == {('test_run_id', '10015AT0001', '1'): {'read_1_trimmed_bases': 714309214, 'read_2_trimmed_bases': 684692293},
+                    ('test_run_id', '10015AT0001', '2'): {'read_1_trimmed_bases': 284712861, 'read_2_trimmed_bases': 282625840},
+                    ('test_run_id', '10015AT0002', '2'): {'read_1_trimmed_bases': 398993728, 'read_2_trimmed_bases': 391621660},
+                    ('test_run_id', 'unknown', '2'): {'read_1_trimmed_bases': 48149799, 'read_2_trimmed_bases': 48818739},
+                    ('test_run_id', '10015AT0002', '1'): {'read_1_trimmed_bases': 1088149481, 'read_2_trimmed_bases': 1034179505},
+                    ('test_run_id', 'unknown', '1'): {'read_1_trimmed_bases': 184380158, 'read_2_trimmed_bases': 172552099}}
