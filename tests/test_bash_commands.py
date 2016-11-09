@@ -44,6 +44,7 @@ def test_rsync_from_to():
 def test_bwa_mem_samblaster():
     cmd = bash_commands.bwa_mem_samblaster(['this.fastq', 'that.fastq'], 'ref.fasta', 'output/out.bam')
     expected_cmd = (
+        'set -o pipefail; '
         'path/to/bwa mem -M -t 16 ref.fasta this.fastq that.fastq | '
         'path/to/samblaster | '
         'path/to/samtools view -b - | '
@@ -62,11 +63,29 @@ def test_bwa_mem_samblaster_read_groups():
         read_group={'ID': '1', 'SM': 'user_sample_id', 'PL': 'illumina'}
     )
     expected_cmd = (
+        'set -o pipefail; '
         'path/to/bwa mem -M -t 16 -R \'@RG\\tID:1\\tPL:illumina\\tSM:user_sample_id\' '
         'ref.fasta this.fastq that.fastq | '
         'path/to/samblaster | '
         'path/to/samtools view -b - | '
         'path/to/sambamba sort -m 5G --tmpdir output -t 16 -o output/out.bam /dev/stdin'
+    )
+    assert cmd == expected_cmd
+
+
+def test_bwa_mem_biobambam_read_groups():
+    cmd = bash_commands.bwa_mem_biobambam(
+        ['this.fastq', 'that.fastq'],
+        'ref.fasta',
+        'output/out.bam',
+        read_group={'ID': '1', 'SM': 'user_sample_id', 'PL': 'illumina'}
+    )
+    expected_cmd = (
+        'set -o pipefail; '
+        'path/to/bwa mem -M -t 16 -R \'@RG\\tID:1\\tPL:illumina\\tSM:user_sample_id\' '
+        'ref.fasta this.fastq that.fastq | '
+        'path/to/bamsormadup inputformat=sam SO=coordinate tmpfile=output/out.bam '
+        'threads=16 indexfilename=output/out.bam.bai > output/out.bam'
     )
     assert cmd == expected_cmd
 
