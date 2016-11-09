@@ -3,6 +3,7 @@ import sys
 import logging
 import argparse
 import signal
+import traceback
 from egcg_core.executor import stop_running_jobs
 from egcg_core.app_logging import logging_default as log_cfg
 from analysis_driver import exceptions
@@ -47,9 +48,7 @@ def main():
         for d in args.force:
             scanner.get_dataset(d).force()
         for d in args.stop:
-            pid = scanner.get_dataset(d).most_recent_proc.get('pid')
-            if pid:
-                os.kill(pid, 10)
+            scanner.get_dataset(d).terminate()
 
         if args.report:
             scanner.report()
@@ -107,25 +106,21 @@ def _process_dataset(d):
 
     def _handle_exception(exception):
         app_logger.critical('Encountered a %s exception: %s', exception.__class__.__name__, str(exception))
+        etype, value, tb = sys.exc_info()
+        if tb:
+            stacktrace = ''.join(traceback.format_exception(etype, value, tb))
+            app_logger.info('Stacktrace below:\n' + stacktrace)
+            ntf.crash_report(stacktrace)
         _handle_termination(9)
 
     def _sigterm_handler(sig, frame):
-        app_logger.info('Received signal %s. Cleaning up running jobs', sig)
+        app_logger.info('Received signal %s in call stack:\n%s', sig, ''.join(traceback.format_stack(frame)))
         _handle_termination(sig)
 
-    def _handle_termination(_exit_status):
+    def _handle_termination(sig):
         stop_running_jobs()
-        d.fail(_exit_status)
-
-        if any(sys.exc_info()):
-            import traceback
-            stacktrace = traceback.format_exc()
-            app_logger.info('Stack trace below:\n' + stacktrace)
-            ntf.crash_report(stacktrace)
-        else:
-            app_logger.info('No stacktrace to log')
-
-        sys.exit(_exit_status)
+        d.fail(sig)
+        sys.exit(sig)
 
     signal.signal(10, _sigterm_handler)
     signal.signal(15, _sigterm_handler)

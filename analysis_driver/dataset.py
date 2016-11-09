@@ -1,8 +1,10 @@
 import os
 import threading
+from sys import modules
 from datetime import datetime
 from analysis_driver.notification import default as ntf
 from egcg_core import rest_communication
+from egcg_core.app_logging import AppLogger
 from egcg_core.clarity import get_expected_yield_for_sample
 from egcg_core.exceptions import RestCommunicationError
 from analysis_driver.exceptions import AnalysisDriverError
@@ -11,7 +13,7 @@ from egcg_core.constants import DATASET_NEW, DATASET_READY, DATASET_FORCE_READY,
     ELEMENT_NB_Q30_R1_CLEANED, ELEMENT_NB_Q30_R2_CLEANED
 
 
-class Dataset:
+class Dataset(AppLogger):
     type = None
     endpoint = None
     id_field = None
@@ -56,7 +58,14 @@ class Dataset:
         self.most_recent_proc.finish(DATASET_ABORTED)
 
     def reset(self):
+        self.terminate()
         self.most_recent_proc.change_status(DATASET_REPROCESS)
+
+    def terminate(self):
+        pid = self.most_recent_proc.get('pid')
+        if pid and self._is_valid_pid(pid):
+            self.info('Terminating pid %s for %s %s', pid, self.type, self.name)
+            os.kill(pid, 10)
 
     def start_stage(self, stage_name):
         ntf.start_stage(stage_name)
@@ -65,6 +74,13 @@ class Dataset:
     def end_stage(self, stage_name, exit_status=0):
         ntf.end_stage(stage_name, exit_status)
         self.most_recent_proc.end_stage(stage_name, exit_status)
+
+    @staticmethod
+    def _is_valid_pid(pid):
+        cmd_file = os.path.join('/', 'proc', pid, 'cmdline')
+        if os.path.isfile(cmd_file):
+            with open(cmd_file, 'r') as f:
+                return modules['__main__'].__file__ in f.read()
 
     def _assert_status(self, *allowed_statuses, method=None):
         # make sure the most recent process is the same as the one in the REST API
@@ -176,7 +192,6 @@ class SampleDataset(Dataset):
 
     def _non_useable_runs(self):
         return sorted(set([r.get(ELEMENT_RUN_NAME) for r in self.non_useable_run_elements]))
-
 
     @property
     def data_threshold(self):
