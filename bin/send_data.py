@@ -11,6 +11,7 @@ from analysis_driver.report_generation.report_crawlers import SampleCrawler, Run
 from analysis_driver.config import default as cfg, load_config
 from analysis_driver.reader.run_info import RunInfo
 
+
 def main():
     if 'run' not in sys.argv and 'sample' not in sys.argv:
         print("no mode specified - use either 'run' or 'sample'")

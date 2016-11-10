@@ -1,7 +1,7 @@
 import os
 import threading
 from datetime import datetime
-from analysis_driver.notification import default as ntf
+from analysis_driver.notification import NotificationCentre
 from egcg_core import rest_communication
 from egcg_core.clarity import get_expected_yield_for_sample
 from egcg_core.exceptions import RestCommunicationError
@@ -19,6 +19,7 @@ class Dataset:
     def __init__(self, name, most_recent_proc=None):
         self.name = name
         self.most_recent_proc = MostRecentProc(self.type, self.name, most_recent_proc)
+        self.ntf = NotificationCentre(self.name)
 
     @property
     def dataset_status(self):
@@ -39,17 +40,17 @@ class Dataset:
         self._assert_status(DATASET_READY, DATASET_FORCE_READY, DATASET_NEW, method='start')
         self.most_recent_proc.initialise_entity()  # take a new entity
         self.most_recent_proc.start()
-        ntf.start_pipeline()
+        self.ntf.start_pipeline()
 
     def succeed(self, quiet=False):
         self._assert_status(DATASET_PROCESSING, method='succeed')
         self.most_recent_proc.finish(DATASET_PROCESSED_SUCCESS)
         if not quiet:
-            ntf.end_pipeline(0)
+            self.ntf.end_pipeline(0)
 
     def fail(self, exit_status):
         self._assert_status(DATASET_PROCESSING, method='fail')
-        ntf.end_pipeline(exit_status)
+        self.ntf.end_pipeline(exit_status)
         self.most_recent_proc.finish(DATASET_PROCESSED_FAIL)
 
     def abort(self):
@@ -59,11 +60,11 @@ class Dataset:
         self.most_recent_proc.change_status(DATASET_REPROCESS)
 
     def start_stage(self, stage_name):
-        ntf.start_stage(stage_name)
+        self.ntf.start_stage(stage_name)
         self.most_recent_proc.start_stage(stage_name)
 
     def end_stage(self, stage_name, exit_status=0):
-        ntf.end_stage(stage_name, exit_status)
+        self.ntf.end_stage(stage_name, exit_status)
         self.most_recent_proc.end_stage(stage_name, exit_status)
 
     def _assert_status(self, *allowed_statuses, method=None):
@@ -176,7 +177,6 @@ class SampleDataset(Dataset):
 
     def _non_useable_runs(self):
         return sorted(set([r.get(ELEMENT_RUN_NAME) for r in self.non_useable_run_elements]))
-
 
     @property
     def data_threshold(self):

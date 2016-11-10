@@ -1,7 +1,6 @@
 import os
 from egcg_core import executor
 from analysis_driver.config import default as cfg
-from analysis_driver.notification import default as ntf
 from .quality_control_base import QualityControl
 
 
@@ -10,6 +9,7 @@ class SamtoolsDepth(QualityControl):
         super().__init__(dataset, working_dir)
         self.bam_file = bam_file
         self.working_dir = working_dir
+        self.median_coverage_expected_outfiles = None
 
     def _get_samtools_depth_command(self):
         samtools_bin = cfg['tools']['samtools']
@@ -23,7 +23,7 @@ class SamtoolsDepth(QualityControl):
         :return string: the expected outfile from samtools depth
         """
         samtools_depth_command, samtools_depth_out_file = self._get_samtools_depth_command()
-        ntf.start_stage('run_samtools_depth')
+        self.dataset.start_stage('run_samtools_depth')
         samtools_depth_executor = executor.execute(
             samtools_depth_command,
             job_name='samtoolsdepth',
@@ -32,9 +32,8 @@ class SamtoolsDepth(QualityControl):
             mem=6
         )
         exit_status = samtools_depth_executor.join()
-        ntf.end_stage('run_samtools_depth', exit_status)
+        self.dataset.end_stage('run_samtools_depth', exit_status)
         return samtools_depth_out_file
-
 
     def run(self):
         try:

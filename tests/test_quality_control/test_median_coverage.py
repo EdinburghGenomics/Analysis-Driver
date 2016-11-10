@@ -2,31 +2,28 @@ from analysis_driver.quality_control import SamtoolsDepth
 from tests.test_quality_control.qc_tester import QCTester
 from unittest.mock import patch
 
+
 class TestSamtoolsDepth(QCTester):
+    exp_cmd = ('path/to/samtools depth -a -a -q 0 -Q 0 testfile.bam | '
+               'awk -F "\t" \'{array[$1"\t"$3]+=1} END{for (val in array){print val"\t"array[val]}}\' | '
+               'sort -k 1,1 -nk 2,2 > testfile.depth')
 
     def test_get_samtools_depth_command(self):
         bam_file = 'testfile.bam'
         working_dir = 'test_sample'
-        g = SamtoolsDepth(self.dataset, bam_file = bam_file, working_dir = working_dir)
-        my_samtools_depth_command, my_samtools_depth_outfile = g._get_samtools_depth_command()
-        assert my_samtools_depth_command == """path/to/samtools depth -a -a -q 0 -Q 0 testfile.bam | awk -F "\t" '{array[$1"\t"$3]+=1} END{for (val in array){print val"\t"array[val]}}' | sort -k 1,1 -nk 2,2 > testfile.depth"""
-
-        assert my_samtools_depth_outfile == 'testfile.depth'
-
+        g = SamtoolsDepth(self.dataset, bam_file=bam_file, working_dir=working_dir)
+        cmd, outfile = g._get_samtools_depth_command()
+        assert cmd == self.exp_cmd
+        assert outfile == 'testfile.depth'
 
     @patch('egcg_core.executor.execute', autospec=True)
     def test_run_samtools_depth(self, mocked_execute):
         bam_file = 'testfile.bam'
         working_dir = 'test_sample'
-        g = SamtoolsDepth(self.dataset, bam_file = bam_file, working_dir = working_dir)
+        g = SamtoolsDepth(self.dataset, bam_file=bam_file, working_dir=working_dir)
         instance = mocked_execute.return_value
         instance.join.return_value = 0
-        run_samtools_depth = g._run_samtools_depth()
-        mocked_execute.assert_called_once_with("""path/to/samtools depth -a -a -q 0 -Q 0 testfile.bam | awk -F "\t" '{array[$1"\t"$3]+=1} END{for (val in array){print val"\t"array[val]}}' | sort -k 1,1 -nk 2,2 > testfile.depth""",
-                                               job_name='samtoolsdepth',
-                                               working_dir='test_sample',
-                                               cpus=1,
-                                               mem=6
-                                               )
-
-
+        g._run_samtools_depth()
+        mocked_execute.assert_called_once_with(
+            self.exp_cmd, job_name='samtoolsdepth', working_dir='test_sample', cpus=1, mem=6
+        )
