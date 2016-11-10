@@ -29,7 +29,7 @@ class TestContaminationBlast(QCTester):
         self.contamination_blast = ContaminationBlast(self.run_dataset, self.working_dir, self.fastq_files)
 
     def test_sample_fastq_command(self):
-        command, outfile = self.contamination_blast.sample_fastq_command(self.fastq_file)
+        command, outfile = self.contamination_blast.sample_fastq_command(self.fastq_file, nb_reads=3000)
         assert command == 'set -o pipefail; path/to/seqtk sample fastqFile1.fastq 3000 | path/to/seqtk seq -a > test_run/fastqFile1_sample3000.fasta'
         assert outfile == 'test_run/fastqFile1_sample3000.fasta'
 
@@ -112,7 +112,7 @@ class TestContaminationBlast(QCTester):
     def test_run_sample_fastq(self, mocked_execute, mocked_rest):
         instance = mocked_execute.return_value
         instance.join.return_value = 0
-        sample_fastq_outfile = self.contamination_blast.run_sample_fastq(self.fastq_file)
+        sample_fastq_outfile = self.contamination_blast.run_sample_fastq(self.fastq_file, nb_reads=3000)
         assert sample_fastq_outfile == 'test_run/fastqFile1_sample3000.fasta'
         mocked_execute.assert_called_once_with(
             'set -o pipefail; path/to/seqtk sample fastqFile1.fastq 3000 | path/to/seqtk seq -a > test_run/fastqFile1_sample3000.fasta',
