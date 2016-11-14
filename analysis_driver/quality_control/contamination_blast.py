@@ -13,11 +13,15 @@ class ContaminationBlast(QualityControl):
         super().__init__(dataset, working_dir)
         self.working_dir = working_dir
         self.fastq_file = fastq_file
+        self._ncbi = None
 
-    def sample_fastq_command(self, fastq_file):
+    def sample_fastq_command(self, fastq_file, nb_reads):
         seqtk_bin = cfg['tools']['seqtk']
-        fasta_outfile = os.path.join(self.working_dir, os.path.basename(fastq_file).split('.')[0] + '_sample3000.fasta')
-        seqtk_sample_cmd = 'set -o pipefail; {seqtk} sample {fastq} 3000 | {seqtk} seq -a > {fasta}'.format(seqtk=seqtk_bin, fastq=fastq_file, fasta=fasta_outfile)
+        fastq_name = os.path.basename(fastq_file).split('.')[0]
+        fasta_outfile = os.path.join(self.working_dir, fastq_name + '_sample%s.fasta'%nb_reads)
+        seqtk_sample_cmd = 'set -o pipefail; {seqtk} sample {fastq} {nb_reads} | {seqtk} seq -a > {fasta}'
+        seqtk_sample_cmd = seqtk_sample_cmd.format(nb_reads=nb_reads, seqtk=seqtk_bin,
+                                                   fastq=fastq_file, fasta=fasta_outfile)
         return seqtk_sample_cmd, fasta_outfile
 
 
@@ -36,96 +40,55 @@ class ContaminationBlast(QualityControl):
             blast = openfile.readlines()
             for line in blast:
                 taxid = line.split()[7]
+                # sometime more than one taxid are reported for a specific hit
+                # they're all resolving to the same tax name
+                taxid = taxid.split(';')[0]
                 taxids[taxid] +=1
         return taxids
 
-
+    @property
     def ncbi(self):
-        db_path = cfg['contamination-check']['ete_db']
-        if os.path.exists(db_path):
-            ncbi = NCBITaxa(dbfile=db_path)
-            return ncbi
-        else:
-            raise AnalysisDriverError('Cannot locate the ETE taxon database')
-
-
-    def get_rank(self, taxon):
-        taxon = taxon.split(';')[0]
-        if not taxon == 'N/A':
-            ncbi = self.ncbi()
-            l = ncbi.get_lineage(int(taxon))
-            rank = ncbi.get_rank(l)
-            return rank
-
-
-    def taxid_translator(self, taxids):
-        translated_taxids = []
-        for taxon in taxids:
-            if taxon:
-                ncbi = self.ncbi()
-                taxid_name = list((ncbi.get_taxid_translator(taxon)).values())[0]
-                translated_taxids.append(taxid_name)
+        if not self._ncbi:
+            db_path = cfg['contamination-check']['ete_db']
+            if os.path.exists(db_path):
+                    self._ncbi = NCBITaxa(dbfile=db_path)
             else:
-                taxid_name = 'Unavailable'
-                translated_taxids.append(taxid_name)
-        return tuple(translated_taxids)
+                raise AnalysisDriverError('Cannot locate the ETE taxon database')
+        return self._ncbi
+
+    def get_ranks(self, taxon):
+        '''retrieve the rank of each of the taxa from that taxid's lineage'''
+        if not taxon == 'N/A':
+            l = self.ncbi.get_lineage(int(taxon))
+            rank = self.ncbi.get_rank(l)
+            return rank
 
 
     def get_all_taxa_identified(self, taxon_dict, taxon, taxids):
         num_reads = taxids[taxon]
-        rank = self.get_rank(taxon)
-        if rank:
-            kingdom_taxid = [i for i in rank if rank[i] == 'kingdom']
-            phylum_taxid = [i for i in rank if rank[i] == 'phylum']
-            class_taxid = [i for i in rank if rank[i] == 'class']
-            order_taxid = [i for i in rank if rank[i] == 'order']
-            family_taxid = [i for i in rank if rank[i] == 'family']
-            genus_taxid = [i for i in rank if rank[i] == 'genus']
-            species_taxid = [i for i in rank if rank[i] == 'species']
+        ranks = self.get_ranks(taxon)
+        required_ranks = ['superkingdom', 'kingdom', 'phylum', 'class',  'order', 'family', 'genus', 'species']
 
-            list_of_taxids = [kingdom_taxid, phylum_taxid, class_taxid, order_taxid, family_taxid, genus_taxid, species_taxid]
-            taxon_kingdom, taxon_phylum, taxon_class, taxon_order, taxon_family, taxon_genus, taxon_species = self.taxid_translator(list_of_taxids)
+        taxon_dict_for_current_rank = taxon_dict
+        for required_rank in required_ranks:
+            taxid_for_rank = [i for i in ranks if ranks[i] == required_rank]
+            # list of one taxid for that rank because get_taxid_translator requires a list
+            if taxid_for_rank:
+                taxon_for_rank = list(self.ncbi.get_taxid_translator(taxid_for_rank).values()).pop()
+            else:
+                taxon_for_rank = 'Unavailable'
+            if taxon_for_rank and taxon_for_rank not in taxon_dict_for_current_rank:
+                taxon_dict_for_current_rank[taxon_for_rank] = {}
+                taxon_dict_for_current_rank['reads'] = num_reads
+            elif taxon_for_rank:
+                taxon_dict_for_current_rank['reads'] += num_reads
+            taxon_dict_for_current_rank = taxon_dict_for_current_rank[taxon_for_rank]
 
-            if taxon_kingdom and taxon_kingdom not in taxon_dict:
-                taxon_dict[taxon_kingdom] = {}
-                taxon_dict['reads'] = num_reads
-            elif taxon_kingdom:
-                taxon_dict['reads'] += num_reads
-            if taxon_phylum and taxon_phylum not in taxon_dict.get(taxon_kingdom, {}):
-                taxon_dict[taxon_kingdom][taxon_phylum] = {}
-                taxon_dict[taxon_kingdom]['reads'] = num_reads
-            elif taxon_phylum:
-                taxon_dict[taxon_kingdom]['reads'] += num_reads
-            if taxon_class and taxon_class not in taxon_dict.get(taxon_kingdom, {}).get(taxon_phylum, {}):
-                taxon_dict[taxon_kingdom][taxon_phylum][taxon_class] = {}
-                taxon_dict[taxon_kingdom][taxon_phylum]['reads'] = num_reads
-            elif taxon_class:
-                taxon_dict[taxon_kingdom][taxon_phylum]['reads'] += num_reads
-            if taxon_order and taxon_order not in taxon_dict.get(taxon_kingdom, {}).get(taxon_phylum, {}).get(taxon_class, {}):
-                taxon_dict[taxon_kingdom][taxon_phylum][taxon_class][taxon_order] = {}
-                taxon_dict[taxon_kingdom][taxon_phylum][taxon_class]['reads'] = num_reads
-            elif taxon_order:
-                taxon_dict[taxon_kingdom][taxon_phylum][taxon_class]['reads'] += num_reads
-            if taxon_family and taxon_family not in taxon_dict.get(taxon_kingdom, {}).get(taxon_phylum, {}).get(taxon_class, {}).get(taxon_order, {}):
-                taxon_dict[taxon_kingdom][taxon_phylum][taxon_class][taxon_order][taxon_family] = {}
-                taxon_dict[taxon_kingdom][taxon_phylum][taxon_class][taxon_order]['reads'] = num_reads
-            elif taxon_family:
-                taxon_dict[taxon_kingdom][taxon_phylum][taxon_class][taxon_order]['reads'] += num_reads
-            if taxon_genus and taxon_genus not in taxon_dict.get(taxon_kingdom, {}).get(taxon_phylum, {}).get(taxon_class, {}).get(taxon_order, {}).get(taxon_family, {}):
-                taxon_dict[taxon_kingdom][taxon_phylum][taxon_class][taxon_order][taxon_family][taxon_genus] = {}
-                taxon_dict[taxon_kingdom][taxon_phylum][taxon_class][taxon_order][taxon_family]['reads'] = num_reads
-            elif taxon_genus:
-                taxon_dict[taxon_kingdom][taxon_phylum][taxon_class][taxon_order][taxon_family]['reads'] += num_reads
-            if taxon_species and taxon_species not in taxon_dict.get(taxon_kingdom, {}).get(taxon_phylum, {}).get(taxon_class, {}).get(taxon_order, {}).get(taxon_family, {}).get(taxon_genus, {}):
-                taxon_dict[taxon_kingdom][taxon_phylum][taxon_class][taxon_order][taxon_family][taxon_genus][taxon_species] = ''
-                taxon_dict[taxon_kingdom][taxon_phylum][taxon_class][taxon_order][taxon_family][taxon_genus]['reads'] = num_reads
-            elif taxon_species:
-                taxon_dict[taxon_kingdom][taxon_phylum][taxon_class][taxon_order][taxon_family][taxon_genus]['reads'] += num_reads
         return taxon_dict
 
-    def run_sample_fastq(self, fastq_file):
+    def run_sample_fastq(self, fastq_file, nb_reads):
         self.dataset.start_stage('sample_fastq')
-        sample_fastq_command, fasta_outfile = self.sample_fastq_command(fastq_file)
+        sample_fastq_command, fasta_outfile = self.sample_fastq_command(fastq_file, nb_reads)
         sample_fastq_executor = executor.execute(
             sample_fastq_command,
             job_name='sample_fastq',
@@ -152,10 +115,11 @@ class ContaminationBlast(QualityControl):
         return blast_outfile
 
     def check_for_contamination(self):
-        fasta_outfile = self.run_sample_fastq(self.fastq_file[0])
+        nb_reads = 3000
+        fasta_outfile = self.run_sample_fastq(self.fastq_file[0], nb_reads)
         blast_outfile = self.run_blast(fasta_outfile)
         taxids = self.get_taxids(blast_outfile)
-        taxon_dict = {}
+        taxon_dict = {'Total': nb_reads}
         for taxon in taxids:
             taxon_dict = self.get_all_taxa_identified(taxon_dict, taxon, taxids)
         outpath = os.path.join(self.working_dir, 'taxa_identified.json')

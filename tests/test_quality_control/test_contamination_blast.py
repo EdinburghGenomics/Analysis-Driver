@@ -1,8 +1,23 @@
 import os
 from tests.test_quality_control.qc_tester import QCTester
 from analysis_driver.quality_control import ContaminationBlast
-from unittest.mock import patch
+from unittest.mock import patch, PropertyMock
 from collections import Counter
+
+tax_dict = {
+    40674: 'Mammalia',
+    9443: 'Primates',
+    9604: 'Hominidae',
+    9605: 'Homo',
+    9606: 'Homo sapiens',
+    33208: 'Metazoa',
+    7711: 'Chordata',
+    2759: 'Eukaryota'
+}
+
+def mocked_txid_transl(taxids):
+    return dict([(taxid, tax_dict.get(taxid, 'Unavailable')) for taxid in taxids])
+
 
 class TestContaminationBlast(QCTester):
     def setUp(self):
@@ -14,7 +29,7 @@ class TestContaminationBlast(QCTester):
         self.contamination_blast = ContaminationBlast(self.run_dataset, self.working_dir, self.fastq_files)
 
     def test_sample_fastq_command(self):
-        command, outfile = self.contamination_blast.sample_fastq_command(self.fastq_file)
+        command, outfile = self.contamination_blast.sample_fastq_command(self.fastq_file, nb_reads=3000)
         assert command == 'set -o pipefail; path/to/seqtk sample fastqFile1.fastq 3000 | path/to/seqtk seq -a > test_run/fastqFile1_sample3000.fasta'
         assert outfile == 'test_run/fastqFile1_sample3000.fasta'
 
@@ -28,83 +43,76 @@ class TestContaminationBlast(QCTester):
         taxids = self.contamination_blast.get_taxids(blast_file)
         assert taxids == {'9598': 2, '9606': 197, '99802': 2}
 
-    @patch('analysis_driver.quality_control.ContaminationBlast.get_rank')
-    @patch('analysis_driver.quality_control.ContaminationBlast.ncbi')
-    @patch('analysis_driver.quality_control.ContaminationBlast.taxid_translator')
-    def test_get_all_taxa_identified1(self, mocked_taxid_translator, mocked_ncbi, mocked_rank):
-        mocked_rank.return_value = {1: 'no rank',
-                                    33154: 'no rank',
-                                    9347: 'no rank',
-                                    9604: 'family',
-                                    9605: 'genus',
-                                    9606: 'species',
-                                    2759: 'superkingdom',
-                                    32523: 'no rank',
-                                    32524: 'no rank',
-                                    32525: 'no rank',
-                                    376913: 'suborder',
-                                    6072: 'no rank',
-                                    1437010: 'no rank',
-                                    117571: 'no rank',
-                                    314146: 'superorder',
-                                    117570: 'no rank',
-                                    7711: 'phylum',
-                                    7776: 'no rank',
-                                    40674: 'class',
-                                    9443: 'order',
-                                    33511: 'no rank',
-                                    207598: 'subfamily',
-                                    131567: 'no rank',
-                                    1338369: 'no rank',
-                                    314293: 'infraorder',
-                                    9526: 'parvorder',
-                                    314295: 'superfamily',
-                                    33208: 'kingdom',
-                                    89593: 'subphylum',
-                                    8287: 'no rank',
-                                    33213: 'no rank',
-                                    7742: 'no rank'}
-        mocked_ncbi.return_value = None
-        mocked_taxid_translator.return_value = ('Metazoa', 'Chordata', 'Mammalia', 'Primates', 'Hominidae', 'Homo', 'Homo sapiens')
-        taxon_dict = {}
-        taxon = '9606'
-        taxids = Counter({'9606': 197, '99802': 2, '9598': 2})
-        test_human_only = self.contamination_blast.get_all_taxa_identified(taxon_dict, taxon, taxids)
-        assert test_human_only == {'Metazoa': {'Chordata': {'reads': 197, 'Mammalia': {'Primates': {'reads': 197, 'Hominidae': {'reads': 197, 'Homo': {'Homo sapiens': '', 'reads': 197}}}, 'reads': 197}}, 'reads': 197}, 'reads': 197}
+    def test_get_ranks(self):
+        with patch('analysis_driver.quality_control.ContaminationBlast.ncbi', new_callable=PropertyMock) as ncbi:
+            expected_res = {
+                9604: 'family',
+                33208: 'kingdom',
+                89593: 'subphylum'
+            }
+            ncbi().get_lineage.return_value = [ 9604, 33208, 89593 ]
+            ncbi().get_rank.return_value = expected_res
+            assert self.contamination_blast.get_ranks('9960') == expected_res
 
-    @patch('analysis_driver.quality_control.ContaminationBlast.get_rank')
-    @patch('analysis_driver.quality_control.ContaminationBlast.ncbi')
-    @patch('analysis_driver.quality_control.ContaminationBlast.taxid_translator')
-    def test_get_all_taxa_identified2(self, mocked_taxid_translator, mocked_ncbi, mocked_rank):
-        mocked_rank.return_value = {99802: 'species',
-                                    1: 'no rank',
-                                    33154: 'no rank',
-                                    2759: 'superkingdom',
-                                    28843: 'family',
-                                    6157: 'phylum',
-                                    131567: 'no rank',
-                                    6072: 'no rank',
-                                    46580: 'genus',
-                                    6199: 'class',
-                                    33208: 'kingdom',
-                                    6200: 'subclass',
-                                    33213: 'no rank',
-                                    1224679: 'order'}
+            ncbi.return_value.get_lineage.assert_called_once_with(9960)
+            ncbi.return_value.get_rank.assert_called_once_with([9604, 33208, 89593])
 
-        mocked_ncbi.return_value = None
-        mocked_taxid_translator.return_value = ('Metazoa', 'Platyhelminthes', 'Cestoda', 'Diphyllobothriidea', 'Diphyllobothriidae', 'Spirometra', 'Spirometra erinaceieuropaei')
-        taxon_dict = {'Metazoa': {'Chordata': {'reads': 197, 'Mammalia': {'Primates': {'reads': 197, 'Hominidae': {'reads': 197, 'Homo': {'Homo sapiens': '', 'reads': 197}}}, 'reads': 197}}, 'reads': 197}, 'reads': 197}
-        taxon = '99802'
-        taxids = Counter({'9606': 197, '99802': 2, '9598': 2})
-        test_spirometra_and_human = self.contamination_blast.get_all_taxa_identified(taxon_dict, taxon, taxids)
-        assert test_spirometra_and_human == {'reads': 199, 'Metazoa': {'Chordata': {'reads': 197, 'Mammalia': {'reads': 197, 'Primates': {'Hominidae': {'Homo': {'reads': 197, 'Homo sapiens': ''}, 'reads': 197}, 'reads': 197}}}, 'reads': 2, 'Platyhelminthes': {'Cestoda': {'Diphyllobothriidea': {'reads': 2, 'Diphyllobothriidae': {'reads': 2, 'Spirometra': {'reads': 2, 'Spirometra erinaceieuropaei': ''}}}, 'reads': 2}, 'reads': 2}}}
+    @patch('analysis_driver.quality_control.ContaminationBlast.get_ranks')
+    def test_get_all_taxa_identified1(self, mocked_rank):
+        with patch('analysis_driver.quality_control.ContaminationBlast.ncbi', new_callable=PropertyMock) as ncbi:
+            ncbi().get_taxid_translator.side_effect = mocked_txid_transl
+            mocked_rank.return_value = {
+                9604: 'family',
+                9605: 'genus',
+                9606: 'species',
+                2759: 'superkingdom',
+                376913: 'suborder',
+                314146: 'superorder',
+                7711: 'phylum',
+                40674: 'class',
+                9443: 'order',
+                207598: 'subfamily',
+                314293: 'infraorder',
+                9526: 'parvorder',
+                314295: 'superfamily',
+                33208: 'kingdom',
+                89593: 'subphylum'
+            }
+            taxon_dict = {}
+            taxon = '9606'
+            taxids = Counter({'9606': 197, '99802': 2, '9598': 2})
+            test_human_only = self.contamination_blast.get_all_taxa_identified(taxon_dict, taxon, taxids)
+            expected_results = {
+                'reads': 197,
+                'Eukaryota':{
+                    'Metazoa': {
+                        'Chordata': {
+                            'reads': 197,
+                            'Mammalia': {
+                                'Primates': {
+                                    'reads': 197,
+                                    'Hominidae': {
+                                        'reads': 197,
+                                        'Homo': {'Homo sapiens': {}, 'reads': 197}
+                                    }
+                                },
+                                'reads': 197
+                            }
+                        },
+                        'reads': 197
+                    },
+                    'reads': 197
+                }
+            }
+            assert test_human_only == expected_results
+
 
     @patch('analysis_driver.dataset.rest_communication')
     @patch('egcg_core.executor.execute')
     def test_run_sample_fastq(self, mocked_execute, mocked_rest):
         instance = mocked_execute.return_value
         instance.join.return_value = 0
-        sample_fastq_outfile = self.contamination_blast.run_sample_fastq(self.fastq_file)
+        sample_fastq_outfile = self.contamination_blast.run_sample_fastq(self.fastq_file, nb_reads=3000)
         assert sample_fastq_outfile == 'test_run/fastqFile1_sample3000.fasta'
         mocked_execute.assert_called_once_with(
             'set -o pipefail; path/to/seqtk sample fastqFile1.fastq 3000 | path/to/seqtk seq -a > test_run/fastqFile1_sample3000.fasta',
