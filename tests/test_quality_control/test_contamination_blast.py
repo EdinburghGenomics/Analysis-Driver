@@ -41,7 +41,7 @@ class TestContaminationBlast(QCTester):
     def test_get_taxids(self):
         blast_file = os.path.join(self.assets_path, 'blast_outfile')
         taxids = self.contamination_blast.get_taxids(blast_file)
-        assert taxids == {'9598': 2, '9606': 197, '99802': 2}
+        assert taxids == {'9598': 2, '9606': 7, '99802': 2}
 
     def test_get_ranks(self):
         with patch('analysis_driver.quality_control.ContaminationBlast.ncbi', new_callable=PropertyMock) as ncbi:
