@@ -36,6 +36,7 @@ default:
         bwa: path/to/bwa
         gatk: path/to/GenomeAnalysisTK.jar
         samblaster: path/to/samblaster
+        biobambam_sortmapdup: path/to/bamsormadup
         samtools: path/to/samtools
         bamtools: path/to/bamtools
         sambamba: path/to/sambamba
