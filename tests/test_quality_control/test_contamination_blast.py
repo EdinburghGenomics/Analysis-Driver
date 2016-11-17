@@ -1,4 +1,5 @@
 import os
+
 from tests.test_quality_control.qc_tester import QCTester
 from analysis_driver.quality_control import ContaminationBlast
 from unittest.mock import patch, PropertyMock
@@ -12,7 +13,20 @@ tax_dict = {
     9606: 'Homo sapiens',
     33208: 'Metazoa',
     7711: 'Chordata',
-    2759: 'Eukaryota'
+    2759: 'Eukaryota',
+    99802: 'Spirometra erinaceieuropaei',
+    33154: 'Opisthokonta',
+    2759: 'Eukaryota',
+    28843: 'Diphyllobothriidae',
+    6157: 'Platyhelminthes',
+    131567: 'cellular organisms',
+    6072: 'Eumetazoa',
+    46580: 'Spirometra',
+    6199: 'Cestoda',
+    33208: 'Metazoa',
+    6200: 'Eucestoda',
+    33213: 'Bilateria',
+    1224679: 'Diphyllobothriidea'
 }
 
 def mocked_txid_transl(taxids):
@@ -83,7 +97,6 @@ class TestContaminationBlast(QCTester):
             taxids = Counter({'9606': 197, '99802': 2, '9598': 2})
             test_human_only = self.contamination_blast.get_all_taxa_identified(taxon_dict, taxon, taxids)
             expected_results = {
-                'reads': 197,
                 'Eukaryota':{
                     'Metazoa': {
                         'Chordata': {
@@ -93,7 +106,12 @@ class TestContaminationBlast(QCTester):
                                     'reads': 197,
                                     'Hominidae': {
                                         'reads': 197,
-                                        'Homo': {'Homo sapiens': {}, 'reads': 197}
+                                        'Homo': {
+                                            'Homo sapiens': {
+                                                'reads': 197
+                                            },
+                                            'reads': 197
+                                        }
                                     }
                                 },
                                 'reads': 197
@@ -105,6 +123,74 @@ class TestContaminationBlast(QCTester):
                 }
             }
             assert test_human_only == expected_results
+
+
+    @patch('analysis_driver.quality_control.ContaminationBlast.get_ranks')
+    def test_get_all_taxa_identified2(self, mocked_rank):
+        mocked_rank.return_value = {
+            99802: 'species',
+            1: 'no rank',
+            33154: 'no rank',
+            2759: 'superkingdom',
+            28843: 'family',
+            6157: 'phylum',
+            131567: 'no rank',
+            6072: 'no rank',
+            46580: 'genus',
+            6199: 'class',
+            33208: 'kingdom',
+            6200: 'subclass',
+            33213: 'no rank',
+            1224679: 'order'
+        }
+
+        with patch('analysis_driver.quality_control.ContaminationBlast.ncbi', new_callable=PropertyMock) as ncbi:
+            ncbi().get_taxid_translator.side_effect = mocked_txid_transl
+            taxon_dict = {"Eukaryota":{'Metazoa': {'Chordata': {'reads': 197, 'Mammalia': {'Primates': {'reads': 197, 'Hominidae': {'reads': 197, 'Homo': {'Homo sapiens': {'reads': 197}, 'reads': 197}}}, 'reads': 197}}, 'reads': 197}, 'reads': 197}}
+            taxon = '99802'
+            taxids = Counter({'9606': 197, '99802': 2, '9598': 2})
+            test_spirometra_and_human = self.contamination_blast.get_all_taxa_identified(taxon_dict, taxon, taxids)
+
+            self.assertEqual(test_spirometra_and_human, {
+                "Eukaryota": {
+                    'reads': 199,
+                    'Metazoa': {
+                        'reads': 199,
+                        'Chordata': {
+                            'reads': 197,
+                            'Mammalia': {
+                                'reads': 197,
+                                'Primates': {
+                                    'reads': 197,
+                                    'Hominidae': {
+                                        'reads': 197,
+                                        'Homo': {
+                                            'reads': 197,
+                                            'Homo sapiens': {'reads': 197}
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        'Platyhelminthes': {
+                            'reads': 2,
+                            'Cestoda': {
+                                'reads': 2,
+                                'Diphyllobothriidea': {
+                                    'reads': 2,
+                                    'Diphyllobothriidae': {
+                                        'reads': 2,
+                                        'Spirometra': {
+                                            'reads': 2,
+                                            'Spirometra erinaceieuropaei': { 'reads': 2}
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            })
 
 
     @patch('analysis_driver.dataset.rest_communication')

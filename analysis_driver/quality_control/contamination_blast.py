@@ -78,10 +78,9 @@ class ContaminationBlast(QualityControl):
             else:
                 taxon_for_rank = 'Unavailable'
             if taxon_for_rank and taxon_for_rank not in taxon_dict_for_current_rank:
-                taxon_dict_for_current_rank[taxon_for_rank] = {}
-                taxon_dict_for_current_rank['reads'] = num_reads
+                taxon_dict_for_current_rank[taxon_for_rank] = {'reads': num_reads}
             elif taxon_for_rank:
-                taxon_dict_for_current_rank['reads'] += num_reads
+                taxon_dict_for_current_rank[taxon_for_rank]['reads'] += num_reads
             taxon_dict_for_current_rank = taxon_dict_for_current_rank[taxon_for_rank]
 
         return taxon_dict
