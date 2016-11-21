@@ -360,35 +360,3 @@ def parse_adapter_trim_file(adapter_trim_file, run_id):
                 adapters_trimmed_by_id[run_element_info] = {}
             adapters_trimmed_by_id[run_element_info]['read_%s_trimmed_bases' % (read)] = int(trimmed_bases)
     return adapters_trimmed_by_id
-
-def get_overrepresented_taxa(dicts, counter, two_percent_of_total):
-    keys_to_ignore = ['reads', 'Total']
-    return_dict = []
-    overrepresented_species = []
-    reads_per_taxon = {}
-    reads_per_taxon[counter] = []
-    for d in dicts:
-        for keys in d:
-            if keys not in keys_to_ignore:
-                reads_per_taxon[counter].append(keys)
-                if len(d[keys]) >= 2:
-                    if d[keys]['reads'] > two_percent_of_total:
-                        return_dict.append(d[keys])
-                else:
-                    overrepresented_species.append(keys)
-    return return_dict, overrepresented_species, reads_per_taxon
-
-def parse_contamination_blast(contamination_blast_path):
-    contamination_blast = open(contamination_blast_path).read()
-    data = json.loads(contamination_blast)
-    total_reads_queried = data.get('Total')
-    two_percent_of_total = (2 * total_reads_queried)/100
-    current_taxon_dict = list(data)
-    overrepresented_species = None
-    overrepresented_taxa = {}
-    counter = 1
-    while not overrepresented_species:
-        current_taxon_dict, overrepresented_species, overrepresented_taxon = get_overrepresented_taxa(current_taxon_dict, counter, two_percent_of_total)
-        overrepresented_taxa[counter] = overrepresented_taxon[counter]
-        counter+=1
-    return (overrepresented_species, overrepresented_taxa)

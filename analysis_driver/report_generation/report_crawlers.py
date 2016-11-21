@@ -402,14 +402,6 @@ class SampleCrawler(Crawler):
             else:
                 self.critical('Contamination check unavailable for %s', self.sample_id)
 
-        contamination_blast_path = self.search_file(sample_dir, 'taxa_identified.json')
-        if contamination_blast_path:
-            overrepresented_species, overrepresented_taxa = parse_contamination_blast(contamination_blast_path)
-            if overrepresented_species and overrepresented_taxa:
-                sample[ELEMENT_BLAST_CONTAMINATION] = overrepresented_species
-            else:
-                self.critical('Contamination BLAST unavailable for %s', self.sample_id)
-
         sample_contamination_path = self.search_file(sample_dir, '%s-chr22-vbi.selfSM' % external_sample_name)
         if not sample_contamination_path:
             sample_contamination_path = self.search_file(sample_dir, '%s-chr22-vbi.selfSM' % self.sample_id)
