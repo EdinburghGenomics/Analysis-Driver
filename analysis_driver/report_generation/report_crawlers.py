@@ -7,7 +7,7 @@ from egcg_core import clarity
 from analysis_driver.exceptions import PipelineError
 from analysis_driver.reader import demultiplexing_parsers, mapping_stats_parsers
 from analysis_driver.reader.demultiplexing_parsers import get_coverage_statistics, \
-    parse_welldup_file, get_coverage_Y_chrom, parse_fastqscreen_file
+    parse_welldup_file, get_coverage_Y_chrom, parse_fastqscreen_file, parse_contamination_blast
 from analysis_driver.reader.mapping_stats_parsers import parse_and_aggregate_genotype_concordance,\
     parse_vbi_selfSM, parse_vcf_stats
 from analysis_driver.config import default as cfg
@@ -401,6 +401,14 @@ class SampleCrawler(Crawler):
                 sample[ELEMENT_SPECIES_CONTAMINATION] = species_contamination_result
             else:
                 self.critical('Contamination check unavailable for %s', self.sample_id)
+
+        contamination_blast_path = self.search_file(sample_dir, 'taxa_identified.json')
+        if contamination_blast_path:
+            overrepresented_species, overrepresented_taxa = parse_contamination_blast(contamination_blast_path)
+            if overrepresented_species and overrepresented_taxa:
+                sample[ELEMENT_BLAST_CONTAMINATION] = overrepresented_species
+            else:
+                self.critical('Contamination BLAST unavailable for %s', self.sample_id)
 
         sample_contamination_path = self.search_file(sample_dir, '%s-chr22-vbi.selfSM' % external_sample_name)
         if not sample_contamination_path:
