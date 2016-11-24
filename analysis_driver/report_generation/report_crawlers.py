@@ -7,7 +7,7 @@ from egcg_core import clarity
 from analysis_driver.exceptions import PipelineError
 from analysis_driver.reader import demultiplexing_parsers, mapping_stats_parsers
 from analysis_driver.reader.demultiplexing_parsers import get_coverage_statistics, \
-    parse_welldup_file, get_coverage_Y_chrom, parse_fastqscreen_file, parse_contamination_blast
+    parse_welldup_file, get_coverage_Y_chrom, parse_fastqscreen_file
 from analysis_driver.reader.mapping_stats_parsers import parse_and_aggregate_genotype_concordance,\
     parse_vbi_selfSM, parse_vcf_stats
 from analysis_driver.config import default as cfg
