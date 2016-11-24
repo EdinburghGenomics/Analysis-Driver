@@ -64,10 +64,11 @@ def _parse_args():
     median_coverage_parser.set_defaults(func=median_coverage)
 
     relatedness_parser = subparsers.add_parser('relatedness')
-    relatedness_parser.add_argument('--gVCF_files')
-    relatedness_parser.add_argument('--reference')
-    median_coverage_parser.add_argument('--work_dir', required=False)
-    median_coverage_parser.add_argument('--project_id', required=True)
+    relatedness_parser.add_argument('--gVCF_files', required=True, nargs='+')
+    relatedness_parser.add_argument('--reference', required=True)
+    relatedness_parser.add_argument('--work_dir', required=False)
+    relatedness_parser.add_argument('--project_id', required=True)
+    relatedness_parser.set_defaults(func=relatedness)
 
 
 
