@@ -16,6 +16,7 @@ from analysis_driver.util.bash_commands import rsync_from_to, is_remote_path
 from analysis_driver.quality_control.gender_validation import GenderValidation
 from analysis_driver.quality_control.genotype_validation import GenotypeValidation
 from analysis_driver.quality_control.contamination_checks import ContaminationCheck, VerifyBamId
+from analysis_driver.quality_control.calculate_relatedness import Relatedness
 from analysis_driver.reader.demultiplexing_parsers import parse_fastqscreen_file
 
 
@@ -61,6 +62,14 @@ def _parse_args():
     median_coverage_parser.add_argument('--work_dir', required=False)
     median_coverage_parser.add_argument('--sample_id', required=True)
     median_coverage_parser.set_defaults(func=median_coverage)
+
+    relatedness_parser = subparsers.add_parser('relatedness')
+    relatedness_parser.add_argument('--gVCF_files')
+    relatedness_parser.add_argument('--reference')
+    median_coverage_parser.add_argument('--work_dir', required=False)
+    median_coverage_parser.add_argument('--project_id', required=True)
+
+
 
     return parser.parse_args()
 
@@ -184,6 +193,20 @@ def median_coverage(args):
     c.start()
     coverage = c.join()
     print(coverage)
+
+
+def relatedness(args):
+    cfg.merge(cfg['project'])
+    if args.work_dir:
+        work_dir = args.work_dir
+    else:
+        work_dir = os.path.join(cfg['input_dir'], args.project_id)
+    os.makedirs(work_dir, exist_ok=True)
+    dataset = NoCommunicationDataset(args.project_id)
+    r = Relatedness(dataset, work_dir, args.gVCF_files, args.reference, args.project_id)
+    r.start()
+    return r.join()
+
 
 if __name__ == '__main__':
     sys.exit(main())

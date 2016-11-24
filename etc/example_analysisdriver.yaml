@@ -48,6 +48,7 @@ default:
         well_duplicate: path/to/well_duplicate
         fastq-filterer: path/to/fastq-filterer
         echo: echo
+        vcftools:    path/to/vcftools
     versions:
         bwa: '0.9'
 
