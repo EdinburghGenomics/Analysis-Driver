@@ -121,6 +121,8 @@ class TestDemultiplexingStats(TestAnalysisDriver):
         assert e == 0.8
         histogram = {1: 5, 2: 2, 3: 4, 4: 6, 5: 3, 100:5}
         assert dm.calculate_evenness(histogram) < e
+        histogram = {0: 5000, 1: 5, 2: 2, 3: 4, 4: 6, 5: 3}
+        assert dm.calculate_evenness(histogram) == 0
 
     def test_get_coverage_Y_chrom(self):
         hist_file = os.path.join(self.assets_path, 'test_sample_chrY.depth')
