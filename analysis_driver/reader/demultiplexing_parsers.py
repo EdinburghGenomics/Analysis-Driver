@@ -1,4 +1,4 @@
-import math
+import math, json
 from itertools import islice
 from collections import Counter, defaultdict
 from xml.etree import ElementTree
@@ -290,11 +290,13 @@ def calculate_evenness(histogram):
     Where D is a vector of number representing the coverage at every bases.
     """
     rounded_mean = round(calculate_mean(histogram))
-    low_half_hist = dict([(k, v) for k, v in histogram.items() if k <= rounded_mean])
-
-    A = sum(low_half_hist.values())
-    B = sum([k * v for k, v in low_half_hist.items()]) / rounded_mean
-    evenness = 1 - ((A - B) / sum(histogram.values()))
+    if rounded_mean > 0:
+        low_half_hist = dict([(k, v) for k, v in histogram.items() if k <= rounded_mean])
+        A = sum(low_half_hist.values())
+        B = sum([k * v for k, v in low_half_hist.items()]) / rounded_mean
+        evenness = 1 - ((A - B) / sum(histogram.values()))
+    else:
+        evenness = 0
     return evenness
 
 def get_coverage_statistics(histogram_file):
@@ -358,4 +360,3 @@ def parse_adapter_trim_file(adapter_trim_file, run_id):
                 adapters_trimmed_by_id[run_element_info] = {}
             adapters_trimmed_by_id[run_element_info]['read_%s_trimmed_bases' % (read)] = int(trimmed_bases)
     return adapters_trimmed_by_id
-
