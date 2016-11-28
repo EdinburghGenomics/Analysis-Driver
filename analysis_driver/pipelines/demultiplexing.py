@@ -3,7 +3,7 @@ import time
 import shutil
 from egcg_core import executor, clarity, util
 from analysis_driver import reader
-from analysis_driver.pipelines.common import _cleanup
+from analysis_driver.pipelines.common import cleanup
 from analysis_driver.util import bash_commands
 from analysis_driver.dataset_scanner import RunDataset
 from analysis_driver.exceptions import PipelineError, SequencingRunError
@@ -165,7 +165,7 @@ def demultiplexing_pipeline(dataset):
 
     if exit_status == 0:
         dataset.start_stage('cleanup')
-        exit_status += _cleanup(run_id)
+        exit_status += cleanup(run_id)
         dataset.end_stage('cleanup', exit_status)
     return exit_status
 

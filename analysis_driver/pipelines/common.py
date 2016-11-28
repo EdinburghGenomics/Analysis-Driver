@@ -12,7 +12,7 @@ from analysis_driver.transfer_data import output_sample_data, create_links_from_
 app_logger = log_cfg.get_logger('common')
 
 
-def _link_results_files(sample_id, sample_dir, output_fileset):
+def link_results_files(sample_id, sample_dir, output_fileset):
     dir_with_linked_files = os.path.join(sample_dir, 'linked_output_files')
     os.makedirs(dir_with_linked_files, exist_ok=True)
 
@@ -26,7 +26,7 @@ def _link_results_files(sample_id, sample_dir, output_fileset):
     return dir_with_linked_files
 
 
-def _output_data(dataset, sample_dir, sample_id, dir_with_linked_files):
+def output_data(dataset, sample_dir, sample_id, dir_with_linked_files):
     exit_status = 0
 
     # upload the data to the rest API
@@ -57,7 +57,7 @@ def _output_data(dataset, sample_dir, sample_id, dir_with_linked_files):
     return exit_status
 
 
-def _bcbio_prepare_sample(job_dir, sample_id, fastq_files):
+def bcbio_prepare_sample(job_dir, sample_id, fastq_files):
     """
     Merge the fastq files per sample using bcbio prepare sample
     """
@@ -73,7 +73,7 @@ def _bcbio_prepare_sample(job_dir, sample_id, fastq_files):
 
 
 
-def _cleanup(dataset_name):
+def cleanup(dataset_name):
     exit_status = 0
     # wait for all the previous PBS steps to be done writing to the folder before cleaning it up
     time.sleep(120)

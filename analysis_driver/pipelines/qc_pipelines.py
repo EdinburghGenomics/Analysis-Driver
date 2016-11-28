@@ -1,7 +1,7 @@
 import os
 from egcg_core import executor, clarity, util
 from analysis_driver import quality_control as qc
-from analysis_driver.pipelines.common import _bcbio_prepare_sample, _link_results_files, _output_data, _cleanup
+from analysis_driver.pipelines.common import bcbio_prepare_sample, link_results_files, output_data, cleanup
 from analysis_driver.util import bash_commands
 from analysis_driver.exceptions import PipelineError
 from egcg_core.app_logging import logging_default as log_cfg
@@ -28,7 +28,7 @@ def _bam_file_production(dataset, species):
 
     # merge fastq files
     dataset.start_stage('merge fastqs')
-    fastq_pair = _bcbio_prepare_sample(sample_dir, sample_id, fastq_files)
+    fastq_pair = bcbio_prepare_sample(sample_dir, sample_id, fastq_files)
     app_logger.debug('sample fastq files: ' + str(fastq_pair))
     dataset.end_stage('merge fastqs')
 
@@ -69,8 +69,13 @@ def _bam_file_production(dataset, species):
     dataset.start_stage('species contamination check')
     species_contamination_check = qc.ContaminationCheck(dataset, sample_dir, [fastq_pair[0]])
     species_contamination_check.start()
+    # blast contamination check
+    blast_contamination_check = qc.ContaminationBlast(dataset, sample_dir, [fastq_pair[0]])
+    blast_contamination_check.start()
     species_contamination_check.join()
-    dataset.end_stage('species contamination check', species_contamination_check.exit_status)
+    blast_contamination_check.join()
+    contam_check_status = species_contamination_check.exit_status + blast_contamination_check.exit_status
+    dataset.end_stage('species contamination check', contam_check_status)
 
     dataset.start_stage('bamtools_stat')
     bamtools_stat_file = os.path.join(sample_dir, 'bamtools_stats.txt')
@@ -103,14 +108,14 @@ def qc_pipeline(dataset, species):
     exit_status = _bam_file_production(dataset, species)
 
     # link the bcbio file into the final directory
-    dir_with_linked_files = _link_results_files(sample_id, sample_dir, 'non_human_qc')
+    dir_with_linked_files = link_results_files(sample_id, sample_dir, 'non_human_qc')
     write_versions_to_yaml(os.path.join(dir_with_linked_files, 'program_versions.yaml'))
 
-    exit_status += _output_data(dataset, sample_dir, sample_id, dir_with_linked_files)
+    exit_status += output_data(dataset, sample_dir, sample_id, dir_with_linked_files)
 
     if exit_status == 0:
         dataset.start_stage('cleanup')
-        exit_status += _cleanup(sample_id)
+        exit_status += cleanup(sample_id)
         dataset.end_stage('cleanup', exit_status)
 
     return exit_status
