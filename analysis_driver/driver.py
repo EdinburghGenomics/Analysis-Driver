@@ -610,7 +610,7 @@ def _bcbio_prepare_sample(job_dir, sample_id, fastq_files):
 
 def _run_bcbio(sample_id, sample_dir, sample_fastqs):
     run_template = os.path.join(
-        os.path.dirname(__file__),
+        os.path.dirname(os.path.abspath(__file__)),
         '..', 'etc', 'bcbio_alignment_' + cfg['genome'] + '.yaml'
     )
     if not os.path.isfile(run_template):
