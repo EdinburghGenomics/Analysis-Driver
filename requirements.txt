@@ -1,1 +1,2 @@
 git+https://github.com/EdinburghGenomics/EGCG-Core.git@v0.6
+ete3==3.0.0b35

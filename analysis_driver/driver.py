@@ -226,6 +226,10 @@ def bcbio_var_calling_pipeline(dataset):
     species_contamination_check = qc.ContaminationCheck(dataset, sample_dir, [fastq_pair[0]])
     species_contamination_check.start()
 
+    # blast contamination check
+    blast_contamination_check = qc.ContaminationBlast(dataset, sample_dir, [fastq_pair[0]])
+    blast_contamination_check.start()
+
     # bcbio
     dataset.start_stage('bcbio')
     bcbio_executor = _run_bcbio(sample_id, sample_dir, fastq_pair)
@@ -238,8 +242,10 @@ def bcbio_var_calling_pipeline(dataset):
     fastqc2_exit_status = fastqc2_executor.join()
     dataset.end_stage('sample_fastqc', fastqc2_exit_status)
 
+    blast_contamination_check.join()
     species_contamination_check.join()
-    dataset.end_stage('species contamination check', species_contamination_check.exit_status)
+    contam_check_status = species_contamination_check.exit_status + blast_contamination_check.exit_status
+    dataset.end_stage('species contamination check', contam_check_status)
 
     bcbio_exit_status = bcbio_executor.join()
     dataset.end_stage('bcbio', bcbio_exit_status)
@@ -348,8 +354,13 @@ def _bam_file_production(dataset, species):
     dataset.start_stage('species contamination check')
     species_contamination_check = qc.ContaminationCheck(dataset, sample_dir, [fastq_pair[0]])
     species_contamination_check.start()
+    # blast contamination check
+    blast_contamination_check = qc.ContaminationBlast(dataset, sample_dir, [fastq_pair[0]])
+    blast_contamination_check.start()
     species_contamination_check.join()
-    dataset.end_stage('species contamination check', species_contamination_check.exit_status)
+    blast_contamination_check.join()
+    contam_check_status = species_contamination_check.exit_status + blast_contamination_check.exit_status
+    dataset.end_stage('species contamination check', contam_check_status)
 
     dataset.start_stage('bamtools_stat')
     bamtools_stat_file = os.path.join(sample_dir, 'bamtools_stats.txt')
