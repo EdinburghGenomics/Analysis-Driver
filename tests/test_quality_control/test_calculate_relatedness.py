@@ -17,6 +17,7 @@ class Test_Relatedness(QCTester):
         cmd, outfile = self.r.get_gatk_genotype_gvcfs_command()
         assert cmd == 'java -jar path/to/GenomeAnalysisTK.jar ' \
                       '-T GenotypeGVCFs ' \
+                      '-nt 12 ' \
                       '-R /path/to/reference.fa ' \
                       '--variant test_sample1.g.vcf.gz ' \
                       '--variant test_sample2.g.vcf.gz ' \
@@ -27,7 +28,7 @@ class Test_Relatedness(QCTester):
     def test_get_vcftools_relatedness_command(self):
         input_vcf = 'test_project_id_genotype_gvcfs.vcf'
         cmd, vcftools_outfile = self.r.get_vcftools_relatedness_command(input_vcf)
-        assert cmd == 'path/to/vcftools --relatedness --vcf test_project_id_genotype_gvcfs.vcf'
+        assert cmd == 'path/to/vcftools --relatedness2 --vcf test_project_id_genotype_gvcfs.vcf'
         assert vcftools_outfile == 'test_project_id_genotype_gvcfs.relatedness2'
 
     @patch('analysis_driver.quality_control.calculate_relatedness.Relatedness.get_gatk_genotype_gvcfs_command')
@@ -36,7 +37,7 @@ class Test_Relatedness(QCTester):
     def test_run_gatk(self, mocked_execute, mocked_rest, mocked_gatk_outfile):
         mocked_gatk_outfile.return_value = ('test_command', 'test_outfile')
         run_gatk_outfile = self.r.run_gatk()
-        mocked_execute.assert_called_once_with('test_command', job_name='gatk_genotype_gvcfs', cpus=2, working_dir='test_project', mem=10)
+        mocked_execute.assert_called_once_with('test_command', job_name='gatk_genotype_gvcfs', cpus=12, working_dir='test_project', mem=10)
         assert run_gatk_outfile == 'test_outfile'
 
     @patch('analysis_driver.quality_control.calculate_relatedness.Relatedness.get_vcftools_relatedness_command')
@@ -45,4 +46,5 @@ class Test_Relatedness(QCTester):
     def test_run_vcftools(self, mocked_execute, mocked_rest, mocked_vcftools_outfile):
         mocked_vcftools_outfile.return_value = ('test_command', 'test_outfile')
         run_vcftools_outfile = self.r.run_vcftools('test_input_file')
-        mocked_execute.assert_called_once_with('test_command', job_name='vcftools_relatedness', working_dir='test_project', cpus=2, mem=10)
+        mocked_execute.assert_called_once_with('test_command', job_name='vcftools_relatedness', working_dir='test_project', cpus=1, mem=10)
+        assert run_vcftools_outfile == 'test_outfile'

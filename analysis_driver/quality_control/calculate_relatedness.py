@@ -13,7 +13,7 @@ class Relatedness(QualityControl):
         gVCF_variants = " ". join(["--variant " + i for i in self.gVCF_files])
         out_prefix = self.project_id + '_genotype_gvcfs'
         number_threads = 12
-        cmd = 'java -jar %s -nt %s -T GenotypeGVCFs -R %s %s -o %s' % (cfg['tools']['gatk'], number_threads, self.reference, gVCF_variants, out_prefix)
+        cmd = 'java -jar %s -T GenotypeGVCFs -nt %s -R %s %s -o %s' % (cfg['tools']['gatk'], number_threads, self.reference, gVCF_variants, out_prefix)
         gatk_outfile = out_prefix + '.vcf'
         return cmd, gatk_outfile
 
