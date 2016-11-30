@@ -214,6 +214,19 @@ class SampleDataset(Dataset):
         )
 
 
+class ProjectDataset(Dataset):
+    type = 'project'
+    endpoint = 'projects'
+    id_field = 'project_id'
+    def __init__(self, name, most_recent_proc=None):
+        super().__init__(name, most_recent_proc)
+
+    def _is_ready(self):
+        pass
+        # make this check whether all samples have been done for this project (or something)
+
+
+
 class MostRecentProc:
     def __init__(self, dataset_type, dataset_name, initial_content=None):
         self.lock = threading.Lock()
