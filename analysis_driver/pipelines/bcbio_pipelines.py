@@ -133,9 +133,9 @@ def _run_bcbio(sample_id, sample_dir, sample_fastqs, genome_version, analysis_ty
         genome_version = cfg['genome']
     if not analysis_type:
         analysis_type = 'gatk'
-    elif analysis_type.endwith('gatk'):
+    elif analysis_type.endswith('gatk'):
         analysis_type = 'gatk'
-    elif analysis_type.endwith('freebayes'):
+    elif analysis_type.endswith('freebayes'):
         analysis_type = 'freebayes'
     else:
         raise PipelineError('Unknown Analysis type %s' % analysis_type)
