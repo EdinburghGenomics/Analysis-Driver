@@ -3,7 +3,7 @@ from analysis_driver.dataset_scanner import RunDataset, SampleDataset
 from analysis_driver.exceptions import PipelineError
 from egcg_core.app_logging import logging_default as log_cfg
 
-from analysis_driver.pipelines import qc_pipelines
+from analysis_driver.pipelines.qc_pipelines import qc_pipeline
 from analysis_driver.pipelines.bcbio_pipelines import bcbio_var_calling_pipeline
 from analysis_driver.pipelines.demultiplexing import demultiplexing_pipeline
 from analysis_driver.pipelines.variant_calling import var_calling_pipeline
@@ -26,7 +26,7 @@ def pipeline(dataset):
         elif clarity.get_sample(dataset.name).udf.get('Analysis Type') == 'Variant Calling':
             return var_calling_pipeline(dataset, species)
         else:
-            return qc_pipelines(dataset, species)
+            return qc_pipeline(dataset, species)
     else:
         raise AssertionError('Unexpected dataset type: ' + str(dataset))
 
