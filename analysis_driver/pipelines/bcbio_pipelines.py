@@ -141,7 +141,7 @@ def _run_bcbio(sample_id, sample_dir, sample_fastqs, genome_version, analysis_ty
         raise PipelineError('Unknown Analysis type %s' % analysis_type)
 
     run_template = os.path.join(
-        os.path.dirname(__file__),
+        os.path.dirname(os.path.abspath(__file__)),
         '..', 'etc', 'bcbio_alignment_%s_%s.yaml' % (genome_version, analysis_type)
     )
     if not os.path.isfile(run_template):
