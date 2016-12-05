@@ -78,7 +78,7 @@ class Dataset(AppLogger):
 
     @staticmethod
     def _is_valid_pid(pid):
-        cmd_file = os.path.join('/', 'proc', pid, 'cmdline')
+        cmd_file = os.path.join('/', 'proc', str(pid), 'cmdline')
         if os.path.isfile(cmd_file):
             with open(cmd_file, 'r') as f:
                 return modules['__main__'].__file__ in f.read()

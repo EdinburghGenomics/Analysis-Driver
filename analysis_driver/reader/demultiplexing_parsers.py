@@ -1,4 +1,4 @@
-import math
+import math, json
 from itertools import islice
 from collections import Counter, defaultdict
 from xml.etree import ElementTree
@@ -368,4 +368,3 @@ def parse_adapter_trim_file(adapter_trim_file, run_id):
                 adapters_trimmed_by_id[run_element_info] = {}
             adapters_trimmed_by_id[run_element_info]['read_%s_trimmed_bases' % read] = int(trimmed_bases)
     return adapters_trimmed_by_id
-
