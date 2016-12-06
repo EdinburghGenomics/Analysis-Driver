@@ -1,4 +1,4 @@
-import math, json
+import math
 from itertools import islice
 from collections import Counter, defaultdict
 from xml.etree import ElementTree

@@ -103,7 +103,7 @@ def _process_dataset(d):
         if tb:
             stacktrace = ''.join(traceback.format_exception(etype, value, tb))
             app_logger.info('Stacktrace below:\n' + stacktrace)
-            ntf.crash_report(stacktrace)
+            d.ntf.crash_report(stacktrace)
         _handle_termination(9)
 
     def _sigterm_handler(sig, frame):

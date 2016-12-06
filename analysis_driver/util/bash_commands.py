@@ -105,7 +105,7 @@ def bwa_mem_biobambam(fastq_pair, reference, expected_output_bam, read_group=Non
 
     command_bwa += ' %s %s' % (reference, ' '.join(fastq_pair))
     command_bambam = '%s inputformat=sam SO=coordinate tmpfile=%s threads=%s indexfilename=%s > %s'
-    command_bambam = command_bambam%(cfg['tools']['biobambam_sortmapdup'], tmp_file, thread, index, expected_output_bam)
+    command_bambam = command_bambam % (cfg['tools']['biobambam_sortmapdup'], tmp_file, thread, index, expected_output_bam)
 
     cmd = 'set -o pipefail; ' + ' | '.join([command_bwa, command_bambam])
     app_logger.debug('Writing: ' + cmd)

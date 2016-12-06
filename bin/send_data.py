@@ -21,7 +21,7 @@ def main():
     p = argparse.ArgumentParser()
     subparsers = p.add_subparsers()
 
-    run_parser = subparsers.add_parser('run', parents = [parent])
+    run_parser = subparsers.add_parser('run', parents=[parent])
     run_parser.add_argument('run_id')
     run_parser.add_argument('--samplesheet')
     run_parser.add_argument('--conversion_stats', nargs='?', default=None)
@@ -29,7 +29,7 @@ def main():
     run_parser.add_argument('--run_dir', help='e.g. jobs/<run_id>')
     run_parser.set_defaults(func=run_crawler)
 
-    sample_parser = subparsers.add_parser('sample', parents = [parent])
+    sample_parser = subparsers.add_parser('sample', parents=[parent])
     sample_parser.add_argument('project_id')
     sample_parser.add_argument('sample_id')
     sample_parser.add_argument('--input_dir')

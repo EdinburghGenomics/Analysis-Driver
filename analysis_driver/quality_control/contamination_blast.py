@@ -1,4 +1,4 @@
-import os
+import os.path
 import json
 from ete3 import NCBITaxa
 from collections import Counter
@@ -7,43 +7,45 @@ from .quality_control_base import QualityControl
 from analysis_driver.config import default as cfg
 from analysis_driver.exceptions import AnalysisDriverError
 
-class ContaminationBlast(QualityControl):
 
+class ContaminationBlast(QualityControl):
     def __init__(self, dataset, working_dir, fastq_file):
         super().__init__(dataset, working_dir)
-        self.working_dir = working_dir
         self.fastq_file = fastq_file
         self._ncbi = None
 
     def sample_fastq_command(self, fastq_file, nb_reads):
-        seqtk_bin = cfg['tools']['seqtk']
-        fastq_name = os.path.basename(fastq_file).split('.')[0]
-        fasta_outfile = os.path.join(self.working_dir, fastq_name + '_sample%s.fasta'%nb_reads)
-        seqtk_sample_cmd = 'set -o pipefail; {seqtk} sample {fastq} {nb_reads} | {seqtk} seq -a > {fasta}'
-        seqtk_sample_cmd = seqtk_sample_cmd.format(nb_reads=nb_reads, seqtk=seqtk_bin,
-                                                   fastq=fastq_file, fasta=fasta_outfile)
-        return seqtk_sample_cmd, fasta_outfile
-
+        fasta_outfile = os.path.join(
+            self.working_dir,
+            os.path.basename(fastq_file).split('.')[0] + '_sample%s.fasta' % nb_reads
+        )
+        cmd = 'set -o pipefail; {seqtk} sample {fastq} {nb_reads} | {seqtk} seq -a > {fasta}'.format(
+            nb_reads=nb_reads, seqtk=cfg['tools']['seqtk'], fastq=fastq_file, fasta=fasta_outfile
+        )
+        return cmd, fasta_outfile
 
     def fasta_blast_command(self, fasta_file):
-        blastn_bin = cfg['tools']['blastn']
         db_dir = cfg['contamination-check']['db_dir']
         nt_db = os.path.join(db_dir, 'nt')
         blast_outfile = os.path.join(self.working_dir, os.path.basename(fasta_file).split('.')[0] + '_blastn')
-        blast_cmd = "export PATH=$PATH:/%s; %s -query %s -db %s -out %s -num_threads 12 -max_target_seqs 1 -max_hsps 1 -outfmt '6 qseqid sseqid length pident evalue sgi sacc staxids sscinames scomnames stitle'" % (db_dir, blastn_bin, fasta_file, nt_db, blast_outfile)
-        return blast_cmd, blast_outfile
 
+        cmd = ('export PATH=$PATH:/{db_dir}; {blastn} -query {fasta_file} -db {nt} -out {blast_outfile} '
+               '-num_threads 12 -max_target_seqs 1 -max_hsps 1 '
+               "-outfmt '6 qseqid sseqid length pident evalue sgi sacc staxids sscinames scomnames stitle'")
+        cmd = cmd.format(db_dir=db_dir, blastn=cfg['tools']['blastn'], fasta_file=fasta_file, nt=nt_db,
+                         blast_outfile=blast_outfile)
+        return cmd, blast_outfile
 
-    def get_taxids(self, blast):
+    @staticmethod
+    def get_taxids(blast):
         taxids = Counter()
-        with open(blast) as openfile:
-            blast = openfile.readlines()
-            for line in blast:
+        with open(blast) as f:
+            for line in f:
                 taxid = line.split()[7]
                 # sometime more than one taxid are reported for a specific hit
                 # they're all resolving to the same tax name
                 taxid = taxid.split(';')[0]
-                taxids[taxid] +=1
+                taxids[taxid] += 1
         return taxids
 
     @property
@@ -51,18 +53,17 @@ class ContaminationBlast(QualityControl):
         if not self._ncbi:
             db_path = cfg['contamination-check']['ete_db']
             if os.path.exists(db_path):
-                    self._ncbi = NCBITaxa(dbfile=db_path)
+                self._ncbi = NCBITaxa(dbfile=db_path)
             else:
                 raise AnalysisDriverError('Cannot locate the ETE taxon database')
         return self._ncbi
 
     def get_ranks(self, taxon):
-        '''retrieve the rank of each of the taxa from that taxid's lineage'''
+        """Retrieve the rank of each of the taxa from that taxid's lineage"""
         if not taxon == 'N/A':
             l = self.ncbi.get_lineage(int(taxon))
             rank = self.ncbi.get_rank(l)
             return rank
-
 
     def get_all_taxa_identified(self, taxon_dict, taxon, taxids):
         num_reads = taxids[taxon]
@@ -123,14 +124,11 @@ class ContaminationBlast(QualityControl):
             taxon_dict = self.get_all_taxa_identified(taxon_dict, taxon, taxids)
         outpath = os.path.join(self.working_dir, 'taxa_identified.json')
         with open(outpath, 'w') as outfile:
-            taxa_identified_json = json.dumps(taxon_dict,
-                                            sort_keys=True, indent=4,
-                                            separators=(',', ':'))
-            outfile.write(taxa_identified_json)
+            json.dump(taxon_dict, outfile, sort_keys=True, indent=4, separators=(',', ':'))
 
     def run(self):
         try:
-            self.taxa_identified = self.check_for_contamination()
+            self.check_for_contamination()
         except Exception as e:
             self.exception = e
 
@@ -138,4 +136,3 @@ class ContaminationBlast(QualityControl):
         super().join(timeout=timeout)
         if self.exception:
             raise self.exception
-        return self.taxa_identified
