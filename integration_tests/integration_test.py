@@ -12,7 +12,7 @@ from egcg_core import rest_communication, notifications, util, executor
 from unittest.mock import Mock, patch
 from analysis_driver import client
 
-cfg.load_config_file(os.getenv('ANALYSISDRIVERCONFIG'))
+cfg.load_config_file(os.getenv('ANALYSISDRIVERCONFIG'), env_var='ANALYSISDRIVERENV')
 integration_cfg = Configuration(os.getenv('INTEGRATIONCONFIG'))
 app_logger = logging_default.get_logger(__name__)
 comm = rest_communication.Communicator((cfg['rest_api']['username'], cfg['rest_api']['password']), cfg['rest_api']['url'])
