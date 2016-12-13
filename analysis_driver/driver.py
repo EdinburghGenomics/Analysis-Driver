@@ -5,15 +5,17 @@ import yaml
 from egcg_core import executor, clarity, util
 from analysis_driver import reader, quality_control as qc
 from analysis_driver.util import bash_commands, bcbio_prepare_samples_cmd
-from analysis_driver.dataset_scanner import RunDataset, SampleDataset
+from analysis_driver.dataset_scanner import RunDataset, SampleDataset, ProjectDataset
 from analysis_driver.exceptions import PipelineError, SequencingRunError
 from egcg_core.app_logging import logging_default as log_cfg
 from analysis_driver.config import output_files_config, default as cfg
 from analysis_driver.quality_control.lane_duplicates import WellDuplicates
 from analysis_driver.reader.version_reader import write_versions_to_yaml
-from analysis_driver.report_generation.report_crawlers import RunCrawler, SampleCrawler
+from analysis_driver.report_generation.report_crawlers import RunCrawler, SampleCrawler, ProjectCrawler
 from analysis_driver.transfer_data import prepare_run_data, prepare_sample_data, output_sample_data,\
     output_run_data, create_links_from_bcbio
+from egcg_core import rest_communication
+from analysis_driver.dataset_scanner import ProjectScanner
 
 app_logger = log_cfg.get_logger('driver')
 
@@ -32,6 +34,8 @@ def pipeline(dataset):
             return var_calling_pipeline(dataset, species)
         else:
             return qc_pipeline(dataset, species)
+    elif isinstance(dataset, ProjectDataset):
+        return project_pipeline(dataset)
     else:
         raise AssertionError('Unexpected dataset type: ' + str(dataset))
 
@@ -545,6 +549,14 @@ def var_calling_pipeline(dataset, species):
         exit_status += _cleanup(sample_id)
         dataset.end_stage('cleanup', exit_status)
 
+    return exit_status
+
+
+def project_pipeline(dataset):
+    project_id = dataset.name
+    project = rest_communication.get_document('projects', where={'project_id': project_id})
+    # run the project pipeline
+    exit_status = 0
     return exit_status
 
 
