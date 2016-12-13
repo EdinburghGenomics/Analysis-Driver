@@ -113,6 +113,16 @@ def demultiplexing_pipeline(dataset):
     if exit_status:
         return exit_status
 
+    # check file integrity
+    dataset.start_stage('integrity_check')
+    integrity_executor = executor.execute(
+        *[bash_commands.gzip_test(fq) for fq in util.find_all_fastqs(fastq_dir)],
+        job_name='integrity_check',
+        working_dir=job_dir,
+        cpus=1,
+        mem=2
+    )
+
     # fastqc
     dataset.start_stage('fastqc')
     fastqc_executor = executor.execute(
@@ -144,6 +154,11 @@ def demultiplexing_pipeline(dataset):
         mem=2,
         log_commands=False
     )
+
+    integrity_exit_status = integrity_executor.join()
+    dataset.end_stage('integrity_check', integrity_exit_status)
+    if integrity_exit_status:
+        return integrity_exit_status
 
     fastqc_exit_status = fastqc_executor.join()
     dataset.end_stage('fastqc', fastqc_exit_status)
