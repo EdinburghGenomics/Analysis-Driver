@@ -384,7 +384,7 @@ def _bam_file_production(dataset, species):
         job_name='bamtools',
         working_dir=sample_dir,
         cpus=1,
-        mem=4,
+        mem=8,
         log_commands=False
     ).join()
     dataset.end_stage('bamtools_stat', bamtools_exit_status)
