@@ -6,8 +6,7 @@ from egcg_core import executor
 from .quality_control_base import QualityControl
 from analysis_driver.config import default as cfg
 from analysis_driver.exceptions import AnalysisDriverError
-from egcg_core.app_logging import logging_default as log_cfg
-app_logger = log_cfg.get_logger(__name__)
+
 
 class ContaminationBlast(QualityControl):
 
@@ -66,7 +65,7 @@ class ContaminationBlast(QualityControl):
                 rank = self.ncbi.get_rank(l)
             except ValueError:
                 rank = {0: 'rank unavailable'}
-                app_logger.warning('The taxid %s does not exist in the ETE TAXDB' % (taxon))
+                self.warning('The taxid %s does not exist in the ETE TAXDB' % (taxon))
             return rank
 
 
