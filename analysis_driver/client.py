@@ -39,10 +39,7 @@ def main():
         for d in args.abort:
             scanner.get_dataset(d).abort()
         for d in args.skip:
-            dataset = scanner.get_dataset(d)
-            dataset.reset()
-            dataset.start()
-            dataset.succeed(quiet=True)
+            scanner.get_dataset(d).skip()
         for d in args.reset:
             scanner.get_dataset(d).reset()
         for d in args.force:
