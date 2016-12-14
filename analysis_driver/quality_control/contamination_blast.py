@@ -60,9 +60,13 @@ class ContaminationBlast(QualityControl):
 
     def get_ranks(self, taxon):
         """Retrieve the rank of each of the taxa from that taxid's lineage"""
-        if not taxon == 'N/A':
-            l = self.ncbi.get_lineage(int(taxon))
-            rank = self.ncbi.get_rank(l)
+        if taxon != 'N/A':
+            try:
+                l = self.ncbi.get_lineage(int(taxon))
+                rank = self.ncbi.get_rank(l)
+            except ValueError:
+                rank = {0: 'rank unavailable'}
+                self.warning('The taxid %s does not exist in the ETE TAXDB' % (taxon))
             return rank
 
     def get_all_taxa_identified(self, taxon_dict, taxon, taxids):
