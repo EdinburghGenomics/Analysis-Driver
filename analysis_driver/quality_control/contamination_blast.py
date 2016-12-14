@@ -59,8 +59,11 @@ class ContaminationBlast(QualityControl):
     def get_ranks(self, taxon):
         '''retrieve the rank of each of the taxa from that taxid's lineage'''
         if not taxon == 'N/A':
-            l = self.ncbi.get_lineage(int(taxon))
-            rank = self.ncbi.get_rank(l)
+            try:
+                l = self.ncbi.get_lineage(int(taxon))
+                rank = self.ncbi.get_rank(l)
+            except ValueError:
+                rank = 'unavailable'
             return rank
 
 
