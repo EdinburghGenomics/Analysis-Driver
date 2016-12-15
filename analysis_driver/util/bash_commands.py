@@ -31,6 +31,11 @@ def fastqc(fastq, threads=1):
     app_logger.debug('Writing: ' + cmd)
     return cmd
 
+def gzip_test(f):
+    cmd = 'gzip -t ' + f
+    app_logger.debug('Writing: ' + cmd)
+    return cmd
+
 
 def seqtk_fqchk(fastq_file):
     cmd = cfg['tools']['seqtk'] + ' fqchk -q 0 %s > %s.fqchk' % (fastq_file, fastq_file)

@@ -1,0 +1,26 @@
+
+notification:
+        mailhost: server.domain.com
+        port: port_number
+        sender: sender@domain.com
+        recipients: [recipient@domain.com]
+        email_template: template.html
+
+
+demultiplexing:
+    md5s:  # these should be fastq basenames as found in bcl2fastq's output dir
+        lane_1_r1.fastq.gz: <md5um>
+        lane_1_r2.fastq.gz: <md5um>
+        lane_2_r1.fastq.gz: <md5um>
+        lane_2_r2.fastq.gz: <md5um>
+
+bcbio:
+    md5s:
+        programs.txt: <md5um>
+        sample-gatk-haplotype.vcf.gz: <md5um>
+
+    qc:
+        bam_file_reads: 7000000
+        genome_size: 3000000000
+        duplicate_reads: 700000
+        called_gender: 'unknown'

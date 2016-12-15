@@ -71,6 +71,11 @@ class TestContaminationBlast(QCTester):
             ncbi.return_value.get_lineage.assert_called_once_with(9960)
             ncbi.return_value.get_rank.assert_called_once_with([9604, 33208, 89593])
 
+        with patch('analysis_driver.quality_control.ContaminationBlast.ncbi', new_callable=PropertyMock) as ncbi:
+            e = ValueError
+            ncbi().get_lineage.side_effect = e
+            assert self.contamination_blast.get_ranks('9960') == {0: 'rank unavailable'}
+
     @patch('analysis_driver.quality_control.ContaminationBlast.get_ranks')
     def test_get_all_taxa_identified1(self, mocked_rank):
         with patch('analysis_driver.quality_control.ContaminationBlast.ncbi', new_callable=PropertyMock) as ncbi:
