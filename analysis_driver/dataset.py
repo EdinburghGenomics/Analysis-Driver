@@ -275,8 +275,8 @@ class MostRecentProc:
 
     def update_entity(self, **kwargs):
         with self.lock:
-            if not self.entity:
-                self.initialise_entity()
+            if not self.entity:  # initialise self._entity with database content, or {} if none available
+                self.initialise_entity()  # if self._entity == {}, then initialise and push to database
 
             self.entity.update(kwargs)
             self.sync()
