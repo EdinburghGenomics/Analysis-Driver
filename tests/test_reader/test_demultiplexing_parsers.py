@@ -22,18 +22,18 @@ class TestDemultiplexingStats(TestAnalysisDriver):
             ('2', 'CCCCCCCC', '22153'),
             ('2', 'NCCCCCCC', '9133')
         ]
-        barcodes_per_lane, top_unknown_barcodes_per_lanes, barcodeless_per_lane = dm.parse_conversion_stats(conversion_stat, has_barcode=True)
-        assert barcodes_per_lane == expected_barcode_per_lane
-        assert top_unknown_barcodes_per_lanes == expected_unknown_barcodes_per_lanes
-        assert barcodeless_per_lane == []
+        barcodes, unknowns, barcodeless = dm.parse_conversion_stats(conversion_stat, has_barcode=True)
+        assert barcodes == expected_barcode_per_lane
+        assert unknowns == expected_unknown_barcodes_per_lanes
+        assert barcodeless == []
 
         conversion_stat = os.path.join(self.assets_path, 'test_crawlers', 'ConversionStats_barcodeless.xml')
         expected_barcodeless_per_lane = [
             ('Corriell_2016-02-03', 'LP0000038-NTP_C01', '1', 'all', 6470949, 3794190, 569128500, 481721486, 344363516),
             ('Corriell_2016-02-03', 'LP0000038-NTP_C02', '2', 'all', 6470949, 4254880, 638232000, 542343434, 364820834)
         ]
-        barcodes_per_lane, top_unknown_barcodes_per_lanes, barcodeless_per_lane = dm.parse_conversion_stats(conversion_stat, has_barcode=False)
-        assert barcodeless_per_lane == expected_barcodeless_per_lane
+        barcodes, unknowns, barcodeless = dm.parse_conversion_stats(conversion_stat, has_barcode=False)
+        assert barcodeless == expected_barcodeless_per_lane
 
     def test_parse_seqtk_fqchk(self):
         fqchk_file = os.path.join(self.assets_path, '10015ATpool01_S1_L001_R1_001.fastq.gz.fqchk')
@@ -44,7 +44,7 @@ class TestDemultiplexingStats(TestAnalysisDriver):
         assert hi_q == 75199379
 
     def test_parse_fastqscreen_file1(self):
-        screen_file = os.path.join(self.assets_path, "test_sample_R1_screen.txt")
+        screen_file = os.path.join(self.assets_path, 'test_sample_R1_screen.txt')
         result = dm.parse_fastqscreen_file(screen_file, 'Homo sapiens')
         assert result == {
             ELEMENT_PCNT_UNMAPPED: 1.06,
@@ -61,7 +61,7 @@ class TestDemultiplexingStats(TestAnalysisDriver):
         }
 
     def test_parse_fastqscreen_file2(self):
-        screen_file = os.path.join(self.assets_path, "test_sample_R1_screen.txt")
+        screen_file = os.path.join(self.assets_path, 'test_sample_R1_screen.txt')
         result = dm.parse_fastqscreen_file(screen_file, 'Mellivora capensis')
         assert result is None
 
@@ -103,13 +103,14 @@ class TestDemultiplexingStats(TestAnalysisDriver):
 
     def test_get_coverage_statistics(self):
         hist_file = os.path.join(self.assets_path, 'test_sample.depth')
-        mean, median, sd, coverage_percentiles, bases_at_coverage, genome_size, evenness = dm.get_coverage_statistics(hist_file)
+        mean, median, sd, coverage_pcs, cov, genome_size, evenness = dm.get_coverage_statistics(hist_file)
         assert mean == 438.8514851485148
         assert median == 478
         assert sd == 189.1911391390011
-        assert coverage_percentiles == {'percentile_5': 102, 'percentile_25': 279, 'percentile_50': 478, 'percentile_75': 625, 'percentile_95': 648}
         assert genome_size == 101
         assert evenness == 0.8139335573648481
+        assert coverage_pcs == {'percentile_5': 102, 'percentile_25': 279, 'percentile_50': 478,
+                                'percentile_75': 625, 'percentile_95': 648}
 
     def test_calculate_size_genome(self):
         histogram = {1: 5, 2: 2, 3: 4, 4: 6, 5: 3}

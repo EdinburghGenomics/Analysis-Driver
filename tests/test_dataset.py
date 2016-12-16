@@ -175,24 +175,23 @@ class TestRunDataset(TestDataset):
         )
         with patched_get():
             for d_name, rta_complete in datasets:
-                d = RunDataset(d_name, os.path.join(self.base_dir, d_name), use_int_dir=False)
+                d = RunDataset(d_name, os.path.join(self.base_dir, d_name))
                 assert d._is_ready() == rta_complete
 
     def test_dataset_status(self):
         super().test_dataset_status()
         del self.dataset.most_recent_proc.entity['status']
-        assert not self.dataset.rta_complete()
+        assert not self.dataset._is_ready()
         assert self.dataset.dataset_status == c.DATASET_NEW
         os.mkdir(os.path.join(self.base_dir, self.dataset.name))
         touch(os.path.join(self.base_dir, self.dataset.name, 'RTAComplete.txt'))
-        assert self.dataset.rta_complete()
+        assert self.dataset._is_ready()
         assert self.dataset.dataset_status == c.DATASET_READY
 
     def setup_dataset(self):
         self.dataset = RunDataset(
             'test_dataset',
             os.path.join(self.base_dir, 'test_dataset'),
-            use_int_dir=False,
             most_recent_proc={'date_started': 'now', 'dataset_name': 'None', 'dataset_type': 'None'}
         )
 

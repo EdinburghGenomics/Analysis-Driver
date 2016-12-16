@@ -144,7 +144,7 @@ class TestContaminationBlast(QCTester):
             taxon_dict=homo_sapiens_tree, taxon='99802', taxids={'99802': 2}
         )
 
-        expected = dict(homo_sapiens_tree)
+        expected = homo_sapiens_tree.copy()
         expected['Eukaryota']['reads'] = 199
         expected['Eukaryota']['Metazoa']['reads'] = 199
         expected['Eukaryota']['Metazoa']['Platyhelminthes'] = {

@@ -71,10 +71,10 @@ def parse_conversion_stats(xml_file, has_barcode):
                                 # FIXME: Read numbers in the ConversionStats.xml are wrong when using barcodeless run
                                 # Need to be fixed in bcl2fast and then changed here
                                 for read in tile.find('Pf').findall('Read'):
-                                    if read.get('number') == "2":
+                                    if read.get('number') == '2':
                                         nb_bases += int(read.find('Yield').text)
                                         nb_bases_r1_q30 += int(read.find('YieldQ30').text)
-                                    if read.get('number') != "2":
+                                    if read.get('number') != '2':
                                         nb_bases_r2_q30 += int(read.find('YieldQ30').text)
                             all_barcodeless.append(
                                 (
@@ -114,10 +114,10 @@ def parse_conversion_stats(xml_file, has_barcode):
                             clust_count += int(tile.find('Raw').find('ClusterCount').text)
                             clust_count_pf += int(tile.find('Pf').find('ClusterCount').text)
                             for read in tile.find('Pf').findall('Read'):
-                                if read.get('number') == "1":
+                                if read.get('number') == '1':
                                     nb_bases += int(read.find('Yield').text)
                                     nb_bases_r1_q30 += int(read.find('YieldQ30').text)
-                                if read.get('number') == "2":
+                                if read.get('number') == '2':
                                     nb_bases_r2_q30 += int(read.find('YieldQ30').text)
 
                         all_barcodes_per_lanes.append(
@@ -164,7 +164,7 @@ def parse_seqtk_fqchk_file(fqchk_file, q_threshold):
 
 def parse_fastqscreen_file(filename, focal_species):
     """
-    parse the fastq screen outfile
+    Parse fastqscreen's output file
     :return dict: the maximum number of reads mapped uniquely (singly or multiple times) to a contaminant species
     :return float: % reads unmapped to focal Species
     :return float: % reads with no hits to any of the genomes provided
@@ -230,7 +230,7 @@ def get_percentiles(histogram, percentile):
     """
     Calculate the percentiles of the histogram.
     :param percentile: a scalar or an array of scalar comprised in between 0 and 100.
-    :return A value or a array value for the given percentiles.
+    :return: A value or a array value for the given percentiles.
     """
     n_percentile = None
     sorted_set_of_keys = sorted(histogram.keys())

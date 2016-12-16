@@ -7,7 +7,7 @@ class TestVersion(TestAnalysisDriver):
     def test_get_version(self):
         with patch('analysis_driver.reader.version_reader.VersionReader._get_stdout_from_command',
                    return_value='1.2'):
-            reader = VersionReader(tool_name='bwa', command=' -h | grep "Version')
+            reader = VersionReader(tool_name='bwa', command=' -h | grep Version')
             assert reader.get_version() == '1.2'
 
         reader = VersionReader(tool_name='bwa', command=None)

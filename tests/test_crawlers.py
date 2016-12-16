@@ -52,12 +52,12 @@ class TestRunCrawler(TestCrawler):
         patched_data = patch(
             ppath + 'RunCrawler._run_sample_lane_to_barcode',
             return_value={
-                "a_run_id_1_unknown": {'read_1_trimmed_bases': 184380158, 'read_2_trimmed_bases': 172552099},
-                "a_run_id_2_unknown": {'read_1_trimmed_bases': 48149799, 'read_2_trimmed_bases': 48818739},
-                "a_run_id_1_TCCGGAGA": {'read_1_trimmed_bases': 1088149481, 'read_2_trimmed_bases': 1034179505},
-                "a_run_id_2_TCCGGAGA": {'read_1_trimmed_bases': 398993728, 'read_2_trimmed_bases': 391621660},
-                "a_run_id_1_ATTACTCG": {'read_1_trimmed_bases': 714309214, 'read_2_trimmed_bases': 684692293},
-                "a_run_id_2_ATTACTCG": {'read_1_trimmed_bases': 284712861, 'read_2_trimmed_bases': 282625840}}
+                'a_run_id_1_unknown': {'read_1_trimmed_bases': 184380158, 'read_2_trimmed_bases': 172552099},
+                'a_run_id_2_unknown': {'read_1_trimmed_bases': 48149799, 'read_2_trimmed_bases': 48818739},
+                'a_run_id_1_TCCGGAGA': {'read_1_trimmed_bases': 1088149481, 'read_2_trimmed_bases': 1034179505},
+                'a_run_id_2_TCCGGAGA': {'read_1_trimmed_bases': 398993728, 'read_2_trimmed_bases': 391621660},
+                'a_run_id_1_ATTACTCG': {'read_1_trimmed_bases': 714309214, 'read_2_trimmed_bases': 684692293},
+                'a_run_id_2_ATTACTCG': {'read_1_trimmed_bases': 284712861, 'read_2_trimmed_bases': 282625840}}
         )
         with patched_lims_info, patched_data:
             self.crawler = report_generation.RunCrawler(

@@ -1,7 +1,7 @@
 import os
 from egcg_core import executor, clarity
 from analysis_driver.exceptions import PipelineError
-from analysis_driver. util import bash_commands
+from analysis_driver.util import bash_commands
 from analysis_driver.config import default as cfg
 from analysis_driver.reader.mapping_stats_parsers import parse_genotype_concordance
 from .quality_control_base import QualityControl

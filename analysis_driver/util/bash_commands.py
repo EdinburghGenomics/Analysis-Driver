@@ -31,6 +31,7 @@ def fastqc(fastq, threads=1):
     app_logger.debug('Writing: ' + cmd)
     return cmd
 
+
 def gzip_test(f):
     cmd = 'gzip -t ' + f
     app_logger.debug('Writing: ' + cmd)

@@ -66,7 +66,7 @@ class ContaminationBlast(QualityControl):
                 rank = self.ncbi.get_rank(l)
             except ValueError:
                 rank = {0: 'rank unavailable'}
-                self.warning('The taxid %s does not exist in the ETE TAXDB' % (taxon))
+                self.warning('The taxid %s does not exist in the ETE TAXDB' % taxon)
             return rank
 
     def get_all_taxa_identified(self, taxon_dict, taxon, taxids):

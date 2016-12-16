@@ -1,6 +1,6 @@
 import os
 from collections import defaultdict
-from egcg_core import rest_communication
+from egcg_core.rest_communication import get_documents
 from egcg_core.app_logging import AppLogger
 from egcg_core.clarity import get_list_of_samples, sanitize_user_id
 from analysis_driver.dataset import RunDataset, SampleDataset
@@ -52,7 +52,7 @@ class DatasetScanner(AppLogger):
         else:
             match = {'proc_status': statuses[0]}
         return [
-            d for d in rest_communication.get_documents(self.endpoint, match=match, paginate=False, quiet=True)
+            d for d in get_documents(self.endpoint, match=match, paginate=False, quiet=True)
             if d[self.item_id] not in self._triggerignore
         ]
 
@@ -97,17 +97,11 @@ class RunScanner(DatasetScanner):
 
     def __init__(self, config):
         super().__init__(config)
-        self.use_int_dir = 'intermediate_dir' in config
 
     def get_dataset(self, name, most_recent_proc=None):
         dataset_path = os.path.join(self.input_dir, name)
         if os.path.exists(dataset_path):
-            return RunDataset(
-                name,
-                os.path.join(self.input_dir, name),
-                use_int_dir=self.use_int_dir,
-                most_recent_proc=most_recent_proc
-            )
+            return RunDataset(name, os.path.join(self.input_dir, name), most_recent_proc=most_recent_proc)
 
     def _get_dataset_records_for_statuses(self, statuses):
         rest_api_datasets = super()._get_dataset_records_for_statuses(statuses)

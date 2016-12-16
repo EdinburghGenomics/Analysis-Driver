@@ -110,7 +110,7 @@ class Dataset(AppLogger):
 
 class NoCommunicationDataset(Dataset):
     """Dummy dataset that can be used in QC object but won't contact the API"""
-    type = "Notype"
+    type = 'Notype'
 
     def start_stage(self, stage_name):
         pass
@@ -130,15 +130,11 @@ class RunDataset(Dataset):
     endpoint = 'runs'
     id_field = 'run_id'
 
-    def __init__(self, name, path, use_int_dir, most_recent_proc=None):
+    def __init__(self, name, path, most_recent_proc=None):
         super().__init__(name, most_recent_proc)
         self.path = path
-        self.use_int_dir = use_int_dir
 
     def _is_ready(self):
-        return self.rta_complete() or self.use_int_dir
-
-    def rta_complete(self):
         return os.path.isfile(os.path.join(self.path, 'RTAComplete.txt'))
 
 

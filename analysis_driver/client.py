@@ -8,7 +8,8 @@ from egcg_core.executor import stop_running_jobs
 from egcg_core.app_logging import logging_default as log_cfg
 from analysis_driver import exceptions
 from analysis_driver.config import default as cfg, load_config
-from analysis_driver.dataset_scanner import RunScanner, SampleScanner, DATASET_READY, DATASET_FORCE_READY, DATASET_NEW, DATASET_REPROCESS
+from analysis_driver.dataset_scanner import RunScanner, SampleScanner, DATASET_READY, DATASET_FORCE_READY,\
+    DATASET_NEW, DATASET_REPROCESS
 
 app_logger = log_cfg.get_logger('client')
 
