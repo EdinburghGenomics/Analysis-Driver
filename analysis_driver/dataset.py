@@ -5,7 +5,7 @@ from datetime import datetime
 from analysis_driver.notification import default as ntf
 from egcg_core import rest_communication
 from egcg_core.app_logging import AppLogger
-from egcg_core.clarity import get_expected_yield_for_sample
+from egcg_core.clarity import get_expected_yield_for_sample, get_project
 from egcg_core.exceptions import RestCommunicationError
 from analysis_driver.exceptions import AnalysisDriverError
 from egcg_core.constants import DATASET_NEW, DATASET_READY, DATASET_FORCE_READY, DATASET_REPROCESS,\
@@ -215,6 +215,26 @@ class SampleDataset(Dataset):
             ', '.join(self._non_useable_runs())
         )
 
+
+class ProjectDataset(Dataset):
+    type = 'project'
+    endpoint = 'projects'
+    id_field = 'project_id'
+    def __init__(self, name, most_recent_proc=None):
+        super().__init__(name, most_recent_proc)
+
+    def _is_ready(self):
+        samples_processed = rest_communication.get_documents(
+            'samples',
+            where={'project_id': self.name}
+        )
+        samples_processed = len(samples_processed)
+        project_from_lims = get_project(self.name)
+        if not project_from_lims:
+            raise AnalysisDriverError('Could not find number of quoted samples in LIMS for ' + self.name)
+        else:
+            number_of_quoted_samples = project_from_lims[0].udf.get('Number of Quoted Samples')
+            return samples_processed >= number_of_quoted_samples
 
 class MostRecentProc:
     def __init__(self, dataset_type, dataset_name, initial_content=None):
