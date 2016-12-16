@@ -8,8 +8,8 @@ from egcg_core.executor import stop_running_jobs
 from egcg_core.app_logging import logging_default as log_cfg
 from analysis_driver import exceptions
 from analysis_driver.config import default as cfg, load_config
-from analysis_driver.dataset_scanner import RunScanner, SampleScanner, DATASET_READY, DATASET_FORCE_READY,\
-    DATASET_NEW, DATASET_REPROCESS
+from analysis_driver.dataset_scanner import RunScanner, SampleScanner, ProjectScanner, DATASET_READY,\
+    DATASET_FORCE_READY, DATASET_NEW, DATASET_REPROCESS
 
 app_logger = log_cfg.get_logger('client')
 
@@ -29,11 +29,15 @@ def main():
         if 'run' in cfg:
             cfg.merge(cfg['run'])
         scanner = RunScanner(cfg)
-    else:
-        assert args.sample
+    elif args.sample:
         if 'sample' in cfg:
             cfg.merge(cfg['sample'])
         scanner = SampleScanner(cfg)
+    else:
+        assert args.project
+        if 'project' in cfg:
+            cfg.merge(cfg['project'])
+        scanner = ProjectScanner(cfg)
 
     if any([args.abort, args.skip, args.reset, args.force, args.report, args.report_all, args.stop]):
         for d in args.abort:
@@ -147,6 +151,7 @@ def _parse_args():
     group = p.add_mutually_exclusive_group(required=True)
     group.add_argument('--run', action='store_true')
     group.add_argument('--sample', action='store_true')
+    group.add_argument('--project', action='store_true')
     p.add_argument('--report', action='store_true', help='report on status of datasets')
     p.add_argument('--report-all', action='store_true', help='report all datasets, including finished ones')
     p.add_argument('--skip', nargs='+', default=[], help='mark a dataset as completed')
