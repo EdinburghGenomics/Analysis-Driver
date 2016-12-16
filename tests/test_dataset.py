@@ -304,15 +304,15 @@ class TestMostRecentProc(TestAnalysisDriver):
             )
 
         self.proc._entity = None
-        with patched_get([]):
-            y = self.proc.entity
-            assert y is None
-            mocked_get.assert_called_with(
-                'analysis_driver_procs',
-                where={'dataset_type': 'test', 'dataset_name': 'test'},
-                sort='-_created'
-            )
-            assert mocked_initialise.call_count == 1
+        mocked_get.return_value = []
+        y = self.proc.entity
+        assert y == {}
+        mocked_get.assert_called_with(
+            'analysis_driver_procs',
+            where={'dataset_type': 'test', 'dataset_name': 'test'},
+            sort='-_created'
+        )
+        assert mocked_initialise.call_count == 0
 
     @patched_post
     @patched_patch
@@ -324,7 +324,7 @@ class TestMostRecentProc(TestAnalysisDriver):
             'analysis_driver_procs',
             {'proc_id': 'test_test_now', 'dataset_type': 'test', 'dataset_name': 'test'}
         )
-        mocked_patch.assertcalled_with(
+        mocked_patch.assert_called_with(
             'tests',
             {'analysis_driver_procs': ['test_test_now']},
             id_field='test_id',

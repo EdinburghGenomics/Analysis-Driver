@@ -39,19 +39,18 @@ class Dataset(AppLogger):
         return [s['stage_name'] for s in self.most_recent_proc.get('stages', []) if 'date_finished' not in s]
 
     def start(self):
-        self._assert_status(DATASET_READY, DATASET_FORCE_READY, DATASET_NEW, method='start')
+        self._assert_status(DATASET_READY, DATASET_FORCE_READY, DATASET_NEW)
         self.most_recent_proc.initialise_entity()  # take a new entity
         self.most_recent_proc.start()
         self.ntf.start_pipeline()
 
-    def succeed(self, quiet=False):
-        self._assert_status(DATASET_PROCESSING, method='succeed')
+    def succeed(self):
+        self._assert_status(DATASET_PROCESSING)
         self.most_recent_proc.finish(DATASET_PROCESSED_SUCCESS)
-        if not quiet:
-            self.ntf.end_pipeline(0)
+        self.ntf.end_pipeline(0)
 
     def fail(self, exit_status):
-        self._assert_status(DATASET_PROCESSING, method='fail')
+        self._assert_status(DATASET_PROCESSING)
         self.ntf.end_pipeline(exit_status)
         self.most_recent_proc.finish(DATASET_PROCESSED_FAIL)
 
@@ -61,6 +60,9 @@ class Dataset(AppLogger):
     def reset(self):
         self.terminate()
         self.most_recent_proc.change_status(DATASET_REPROCESS)
+
+    def skip(self):
+        self.most_recent_proc.finish(DATASET_PROCESSED_SUCCESS)
 
     def terminate(self):
         pid = self.most_recent_proc.get('pid')
@@ -83,11 +85,11 @@ class Dataset(AppLogger):
             with open(cmd_file, 'r') as f:
                 return modules['__main__'].__file__ in f.read()
 
-    def _assert_status(self, *allowed_statuses, method=None):
+    def _assert_status(self, *allowed_statuses):
         # make sure the most recent process is the same as the one in the REST API
         self.most_recent_proc.retrieve_entity()
         status = self.dataset_status
-        assert status in allowed_statuses, 'Tried to %s a %s %s' % (method, status, self.type)
+        assert status in allowed_statuses, 'Status assertion failed on a %s %s' % (status, self.type)
 
     @property
     def _is_ready(self):
@@ -228,15 +230,15 @@ class MostRecentProc:
             sort='-_created'
         )
         if procs:
-            # remove the private (starting with _ ) fields from the dict
+            # remove the private (starting with '_') fields from the dict
             self._entity = {k: v for k, v in procs[0].items() if not k.startswith('_')}
+        else:
+            self._entity = {}
 
     @property
     def entity(self):
         if self._entity is None:
             self.retrieve_entity()
-            if not self._entity:
-                self.initialise_entity()
         return self._entity
 
     def initialise_entity(self):
@@ -270,6 +272,9 @@ class MostRecentProc:
 
     def update_entity(self, **kwargs):
         with self.lock:
+            if not self.entity:  # initialise self._entity with database content, or {} if none available
+                self.initialise_entity()  # if self._entity == {}, then initialise and push to database
+
             self.entity.update(kwargs)
             self.sync()
 
