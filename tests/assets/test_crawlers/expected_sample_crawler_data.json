@@ -1,0 +1,42 @@
+{
+    "properly_mapped_reads": 7741548,
+    "duplicate_reads": 676698,
+    "sample_id": "test_sample",
+    "median_coverage": 478,
+    "user_sample_id": "test_sample",
+    "pc_callable": 0.24392084973311048,
+    "project_id": "test_project",
+    "bam_file_reads": 7928618,
+    "mapped_reads": 7892452,
+    "called_gender": "male",
+    "provided_gender": "female",
+    "species_name": "Homo sapiens",
+    "species_contamination": {
+        "contaminant_unique_mapped": {
+            "Bos taurus": 1,
+            "Felis catus": 4,
+            "Gallus gallus": 1,
+            "Mus musculus": 4,
+            "Ovis aries": 2,
+            "Homo sapiens": 74144
+        },
+        "percent_unmapped": 1.06,
+        "percent_unmapped_focal": 1.09,
+        "total_reads_mapped": 100000
+    },
+    "sample_contamination": {"het_hom_ratio": 1.6, "ti_tv_ratio": 2.01},
+    "gender_validation": {"hetX": "0.10"},
+    "coverage": {
+        "median": 478,
+        "std_dev": 189.1911391390011,
+        "coverage_percentiles": {
+            "percentile_25": 279, "percentile_5": 102,
+            "percentile_50": 478, "percentile_75": 625,
+            "percentile_95": 648
+        },
+        "mean": 438.8514851485148,
+        "bases_at_coverage": {"bases_at_5X": 100, "bases_at_30X": 99, "bases_at_15X": 100},
+        "genome_size": 101,
+        "evenness": 0.8139335573648481
+    }
+}

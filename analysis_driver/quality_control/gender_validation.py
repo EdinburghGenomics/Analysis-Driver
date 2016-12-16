@@ -80,9 +80,9 @@ def main():
 def _parse_args():
     p = argparse.ArgumentParser()
     p.add_argument('--sample_id', type=str, help='sample ID for creating a Sample dataset object')
-    p.add_argument('-v', '--vcf_file', dest="vcf_file", type=str, help='the vcf file used to detect the gender')
-    p.add_argument('-s', '--working_dir', dest="working_dir", type=str, help='the working dir for execution')
+    p.add_argument('-v', '--vcf_file', dest='vcf_file', type=str, help='the vcf file used to detect the gender')
+    p.add_argument('-s', '--working_dir', dest='working_dir', type=str, help='the working dir for execution')
     return p.parse_args()
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     sys.exit(main())

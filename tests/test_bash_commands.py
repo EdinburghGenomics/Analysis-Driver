@@ -1,11 +1,11 @@
-import os.path
+from os.path import join
 from tests.test_analysisdriver import helper
 from analysis_driver.util import bash_commands
 from analysis_driver.reader import SampleSheet, RunInfo
 from analysis_driver.config import default as cfg
 
-sample_sheet_csv = os.path.join(helper.assets_path, 'SampleSheet_analysis_driver.csv')
-sample_sheet = SampleSheet(helper.sample_sheet_path)
+sample_sheet_csv = join(helper.assets_path, 'SampleSheet_analysis_driver.csv')
+sample_sheet = SampleSheet(join(helper.assets_path, 'test_runs', 'barcoded_run', 'SampleSheet_analysis_driver.csv'))
 run_info = RunInfo(helper.assets_path)
 
 
@@ -26,7 +26,7 @@ def test_bcl2fastq():
 
 
 def test_fastqc():
-    test_fastq = os.path.join(helper.fastq_path, '10015AT', '10015ATA0001L05', 'this.fastq.gz')
+    test_fastq = join(helper.fastq_path, '10015AT', '10015ATA0001L05', 'this.fastq.gz')
     expected = '--nogroup -t 1 -q ' + test_fastq
     assert bash_commands.fastqc(test_fastq).endswith(expected)
 
@@ -50,8 +50,6 @@ def test_bwa_mem_samblaster():
         'path/to/samtools view -b - | '
         'path/to/sambamba sort -m 5G --tmpdir output -t 16 -o output/out.bam /dev/stdin'
     )
-    print(cmd)
-    print(expected_cmd)
     assert cmd == expected_cmd
 
 

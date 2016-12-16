@@ -20,7 +20,7 @@ def ppath(*parts):
 def patched_get(content=None):
     if content is None:
         content = [fake_proc]
-    return patch(ppath('rest_communication', 'get_documents'), return_value=content)
+    return patch(ppath('get_documents'), return_value=content)
 
 
 class TestScanner(TestAnalysisDriver):
@@ -76,16 +76,14 @@ class TestScanner(TestAnalysisDriver):
     def _assert_datasets_equal(self, obs, exp):
         assert obs.name == exp.name
         assert obs.path == exp.path
-        assert obs.use_int_dir == exp.use_int_dir
 
 
 class TestRunScanner(TestScanner):
     def test_get_dataset(self):
         test_dataset_path = os.path.join(self.base_dir, 'test_dataset')
         os.mkdir(test_dataset_path)
-        with patched_get():
-            obs = self.scanner.get_dataset('test_dataset')
-            exp = RunDataset('test_dataset', test_dataset_path, self.scanner.use_int_dir)
+        obs = self.scanner.get_dataset('test_dataset')
+        exp = RunDataset('test_dataset', test_dataset_path)
         self._assert_datasets_equal(obs, exp)
 
     def test_get_dataset_records_for_statuses(self):
@@ -116,7 +114,7 @@ class TestRunScanner(TestScanner):
         fake_datasets = []
         with patched_get():
             for x in ('this', 'that', 'other'):
-                d = RunDataset(x, os.path.join(self.base_dir, x), False)
+                d = RunDataset(x, os.path.join(self.base_dir, x), {'this': 'that'})
                 assert d.most_recent_proc.entity
                 fake_datasets.append(d)
         with patch(ppath('DatasetScanner._get_datasets_for_statuses'), return_value=fake_datasets) as p:
@@ -133,14 +131,15 @@ class TestSampleScanner(TestScanner):
     def _setup_scanner(self):
         self.scanner = SampleScanner({'input_dir': self.base_dir})
 
-    def test_get_dataset(self):
-        with patched_expected_yield(), patched_get() as p:
+    @patch('analysis_driver.dataset.rest_communication.get_documents', return_value=[fake_proc])
+    def test_get_dataset(self, mocked_get):
+        with patched_expected_yield():
             observed = self.scanner.get_dataset('test_dataset')
             expected = SampleDataset('test_dataset')
             assert observed.name == expected.name
             assert observed.data_threshold == expected.data_threshold
             assert observed.run_elements == [fake_proc]
-            p.assert_called_with('run_elements', where={'sample_id': 'test_dataset', 'useable': 'yes'})
+            mocked_get.assert_called_with('run_elements', where={'sample_id': 'test_dataset', 'useable': 'yes'})
 
     @patched_get([{'sample_id': 'a_sample_id'}])
     def test_get_dataset_records_for_statuses(self, mocked_get):
@@ -163,16 +162,13 @@ class TestSampleScanner(TestScanner):
         assert d.name == 'a_sample_id'
         assert d._data_threshold == 1000000000
         mocked_get.assert_any_call('aggregate/samples', match={'proc_status': None}, paginate=False, quiet=True)
-        assert d.run_elements == [{'sample_id': 'a_sample_id'}]
-        mocked_get.assert_any_call('run_elements', where={'useable': 'yes', 'sample_id': 'a_sample_id'})
 
     def test_scan_datasets(self):
         fake_datasets = {DATASET_NEW: []}
-        with patched_get():
-            for x in ('other', 'that', 'this'):
-                s = SampleDataset(x)
-                assert s.most_recent_proc.entity
-                fake_datasets[DATASET_NEW].append(s)
+        for x in ('other', 'that', 'this'):
+            s = SampleDataset(x, fake_proc)
+            assert s.most_recent_proc.entity
+            fake_datasets[DATASET_NEW].append(s)
 
         def fake_get_datasets(*args):
             return [d for arg in args[1] for d in fake_datasets.get(arg)]

@@ -32,4 +32,3 @@ def pipeline(dataset):
         return project_pipeline(dataset)
     else:
         raise AssertionError('Unexpected dataset type: ' + str(dataset))
-

@@ -6,7 +6,7 @@
     <Date>150703</Date>
     <Reads>
       <Read Number="1" NumCycles="151" IsIndexedRead="N" />
-      <Read Number="2" NumCycles="6" IsIndexedRead="Y" />
+      <Read Number="2" NumCycles="8" IsIndexedRead="Y" />
       <Read Number="3" NumCycles="151" IsIndexedRead="N" />
     </Reads>
     <FlowcellLayout LaneCount="8" SurfaceCount="1" SwathCount="1" TileCount="1">

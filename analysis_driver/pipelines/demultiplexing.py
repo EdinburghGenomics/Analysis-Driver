@@ -17,7 +17,6 @@ from analysis_driver.transfer_data import prepare_run_data, output_run_data
 app_logger = log_cfg.get_logger('demultiplexing')
 
 
-
 def demultiplexing_pipeline(dataset):
     """
     :param RunDataset dataset: Dataset object
@@ -183,4 +182,3 @@ def demultiplexing_pipeline(dataset):
         exit_status += cleanup(run_id)
         dataset.end_stage('cleanup', exit_status)
     return exit_status
-

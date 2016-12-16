@@ -7,11 +7,7 @@ import json
 
 class TestAnalysisDriver(TestCase):
     assets_path = join(dirname(__file__), 'assets')
-    sample_sheet_path = join(assets_path, 'SampleSheet_analysis_driver.csv')
-    barcoded_samplesheet_path = join(assets_path, 'test_runs', 'barcoded_run', 'SampleSheet_analysis_driver.csv')
-    barcodeless_samplesheet_path = join(assets_path, 'test_runs', 'barcodeless_run', 'SampleSheet_analysis_driver.csv')
-    barcoded_run_info_path = join(assets_path, 'test_runs', 'barcoded_run')
-    barcodeless_run_info_path = join(assets_path, 'test_runs', 'barcodeless_run')
+
     data_output = join(assets_path, 'data_output')
     fastq_path = join(assets_path, 'fastqs')
     execs = join(assets_path, 'fake_tools')

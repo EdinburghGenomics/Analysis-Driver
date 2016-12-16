@@ -1,7 +1,7 @@
 import os
 from egcg_core import executor, clarity
 from analysis_driver.pipelines.common import link_results_files, output_data, cleanup
-from analysis_driver.pipelines.qc_pipelines import _bam_file_production
+from analysis_driver.pipelines.qc_pipelines import bam_file_production
 from egcg_core.app_logging import logging_default as log_cfg
 from analysis_driver.config import default as cfg
 from analysis_driver.reader.version_reader import write_versions_to_yaml
@@ -134,7 +134,7 @@ def var_calling_pipeline(dataset, species):
     sample_id = dataset.name
     sample_dir = os.path.join(cfg['jobs_dir'], sample_id)
 
-    exit_status = _bam_file_production(dataset, species)
+    exit_status = bam_file_production(dataset, species)
     exit_status += _gatk_var_calling(dataset, species)
 
     # link the bcbio file into the final directory
@@ -150,4 +150,3 @@ def var_calling_pipeline(dataset, species):
         dataset.end_stage('cleanup', exit_status)
 
     return exit_status
-

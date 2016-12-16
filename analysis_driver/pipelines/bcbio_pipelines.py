@@ -1,5 +1,4 @@
 import os
-
 import yaml
 from egcg_core import executor, clarity
 from analysis_driver import quality_control as qc

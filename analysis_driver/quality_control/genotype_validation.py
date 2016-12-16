@@ -1,7 +1,7 @@
 import os
 from egcg_core import executor, clarity
 from analysis_driver.exceptions import PipelineError
-from analysis_driver. util import bash_commands
+from analysis_driver.util import bash_commands
 from analysis_driver.config import default as cfg
 from analysis_driver.reader.mapping_stats_parsers import parse_genotype_concordance
 from .quality_control_base import QualityControl
@@ -48,11 +48,9 @@ class GenotypeValidation(QualityControl):
         if len(fastq_files) == 2:
             command_aln1 = '%s aln %s %s' % (bwa_bin, reference, fastq_files[0])
             command_aln2 = '%s aln %s %s' % (bwa_bin, reference, fastq_files[1])
-            command_bwa = "%s sampe -r '@RG\\tID:1\\tSM:%s' %s <(%s) <(%s) %s %s" % (bwa_bin, sample_name,
-                                                                                     reference, command_aln1,
-                                                                                     command_aln2,
-                                                                                     fastq_files[0],
-                                                                                     fastq_files[1])
+            command_bwa = "%s sampe -r '@RG\\tID:1\\tSM:%s' %s <(%s) <(%s) %s %s" % (
+                bwa_bin, sample_name, reference, command_aln1, command_aln2, fastq_files[0], fastq_files[1]
+            )
         elif len(fastq_files) == 1:
             command_aln1 = '%s aln %s %s' % (bwa_bin, reference, fastq_files[0])
             command_bwa = "%s samse -r '@RG\\tID:1\\tSM:%s' %s <(%s) %s" % (bwa_bin, sample_name, reference,
@@ -141,17 +139,17 @@ class GenotypeValidation(QualityControl):
         # Make sure the file exists
         assert os.path.isfile(self.seq_vcf_file)
 
-        if not os.path.isfile(self.seq_vcf_file+'.tbi'):
+        if not os.path.isfile(self.seq_vcf_file + '.tbi'):
             self._index_vcf_gz(self.seq_vcf_file)
         for sample_name in sample2genotype:
             validation_results = os.path.join(self.working_dir, sample_name + '_genotype_validation.txt')
             sample2genotype_validation[sample_name] = validation_results
             gatk_command = ['java -Xmx4G -jar %s' % cfg.query('tools', 'gatk'),
                             '-T GenotypeConcordance',
-                            '-eval:VCF %s ' % self.seq_vcf_file,
-                            '-comp:VCF %s ' % sample2genotype.get(sample_name),
+                            '-eval:VCF %s' % self.seq_vcf_file,
+                            '-comp:VCF %s' % sample2genotype.get(sample_name),
                             '-R %s' % cfg.query('genotype-validation', 'reference'),
-                            ' > %s' % validation_results]
+                            '> %s' % validation_results]
             list_commands.append(' '.join(gatk_command))
 
         self.dataset.start_stage('validation_genotype_concordance')

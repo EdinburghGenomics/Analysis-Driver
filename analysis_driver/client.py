@@ -8,8 +8,8 @@ from egcg_core.executor import stop_running_jobs
 from egcg_core.app_logging import logging_default as log_cfg
 from analysis_driver import exceptions
 from analysis_driver.config import default as cfg, load_config
-from analysis_driver.notification import default as ntf, LogNotification, EmailNotification, AsanaNotification
-from analysis_driver.dataset_scanner import RunScanner, SampleScanner, ProjectScanner, DATASET_READY, DATASET_FORCE_READY, DATASET_NEW, DATASET_REPROCESS
+from analysis_driver.dataset_scanner import RunScanner, SampleScanner, ProjectScanner, DATASET_READY,\
+    DATASET_FORCE_READY, DATASET_NEW, DATASET_REPROCESS
 
 app_logger = log_cfg.get_logger('client')
 
@@ -50,12 +50,12 @@ def main():
             scanner.get_dataset(d).force()
         for d in args.stop:
             scanner.get_dataset(d).terminate()
+
         if args.report:
             scanner.report()
         elif args.report_all:
             scanner.report(all_datasets=True)
         return 0
-
 
     datasets = scanner.scan_datasets(DATASET_NEW, DATASET_REPROCESS, DATASET_READY, DATASET_FORCE_READY)
     ready_datasets = datasets.get(DATASET_FORCE_READY, []) + datasets.get(DATASET_READY, [])
@@ -99,19 +99,13 @@ def _process_dataset(d):
     app_logger.info('Using config file at ' + cfg.config_file)
     app_logger.info('Triggering for dataset: ' + d.name)
 
-    ntf.add_subscribers(
-        (LogNotification, d, cfg.query('notification', 'log_notification')),
-        (EmailNotification, d, cfg.query('notification', 'email_notification')),
-        (AsanaNotification, d, cfg.query('notification', 'asana'))
-    )
-
     def _handle_exception(exception):
         app_logger.critical('Encountered a %s exception: %s', exception.__class__.__name__, str(exception))
         etype, value, tb = sys.exc_info()
         if tb:
             stacktrace = ''.join(traceback.format_exception(etype, value, tb))
             app_logger.info('Stacktrace below:\n' + stacktrace)
-            ntf.crash_report(stacktrace)
+            d.ntf.crash_report(stacktrace)
         _handle_termination(9)
 
     def _sigterm_handler(sig, frame):
