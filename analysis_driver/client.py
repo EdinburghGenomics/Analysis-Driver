@@ -43,10 +43,7 @@ def main():
         for d in args.abort:
             scanner.get_dataset(d).abort()
         for d in args.skip:
-            dataset = scanner.get_dataset(d)
-            dataset.reset()
-            dataset.start()
-            dataset.succeed(quiet=True)
+            scanner.get_dataset(d).skip()
         for d in args.reset:
             scanner.get_dataset(d).reset()
         for d in args.force:
@@ -130,9 +127,9 @@ def _process_dataset(d):
     signal.signal(15, _sigterm_handler)
     exit_status = 9
     try:
-        from analysis_driver import driver
+        from analysis_driver import pipelines
         d.start()
-        exit_status = driver.pipeline(d)
+        exit_status = pipelines.pipeline(d)
         app_logger.info('Done')
 
     except exceptions.SequencingRunError as e:
