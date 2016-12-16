@@ -53,7 +53,7 @@ def _fake_welldups(self):
 
 
 @contextmanager
-def patch_pipeline(species='Homo sapiens', analysis_type='Variant Calling'):
+def patch_pipeline(species='Homo sapiens', analysis_type='Variant Calling gatk'):
     patches = []
 
     def _patch(ppath, **kwargs):
@@ -64,17 +64,20 @@ def patch_pipeline(species='Homo sapiens', analysis_type='Variant Calling'):
     def _fake_get_sample(sample_name):
         return Mock(name=sample_name, udf={'Coverage': 1337, 'Analysis Type': analysis_type})
 
-    _patch('driver.clarity.get_species_from_sample', return_value=species)
-    _patch('driver.clarity.get_sample', new=_fake_get_sample)
+    _patch('pipelines.clarity.get_species_from_sample', return_value=species)
+    _patch('pipelines.clarity.get_sample', new=_fake_get_sample)
     _patch('report_generation.report_crawlers.clarity.get_species_from_sample', return_value=species)
     _patch('report_generation.report_crawlers.clarity.get_sample', new=_fake_get_sample)
     _patch('dataset.get_expected_yield_for_sample', return_value=0.9)
     _patch('report_generation.report_crawlers.clarity.get_expected_yield_for_sample', return_value=0.9)
     _patch('dataset_scanner.get_list_of_samples', new=_fake_get_list_of_samples)
-    _patch('driver.clarity.get_run', return_value=Mock(udf={'Run Status': 'RunCompleted'}))
-    _patch('driver.clarity.find_project_name_from_sample', return_value='a_project')
+    _patch('pipelines.demultiplexing.clarity.get_run', return_value=Mock(udf={'Run Status': 'RunCompleted'}))
+    _patch('pipelines.common.clarity.find_project_name_from_sample', return_value='a_project')
     _patch('quality_control.genotype_validation.clarity.find_project_name_from_sample', return_value='a_project')
-    _patch('driver.clarity.get_user_sample_name', new=_fake_get_user_sample_id)
+    _patch('pipelines.bcbio_pipelines.clarity.get_user_sample_name', new=_fake_get_user_sample_id)
+    _patch('pipelines.common.clarity.get_user_sample_name', new=_fake_get_user_sample_id)
+    _patch('pipelines.qc_pipelines.clarity.get_user_sample_name', new=_fake_get_user_sample_id)
+    _patch('pipelines.variant_calling.clarity.get_user_sample_name', new=_fake_get_user_sample_id)
     _patch('report_generation.report_crawlers.clarity.get_user_sample_name', new=_fake_get_user_sample_id)
     _patch('report_generation.report_crawlers.clarity.get_plate_id_and_well', new=_fake_get_plate_id_and_well)
     _patch('report_generation.report_crawlers.clarity.get_sample_gender')
@@ -84,7 +87,7 @@ def patch_pipeline(species='Homo sapiens', analysis_type='Variant Calling'):
     _patch('quality_control.genotype_validation.clarity.get_sample_names_from_project', return_value=set())
     _patch('quality_control.genotype_validation.clarity.get_sample_genotype', return_value=set())
     _patch('quality_control.lane_duplicates.WellDuplicates._well_duplicates', new=_fake_welldups)
-    _patch('driver.time.sleep')
+    _patch('pipelines.demultiplexing.time.sleep')
 
     yield
 
@@ -127,7 +130,7 @@ def test_bcbio():
 
         output_dir = os.path.join(cfg['sample']['output_dir'], 'a_project', '10015AT0004')
 
-        for outfile, md5file in (('uid_10015AT0004.txt', 'samtools_stats.txt.md5'),
+        for outfile, md5file in (('samtools_stats.txt', 'samtools_stats.txt.md5'),
                                  ('uid_10015AT0004.vcf.stats', 'uid_10015AT0004.vcf.stats.md5')):
             with open(os.path.join(output_dir, md5file), 'r') as f:
                 assert f.readline().split(' ')[0] == integration_cfg['bcbio']['md5s'][outfile]
@@ -146,13 +149,14 @@ def main():
     test_output = util.str_join(
         'Pipeline test finished. ',
         'Start time: %s, finish time: %s. '
-        'Pytest output below:\n' % (start_time, end_time),
+        'Pytest output:\n' % (start_time, end_time),
         s.getvalue()
     )
     e = notifications.EmailNotification(
         'Analysis Driver integration test',
         **integration_cfg['notification']
     )
+    print(test_output)
     e.notify(test_output)
 
 
