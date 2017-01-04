@@ -1,11 +1,11 @@
-import os.path
+from os.path import join
 from tests.test_analysisdriver import helper
 from analysis_driver.util import bash_commands
 from analysis_driver.reader import SampleSheet, RunInfo
 from analysis_driver.config import default as cfg
 
-sample_sheet_csv = os.path.join(helper.assets_path, 'SampleSheet_analysis_driver.csv')
-sample_sheet = SampleSheet(helper.sample_sheet_path)
+sample_sheet_csv = join(helper.assets_path, 'SampleSheet_analysis_driver.csv')
+sample_sheet = SampleSheet(join(helper.assets_path, 'test_runs', 'barcoded_run', 'SampleSheet_analysis_driver.csv'))
 run_info = RunInfo(helper.assets_path)
 
 
@@ -26,7 +26,7 @@ def test_bcl2fastq():
 
 
 def test_fastqc():
-    test_fastq = os.path.join(helper.fastq_path, '10015AT', '10015ATA0001L05', 'this.fastq.gz')
+    test_fastq = join(helper.fastq_path, '10015AT', '10015ATA0001L05', 'this.fastq.gz')
     expected = '--nogroup -t 1 -q ' + test_fastq
     assert bash_commands.fastqc(test_fastq).endswith(expected)
 
@@ -44,13 +44,12 @@ def test_rsync_from_to():
 def test_bwa_mem_samblaster():
     cmd = bash_commands.bwa_mem_samblaster(['this.fastq', 'that.fastq'], 'ref.fasta', 'output/out.bam')
     expected_cmd = (
+        'set -o pipefail; '
         'path/to/bwa mem -M -t 16 ref.fasta this.fastq that.fastq | '
         'path/to/samblaster | '
         'path/to/samtools view -b - | '
         'path/to/sambamba sort -m 5G --tmpdir output -t 16 -o output/out.bam /dev/stdin'
     )
-    print(cmd)
-    print(expected_cmd)
     assert cmd == expected_cmd
 
 
@@ -62,14 +61,30 @@ def test_bwa_mem_samblaster_read_groups():
         read_group={'ID': '1', 'SM': 'user_sample_id', 'PL': 'illumina'}
     )
     expected_cmd = (
+        'set -o pipefail; '
         'path/to/bwa mem -M -t 16 -R \'@RG\\tID:1\\tPL:illumina\\tSM:user_sample_id\' '
         'ref.fasta this.fastq that.fastq | '
         'path/to/samblaster | '
         'path/to/samtools view -b - | '
         'path/to/sambamba sort -m 5G --tmpdir output -t 16 -o output/out.bam /dev/stdin'
     )
-    print(cmd)
-    print(expected_cmd)
+    assert cmd == expected_cmd
+
+
+def test_bwa_mem_biobambam_read_groups():
+    cmd = bash_commands.bwa_mem_biobambam(
+        ['this.fastq', 'that.fastq'],
+        'ref.fasta',
+        'output/out.bam',
+        read_group={'ID': '1', 'SM': 'user_sample_id', 'PL': 'illumina'}
+    )
+    expected_cmd = (
+        'set -o pipefail; '
+        'path/to/bwa mem -M -t 16 -R \'@RG\\tID:1\\tPL:illumina\\tSM:user_sample_id\' '
+        'ref.fasta this.fastq that.fastq | '
+        'path/to/bamsormadup inputformat=sam SO=coordinate tmpfile=output/out.bam '
+        'threads=16 indexfilename=output/out.bam.bai > output/out.bam'
+    )
     assert cmd == expected_cmd
 
 
@@ -110,3 +125,22 @@ def test_seqtk_fqchk():
     fastq_file = 'path/to/fastq_R1.fastq.gz'
     expected = '%s fqchk -q 0 %s > %s.fqchk' % (cfg['tools']['seqtk'], fastq_file, fastq_file)
     assert bash_commands.seqtk_fqchk(fastq_file) == expected
+
+
+def test_fastq_filterer_and_pigz_in_place():
+    fastq_file_pair = ('r1.fastq.gz', 'r2.fastq.gz')
+    expected_command = (
+        'mkfifo r1_filtered.fastq\n'
+        'mkfifo r2_filtered.fastq\n'
+        'set -e; path/to/fastq-filterer --i1 r1.fastq.gz --i2 r2.fastq.gz --o1 r1_filtered.fastq '
+        '--o2 r2_filtered.fastq --threshold 36 & '
+        'pigz -c -p 10 r1_filtered.fastq > r1_filtered.fastq.gz & '
+        'pigz -c -p 10 r2_filtered.fastq > r2_filtered.fastq.gz\n'
+        'EXIT_CODE=$?\n'
+        'rm r1_filtered.fastq r2_filtered.fastq\n'
+        '(exit $EXIT_CODE) && mv r1_filtered.fastq.gz r1.fastq.gz\n'
+        '(exit $EXIT_CODE) && mv r2_filtered.fastq.gz r2.fastq.gz\n'
+        '(exit $EXIT_CODE)'
+    )
+    command = bash_commands.fastq_filterer_and_pigz_in_place(fastq_file_pair)
+    assert command == expected_command

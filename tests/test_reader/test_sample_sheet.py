@@ -1,98 +1,95 @@
-__author__ = 'mwham'
+from os.path import join, isfile
 from tests.test_analysisdriver import TestAnalysisDriver
 from analysis_driver.reader import SampleSheet, RunInfo, transform_sample_sheet
 from analysis_driver.reader.sample_sheet import SampleProject, Sample
 import pytest
-import os
 
 
-samplesheet_with_barcode = """[Header],,,,,,,,
-IEMFileVersion,4,,,,,,,
-Investigator Name,Lucas Lefevre,,,,,,,
-Experiment Name,,,,,,,,
-Date,02/12/2015,,,,,,,
-Workflow,GenerateFASTQ,,,,,,,
-Application,HiSeq FASTQ Only,,,,,,,
-Assay,TruSeq HT,,,,,,,
-Description,HiSeqX run,,,,,,,
-Chemistry,Default,,,,,,,
-,,,,,,,,
-[Reads],,,,,,,,
-151,,,,,,,,
-151,,,,,,,,
-,,,,,,,,
-[Settings],,,,,,,,
-ReverseComplement,0,,,,,,,
-Adapter,AGATCGGAAGAGCACACGTCTGAACTCCAGTCA,,,,,,,
-AdapterRead2,AGATCGGAAGAGCGTCGTGTAGGGAAAGAGTGT,,,,,,,
-,,,,,,,,
-[Data],
+samples_with_barcode = """
 Lane,Sample_ID,Sample_Name,Sample_Plate,Sample_Well,Index2,Index,Sample_Project,GenomeFolder
-1,10015AT0001,10015ATpool01,,,IL-TP-006,GCCAAT,10015AT,
-2,10015AT0001,10015ATpool01,,,IL-TP-002,CGATGT,10015AT,
-3,10015AT0001,10015ATpool01,,,IL-TP-007,CAGATC,10015AT,
-4,10015AT0001,10015ATpool01,,,IL-TP-005,ACAGTG,10015AT,
-5,10015AT0001,10015ATpool01,,,IL-TP-012,CTTGTA,10015AT,
-6,10015AT0001,10015ATpool01,,,IL-TP-013,AGTCAA,10015AT,
-7,10015AT0001,10015ATpool01,,,IL-TP-014,AGTTCC,10015AT,
-8,10015AT0001,10015ATpool01,,,IL-TP-002,CGATGT,10015AT,
+1+2+3+4+5+6+7+8,10015AT0001,10015ATpool01,,,IL-TP-006,GCCAATAA,10015AT,
+1+2+3+4+5+6+7+8,10015AT0001,10015ATpool01,,,IL-TP-002,CGATGTAA,10015AT,
+1+2+3+4+5+6+7+8,10015AT0001,10015ATpool01,,,IL-TP-007,CAGATCAA,10015AT,
+1+2+3+4+5+6+7+8,10015AT0001,10015ATpool01,,,IL-TP-005,ACAGTGAA,10015AT,
+1+2+3+4+5+6+7+8,10015AT0001,10015ATpool01,,,IL-TP-012,CTTGTAAA,10015AT,
+1+2+3+4+5+6+7+8,10015AT0001,10015ATpool01,,,IL-TP-013,AGTCAAAA,10015AT,
+1+2+3+4+5+6+7+8,10015AT0001,10015ATpool01,,,IL-TP-014,AGTTCCAA,10015AT,
+1+2+3+4+5+6+7+8,10015AT0001,10015ATpool01,,,IL-TP-002,CGATGTAA,10015AT,
 """
 
-samplesheet_without_barcode = """[Header],,,,,,,,
-IEMFileVersion,4,,,,,,,
-Investigator Name,Lucas Lefevre,,,,,,,
-Experiment Name,,,,,,,,
-Date,02/12/2015,,,,,,,
-Workflow,GenerateFASTQ,,,,,,,
-Application,HiSeq FASTQ Only,,,,,,,
-Assay,TruSeq HT,,,,,,,
-Description,HiSeqX run,,,,,,,
-Chemistry,Default,,,,,,,
-,,,,,,,,
-[Reads],,,,,,,,
-151,,,,,,,,
-151,,,,,,,,
-,,,,,,,,
-[Settings],,,,,,,,
-ReverseComplement,0,,,,,,,
-Adapter,AGATCGGAAGAGCACACGTCTGAACTCCAGTCA,,,,,,,
-AdapterRead2,AGATCGGAAGAGCGTCGTGTAGGGAAAGAGTGT,,,,,,,
-,,,,,,,,
-[Data],
+samples_without_barcode = """
 Lane,Sample_ID,Sample_Name,Sample_Plate,Sample_Well,Index2,Index,Sample_Project,GenomeFolder
-1,10015AT0001,10015ATpool01,,,,,10015AT,
-2,10015AT0001,10015ATpool01,,,,,10015AT,
-3,10015AT0001,10015ATpool01,,,,,10015AT,
-4,10015AT0001,10015ATpool01,,,,,10015AT,
-5,10015AT0001,10015ATpool01,,,,,10015AT,
-6,10015AT0001,10015ATpool01,,,,,10015AT,
-7,10015AT0001,10015ATpool01,,,,,10015AT,
-8,10015AT0001,10015ATpool01,,,,,10015AT,
+1+2+3+4+5+6+7+8,10015AT0001,10015ATpool01,,,,,10015AT,
+1+2+3+4+5+6+7+8,10015AT0001,10015ATpool01,,,,,10015AT,
+1+2+3+4+5+6+7+8,10015AT0001,10015ATpool01,,,,,10015AT,
+1+2+3+4+5+6+7+8,10015AT0001,10015ATpool01,,,,,10015AT,
+1+2+3+4+5+6+7+8,10015AT0001,10015ATpool01,,,,,10015AT,
+1+2+3+4+5+6+7+8,10015AT0001,10015ATpool01,,,,,10015AT,
+1+2+3+4+5+6+7+8,10015AT0001,10015ATpool01,,,,,10015AT,
+1+2+3+4+5+6+7+8,10015AT0001,10015ATpool01,,,,,10015AT,
 """
-class TestSampleSheetFunctions(TestAnalysisDriver):
-    new_SP_file = os.path.join(TestAnalysisDriver.assets_path, 'SampleSheet_analysis_driver.csv')
-
-    def test_transform_sample_sheet(self):
-        transform_sample_sheet(self.assets_path, remove_barcode=True)
-        assert os.path.exists(self.new_SP_file)
-        with open(self.new_SP_file) as open_file:
-            assert open_file.read() == samplesheet_without_barcode
-
-        transform_sample_sheet(self.assets_path)
-        assert os.path.exists(self.new_SP_file)
-        with open(self.new_SP_file) as open_file:
-            assert open_file.read() == samplesheet_with_barcode
 
 
-class TestSampleSheet(TestAnalysisDriver):
+def test_transform_sample_sheet():
+    samplesheet_path = join(TestAnalysisDriver.assets_path, 'test_runs', 'barcoded_run')
+    new_samplesheet = join(samplesheet_path, 'SampleSheet_analysis_driver.csv')
+
+    transform_sample_sheet(samplesheet_path, remove_barcode=True)
+    assert isfile(new_samplesheet)
+    with open(new_samplesheet) as open_file:
+        obs = open_file.read()
+        assert samples_without_barcode in obs
+
+    transform_sample_sheet(samplesheet_path)
+    assert isfile(new_samplesheet)
+    with open(new_samplesheet) as open_file:
+        obs = open_file.read()
+        assert samples_with_barcode in obs
+
+
+class TestBarcodedSampleSheet(TestAnalysisDriver):
     def setUp(self):
-        transform_sample_sheet(self.assets_path)
-        self.sample_sheet = SampleSheet(self.sample_sheet_path)
-        self.barcoded_samplesheet = SampleSheet(self.barcoded_samplesheet_path)
-        self.barcodeless_samplesheet = SampleSheet(self.barcodeless_samplesheet_path)
-        self.barcoded_run_info = RunInfo(self.barcoded_run_info_path)
-        self.barcodeless_run_info = RunInfo(self.barcodeless_run_info_path)
-        self.run_info = RunInfo(self.assets_path)
+        run_dir = join(self.assets_path, 'test_runs', 'barcoded_run')
+        transform_sample_sheet(run_dir)
+
+        self.sample_sheet = SampleSheet(join(run_dir, 'SampleSheet_analysis_driver.csv'))
+        self.run_info = RunInfo(run_dir)
+        self.samples = []
+        for name, p in self.sample_sheet.sample_projects.items():
+            for name2, i in p.sample_ids.items():
+                for sample in i.samples:
+                    self.samples.append(sample)
+        self.sample_ids = self.sample_sheet.sample_projects['10015AT'].sample_ids
+
+    def test_init(self):
+        for sample in self.samples:
+            assert sample.extra_data['Index2'] in [
+                'IL-TP-002', 'IL-TP-005', 'IL-TP-006', 'IL-TP-007', 'IL-TP-012', 'IL-TP-013', 'IL-TP-014'
+            ]
+            assert sample.sample_project == '10015AT'
+            assert sample.sample_id == '10015AT0001'
+            assert sample.lane == '1+2+3+4+5+6+7+8'
+            assert sample.extra_data['Sample_Name'] == '10015ATpool01'
+            assert sample.barcode == sample.barcode.upper()
+
+    def test_check_barcodes(self):
+        assert self.sample_sheet.check_barcodes() == 8
+
+    def test_generate_mask(self):
+        assert self.sample_sheet.generate_mask(self.run_info.mask) == 'y150n,i8,y150n'
+
+    def test_validate(self):
+        assert self.sample_sheet.validate(self.run_info.mask) is True
+
+
+class TestBarcodelessSampleSheet(TestAnalysisDriver):
+    def setUp(self):
+        run_dir = join(self.assets_path, 'test_runs', 'barcodeless_run')
+
+        transform_sample_sheet(run_dir, remove_barcode=True)
+
+        self.sample_sheet = SampleSheet(join(run_dir, 'SampleSheet_analysis_driver.csv'), has_barcode=False)
+        self.run_info = RunInfo(run_dir)
         self.samples = []
         for name, p in self.sample_sheet.sample_projects.items():
             for name2, i in p.sample_ids.items():
@@ -103,9 +100,6 @@ class TestSampleSheet(TestAnalysisDriver):
     def test_init(self):
         expected_lane = 1
         for sample in self.samples:
-            assert sample.extra_data['Index2'] in [
-                'IL-TP-002', 'IL-TP-005', 'IL-TP-006', 'IL-TP-007', 'IL-TP-012', 'IL-TP-013', 'IL-TP-014'
-            ]
             assert sample.sample_project == '10015AT'
             assert sample.sample_id == '10015AT0001'
             assert sample.lane == str(expected_lane)
@@ -115,18 +109,16 @@ class TestSampleSheet(TestAnalysisDriver):
             expected_lane += 1
 
     def test_check_barcodes(self):
-        assert self.sample_sheet.check_barcodes() == 6
+        assert self.sample_sheet.check_barcodes() == 0
 
     def test_generate_mask(self):
-        assert self.barcoded_samplesheet.generate_mask(self.barcoded_run_info.mask) == 'y150n,i8,y150n'
-        assert self.barcodeless_samplesheet.generate_mask(self.barcodeless_run_info.mask) == 'y150n,y150n'
+        assert self.sample_sheet.generate_mask(self.run_info.mask) == 'y150n,y150n'
 
     def test_check_one_barcode_per_lane(self):
         self.sample_sheet._validate_one_sample_per_lane()
 
     def test_validate(self):
         assert self.sample_sheet.validate(self.run_info.mask) is True
-
 
 
 class TestSampleProject(TestAnalysisDriver):

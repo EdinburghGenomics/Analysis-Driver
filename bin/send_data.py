@@ -8,11 +8,8 @@ from egcg_core.app_logging import logging_default as log_cfg
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from analysis_driver.reader import SampleSheet
 from analysis_driver.report_generation.report_crawlers import SampleCrawler, RunCrawler
-from analysis_driver.config import default as cfg
+from analysis_driver.config import default as cfg, load_config
 from analysis_driver.reader.run_info import RunInfo
-
-log_cfg.default_level = logging.DEBUG
-log_cfg.add_handler(logging.StreamHandler(stream=sys.stdout), logging.DEBUG)
 
 
 def main():
@@ -24,20 +21,25 @@ def main():
     p = argparse.ArgumentParser()
     subparsers = p.add_subparsers()
 
-    run_parser = subparsers.add_parser('run', parents = [parent])
+    run_parser = subparsers.add_parser('run', parents=[parent])
     run_parser.add_argument('run_id')
     run_parser.add_argument('--samplesheet')
     run_parser.add_argument('--conversion_stats', nargs='?', default=None)
+    run_parser.add_argument('--adapter_trim_file', nargs='?', default=None)
     run_parser.add_argument('--run_dir', help='e.g. jobs/<run_id>')
     run_parser.set_defaults(func=run_crawler)
 
-    sample_parser = subparsers.add_parser('sample', parents = [parent])
+    sample_parser = subparsers.add_parser('sample', parents=[parent])
     sample_parser.add_argument('project_id')
     sample_parser.add_argument('sample_id')
     sample_parser.add_argument('--input_dir')
     sample_parser.set_defaults(func=sample_crawler)
 
     args = p.parse_args()
+
+    load_config()
+    log_cfg.default_level = logging.DEBUG
+    log_cfg.add_handler(logging.StreamHandler(stream=sys.stdout), logging.DEBUG)
 
     return args.func(args)
 
@@ -52,6 +54,10 @@ def run_crawler(args):
         conversion_stats = args.conversion_stats
     else:
         conversion_stats = os.path.join(run_dir, 'Stats', 'ConversionStats.xml')
+    if args.adapter_trim_file:
+        adapter_trim_file = args.adapter_trim_file
+    else:
+        adapter_trim_file = os.path.join(run_dir, 'Stats', 'AdapterTrimming.txt')
     run_info = RunInfo(os.path.join(run_dir))
     if args.samplesheet:
         samplesheet = SampleSheet(args.samplesheet, has_barcode=run_info.mask.has_barcodes)
@@ -59,7 +65,7 @@ def run_crawler(args):
         samplesheet = SampleSheet(os.path.join(run_dir, 'SampleSheet_analysis_driver.csv'),
                                   has_barcode=run_info.mask.has_barcodes)
 
-    c = RunCrawler(args.run_id, samplesheet, conversion_stats, run_dir)
+    c = RunCrawler(args.run_id, samplesheet, adapter_trim_file=adapter_trim_file, conversion_xml_file=conversion_stats, run_dir=run_dir)
     if args.test:
         print(
             json.dumps(

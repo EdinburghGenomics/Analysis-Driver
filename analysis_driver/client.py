@@ -1,11 +1,17 @@
 import os
+import sys
 import logging
 import argparse
+import signal
+import traceback
+from egcg_core.executor import stop_running_jobs
 from egcg_core.app_logging import logging_default as log_cfg
 from analysis_driver import exceptions
 from analysis_driver.config import default as cfg, load_config
-from analysis_driver.notification import default as ntf, LogNotification, EmailNotification, AsanaNotification
-from analysis_driver.dataset_scanner import RunScanner, SampleScanner, DATASET_READY, DATASET_FORCE_READY, DATASET_NEW, DATASET_REPROCESS
+from analysis_driver.dataset_scanner import RunScanner, SampleScanner, ProjectScanner, DATASET_READY,\
+    DATASET_FORCE_READY, DATASET_NEW, DATASET_REPROCESS
+
+app_logger = log_cfg.get_logger('client')
 
 
 def main():
@@ -23,24 +29,27 @@ def main():
         if 'run' in cfg:
             cfg.merge(cfg['run'])
         scanner = RunScanner(cfg)
-    else:
-        assert args.sample
+    elif args.sample:
         if 'sample' in cfg:
             cfg.merge(cfg['sample'])
         scanner = SampleScanner(cfg)
+    else:
+        assert args.project
+        if 'project' in cfg:
+            cfg.merge(cfg['project'])
+        scanner = ProjectScanner(cfg)
 
-    if any([args.abort, args.skip, args.reset, args.force, args.report, args.report_all]):
+    if any([args.abort, args.skip, args.reset, args.force, args.report, args.report_all, args.stop]):
         for d in args.abort:
             scanner.get_dataset(d).abort()
         for d in args.skip:
-            dataset = scanner.get_dataset(d)
-            dataset.reset()
-            dataset.start()
-            dataset.succeed(quiet=True)
+            scanner.get_dataset(d).skip()
         for d in args.reset:
             scanner.get_dataset(d).reset()
         for d in args.force:
             scanner.get_dataset(d).force()
+        for d in args.stop:
+            scanner.get_dataset(d).terminate()
 
         if args.report:
             scanner.report()
@@ -75,8 +84,6 @@ def _process_dataset(d):
     :param Dataset d: Run or Sample to process
     :return: exit status (9 if stacktrace)
     """
-    app_logger = log_cfg.get_logger('client')
-
     dataset_job_dir = os.path.join(cfg['jobs_dir'], d.name)
     if not os.path.isdir(dataset_job_dir):
         os.makedirs(dataset_job_dir)
@@ -92,17 +99,31 @@ def _process_dataset(d):
     app_logger.info('Using config file at ' + cfg.config_file)
     app_logger.info('Triggering for dataset: ' + d.name)
 
-    ntf.add_subscribers(
-        (LogNotification, d, cfg.query('notification', 'log_notification')),
-        (EmailNotification, d, cfg.query('notification', 'email_notification')),
-        (AsanaNotification, d, cfg.query('notification', 'asana'))
-    )
+    def _handle_exception(exception):
+        app_logger.critical('Encountered a %s exception: %s', exception.__class__.__name__, str(exception))
+        etype, value, tb = sys.exc_info()
+        if tb:
+            stacktrace = ''.join(traceback.format_exception(etype, value, tb))
+            app_logger.info('Stacktrace below:\n' + stacktrace)
+            d.ntf.crash_report(stacktrace)
+        _handle_termination(9)
 
+    def _sigterm_handler(sig, frame):
+        app_logger.info('Received signal %s in call stack:\n%s', sig, ''.join(traceback.format_stack(frame)))
+        _handle_termination(sig)
+
+    def _handle_termination(sig):
+        stop_running_jobs()
+        d.fail(sig)
+        sys.exit(sig)
+
+    signal.signal(10, _sigterm_handler)
+    signal.signal(15, _sigterm_handler)
     exit_status = 9
     try:
-        from analysis_driver.pipeline import pipeline
+        from analysis_driver import pipelines
         d.start()
-        exit_status = pipeline(d)
+        exit_status = pipelines.pipeline(d)
         app_logger.info('Done')
 
     except exceptions.SequencingRunError as e:
@@ -111,12 +132,7 @@ def _process_dataset(d):
         d.abort()
 
     except Exception as e:
-        app_logger.critical('Encountered a %s exception: %s', e.__class__.__name__, str(e))
-        import traceback
-        stacktrace = traceback.format_exc()
-        app_logger.info('Stack trace below:\n' + stacktrace)
-        d.fail(exit_status)
-        ntf.crash_report(stacktrace)
+        _handle_exception(e)
 
     else:
         if exit_status == 0:
@@ -135,6 +151,7 @@ def _parse_args():
     group = p.add_mutually_exclusive_group(required=True)
     group.add_argument('--run', action='store_true')
     group.add_argument('--sample', action='store_true')
+    group.add_argument('--project', action='store_true')
     p.add_argument('--report', action='store_true', help='report on status of datasets')
     p.add_argument('--report-all', action='store_true', help='report all datasets, including finished ones')
     p.add_argument('--skip', nargs='+', default=[], help='mark a dataset as completed')
@@ -146,5 +163,6 @@ def _parse_args():
         default=[],
         help='mark a sample for processing, even if below the data threshold'
     )
+    p.add_argument('--stop', nargs='+', default=[], help='stop a currently processing run/sample')
 
     return p.parse_args()

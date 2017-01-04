@@ -1,8 +1,9 @@
 import os
 import threading
+from sys import modules
 from datetime import datetime
+from analysis_driver.notification import NotificationCentre
 from analysis_driver import reader
-from analysis_driver.notification import default as ntf
 from egcg_core import rest_communication, clarity
 from egcg_core.app_logging import AppLogger
 from egcg_core.exceptions import RestCommunicationError
@@ -23,6 +24,7 @@ class Dataset(AppLogger):
     def __init__(self, name, most_recent_proc=None):
         self.name = name
         self.most_recent_proc = MostRecentProc(self.type, self.name, most_recent_proc)
+        self.ntf = NotificationCentre(self.name)
         self.expected_output_files = []
 
     def add_output_file(self, output_record):
@@ -71,41 +73,57 @@ class Dataset(AppLogger):
             return stages[0]
 
     def start(self):
-        self._assert_status(DATASET_READY, DATASET_FORCE_READY, DATASET_NEW, method='start')
+        self._assert_status(DATASET_READY, DATASET_FORCE_READY, DATASET_NEW)
         self.most_recent_proc.initialise_entity()  # take a new entity
         self.most_recent_proc.start()
-        ntf.start_pipeline()
+        self.ntf.start_pipeline()
 
-    def succeed(self, quiet=False):
-        self._assert_status(DATASET_PROCESSING, method='succeed')
+    def succeed(self):
+        self._assert_status(DATASET_PROCESSING)
         self.most_recent_proc.finish(DATASET_PROCESSED_SUCCESS)
-        if not quiet:
-            ntf.end_pipeline(0)
+        self.ntf.end_pipeline(0)
 
     def fail(self, exit_status):
-        self._assert_status(DATASET_PROCESSING, method='fail')
-        ntf.end_pipeline(exit_status)
+        self._assert_status(DATASET_PROCESSING)
+        self.ntf.end_pipeline(exit_status)
         self.most_recent_proc.finish(DATASET_PROCESSED_FAIL)
 
     def abort(self):
         self.most_recent_proc.finish(DATASET_ABORTED)
 
     def reset(self):
+        self.terminate()
         self.most_recent_proc.change_status(DATASET_REPROCESS)
 
+    def skip(self):
+        self.most_recent_proc.finish(DATASET_PROCESSED_SUCCESS)
+
+    def terminate(self):
+        pid = self.most_recent_proc.get('pid')
+        if pid and self._is_valid_pid(pid):
+            self.info('Terminating pid %s for %s %s', pid, self.type, self.name)
+            os.kill(pid, 10)
+
     def start_stage(self, stage_name):
-        ntf.start_stage(stage_name)
+        self.ntf.start_stage(stage_name)
         self.most_recent_proc.start_stage(stage_name)
 
     def end_stage(self, stage_name, exit_status=0):
-        ntf.end_stage(stage_name, exit_status)
+        self.ntf.end_stage(stage_name, exit_status)
         self.most_recent_proc.end_stage(stage_name, exit_status)
 
-    def _assert_status(self, *allowed_statuses, method=None):
+    @staticmethod
+    def _is_valid_pid(pid):
+        cmd_file = os.path.join('/', 'proc', str(pid), 'cmdline')
+        if os.path.isfile(cmd_file):
+            with open(cmd_file, 'r') as f:
+                return modules['__main__'].__file__ in f.read()
+
+    def _assert_status(self, *allowed_statuses):
         # make sure the most recent process is the same as the one in the REST API
         self.most_recent_proc.retrieve_entity()
         status = self.dataset_status
-        assert status in allowed_statuses, 'Tried to %s a %s %s' % (method, status, self.type)
+        assert status in allowed_statuses, 'Status assertion failed on a %s %s' % (status, self.type)
 
     @property
     def _is_ready(self):
@@ -128,7 +146,7 @@ class Dataset(AppLogger):
 
 class NoCommunicationDataset(Dataset):
     """Dummy dataset that can be used in QC object but won't contact the API"""
-    type = "Notype"
+    type = 'Notype'
 
     def start_stage(self, stage_name):
         pass
@@ -150,17 +168,14 @@ class RunDataset(Dataset):
     _sample_sheet = None
     _run_info = None
 
-    def __init__(self, name, path, use_int_dir, most_recent_proc=None):
+    def __init__(self, name, path, most_recent_proc=None):
         super().__init__(name, most_recent_proc)
         self.path = path
-        self.use_int_dir = use_int_dir
 
     def _is_ready(self):
-        return self.rta_complete() or self.use_int_dir
-
-    def rta_complete(self):
         return os.path.isfile(os.path.join(self.path, 'RTAComplete.txt'))
 
+    # TODO: ensure run_info and sample_sheet are evaluated th same way as in driver
     @property
     def run_info(self):
         if self._run_info is None:
@@ -254,6 +269,28 @@ class SampleDataset(Dataset):
         )
 
 
+class ProjectDataset(Dataset):
+    type = 'project'
+    endpoint = 'projects'
+    id_field = 'project_id'
+
+    def __init__(self, name, most_recent_proc=None):
+        super().__init__(name, most_recent_proc)
+
+    def _is_ready(self):
+        samples_processed = rest_communication.get_documents(
+            'samples',
+            where={'project_id': self.name}
+        )
+        samples_processed = len(samples_processed)
+        project_from_lims = clarity.get_project(self.name)
+        if not project_from_lims:
+            raise AnalysisDriverError('Could not find number of quoted samples in LIMS for ' + self.name)
+        else:
+            number_of_quoted_samples = project_from_lims[0].udf.get('Number of Quoted Samples')
+            return samples_processed >= number_of_quoted_samples
+
+
 class MostRecentProc:
     def __init__(self, dataset_type, dataset_name, initial_content=None):
         self.lock = threading.Lock()
@@ -271,15 +308,15 @@ class MostRecentProc:
             sort='-_created'
         )
         if procs:
-            # remove the private (starting with _ ) fields from the dict
+            # remove the private (starting with '_') fields from the dict
             self._entity = {k: v for k, v in procs[0].items() if not k.startswith('_')}
+        else:
+            self._entity = {}
 
     @property
     def entity(self):
         if self._entity is None:
             self.retrieve_entity()
-            if not self._entity:
-                self.initialise_entity()
         return self._entity
 
     def initialise_entity(self):
@@ -313,6 +350,9 @@ class MostRecentProc:
 
     def update_entity(self, **kwargs):
         with self.lock:
+            if not self.entity:  # initialise self._entity with database content, or {} if none available
+                self.initialise_entity()  # if self._entity == {}, then initialise and push to database
+
             self.entity.update(kwargs)
             self.sync()
 

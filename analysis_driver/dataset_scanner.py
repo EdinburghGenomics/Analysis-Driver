@@ -1,9 +1,9 @@
 import os
 from collections import defaultdict
-from egcg_core import rest_communication
+from egcg_core.rest_communication import get_documents
 from egcg_core.app_logging import AppLogger
 from egcg_core.clarity import get_list_of_samples, sanitize_user_id
-from analysis_driver.dataset import RunDataset, SampleDataset
+from analysis_driver.dataset import RunDataset, SampleDataset, ProjectDataset
 from egcg_core.constants import DATASET_NEW, DATASET_READY, DATASET_FORCE_READY, DATASET_PROCESSING,\
     DATASET_PROCESSED_SUCCESS, DATASET_PROCESSED_FAIL, DATASET_ABORTED, DATASET_REPROCESS, DATASET_DELETED
 
@@ -43,18 +43,18 @@ class DatasetScanner(AppLogger):
 
     def _get_dataset_records_for_statuses(self, statuses):
         self.debug('Querying Rest API for status %s', ', '.join(statuses))
-        if DATASET_NEW in statuses :
+        if DATASET_NEW in statuses:
             statuses = list(statuses)
             statuses.remove(DATASET_NEW)
             statuses.append(None)
         if len(statuses) > 1:
-            match={'$or': [ {'proc_status': status} for status in statuses ]}
+            match = {'$or': [{'proc_status': status} for status in statuses]}
         else:
-            match={'proc_status': statuses[0]}
+            match = {'proc_status': statuses[0]}
         return [
-            d for d in rest_communication.get_documents(self.endpoint, match=match, paginate=False)
+            d for d in get_documents(self.endpoint, match=match, paginate=False, quiet=True)
             if d[self.item_id] not in self._triggerignore
-            ]
+        ]
 
     def _get_datasets_for_statuses(self, statuses):
         self.debug('Creating Datasets for status %s', ', '.join(statuses))
@@ -97,17 +97,11 @@ class RunScanner(DatasetScanner):
 
     def __init__(self, config):
         super().__init__(config)
-        self.use_int_dir = 'intermediate_dir' in config
 
     def get_dataset(self, name, most_recent_proc=None):
         dataset_path = os.path.join(self.input_dir, name)
         if os.path.exists(dataset_path):
-            return RunDataset(
-                name,
-                os.path.join(self.input_dir, name),
-                use_int_dir=self.use_int_dir,
-                most_recent_proc=most_recent_proc
-            )
+            return RunDataset(name, os.path.join(self.input_dir, name), most_recent_proc=most_recent_proc)
 
     def _get_dataset_records_for_statuses(self, statuses):
         rest_api_datasets = super()._get_dataset_records_for_statuses(statuses)
@@ -158,3 +152,11 @@ class SampleScanner(DatasetScanner):
             self.get_dataset(k, v['record'].get('most_recent_proc'), v.get('threshold'))
             for k, v in datasets.items()
         ]
+
+
+class ProjectScanner(DatasetScanner):
+    endpoint = 'aggregate/projects'
+    item_id = 'project_id'
+
+    def get_dataset(self, name, most_recent_proc=None):
+        return ProjectDataset(name, most_recent_proc)

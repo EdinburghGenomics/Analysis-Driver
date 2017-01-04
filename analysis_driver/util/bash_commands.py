@@ -32,36 +32,50 @@ def fastqc(fastq, threads=1):
     return cmd
 
 
+def gzip_test(f):
+    cmd = 'gzip -t ' + f
+    app_logger.debug('Writing: ' + cmd)
+    return cmd
+
+
 def seqtk_fqchk(fastq_file):
     cmd = cfg['tools']['seqtk'] + ' fqchk -q 0 %s > %s.fqchk' % (fastq_file, fastq_file)
     app_logger.debug('Writing: ' + cmd)
     return cmd
 
 
-def sickle_paired_end_in_place(fastq_file_pair):
+def fastq_filterer_and_pigz_in_place(fastq_file_pair, pigz_threads=10):
     """
-    Run sickle in paired end mode to do a very minimal trimming and filter reads shorter than 36 bases, i.e.
-    remove the adapter dimers flagged by bcl2fastq.
-    :param fastq_file_pair: A pair of fastqs to run sickle on
+    :param tuple[str,str] fastq_file_pair: Paired-end fastqs to filter
+    :param int pigz_threads: nthreads to assign pigz (note that two pigzs run, so this is will be doubled)
+    Run fastq filterer on a pair of fastqs, removing pairs where one is shorter than 36 bases
     """
     if len(fastq_file_pair) != 2:
-        raise AnalysisDriverError('sickle_paired_end only supports paired fastq files')
+        raise AnalysisDriverError('fastq-filterer only supports paired fastq files')
 
     f1, f2 = sorted(fastq_file_pair)
-    name, ext = os.path.splitext(f1)
-    of1 = name + '_sickle' + ext
-    ofs = name + '_sickle_single' + ext
-    lf = name + '_sickle.log'
-    name, ext = os.path.splitext(f2)
-    of2 = name + '_sickle' + ext
-    cmds = []
-    cmd = cfg['tools']['sickle'] + ' pe -f %s -r %s -o %s -p %s -s %s -q 5  -l 36  -x  -g -t sanger > %s'
-    cmds.append(cmd % (f1, f2, of1, of2, ofs, lf))
-    # replace the original files with the new files and remove the the single file to keep things clean
-    cmds.append('EXIT_CODE=$?')
+    f1_base = f1.replace('.fastq.gz', '')
+    int1 = f1_base + '_filtered.fastq'
+    of1 = f1_base + '_filtered.fastq.gz'
+    f2_base = f2.replace('.fastq.gz', '')
+    int2 = f2_base + '_filtered.fastq'
+    of2 = f2_base + '_filtered.fastq.gz'
+    cmds = ['mkfifo ' + int1, 'mkfifo ' + int2]
+    c = (
+        'set -e; {ff} --i1 {f1} --i2 {f2} --o1 {int1} --o2 {int2} --threshold {lent} & '
+        '{pz} -c -p {pzt} {int1} > {of1} & '
+        '{pz} -c -p {pzt} {int2} > {of2}'
+    )
+    cmds.append(
+        c.format(ff=cfg.query('tools', 'fastq-filterer'), pz=cfg.query('tools', 'pigz', ret_default='pigz'),
+                 pzt=pigz_threads, f1=f1, f2=f2, of1=of1, of2=of2, int1=int1, int2=int2,
+                 lent=cfg.query('fastq_filterer', 'min_length', ret_default='36'))
+    )
+    cmds.extend(['EXIT_CODE=$?', 'rm ' + int1 + ' ' + int2])
+
+    # replace the original files with the new files to keep things clean
     cmds.append('(exit $EXIT_CODE) && mv %s %s' % (of1, f1))
     cmds.append('(exit $EXIT_CODE) && mv %s %s' % (of2, f2))
-    cmds.append('(exit $EXIT_CODE) && rm %s' % ofs)
     cmds.append('(exit $EXIT_CODE)')
     for c in cmds:
         app_logger.debug('Writing: ' + c)
@@ -81,7 +95,25 @@ def bwa_mem_samblaster(fastq_pair, reference, expected_output_bam, read_group=No
     command_sambamba = '%s sort -m 5G --tmpdir %s -t %s -o %s /dev/stdin' % (
         cfg['tools']['sambamba'], tmp_dir, thread, expected_output_bam
     )
-    cmd = ' | '.join([command_bwa, cfg['tools']['samblaster'], command_samtools, command_sambamba])
+    cmd = 'set -o pipefail; ' + ' | '.join([command_bwa, cfg['tools']['samblaster'], command_samtools, command_sambamba])
+    app_logger.debug('Writing: ' + cmd)
+    return cmd
+
+
+def bwa_mem_biobambam(fastq_pair, reference, expected_output_bam, read_group=None, thread=16):
+    tmp_file = expected_output_bam
+    index = expected_output_bam + '.bai'
+    command_bwa = '%s mem -M -t %s' % (cfg['tools']['bwa'], thread)
+
+    if read_group:
+        read_group_str = '@RG\\t%s' % '\\t'.join(['%s:%s' % (k, read_group[k]) for k in sorted(read_group)])
+        command_bwa += ' -R \'%s\'' % read_group_str
+
+    command_bwa += ' %s %s' % (reference, ' '.join(fastq_pair))
+    command_bambam = '%s inputformat=sam SO=coordinate tmpfile=%s threads=%s indexfilename=%s > %s'
+    command_bambam = command_bambam % (cfg['tools']['biobambam_sortmapdup'], tmp_file, thread, index, expected_output_bam)
+
+    cmd = 'set -o pipefail; ' + ' | '.join([command_bwa, command_bambam])
     app_logger.debug('Writing: ' + cmd)
     return cmd
 

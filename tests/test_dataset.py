@@ -1,7 +1,7 @@
 import os
 import pytest
 from shutil import rmtree
-from unittest.mock import patch, PropertyMock
+from unittest.mock import patch, Mock, PropertyMock
 from tests.test_analysisdriver import TestAnalysisDriver
 from egcg_core import constants as c
 from analysis_driver.exceptions import AnalysisDriverError
@@ -45,18 +45,12 @@ patched_stages = patch(
     )
 )
 
-
 patched_patch = patch(ppath('rest_communication', 'patch_entry'))
 patched_post = patch(ppath('rest_communication', 'post_entry'))
 patched_pid = patch(ppath('os.getpid'), return_value=1)
 patched_update = patch(ppath('MostRecentProc.update_entity'))
 patched_initialise = patch(ppath('MostRecentProc.initialise_entity'))
 patched_finish = patch(ppath('MostRecentProc.finish'))
-
-patched_ntf_start = patch(ppath('ntf.start_pipeline'))
-patched_ntf_end = patch(ppath('ntf.end_pipeline'))
-patched_ntf_start_stage = patch(ppath('ntf.start_stage'))
-patched_ntf_end_stage = patch(ppath('ntf.end_stage'))
 
 
 def patched_get(content=None):
@@ -78,6 +72,7 @@ class TestDataset(TestAnalysisDriver):
         self.base_dir = os.path.join(self.assets_path, 'dataset_scanner')
         seed_directories(self.base_dir)
         self.setup_dataset()
+        self.dataset.ntf = Mock()
 
     def tearDown(self):
         clean(self.base_dir)
@@ -98,42 +93,39 @@ class TestDataset(TestAnalysisDriver):
         ]
         assert self.dataset.active_stages == ['another_stage', 'yet_another_stage']
 
-    @patched_ntf_start
     @patched_initialise
     @patch(ppath('MostRecentProc.start'))
     @patch(ppath('MostRecentProc.retrieve_entity'))
-    def test_start(self, mocked_retrieve_entity, mocked_start, mocked_update, mocked_ntf):
+    def test_start(self, mocked_retrieve_entity, mocked_start, mocked_update):
         self.dataset.most_recent_proc.entity['status'] = c.DATASET_PROCESSING
         with pytest.raises(AssertionError):
             self.dataset.start()
 
         del self.dataset.most_recent_proc.entity['status']
         self.dataset.start()
-        for m in (mocked_update, mocked_ntf, mocked_start):
+        for m in (mocked_update, self.dataset.ntf.start_pipeline, mocked_start):
             assert m.call_count == 1
 
-    @patched_ntf_end
     @patched_finish
     @patch(ppath('MostRecentProc.retrieve_entity'))
-    def test_succeed(self, mocked_retrieve_entity, mocked_finish, mocked_ntf):
+    def test_succeed(self, mocked_retrieve_entity, mocked_finish):
         with pytest.raises(AssertionError):
             self.dataset.succeed()
 
         self.dataset.most_recent_proc.entity['status'] = c.DATASET_PROCESSING
         self.dataset.succeed()
-        mocked_ntf.assert_called_with(0)
+        self.dataset.ntf.end_pipeline.assert_called_with(0)
         mocked_finish.assert_called_with(c.DATASET_PROCESSED_SUCCESS)
 
-    @patched_ntf_end
     @patched_finish
     @patch(ppath('MostRecentProc.retrieve_entity'))
-    def test_fail(self, mocked_retrieve_entity, mocked_finish, mocked_ntf):
+    def test_fail(self, mocked_retrieve_entity, mocked_finish):
         with pytest.raises(AssertionError):
             self.dataset.succeed()
 
         self.dataset.most_recent_proc.entity['status'] = c.DATASET_PROCESSING
         self.dataset.fail(1)
-        mocked_ntf.assert_called_with(1)
+        self.dataset.ntf.end_pipeline.assert_called_with(1)
         mocked_finish.assert_called_with(c.DATASET_PROCESSED_FAIL)
 
     @patched_finish
@@ -148,19 +140,17 @@ class TestDataset(TestAnalysisDriver):
         self.dataset.reset()
         mocked_change_status.assert_called_with(c.DATASET_REPROCESS)
 
-    @patched_ntf_start_stage
     @patch(ppath('MostRecentProc.start_stage'))
-    def test_start_stage(self, mocked_start_stage, mocked_ntf):
+    def test_start_stage(self, mocked_start_stage):
         self.dataset.start_stage('a_stage')
         mocked_start_stage.assert_called_with('a_stage')
-        mocked_ntf.assert_called_with('a_stage')
+        self.dataset.ntf.start_stage.assert_called_with('a_stage')
 
-    @patched_ntf_end_stage
     @patch(ppath('MostRecentProc.end_stage'))
-    def test_end_stage(self, mocked_end_stage, mocked_ntf):
+    def test_end_stage(self, mocked_end_stage):
         self.dataset.end_stage('a_stage')
         mocked_end_stage.assert_called_with('a_stage', 0)
-        mocked_ntf.assert_called_with('a_stage', 0)
+        self.dataset.ntf.end_stage.assert_called_with('a_stage', 0)
 
     def test_str(self):
         with patched_stages:
@@ -191,24 +181,23 @@ class TestRunDataset(TestDataset):
         )
         with patched_get():
             for d_name, rta_complete in datasets:
-                d = RunDataset(d_name, os.path.join(self.base_dir, d_name), use_int_dir=False)
+                d = RunDataset(d_name, os.path.join(self.base_dir, d_name))
                 assert d._is_ready() == rta_complete
 
     def test_dataset_status(self):
         super().test_dataset_status()
         del self.dataset.most_recent_proc.entity['status']
-        assert not self.dataset.rta_complete()
+        assert not self.dataset._is_ready()
         assert self.dataset.dataset_status == c.DATASET_NEW
         os.mkdir(os.path.join(self.base_dir, self.dataset.name))
         touch(os.path.join(self.base_dir, self.dataset.name, 'RTAComplete.txt'))
-        assert self.dataset.rta_complete()
+        assert self.dataset._is_ready()
         assert self.dataset.dataset_status == c.DATASET_READY
 
     def setup_dataset(self):
         self.dataset = RunDataset(
             'test_dataset',
             os.path.join(self.base_dir, 'test_dataset'),
-            use_int_dir=False,
             most_recent_proc={'date_started': 'now', 'dataset_name': 'None', 'dataset_type': 'None'}
         )
 
@@ -321,15 +310,15 @@ class TestMostRecentProc(TestAnalysisDriver):
             )
 
         self.proc._entity = None
-        with patched_get([]):
-            y = self.proc.entity
-            assert y is None
-            mocked_get.assert_called_with(
-                'analysis_driver_procs',
-                where={'dataset_type': 'test', 'dataset_name': 'test'},
-                sort='-_created'
-            )
-            assert mocked_initialise.call_count == 1
+        mocked_get.return_value = []
+        y = self.proc.entity
+        assert y == {}
+        mocked_get.assert_called_with(
+            'analysis_driver_procs',
+            where={'dataset_type': 'test', 'dataset_name': 'test'},
+            sort='-_created'
+        )
+        assert mocked_initialise.call_count == 0
 
     @patched_post
     @patched_patch
@@ -341,7 +330,7 @@ class TestMostRecentProc(TestAnalysisDriver):
             'analysis_driver_procs',
             {'proc_id': 'test_test_now', 'dataset_type': 'test', 'dataset_name': 'test'}
         )
-        mocked_patch.assertcalled_with(
+        mocked_patch.assert_called_with(
             'tests',
             {'analysis_driver_procs': ['test_test_now']},
             id_field='test_id',

@@ -1,17 +1,11 @@
 import os
-from analysis_driver.reader.demultiplexing_parsers import parse_seqtk_fqchk_file, parse_conversion_stats, \
-    parse_welldup_file, get_percentiles, read_histogram_file, collapse_histograms, get_coverage_Y_chrom
-from analysis_driver.reader.demultiplexing_parsers import parse_fastqscreen_file
-from analysis_driver.reader.demultiplexing_parsers import get_fastqscreen_results
-from analysis_driver.reader.demultiplexing_parsers import calculate_mean, calculate_median, calculate_sd, get_coverage_statistics
+from analysis_driver.reader import demultiplexing_parsers as dm
 from tests.test_analysisdriver import TestAnalysisDriver
-from egcg_core.constants import ELEMENT_CONTAMINANT_UNIQUE_MAP, ELEMENT_PCNT_UNMAPPED_FOCAL, ELEMENT_PCNT_UNMAPPED, ELEMENT_TOTAL_READS_MAPPED
-from unittest.mock import patch
-__author__ = 'tcezard'
+from egcg_core.constants import ELEMENT_CONTAMINANT_UNIQUE_MAP, ELEMENT_PCNT_UNMAPPED_FOCAL,\
+    ELEMENT_PCNT_UNMAPPED, ELEMENT_TOTAL_READS_MAPPED
 
 
 class TestDemultiplexingStats(TestAnalysisDriver):
-
     def test(self):
         conversion_stat = os.path.join(self.assets_path, 'test_crawlers', 'ConversionStats.xml')
         expected_barcode_per_lane = [
@@ -28,93 +22,128 @@ class TestDemultiplexingStats(TestAnalysisDriver):
             ('2', 'CCCCCCCC', '22153'),
             ('2', 'NCCCCCCC', '9133')
         ]
-        barcodes_per_lane, top_unknown_barcodes_per_lanes, barcodeless_per_lane = parse_conversion_stats(conversion_stat, has_barcode=True)
-        assert barcodes_per_lane == expected_barcode_per_lane
-        assert top_unknown_barcodes_per_lanes == expected_unknown_barcodes_per_lanes
-        assert barcodeless_per_lane == []
+        barcodes, unknowns, barcodeless = dm.parse_conversion_stats(conversion_stat, has_barcode=True)
+        assert barcodes == expected_barcode_per_lane
+        assert unknowns == expected_unknown_barcodes_per_lanes
+        assert barcodeless == []
 
         conversion_stat = os.path.join(self.assets_path, 'test_crawlers', 'ConversionStats_barcodeless.xml')
         expected_barcodeless_per_lane = [
             ('Corriell_2016-02-03', 'LP0000038-NTP_C01', '1', 'all', 6470949, 3794190, 569128500, 481721486, 344363516),
             ('Corriell_2016-02-03', 'LP0000038-NTP_C02', '2', 'all', 6470949, 4254880, 638232000, 542343434, 364820834)
         ]
-        barcodes_per_lane, top_unknown_barcodes_per_lanes, barcodeless_per_lane = parse_conversion_stats(conversion_stat, has_barcode=False)
-        assert barcodeless_per_lane == expected_barcodeless_per_lane
-
-
+        barcodes, unknowns, barcodeless = dm.parse_conversion_stats(conversion_stat, has_barcode=False)
+        assert barcodeless == expected_barcodeless_per_lane
 
     def test_parse_seqtk_fqchk(self):
         fqchk_file = os.path.join(self.assets_path, '10015ATpool01_S1_L001_R1_001.fastq.gz.fqchk')
-        nb_read, nb_base, lo_q, hi_q = parse_seqtk_fqchk_file(fqchk_file, q_threshold=30)
+        nb_read, nb_base, lo_q, hi_q = dm.parse_seqtk_fqchk_file(fqchk_file, q_threshold=30)
         assert nb_read == 561151
         assert nb_base == 83750569
         assert lo_q == 8551190
         assert hi_q == 75199379
 
     def test_parse_fastqscreen_file1(self):
-        testFile = os.path.join(self.assets_path, "test_sample_R1_screen.txt")
-        result = parse_fastqscreen_file(testFile, 'Homo sapiens')
-        assert result == {ELEMENT_PCNT_UNMAPPED: 1.06, ELEMENT_PCNT_UNMAPPED_FOCAL: 1.09, ELEMENT_TOTAL_READS_MAPPED: 100000, ELEMENT_CONTAMINANT_UNIQUE_MAP: {'Gallus gallus': 1, 'Felis catus': 4, 'Bos taurus': 1, 'Ovis aries': 2, 'Mus musculus': 4, 'Homo sapiens': 74144}}
+        screen_file = os.path.join(self.assets_path, 'test_sample_R1_screen.txt')
+        result = dm.parse_fastqscreen_file(screen_file, 'Homo sapiens')
+        assert result == {
+            ELEMENT_PCNT_UNMAPPED: 1.06,
+            ELEMENT_PCNT_UNMAPPED_FOCAL: 1.09,
+            ELEMENT_TOTAL_READS_MAPPED: 100000,
+            ELEMENT_CONTAMINANT_UNIQUE_MAP: {
+                'Gallus gallus': 1,
+                'Felis catus': 4,
+                'Bos taurus': 1,
+                'Ovis aries': 2,
+                'Mus musculus': 4,
+                'Homo sapiens': 74144
+            }
+        }
 
     def test_parse_fastqscreen_file2(self):
-        testFile = os.path.join(self.assets_path, "test_sample_R1_screen.txt")
-        result = parse_fastqscreen_file(testFile, 'Mellivora capensis')
+        screen_file = os.path.join(self.assets_path, 'test_sample_R1_screen.txt')
+        result = dm.parse_fastqscreen_file(screen_file, 'Mellivora capensis')
         assert result is None
-
-    @patch('analysis_driver.reader.demultiplexing_parsers.get_species_from_sample', autospec=True)
-    def test_get_fastqscreen_results1(self, mocked_species_sample):
-        testFile = os.path.join(self.assets_path, "test_sample_R1_screen.txt")
-        mocked_species_sample.return_value = None
-        result = get_fastqscreen_results(testFile, 'testSampleID')
-        assert result is None
-
-    @patch('analysis_driver.reader.demultiplexing_parsers.get_species_from_sample', autospec=True)
-    def test_get_fastqscreen_results2(self, mocked_species_sample):
-        testFile = os.path.join(self.assets_path, "test_sample_R1_screen.txt")
-        mocked_species_sample.return_value = 'Homo sapiens'
-        result = get_fastqscreen_results(testFile, 'testSampleID')
-        assert result == {ELEMENT_PCNT_UNMAPPED: 1.06, ELEMENT_TOTAL_READS_MAPPED: 100000, ELEMENT_PCNT_UNMAPPED_FOCAL: 1.09, ELEMENT_CONTAMINANT_UNIQUE_MAP: {'Gallus gallus': 1, 'Felis catus': 4, 'Bos taurus': 1, 'Ovis aries': 2, 'Mus musculus': 4, 'Homo sapiens': 74144}}
 
     def test_calculate_mean(self):
         hist_file = os.path.join(self.assets_path, 'test_sample.depth')
-        hist = collapse_histograms(read_histogram_file(hist_file))
-        test_mean = calculate_mean(hist)
+        hist = dm.collapse_histograms(dm.read_histogram_file(hist_file))
+        test_mean = dm.calculate_mean(hist)
         assert test_mean == 438.8514851485148
 
     def test_calculate_median(self):
         hist_file = os.path.join(self.assets_path, 'test_sample.depth')
-        hist = collapse_histograms(read_histogram_file(hist_file))
-        test_median = calculate_median(hist)
+        hist = dm.collapse_histograms(dm.read_histogram_file(hist_file))
+        test_median = dm.calculate_median(hist)
         assert test_median == 478
 
     def test_calculate_sd(self):
         hist_file = os.path.join(self.assets_path, 'test_sample.depth')
-        hist = collapse_histograms(read_histogram_file(hist_file))
-        test_sd = calculate_sd(hist)
+        hist = dm.collapse_histograms(dm.read_histogram_file(hist_file))
+        test_sd = dm.calculate_sd(hist)
         assert test_sd == 189.1911391390011
 
-    def test_get_percentiles(self):
-        histogram={1:5, 2:2, 3:4, 4:6, 5:3}
-        assert get_percentiles(histogram, 50) == 3
-        histogram={1:1, 2:3, 3:4, 4:6, 5:6}
-        assert get_percentiles(histogram, 50) == 4
-        histogram={1:3, 2:3, 3:4, 4:6, 5:4}
-        assert get_percentiles(histogram, 50) == 3.5
+    def test_calculate_bases_at_coverage(self):
+        histogram = {5: 3, 10: 6, 15: 24, 20: 30, 25: 21, 30: 43, 35: 63}
+        bases_5x, bases_15x, bases_30x = dm.calculate_bases_at_coverage(histogram)
+        assert bases_5x == 187
+        assert bases_15x == 157
+        assert bases_30x == 63
+        histogram = {5: 3, 10: 6, 15: 24, 20: 30, 25: 21}
+        bases_5x, bases_15x, bases_30x = dm.calculate_bases_at_coverage(histogram)
+        assert bases_30x == 0
 
+    def test_get_percentiles(self):
+        histogram = {1: 5, 2: 2, 3: 4, 4: 6, 5: 3}
+        assert dm.get_percentiles(histogram, 50) == 3
+        histogram = {1: 1, 2: 3, 3: 4, 4: 6, 5: 6}
+        assert dm.get_percentiles(histogram, 50) == 4
+        histogram = {1: 3, 2: 3, 3: 4, 4: 6, 5: 4}
+        assert dm.get_percentiles(histogram, 50) == 3.5
 
     def test_get_coverage_statistics(self):
         hist_file = os.path.join(self.assets_path, 'test_sample.depth')
-        mean, median, sd = get_coverage_statistics(hist_file)
+        mean, median, sd, coverage_pcs, cov, genome_size, evenness = dm.get_coverage_statistics(hist_file)
         assert mean == 438.8514851485148
         assert median == 478
         assert sd == 189.1911391390011
+        assert genome_size == 101
+        assert evenness == 0.8139335573648481
+        assert coverage_pcs == {'percentile_5': 102, 'percentile_25': 279, 'percentile_50': 478,
+                                'percentile_75': 625, 'percentile_95': 648}
+
+    def test_calculate_size_genome(self):
+        histogram = {1: 5, 2: 2, 3: 4, 4: 6, 5: 3}
+        assert dm.calculate_size_genome(histogram) == 20
+
+    def test_calculate_evenness(self):
+        histogram = {1: 5, 2: 2, 3: 4, 4: 6, 5: 3}
+        e = dm.calculate_evenness(histogram)
+        assert e == 0.8
+        histogram = {1: 5, 2: 2, 3: 4, 4: 6, 5: 3, 100: 5}
+        assert dm.calculate_evenness(histogram) < e
+        histogram = {0: 5000, 1: 5, 2: 2, 3: 4, 4: 6, 5: 3}
+        assert dm.calculate_evenness(histogram) == 0
 
     def test_get_coverage_Y_chrom(self):
         hist_file = os.path.join(self.assets_path, 'test_sample_chrY.depth')
-        mean = get_coverage_Y_chrom(hist_file)
+        mean = dm.get_coverage_y_chrom(hist_file)
         assert mean == 234.275
 
     def test_parse_welldup_file(self):
         welldup_file = os.path.join(self.assets_path, 'test_crawlers', 'test_run.well_dup')
-        dup_per_lane = parse_welldup_file(welldup_file)
+        dup_per_lane = dm.parse_welldup_file(welldup_file)
         assert dup_per_lane == {1: 11.747, 2: 14.576, 3: 0, 4: 20.496, 5: 5.981, 6: 10.917, 7: 14.611, 8: 26.416}
+
+    def test_parse_adapter_trim_file(self):
+        adapter_trim_file = os.path.join(self.assets_path, 'test_crawlers', 'AdapterTrimming.txt')
+        run_id = 'test_run_id'
+        parsed_trim_file = dm.parse_adapter_trim_file(adapter_trim_file, run_id)
+        assert parsed_trim_file == {
+            ('test_run_id', '10015AT0001', '1'): {'read_1_trimmed_bases': 714309214, 'read_2_trimmed_bases': 684692293},
+            ('test_run_id', '10015AT0001', '2'): {'read_1_trimmed_bases': 284712861, 'read_2_trimmed_bases': 282625840},
+            ('test_run_id', '10015AT0002', '2'): {'read_1_trimmed_bases': 398993728, 'read_2_trimmed_bases': 391621660},
+            ('test_run_id', 'unknown', '2'): {'read_1_trimmed_bases': 48149799, 'read_2_trimmed_bases': 48818739},
+            ('test_run_id', '10015AT0002', '1'): {'read_1_trimmed_bases': 1088149481, 'read_2_trimmed_bases': 1034179505},
+            ('test_run_id', 'unknown', '1'): {'read_1_trimmed_bases': 184380158, 'read_2_trimmed_bases': 172552099}
+        }
