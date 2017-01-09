@@ -1,5 +1,5 @@
 import os
-from egcg_core import executor, clarity, util
+from egcg_core import executor, clarity
 from analysis_driver import quality_control as qc
 from analysis_driver.pipelines.common import bcbio_prepare_sample, link_results_files, output_data, cleanup
 from analysis_driver.util import bash_commands
@@ -12,7 +12,7 @@ from analysis_driver.transfer_data import prepare_sample_data
 app_logger = log_cfg.get_logger('qc_pipeline')
 
 
-def _bam_file_production(dataset, species):
+def bam_file_production(dataset, species):
     exit_status = 0
 
     fastq_files = prepare_sample_data(dataset)
@@ -105,7 +105,7 @@ def qc_pipeline(dataset, species):
     sample_id = dataset.name
     sample_dir = os.path.join(cfg['jobs_dir'], sample_id)
 
-    exit_status = _bam_file_production(dataset, species)
+    exit_status = bam_file_production(dataset, species)
 
     # link the bcbio file into the final directory
     dir_with_linked_files = link_results_files(sample_id, sample_dir, 'non_human_qc')

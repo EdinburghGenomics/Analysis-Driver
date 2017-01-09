@@ -5,6 +5,8 @@ from tests.test_analysisdriver import TestAnalysisDriver
 from analysis_driver import report_generation
 from analysis_driver.reader import SampleSheet
 
+ppath = 'analysis_driver.report_generation.report_crawlers.'
+
 
 class TestCrawler(TestAnalysisDriver):
     @property
@@ -32,8 +34,9 @@ class TestCrawler(TestAnalysisDriver):
             elif type(v) is dict:
                 cls._sort_lists(v)
 
+
 class TestRunCrawler(TestCrawler):
-    run_id = '150723_E00306_0025_BHCHK3CCXX'
+    run_id = 'a_run_id'
     _expected_output = None
 
     @property
@@ -45,21 +48,24 @@ class TestRunCrawler(TestCrawler):
         return self._expected_output
 
     def setUp(self):
-        with patch('analysis_driver.report_generation.report_crawlers.get_sample_information_from_lims'):
-            with patch('analysis_driver.report_generation.report_crawlers.RunCrawler._run_sample_lane_to_barcode',
-                       return_value={"150723_E00306_0025_BHCHK3CCXX_1_unknown": {'read_1_trimmed_bases': 184380158, 'read_2_trimmed_bases': 172552099},
-                                     "150723_E00306_0025_BHCHK3CCXX_2_unknown": {'read_1_trimmed_bases': 48149799, 'read_2_trimmed_bases': 48818739},
-                                     "150723_E00306_0025_BHCHK3CCXX_1_TCCGGAGA": {'read_1_trimmed_bases': 1088149481, 'read_2_trimmed_bases': 1034179505},
-                                     "150723_E00306_0025_BHCHK3CCXX_2_TCCGGAGA": {'read_1_trimmed_bases': 398993728, 'read_2_trimmed_bases': 391621660},
-                                     "150723_E00306_0025_BHCHK3CCXX_1_ATTACTCG": {'read_1_trimmed_bases': 714309214, 'read_2_trimmed_bases': 684692293},
-                                     "150723_E00306_0025_BHCHK3CCXX_2_ATTACTCG": {'read_1_trimmed_bases': 284712861, 'read_2_trimmed_bases': 282625840}}):
-
-                self.crawler = report_generation.RunCrawler(
-                    self.run_id,
-                    SampleSheet(os.path.join(self.test_data, 'SampleSheet_analysis_driver.csv')),
-                    os.path.join(self.test_data, 'AdapterTrimming.txt'),
-                    os.path.join(self.test_data, 'ConversionStats.xml')
-                )
+        patched_lims_info = patch(ppath + 'get_sample_information_from_lims')
+        patched_data = patch(
+            ppath + 'RunCrawler._run_sample_lane_to_barcode',
+            return_value={
+                'a_run_id_1_unknown': {'read_1_trimmed_bases': 184380158, 'read_2_trimmed_bases': 172552099},
+                'a_run_id_2_unknown': {'read_1_trimmed_bases': 48149799, 'read_2_trimmed_bases': 48818739},
+                'a_run_id_1_TCCGGAGA': {'read_1_trimmed_bases': 1088149481, 'read_2_trimmed_bases': 1034179505},
+                'a_run_id_2_TCCGGAGA': {'read_1_trimmed_bases': 398993728, 'read_2_trimmed_bases': 391621660},
+                'a_run_id_1_ATTACTCG': {'read_1_trimmed_bases': 714309214, 'read_2_trimmed_bases': 684692293},
+                'a_run_id_2_ATTACTCG': {'read_1_trimmed_bases': 284712861, 'read_2_trimmed_bases': 282625840}}
+        )
+        with patched_lims_info, patched_data:
+            self.crawler = report_generation.RunCrawler(
+                self.run_id,
+                SampleSheet(os.path.join(self.test_data, 'SampleSheet_analysis_driver.csv')),
+                os.path.join(self.test_data, 'AdapterTrimming.txt'),
+                os.path.join(self.test_data, 'ConversionStats.xml')
+            )
 
     def test_barcodes_info(self):
         self.compare_jsons(dict(self.crawler.barcodes_info), self.expected_output['barcodes_info'])
@@ -81,62 +87,19 @@ class TestRunCrawler(TestCrawler):
 
     def test_run_sample_lane_to_barcode(self):
         has_barcode = True
-        input = {('150723_E00306_0025_BHCHK3CCXX', '10015AT0001', '1'): {'read_1_trimmed_bases': 714309214, 'read_2_trimmed_bases': 684692293}}
-        test = self.crawler._run_sample_lane_to_barcode(input, has_barcode)
-        assert test == {'150723_E00306_0025_BHCHK3CCXX_1_ATTACTCG': {'read_1_trimmed_bases': 714309214, 'read_2_trimmed_bases': 684692293}}
+        input_data = {(self.run_id, '10015AT0001', '1'): {'read_1_trimmed_bases': 714309214, 'read_2_trimmed_bases': 684692293}}
+        test = self.crawler._run_sample_lane_to_barcode(input_data, has_barcode)
+        assert test == {self.run_id + '_1_ATTACTCG': {'read_1_trimmed_bases': 714309214, 'read_2_trimmed_bases': 684692293}}
+
 
 class TestSampleCrawler(TestCrawler):
-    expected_sample = {
-        'properly_mapped_reads': 7741548,
-        'duplicate_reads': 676698,
-        'sample_id': 'test_sample',
-        'median_coverage': 478,
-        'user_sample_id': 'test_sample',
-        'pc_callable': 0.24392084973311048,
-        'project_id': 'test_project',
-        'bam_file_reads': 7928618,
-        'mapped_reads': 7892452,
-        'called_gender': 'male',
-        'provided_gender': 'female',
-        "species_name": "Homo sapiens",
-        'species_contamination': {
-            'contaminant_unique_mapped': {
-                'Bos taurus': 1,
-                'Felis catus': 4,
-                'Gallus gallus': 1,
-                'Mus musculus': 4,
-                'Ovis aries': 2,
-                'Homo sapiens': 74144
-            },
-            'percent_unmapped': 1.06,
-            'percent_unmapped_focal': 1.09,
-            'total_reads_mapped': 100000
-        },
-        "sample_contamination": {"het_hom_ratio": 1.6, "ti_tv_ratio": 2.01},
-        'gender_validation': {'hetX': '0.10'},
-        'coverage': {
-            'median': 478,
-            'std_dev': 189.1911391390011,
-            'coverage_percentiles': {
-                "percentile_25": 279, "percentile_5": 102,
-                "percentile_50": 478, "percentile_75": 625,
-                "percentile_95": 648
-            },
-            'mean': 438.8514851485148,
-            'bases_at_coverage': {'bases_at_5X': 100, 'bases_at_30X': 99, 'bases_at_15X': 100},
-            "genome_size": 101,
-            'evenness': 0.8139335573648481
-        }
-    }
-
     def setUp(self):
-        with patch('analysis_driver.report_generation.report_crawlers.get_sample_information_from_lims',
-                   return_value={
-                       'user_sample_id': 'test_sample',
-                       'provided_gender': 'female',
-                       'species_name': 'Homo sapiens'
-                   }):
+        self.expected_output = json.load(open(os.path.join(self.test_data, 'expected_sample_crawler_data.json')))
+        with patch(
+            ppath + 'get_sample_information_from_lims',
+            return_value={'user_sample_id': 'test_sample', 'provided_gender': 'female', 'species_name': 'Homo sapiens'}
+        ):
             self.crawler = report_generation.SampleCrawler('test_sample', 'test_project', self.test_data)
 
     def test_sample(self):
-        self.compare_jsons(self.crawler.sample, self.expected_sample)
+        self.compare_jsons(self.crawler.sample, self.expected_output)

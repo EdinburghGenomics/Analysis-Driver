@@ -1,4 +1,4 @@
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 from analysis_driver.dataset import SampleDataset, RunDataset
 from tests import TestAnalysisDriver
 
@@ -26,10 +26,14 @@ class QCTester(TestAnalysisDriver):
         self.run_dataset = RunDataset(
             'test_run',
             'path/to/run/',
-            False,
             most_recent_proc={
                 'dataset_type': 'run',
                 'dataset_name': 'test_run',
                 'proc_id': 'run_test_run_now'
             }
         )
+
+        self.dataset.most_recent_proc = Mock()
+        self.dataset.ntf = Mock()
+        self.run_dataset.most_recent_proc = Mock()
+        self.run_dataset.ntf = Mock()

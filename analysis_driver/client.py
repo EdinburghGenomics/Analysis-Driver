@@ -8,8 +8,8 @@ from egcg_core.executor import stop_running_jobs
 from egcg_core.app_logging import logging_default as log_cfg
 from analysis_driver import exceptions
 from analysis_driver.config import default as cfg, load_config
-from analysis_driver.notification import default as ntf, LogNotification, EmailNotification, AsanaNotification
-from analysis_driver.dataset_scanner import RunScanner, SampleScanner, DATASET_READY, DATASET_FORCE_READY, DATASET_NEW, DATASET_REPROCESS
+from analysis_driver.dataset_scanner import RunScanner, SampleScanner, ProjectScanner, DATASET_READY,\
+    DATASET_FORCE_READY, DATASET_NEW, DATASET_REPROCESS
 
 app_logger = log_cfg.get_logger('client')
 
@@ -29,11 +29,15 @@ def main():
         if 'run' in cfg:
             cfg.merge(cfg['run'])
         scanner = RunScanner(cfg)
-    else:
-        assert args.sample
+    elif args.sample:
         if 'sample' in cfg:
             cfg.merge(cfg['sample'])
         scanner = SampleScanner(cfg)
+    else:
+        assert args.project
+        if 'project' in cfg:
+            cfg.merge(cfg['project'])
+        scanner = ProjectScanner(cfg)
 
     if any([args.abort, args.skip, args.reset, args.force, args.report, args.report_all, args.stop]):
         for d in args.abort:
@@ -95,19 +99,13 @@ def _process_dataset(d):
     app_logger.info('Using config file at ' + cfg.config_file)
     app_logger.info('Triggering for dataset: ' + d.name)
 
-    ntf.add_subscribers(
-        (LogNotification, d, cfg.query('notification', 'log_notification')),
-        (EmailNotification, d, cfg.query('notification', 'email_notification')),
-        (AsanaNotification, d, cfg.query('notification', 'asana'))
-    )
-
     def _handle_exception(exception):
         app_logger.critical('Encountered a %s exception: %s', exception.__class__.__name__, str(exception))
         etype, value, tb = sys.exc_info()
         if tb:
             stacktrace = ''.join(traceback.format_exception(etype, value, tb))
             app_logger.info('Stacktrace below:\n' + stacktrace)
-            ntf.crash_report(stacktrace)
+            d.ntf.crash_report(stacktrace)
         _handle_termination(9)
 
     def _sigterm_handler(sig, frame):
@@ -153,6 +151,7 @@ def _parse_args():
     group = p.add_mutually_exclusive_group(required=True)
     group.add_argument('--run', action='store_true')
     group.add_argument('--sample', action='store_true')
+    group.add_argument('--project', action='store_true')
     p.add_argument('--report', action='store_true', help='report on status of datasets')
     p.add_argument('--report-all', action='store_true', help='report all datasets, including finished ones')
     p.add_argument('--skip', nargs='+', default=[], help='mark a dataset as completed')

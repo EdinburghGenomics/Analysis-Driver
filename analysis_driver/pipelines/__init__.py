@@ -1,5 +1,5 @@
 from egcg_core import clarity
-from analysis_driver.dataset_scanner import RunDataset, SampleDataset
+from analysis_driver.dataset_scanner import RunDataset, SampleDataset, ProjectDataset
 from analysis_driver.exceptions import PipelineError
 from egcg_core.app_logging import logging_default as log_cfg
 
@@ -7,6 +7,7 @@ from analysis_driver.pipelines.qc_pipelines import qc_pipeline
 from analysis_driver.pipelines.bcbio_pipelines import bcbio_var_calling_pipeline
 from analysis_driver.pipelines.demultiplexing import demultiplexing_pipeline
 from analysis_driver.pipelines.variant_calling import var_calling_pipeline
+from analysis_driver.pipelines.projects import project_pipeline
 
 app_logger = log_cfg.get_logger('pipelines')
 
@@ -27,6 +28,7 @@ def pipeline(dataset):
             return var_calling_pipeline(dataset, species)
         else:
             return qc_pipeline(dataset, species)
+    elif isinstance(dataset, ProjectDataset):
+        return project_pipeline(dataset)
     else:
         raise AssertionError('Unexpected dataset type: ' + str(dataset))
-

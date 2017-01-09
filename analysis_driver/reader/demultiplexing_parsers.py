@@ -1,20 +1,21 @@
-import math, json
+import math
 from itertools import islice
 from collections import Counter, defaultdict
 from xml.etree import ElementTree
-from egcg_core import rest_communication
-from egcg_core.clarity import get_species_from_sample
 from egcg_core.constants import ELEMENT_CONTAMINANT_UNIQUE_MAP, ELEMENT_PCNT_UNMAPPED_FOCAL, \
-    ELEMENT_PCNT_UNMAPPED, ELEMENT_TOTAL_READS_MAPPED, ELEMENT_PERCENTILE_5, ELEMENT_PERCENTILE_25, ELEMENT_PERCENTILE_50, \
-    ELEMENT_PERCENTILE_75, ELEMENT_PERCENTILE_95, ELEMENT_BASES_AT_5X, ELEMENT_BASES_AT_15X, ELEMENT_BASES_AT_30X, \
-    ELEMENT_BARCODE, ELEMENT_RUN_NAME, ELEMENT_SAMPLE_INTERNAL_ID, ELEMENT_LANE, ELEMENT_RUN_ELEMENT_ID
+    ELEMENT_PCNT_UNMAPPED, ELEMENT_TOTAL_READS_MAPPED, ELEMENT_PERCENTILE_5, ELEMENT_PERCENTILE_25,\
+    ELEMENT_PERCENTILE_50, ELEMENT_PERCENTILE_75, ELEMENT_PERCENTILE_95, ELEMENT_BASES_AT_5X,\
+    ELEMENT_BASES_AT_15X, ELEMENT_BASES_AT_30X
 
 from egcg_core.app_logging import logging_default as log_cfg
 app_logger = log_cfg.get_logger(__name__)
 
 
 def parse_demultiplexing_stats(xml_file):
-    """Parse the demultiplexing_stats.xml to extract number of read for each barcodes"""
+    """
+    Extract numbers of reads for each barcode
+    :param xml_file: demultiplexing_stats.xml
+    """
     tree = ElementTree.parse(xml_file).getroot()
     all_elements = []
     for project in tree.iter('Project'):
@@ -70,10 +71,10 @@ def parse_conversion_stats(xml_file, has_barcode):
                                 # FIXME: Read numbers in the ConversionStats.xml are wrong when using barcodeless run
                                 # Need to be fixed in bcl2fast and then changed here
                                 for read in tile.find('Pf').findall('Read'):
-                                    if read.get('number') == "2":
+                                    if read.get('number') == '2':
                                         nb_bases += int(read.find('Yield').text)
                                         nb_bases_r1_q30 += int(read.find('YieldQ30').text)
-                                    if read.get('number') != "2":
+                                    if read.get('number') != '2':
                                         nb_bases_r2_q30 += int(read.find('YieldQ30').text)
                             all_barcodeless.append(
                                 (
@@ -113,10 +114,10 @@ def parse_conversion_stats(xml_file, has_barcode):
                             clust_count += int(tile.find('Raw').find('ClusterCount').text)
                             clust_count_pf += int(tile.find('Pf').find('ClusterCount').text)
                             for read in tile.find('Pf').findall('Read'):
-                                if read.get('number') == "1":
+                                if read.get('number') == '1':
                                     nb_bases += int(read.find('Yield').text)
                                     nb_bases_r1_q30 += int(read.find('YieldQ30').text)
-                                if read.get('number') == "2":
+                                if read.get('number') == '2':
                                     nb_bases_r2_q30 += int(read.find('YieldQ30').text)
 
                         all_barcodes_per_lanes.append(
@@ -144,7 +145,7 @@ def parse_conversion_stats(xml_file, has_barcode):
 
 def parse_seqtk_fqchk_file(fqchk_file, q_threshold):
     with open(fqchk_file) as open_file:
-        first_line = open_file.readline()
+        open_file.readline()
         header = open_file.readline().split()
         all_cycles = open_file.readline().split()
         first_cycle = open_file.readline().split()
@@ -153,17 +154,17 @@ def parse_seqtk_fqchk_file(fqchk_file, q_threshold):
         lo_q = 0
         hi_q = 0
         for i, h in enumerate(header[9:]):
-            #header are %Q2
+            # header are %Q2
             if int(h[2:]) < q_threshold:
                 lo_q += int(all_cycles[9+i])
             else:
                 hi_q += int(all_cycles[9+i])
-        return  nb_read, nb_base, lo_q, hi_q
+        return nb_read, nb_base, lo_q, hi_q
 
 
 def parse_fastqscreen_file(filename, focal_species):
     """
-    parse the fastq screen outfile
+    Parse fastqscreen's output file
     :return dict: the maximum number of reads mapped uniquely (singly or multiple times) to a contaminant species
     :return float: % reads unmapped to focal Species
     :return float: % reads with no hits to any of the genomes provided
@@ -173,40 +174,36 @@ def parse_fastqscreen_file(filename, focal_species):
         app_logger.warning('No species name available')
         return None
 
-    uniquelyMapped = {}
-    focalSpeciesPercentUnmapped = ''
-    speciesList = []
+    uniquely_mapped = {}
+    focal_species_pc_unmapped = ''
+    species = []
     with open(filename) as open_file:
         lines = open_file.readlines()
         total_reads_mapped = int(((lines[0]).split(': ')[2]).rstrip('\n'))
-        Hit_no_genomes = float((lines[-1]).split(': ')[1])
-        speciesResults = (lines[2:-2])
-        for result in speciesResults:
-            speciesName = result.split('\t')[0]
-            speciesName = speciesName.replace('_',' ')
-            speciesList.append(speciesName)
+        hit_no_genomes = float((lines[-1]).split(': ')[1])
+        results = (lines[2:-2])
+        for r in results:
+            species_name = r.split('\t')[0].replace('_', ' ')
+            species.append(species_name)
 
-    if focal_species in speciesList:
-        for result in speciesResults:
-            speciesName = result.split('\t')[0]
-            speciesName = speciesName.replace('_',' ')
-            speciesResults = result.split('\t')[1:12]
+    if focal_species in species:
+        for r in results:
+            species_name = r.split('\t')[0].replace('_', ' ')
+            results = r.split('\t')[1:12]
 
-
-            numberUniquelyMapped = int(result.split('\t')[4]) + int(result.split('\t')[6])
-            uniquelyMapped[speciesName] = numberUniquelyMapped
-            if speciesName == focal_species:
-                focalSpeciesPercentUnmapped = float(speciesResults[2])
-        uniquelyMapped = {k:v for k,v in uniquelyMapped.items() if v != 0}
-        fastqscreen_result = {ELEMENT_CONTAMINANT_UNIQUE_MAP:uniquelyMapped,
-                                         ELEMENT_TOTAL_READS_MAPPED:total_reads_mapped,
-                                         ELEMENT_PCNT_UNMAPPED_FOCAL:focalSpeciesPercentUnmapped,
-                                         ELEMENT_PCNT_UNMAPPED:Hit_no_genomes}
-        return fastqscreen_result
+            nb_uniquely_mapped = int(r.split('\t')[4]) + int(r.split('\t')[6])
+            uniquely_mapped[species_name] = nb_uniquely_mapped
+            if species_name == focal_species:
+                focal_species_pc_unmapped = float(results[2])
+        uniquely_mapped = {k: v for k, v in uniquely_mapped.items() if v != 0}
+        return {
+            ELEMENT_CONTAMINANT_UNIQUE_MAP: uniquely_mapped,
+            ELEMENT_TOTAL_READS_MAPPED: total_reads_mapped,
+            ELEMENT_PCNT_UNMAPPED_FOCAL: focal_species_pc_unmapped,
+            ELEMENT_PCNT_UNMAPPED: hit_no_genomes
+        }
     else:
         app_logger.warning('The focal species is not included in the contaminant database')
-        fastqscreen_result = None
-        return fastqscreen_result
 
 
 def read_histogram_file(input_file):
@@ -221,24 +218,26 @@ def read_histogram_file(input_file):
                 histograms[sp_line[0]][int(sp_line[1])] += int(sp_line[2])
     return histograms
 
+
 def collapse_histograms(histograms):
     res = Counter()
     for histogram in histograms.values():
         res.update(histogram)
     return res
 
+
 def get_percentiles(histogram, percentile):
     """
     Calculate the percentiles of the histogram.
-    :param percentiles: a scalar or an array of scalar comprised in between 0 and 100.
-    :return A value or a array value for the given percentiles.
+    :param percentile: a scalar or an array of scalar comprised in between 0 and 100.
+    :return: A value or a array value for the given percentiles.
     """
-    n_percentile=None
+    n_percentile = None
     sorted_set_of_keys = sorted(histogram.keys())
     sum_of_values = sum(histogram.values())
     percentile_index = sum_of_values * (percentile / 100)
     index_sum = 0
-    if len(sorted_set_of_keys)<1:
+    if len(sorted_set_of_keys) < 1:
         n_percentile = 0
     else:
         for i in range(len(sorted_set_of_keys)):
@@ -252,33 +251,38 @@ def get_percentiles(histogram, percentile):
                 break
     return n_percentile
 
+
 def calculate_mean(histogram):
-    sumOfDepths = sum([k * v for k, v in histogram.items()])
-    numberOfDepths = sum(histogram.values())
-    return sumOfDepths/numberOfDepths
+    sum_of_depths = sum([k * v for k, v in histogram.items()])
+    number_of_depths = sum(histogram.values())
+    return sum_of_depths/number_of_depths
+
 
 def calculate_median(histogram):
     return get_percentiles(histogram, 50)
 
+
 def calculate_sd(histogram):
-    meanDepth = int(calculate_mean(histogram))
-    numberOfDepths = 0
-    sumOfSquaredDifference = 0
-    for depth, count  in histogram.items():
-        numberOfDepths += count
-        sd = ((depth - meanDepth) ** 2) * count
-        sumOfSquaredDifference += sd
-    return math.sqrt(sumOfSquaredDifference/numberOfDepths)
+    mean_depth = int(calculate_mean(histogram))
+    number_of_depths = 0
+    sum_of_squared_differences = 0
+    for depth, count in histogram.items():
+        number_of_depths += count
+        sd = ((depth - mean_depth) ** 2) * count
+        sum_of_squared_differences += sd
+    return math.sqrt(sum_of_squared_differences/number_of_depths)
 
 
 def calculate_bases_at_coverage(histogram):
-    bases_5X = sum([histogram[i] for i in histogram.keys() if i > 5])
-    bases_15X = sum([histogram[i] for i in histogram.keys() if i > 15])
-    bases_30X = sum([histogram[i] for i in histogram.keys() if i > 30])
-    return bases_5X, bases_15X, bases_30X
+    bases_5x = sum([histogram[i] for i in histogram.keys() if i > 5])
+    bases_15x = sum([histogram[i] for i in histogram.keys() if i > 15])
+    bases_30x = sum([histogram[i] for i in histogram.keys() if i > 30])
+    return bases_5x, bases_15x, bases_30x
+
 
 def calculate_size_genome(histogram):
     return sum(histogram.values())
+
 
 def calculate_evenness(histogram):
     """
@@ -299,6 +303,7 @@ def calculate_evenness(histogram):
         evenness = 0
     return evenness
 
+
 def get_coverage_statistics(histogram_file):
     # Read the histogram file keeping each chrom separated
     histograms = read_histogram_file(histogram_file)
@@ -314,36 +319,39 @@ def get_coverage_statistics(histogram_file):
                             ELEMENT_PERCENTILE_75: get_percentiles(histogram, 75),
                             ELEMENT_PERCENTILE_95: get_percentiles(histogram, 95)}
 
-    bases_5X, bases_15X, bases_30X = calculate_bases_at_coverage(histogram)
-    bases_at_coverage = {ELEMENT_BASES_AT_5X: bases_5X, ELEMENT_BASES_AT_15X: bases_15X, ELEMENT_BASES_AT_30X: bases_30X}
+    bases_5x, bases_15x, bases_30x = calculate_bases_at_coverage(histogram)
+    bases_at_coverage = {ELEMENT_BASES_AT_5X: bases_5x, ELEMENT_BASES_AT_15X: bases_15x, ELEMENT_BASES_AT_30X: bases_30x}
 
     genome_size = calculate_size_genome(histogram)
     evenness = calculate_evenness(histogram)
 
     return coverage_mean, coverage_median, coverage_sd, coverage_percentiles, bases_at_coverage, genome_size, evenness
 
-def get_coverage_Y_chrom(histogram_file, chr_name='chrY'):
+
+def get_coverage_y_chrom(histogram_file, chr_name='chrY'):
     # Read the histogram file keeping each chrom separated
     histograms = read_histogram_file(histogram_file)
     # Calculate the mean coverage of Y chromosome
     if chr_name in histograms:
         return calculate_mean(histograms.get('chrY'))
 
+
 def parse_welldup_file(welldup_file):
-    dup_per_lane = {1:0, 2:0, 3:0, 4:0, 5:0, 6:0, 7:0, 8:0}
+    dup_per_lane = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0}
     in_summary = False
     with open(welldup_file) as open_file:
         for line in open_file:
             if line.startswith('LaneSummary:'):
                 lane = int(line.split()[1])
-                in_summary=True
+                in_summary = True
             elif in_summary == 1 and line.startswith('Level: 3'):
                 pc_dup = line.split()[12].strip('(').rstrip(')')
-                dup_per_lane[lane]=round(float(pc_dup)*100,3)
+                dup_per_lane[lane] = round(float(pc_dup)*100, 3)
                 in_summary = False
             elif line.startswith('Lane: '):
                 in_summary = False
     return dup_per_lane
+
 
 def parse_adapter_trim_file(adapter_trim_file, run_id):
     adapters_trimmed_by_id = {}
@@ -358,5 +366,5 @@ def parse_adapter_trim_file(adapter_trim_file, run_id):
             run_element_info = (run_id, sample_id, lane)
             if not adapters_trimmed_by_id.get(run_element_info):
                 adapters_trimmed_by_id[run_element_info] = {}
-            adapters_trimmed_by_id[run_element_info]['read_%s_trimmed_bases' % (read)] = int(trimmed_bases)
+            adapters_trimmed_by_id[run_element_info]['read_%s_trimmed_bases' % read] = int(trimmed_bases)
     return adapters_trimmed_by_id

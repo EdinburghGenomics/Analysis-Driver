@@ -1,7 +1,6 @@
 import os
 import time
 import shutil
-import yaml
 from egcg_core import executor, clarity, util
 from analysis_driver.util import bash_commands, bcbio_prepare_samples_cmd
 from egcg_core.app_logging import logging_default as log_cfg
@@ -58,9 +57,7 @@ def output_data(dataset, sample_dir, sample_id, dir_with_linked_files):
 
 
 def bcbio_prepare_sample(job_dir, sample_id, fastq_files):
-    """
-    Merge the fastq files per sample using bcbio prepare sample
-    """
+    """Merge the fastq files per sample using bcbio prepare sample"""
     user_sample_id = clarity.get_user_sample_name(sample_id, lenient=True)
     cmd = bcbio_prepare_samples_cmd(job_dir, sample_id, fastq_files, user_sample_id=user_sample_id)
 
@@ -70,7 +67,6 @@ def bcbio_prepare_sample(job_dir, sample_id, fastq_files):
     app_logger.info('bcbio_prepare_samples finished with exit status ' + str(exit_status))
 
     return sample_fastqs
-
 
 
 def cleanup(dataset_name):

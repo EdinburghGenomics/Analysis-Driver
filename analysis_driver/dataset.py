@@ -2,10 +2,10 @@ import os
 import threading
 from sys import modules
 from datetime import datetime
-from analysis_driver.notification import default as ntf
+from analysis_driver.notification import NotificationCentre
 from egcg_core import rest_communication
 from egcg_core.app_logging import AppLogger
-from egcg_core.clarity import get_expected_yield_for_sample
+from egcg_core.clarity import get_expected_yield_for_sample, get_project
 from egcg_core.exceptions import RestCommunicationError
 from analysis_driver.exceptions import AnalysisDriverError
 from egcg_core.constants import DATASET_NEW, DATASET_READY, DATASET_FORCE_READY, DATASET_REPROCESS,\
@@ -21,6 +21,7 @@ class Dataset(AppLogger):
     def __init__(self, name, most_recent_proc=None):
         self.name = name
         self.most_recent_proc = MostRecentProc(self.type, self.name, most_recent_proc)
+        self.ntf = NotificationCentre(self.name)
 
     @property
     def dataset_status(self):
@@ -41,16 +42,16 @@ class Dataset(AppLogger):
         self._assert_status(DATASET_READY, DATASET_FORCE_READY, DATASET_NEW)
         self.most_recent_proc.initialise_entity()  # take a new entity
         self.most_recent_proc.start()
-        ntf.start_pipeline()
+        self.ntf.start_pipeline()
 
     def succeed(self):
         self._assert_status(DATASET_PROCESSING)
         self.most_recent_proc.finish(DATASET_PROCESSED_SUCCESS)
-        ntf.end_pipeline(0)
+        self.ntf.end_pipeline(0)
 
     def fail(self, exit_status):
         self._assert_status(DATASET_PROCESSING)
-        ntf.end_pipeline(exit_status)
+        self.ntf.end_pipeline(exit_status)
         self.most_recent_proc.finish(DATASET_PROCESSED_FAIL)
 
     def abort(self):
@@ -70,11 +71,11 @@ class Dataset(AppLogger):
             os.kill(pid, 10)
 
     def start_stage(self, stage_name):
-        ntf.start_stage(stage_name)
+        self.ntf.start_stage(stage_name)
         self.most_recent_proc.start_stage(stage_name)
 
     def end_stage(self, stage_name, exit_status=0):
-        ntf.end_stage(stage_name, exit_status)
+        self.ntf.end_stage(stage_name, exit_status)
         self.most_recent_proc.end_stage(stage_name, exit_status)
 
     @staticmethod
@@ -111,7 +112,7 @@ class Dataset(AppLogger):
 
 class NoCommunicationDataset(Dataset):
     """Dummy dataset that can be used in QC object but won't contact the API"""
-    type = "Notype"
+    type = 'Notype'
 
     def start_stage(self, stage_name):
         pass
@@ -131,15 +132,11 @@ class RunDataset(Dataset):
     endpoint = 'runs'
     id_field = 'run_id'
 
-    def __init__(self, name, path, use_int_dir, most_recent_proc=None):
+    def __init__(self, name, path, most_recent_proc=None):
         super().__init__(name, most_recent_proc)
         self.path = path
-        self.use_int_dir = use_int_dir
 
     def _is_ready(self):
-        return self.rta_complete() or self.use_int_dir
-
-    def rta_complete(self):
         return os.path.isfile(os.path.join(self.path, 'RTAComplete.txt'))
 
 
@@ -214,6 +211,28 @@ class SampleDataset(Dataset):
             ', '.join(self._runs()),
             ', '.join(self._non_useable_runs())
         )
+
+
+class ProjectDataset(Dataset):
+    type = 'project'
+    endpoint = 'projects'
+    id_field = 'project_id'
+
+    def __init__(self, name, most_recent_proc=None):
+        super().__init__(name, most_recent_proc)
+
+    def _is_ready(self):
+        samples_processed = rest_communication.get_documents(
+            'samples',
+            where={'project_id': self.name}
+        )
+        samples_processed = len(samples_processed)
+        project_from_lims = get_project(self.name)
+        if not project_from_lims:
+            raise AnalysisDriverError('Could not find number of quoted samples in LIMS for ' + self.name)
+        else:
+            number_of_quoted_samples = project_from_lims[0].udf.get('Number of Quoted Samples')
+            return samples_processed >= number_of_quoted_samples
 
 
 class MostRecentProc:

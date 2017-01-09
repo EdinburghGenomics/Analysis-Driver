@@ -2,8 +2,7 @@ import shutil
 import os.path
 from unittest.mock import patch
 from tests.test_analysisdriver import TestAnalysisDriver
-from analysis_driver import transfer_data
-from analysis_driver.util import bcbio_prepare_samples_cmd
+from analysis_driver import transfer_data, util
 from analysis_driver.config import default as cfg
 
 
@@ -159,11 +158,7 @@ class TestTransferData(TestAnalysisDriver):
                 source_dir=self._pseudo_links,
                 output_dir=self._to_dir
             )
-        output_files = os.path.join(
-            self._to_dir,
-            'proj_' + self.sample_id,
-            self.sample_id
-        )
+        output_files = os.path.join(self._to_dir, 'proj_' + self.sample_id, self.sample_id)
 
         expected_outputs = [
             '10015AT0001.bam',
@@ -183,12 +178,8 @@ class TestTransferData(TestAnalysisDriver):
         assert exit_status == 0
         assert o == expected_outputs
 
-    @staticmethod
-    def _join(*parts):
-            return ''.join(parts)
-
     def test_prep_samples_cmd(self):
-        cmd = bcbio_prepare_samples_cmd(
+        cmd = util.bcbio_prepare_samples_cmd(
             self.assets_path,
             'a_sample_id',
             ['test_R1.fastq', 'test_R2.fastq'],
@@ -206,10 +197,10 @@ class TestTransferData(TestAnalysisDriver):
             )
         os.remove(bcbio_csv)
         assert not os.path.isfile(bcbio_csv)
-        expected = self._join(
-            'bcbio_prepare_samples.py --out ',
-            os.path.join(self.assets_path, 'merged'),
-            ' --csv ',
+        expected = (
+            'bcbio_prepare_samples.py --out ' +
+            os.path.join(self.assets_path, 'merged') +
+            ' --csv ' +
             bcbio_csv
         )
         assert expected in cmd

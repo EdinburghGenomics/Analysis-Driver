@@ -85,16 +85,12 @@ class Mask:
 
     @staticmethod
     def num_cycles(read):
-        """
-        Return a RunInfo.xml Read's NumCycles attrib as a read length
-        """
+        """Return a RunInfo.xml Read's NumCycles attrib as a read length"""
         return int(read.attrib['NumCycles'])
 
     @staticmethod
     def _is_indexed_read(read):
-        """
-        Tell whether a RunInfo.xml Read is a barcode, based on its IsIndexedRead attribute.
-        """
+        """Tell whether a RunInfo.xml Read is a barcode, based on its IsIndexedRead attribute."""
         if read.attrib['IsIndexedRead'] == 'Y':
             return True
         elif read.attrib['IsIndexedRead'] == 'N':
