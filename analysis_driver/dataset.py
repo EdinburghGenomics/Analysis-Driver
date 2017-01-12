@@ -310,21 +310,31 @@ class MostRecentProc:
         self.update_entity(status=status, pid=None, end_date=self._now())
 
     def start_stage(self, stage_name):
+        rest_communication.post_entry(
+            'analysis_driver_stages',
+            {'date_started': self._now(), 'stage_name': stage_name,
+             'analysis_driver_proc': self.entity['proc_id']}
+        )
+
         stages = self.entity.get('stages', [])
-        new_stage = {'date_started': self._now(), 'stage_name': stage_name}
-        stages.append(new_stage)
+        stages.append(self._stage_id(stage_name))
         self.update_entity(stages=stages)
 
     def end_stage(self, stage_name, exit_status=0):
-        stages = self.entity['stages']
-        for s in stages:
-            if s['stage_name'] == stage_name:
-                s.update({'date_finished': self._now(), 'exit_status': exit_status})
-
-        self.update_entity(stages=stages)
+        rest_communication.patch_entry(
+            'analysis_driver_stages',
+            {'date_finished': self._now(), 'exit_status': exit_status}, '_id', self._stage_id(stage_name)
+        )
 
     def get(self, key, ret_default=None):
         return self.entity.get(key, ret_default)
+
+    def _stage_id(self, stage_name):
+        doc = rest_communication.get_document(
+            'analysis_driver_stages',
+            where={'analysis_driver_proc': self.entity['proc_id'], 'stage_name': stage_name}
+        )
+        return doc['_id']
 
     @staticmethod
     def _now():
