@@ -66,4 +66,5 @@ class Relatedness(QualityControl):
         super().join(timeout=timeout)
         if self.exception:
             raise self.exception
-        return self.vcftools_relatedness_expected_outfile
+        self.exit_status = 0
+        return self.vcftools_relatedness_expected_outfile, self.exit_status
