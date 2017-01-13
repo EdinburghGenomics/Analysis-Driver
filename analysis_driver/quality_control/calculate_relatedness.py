@@ -30,7 +30,7 @@ class Relatedness(QualityControl):
             job_name='gatk_genotype_gvcfs',
             working_dir=self.working_dir,
             cpus=12,
-            mem=10
+            mem=30
         )
         exit_status = gatk_genotype_gvcfs_executor.join()
         self.dataset.end_stage('gatk_genotype_gvcfs', exit_status)
