@@ -37,7 +37,7 @@ class Test_Relatedness(QCTester):
     def test_run_gatk(self, mocked_execute, mocked_rest, mocked_gatk_outfile):
         mocked_gatk_outfile.return_value = ('test_command', 'test_outfile')
         run_gatk_outfile = self.r.run_gatk()
-        mocked_execute.assert_called_once_with('test_command', job_name='gatk_genotype_gvcfs', cpus=12, working_dir='test_project', mem=10)
+        mocked_execute.assert_called_once_with('test_command', job_name='gatk_genotype_gvcfs', cpus=12, working_dir='test_project', mem=30)
         assert run_gatk_outfile == 'test_outfile'
 
     @patch('analysis_driver.quality_control.calculate_relatedness.Relatedness.get_vcftools_relatedness_command')
