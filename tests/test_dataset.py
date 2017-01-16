@@ -27,7 +27,7 @@ def ppath(*parts):
     return '.'.join(('analysis_driver', 'dataset') + parts)
 
 
-fake_proc = {'proc_id': 'test_test_now', 'dataset_type': 'test', 'dataset_name': 'test'}
+fake_proc = {'proc_id': 'a_proc_id', 'dataset_type': 'test', 'dataset_name': 'test'}
 
 patched_patch = patch(ppath('rest_communication', 'patch_entry'))
 patched_post = patch(ppath('rest_communication', 'post_entry'))
@@ -55,10 +55,6 @@ def patched_expected_yield(y=1000000000):
     return patch(ppath('get_expected_yield_for_sample'), return_value=y)
 
 
-def patched_stage_id(stage_id):
-    return patch(ppath('MostRecentProc._stage_id'), return_value=stage_id)
-
-
 class TestDataset(TestAnalysisDriver):
     def setUp(self):
         self.base_dir = os.path.join(self.assets_path, 'dataset_scanner')
@@ -76,14 +72,10 @@ class TestDataset(TestAnalysisDriver):
         self.dataset.most_recent_proc.entity['status'] = 'a_status'
         assert self.dataset.dataset_status == 'a_status'
 
-    def test_stages(self):
-        assert self.dataset.stages == []
-        self.dataset.most_recent_proc.entity['stages'] = [
-            {'stage_name': 'a_stage', 'date_started': 'now', 'date_finished': 'finally'},
-            {'stage_name': 'another_stage', 'date_started': 'then'},
-            {'stage_name': 'yet_another_stage', 'date_started': 'finally'}
-        ]
-        assert self.dataset.stages == ['another_stage', 'yet_another_stage']
+    @patched_get([{'stage_name': 'this', 'date_started': 'now'}, {'stage_name': 'that', 'date_started': 'then'}])
+    def test_stages(self, mocked_get):
+        assert self.dataset.stages == ['this', 'that']
+        mocked_get.assert_called_with('analysis_driver_stages', all_pages=True, where={'date_finished': None})
 
     @patched_initialise
     @patch(ppath('MostRecentProc.start'))
@@ -204,17 +196,8 @@ class TestSampleDataset(TestDataset):
         self.dataset.force()
         mocked_change_status.assert_called_with(c.DATASET_FORCE_READY)
 
-    @patched_get()
-    def test_read_data(self, mocked_get):
-        assert self.dataset._read_data() == [fake_proc]
-        mocked_get.assert_called_with('run_elements', where={'sample_id': 'test_dataset', 'useable': 'yes'})
-
     def test_amount_data(self):
         assert self.dataset._amount_data() == 480
-
-    def test_runs(self):
-        with patched_get(self.dataset.run_elements):
-            assert self.dataset._runs() == ['a_run_id', 'another_run_id']
 
     @patched_expected_yield()
     def test_data_threshold(self, mocked_exp_yield):
@@ -248,7 +231,7 @@ class TestSampleDataset(TestDataset):
         assert mocked_instance.call_count == 1  # even after 2 calls to data_threshold
 
     def test_str(self):
-        expected_str = 'test_dataset -- this, that, other  (480 / 1000000000  from a_run_id, another_run_id) (non useable in a_run_id, another_run_id)'
+        expected_str = 'test_dataset -- this, that, other  (480 / 1000000000  from a_run_id, another_run_id) (non useable run elements in a_run_id, another_run_id)'
         self.dataset._data_threshold = None
         with patched_get(self.dataset.run_elements), patched_expected_yield(), patched_stages:
             print(expected_str)
@@ -281,6 +264,7 @@ class TestMostRecentProc(TestAnalysisDriver):
         with patched_get():
             self.proc = MostRecentProc('test', 'test')
         self.proc._entity = fake_proc.copy()
+        self.proc.proc_id = 'a_proc_id'
 
     def test_rest_entity_pre_existing(self):
         assert self.proc.entity == fake_proc
@@ -345,7 +329,7 @@ class TestMostRecentProc(TestAnalysisDriver):
     def test_sync(self, mocked_patch):
         self.proc.sync()
         assert self.proc._entity == {
-            'proc_id': 'test_test_now',
+            'proc_id': 'a_proc_id',
             'dataset_type': 'test',
             'dataset_name': 'test'
         }
@@ -360,10 +344,10 @@ class TestMostRecentProc(TestAnalysisDriver):
                 'dataset_name': 'test'
             },
             id_field='proc_id',
-            element_id='test_test_now'
+            element_id='a_proc_id'
         )
         assert self.proc._entity == {
-            'proc_id': 'test_test_now',
+            'proc_id': 'a_proc_id',
             'dataset_type': 'test',
             'dataset_name': 'test',
             'this': 'that'
@@ -373,7 +357,7 @@ class TestMostRecentProc(TestAnalysisDriver):
     def test_update_entity(self, mocked_sync):
         self.proc.update_entity(other='another')
         assert self.proc.entity == {
-            'proc_id': 'test_test_now',
+            'proc_id': 'a_proc_id',
             'dataset_type': 'test',
             'dataset_name': 'test',
             'other': 'another'
@@ -395,40 +379,33 @@ class TestMostRecentProc(TestAnalysisDriver):
     @patched_update
     @patched_post
     def test_start_stage(self, mocked_post, mocked_update):
-        with patched_datetime('then'), patched_stage_id('a_stage_id'):
-            self.proc.start_stage('test_stage')
+        with patched_datetime('then'):
+            self.proc.start_stage('stage_1')
 
-        mocked_update.assert_called_with(stages=['a_stage_id'])
+        mocked_update.assert_called_with(stages=['a_proc_id_stage_1'])
         mocked_post.assert_called_with(
             'analysis_driver_stages',
-            {'date_started': 'then', 'stage_name': 'test_stage', 'analysis_driver_proc': 'test_test_now'}
+            {'stage_id': 'a_proc_id_stage_1', 'date_started': 'then', 'stage_name': 'stage_1', 'analysis_driver_proc': 'a_proc_id'}
         )
 
-        self.proc.entity['stages'] = ['a_stage_id']
-        with patched_datetime('later'), patched_stage_id('another_stage_id'):
-            self.proc.start_stage('another_stage')
+        self.proc.entity['stages'] = ['a_proc_id_stage_1']
+        with patched_datetime('later'):
+            self.proc.start_stage('stage_2')
 
-        mocked_update.assert_called_with(stages=['a_stage_id', 'another_stage_id'])
+        mocked_update.assert_called_with(stages=['a_proc_id_stage_1', 'a_proc_id_stage_2'])
         mocked_post.assert_called_with(
             'analysis_driver_stages',
-            {'date_started': 'later', 'stage_name': 'another_stage', 'analysis_driver_proc': 'test_test_now'}
+            {'stage_id': 'a_proc_id_stage_2', 'date_started': 'later', 'stage_name': 'stage_2', 'analysis_driver_proc': 'a_proc_id'}
         )
 
     @patched_patch
     @patched_datetime()
-    @patched_stage_id('a_stage_id')
-    def test_end_stage(self, mocked_stage_id, mocked_now, mocked_patch):
-        self.proc.end_stage('this')
-
-        mocked_stage_id.assert_called_with('this')
+    def test_end_stage(self, mocked_now, mocked_patch):
+        self.proc.end_stage('stage_1')
         mocked_patch.assert_called_with(
-            'analysis_driver_stages', {'date_finished': 'now', 'exit_status': 0}, '_id', 'a_stage_id'
+            'analysis_driver_stages', {'date_finished': 'now', 'exit_status': 0}, 'stage_id', 'a_proc_id_stage_1'
         )
 
-    @patch(ppath('rest_communication', 'get_document'), return_value={'_id': 'a_stage_id'})
-    def test_stage_id(self, mocked_get):
-        assert self.proc._stage_id('a_stage_name')
-        mocked_get.assert_called_with(
-            'analysis_driver_stages',
-            where={'analysis_driver_proc': 'test_test_now', 'stage_name': 'a_stage_name'}
-        )
+    def test_stage_id(self):
+        self.proc.proc_id = 'test_proc'
+        assert self.proc._stage_id('stage_name') == 'test_proc_stage_name'

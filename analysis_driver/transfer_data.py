@@ -8,11 +8,6 @@ from egcg_core.constants import ELEMENT_RUN_NAME, ELEMENT_LANE, ELEMENT_PROJECT_
 app_logger = log_cfg.get_logger(__name__)
 
 
-def prepare_run_data(dataset):
-    app_logger.debug('Preparing dataset %s (%s)', dataset.name, dataset.dataset_status)
-    return os.path.join(cfg['input_dir'], dataset.name)
-
-
 def prepare_sample_data(dataset):
     app_logger.debug('Preparing dataset %s (%s)', dataset.name, dataset.dataset_status)
     fastqs = []
