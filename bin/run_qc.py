@@ -63,7 +63,6 @@ def _parse_args():
     contam_blast.add_argument('--fastq_file', required=True, nargs='+', help='fastq file to check for contamination')
     contam_blast.add_argument('--sample_id', required=True)
     contam_blast.set_defaults(func=contamination_blast)
-    return parser.parse_args()
 
     relatedness_parser = subparsers.add_parser('relatedness')
     relatedness_parser.add_argument('--gVCF_files', required=True, nargs='+')
@@ -71,8 +70,6 @@ def _parse_args():
     relatedness_parser.add_argument('--work_dir', required=False)
     relatedness_parser.add_argument('--project_id', required=True)
     relatedness_parser.set_defaults(func=relatedness)
-
-
 
     return parser.parse_args()
 
