@@ -1,12 +1,11 @@
 import luigi
 from os.path import join, exists
-from egcg_core import clarity
-from egcg_core.app_logging import AppLogger, logging_default as log_cfg
-from analysis_driver.dataset import RunDataset, SampleDataset
-from analysis_driver.config import default as cfg
+from egcg_core.app_logging import AppLogger
 from analysis_driver.exceptions import PipelineError
+from analysis_driver.config import default as cfg
 
-_dataset = None
+
+dataset = None
 
 
 class EGCGParameter(luigi.Parameter):
@@ -23,10 +22,11 @@ class EGCGParameter(luigi.Parameter):
 class BasicStage(luigi.Task, AppLogger):
     __stagename__ = None
     previous_stages = ()
+    exit_status = None
 
     @property
     def dataset(self):
-        return _dataset
+        return dataset
 
     @property
     def dataset_name(self):
@@ -63,7 +63,6 @@ class BasicStage(luigi.Task, AppLogger):
 
 
 class Stage(BasicStage):
-    exit_status = None
     expected_output_files = []
 
     def output(self):
@@ -108,27 +107,41 @@ class FileTarget(luigi.Target):
         return exists(self.filename) or not self.required
 
 
-def pipeline(dataset):
-    _setup_luigi_logging()
+# example Luigi workflow below
+from os.path import dirname
+from time import sleep
+from analysis_driver.dataset import NoCommunicationDataset
 
-    if isinstance(dataset, RunDataset):
-        from .fastq_production import OutputQCData as FinalStage
-    elif isinstance(dataset, SampleDataset):
-        species = clarity.get_species_from_sample(dataset.name)
-        if species is None:
-            raise PipelineError('No species information found in the LIMS for ' + dataset.name)
-        elif species == 'Homo sapiens':
-            from .bcbio_var_calling import DataOutput as FinalStage
-        elif clarity.get_sample(dataset.name).udf.get('Analysis Type') == 'Variant Calling':
-            from .var_calling import VarCalling as FinalStage
-        else:
-            from .var_calling import BasicQC as FinalStage
-    else:
-        raise AssertionError('Unexpected dataset type: ' + str(dataset))
 
-    global _dataset
-    _dataset = dataset
-    final_stage = FinalStage()
+class ExampleStage(BasicStage):
+    def run(self):
+        print(self.stage_name)
+        print('starting')
+        sleep(5)
+        print('done')
+        return 0
+
+
+class Stage1(ExampleStage):
+    pass
+
+
+class Stage2(ExampleStage):
+    previous_stages = Stage1
+
+
+class Stage3(ExampleStage):
+    previous_stages = Stage1
+
+
+class Stage4(ExampleStage):
+    previous_stages = (Stage2, Stage3)
+
+
+def example_pipeline(d):
+    global dataset
+    dataset = d
+    final_stage = Stage4()
     luigi.build(
         [final_stage],
         local_scheduler=True
@@ -136,6 +149,13 @@ def pipeline(dataset):
     return final_stage.exit_status
 
 
-def _setup_luigi_logging():
-    luigi.interface.setup_interface_logging.has_run = True  # turn off Luigi's default logging setup
-    log_cfg.get_logger('luigi-interface', 10)  # just calling log_cfg.get_logger registers the luigi-interface
+if __name__ == '__main__':
+    cfg.load_config_file(join(dirname(dirname(__file__)), 'etc', 'example_analysisdriver.yaml'))
+    print(
+        example_pipeline(
+            NoCommunicationDataset(
+                'test_dataset',
+                {'proc_id': 'rtest_Dataset_15_02_2016_12:14:31'}
+            )
+        )
+    )
