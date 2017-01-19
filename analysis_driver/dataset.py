@@ -59,18 +59,13 @@ class Dataset(AppLogger):
 
     @property
     def stages(self):
+        stages = rest_communication.get_documents(
+            'analysis_driver_stages',
+            all_pages=True,
+            where={'analysis_driver_proc': self.most_recent_proc.get('proc_id'), 'date_finished': None}
+        )
+        return [s['stage_name'] for s in stages]
         return self.most_recent_proc.get('stages', [])
-
-    @property
-    def active_stages(self):
-        return [s['stage_name'] for s in self.stages if 'date_finished' not in s]
-
-    def get_stage(self, stage_name):
-        stages = [s for s in self.stages if s['stage_name'] == stage_name]
-        if len(stages) > 1:
-            raise AnalysisDriverError('%s stages found for name %s' % (len(stages), stage_name))
-        elif len(stages) == 1:
-            return stages[0]
 
     def start(self):
         self._assert_status(DATASET_READY, DATASET_FORCE_READY, DATASET_NEW)
@@ -130,13 +125,14 @@ class Dataset(AppLogger):
         raise NotImplementedError
 
     def __str__(self):
-        out = [self.name]
+        s = self.name
         pid = self.most_recent_proc.get('pid')
         if pid:
-            out.append('(%s)' % pid)
-        if self.active_stages:
-            out.append('-- %s' % (', '.join(self.active_stages)))
-        return ' '.join(out)
+            s += ' (%s)' % pid
+        stages = self.stages
+        if stages:
+            s += ' -- ' + ', '.join(stages)
+        return s
 
     __repr__ = __str__
 
@@ -211,28 +207,20 @@ class SampleDataset(Dataset):
         self.most_recent_proc.change_status(DATASET_FORCE_READY)
 
     @property
-    def non_useable_run_elements(self):
-        if self._non_useable_run_elements is None:
-            self._non_useable_run_elements = self._read_non_useable_data()
-        return self._non_useable_run_elements
-
-    @property
     def run_elements(self):
         if self._run_elements is None:
-            self._run_elements = self._read_data()
+            self._run_elements = rest_communication.get_documents(
+                'run_elements', where={'sample_id': self.name, 'useable': 'yes'}
+            )
         return self._run_elements
 
-    def _read_data(self):
-        return rest_communication.get_documents(
-            'run_elements',
-            where={'sample_id': self.name, 'useable': 'yes'}
-        )
-
-    def _read_non_useable_data(self):
-        return rest_communication.get_documents(
-            'run_elements',
-            where={'sample_id': self.name, 'useable': {'$ne': 'yes'}}
-        )
+    @property
+    def non_useable_run_elements(self):
+        if self._non_useable_run_elements is None:
+            self._non_useable_run_elements = rest_communication.get_documents(
+                'run_elements', where={'sample_id': self.name, 'useable': {'$ne': 'yes'}}
+            )
+        return self._non_useable_run_elements
 
     def _amount_data(self):
         return sum(
@@ -241,12 +229,6 @@ class SampleDataset(Dataset):
                 for r in self.run_elements
             ]
         )
-
-    def _runs(self):
-        return sorted(set([r.get(ELEMENT_RUN_NAME) for r in self.run_elements]))
-
-    def _non_useable_runs(self):
-        return sorted(set([r.get(ELEMENT_RUN_NAME) for r in self.non_useable_run_elements]))
 
     @property
     def data_threshold(self):
@@ -260,13 +242,17 @@ class SampleDataset(Dataset):
         return self.data_threshold and int(self._amount_data()) > int(self.data_threshold)
 
     def __str__(self):
-        return '%s  (%s / %s  from %s) (non useable in %s)' % (
-            super().__str__(),
-            self._amount_data(),
-            self.data_threshold,
-            ', '.join(self._runs()),
-            ', '.join(self._non_useable_runs())
+        runs = sorted(set(r.get(ELEMENT_RUN_NAME) for r in self.run_elements))
+        non_useable_runs = sorted(set(r.get(ELEMENT_RUN_NAME) for r in self.non_useable_run_elements))
+
+        s = '%s  (%s / %s  from %s) ' % (
+            super().__str__(), self._amount_data(), self.data_threshold, ', '.join(runs)
         )
+        if non_useable_runs:
+            s += '(non useable run elements in %s)' % ', '.join(non_useable_runs)
+        else:
+            s += '(no non useable run elements)'
+        return s
 
 
 class ProjectDataset(Dataset):
@@ -296,6 +282,7 @@ class MostRecentProc:
         self.lock = threading.Lock()
         self.dataset_type = dataset_type
         self.dataset_name = dataset_name
+        self.proc_id = None
         if initial_content:
             self._entity = initial_content.copy()
         else:
@@ -320,16 +307,16 @@ class MostRecentProc:
         return self._entity
 
     def initialise_entity(self):
-        proc_id = '_'.join((self.dataset_type, self.dataset_name, self._now()))
+        self.proc_id = '_'.join((self.dataset_type, self.dataset_name, self._now()))
         entity = {
-            'proc_id': proc_id,
+            'proc_id': self.proc_id,
             'dataset_type': self.dataset_type,
             'dataset_name': self.dataset_name
         }
         rest_communication.post_entry('analysis_driver_procs', entity)
         rest_communication.patch_entry(
             self.dataset_type + 's',
-            {'analysis_driver_procs': [proc_id]},
+            {'analysis_driver_procs': [self.proc_id]},
             id_field=self.dataset_type + '_id',
             element_id=self.dataset_name,
             update_lists=['analysis_driver_procs']
@@ -366,21 +353,28 @@ class MostRecentProc:
         self.update_entity(status=status, pid=None, end_date=self._now())
 
     def start_stage(self, stage_name):
+        success = rest_communication.post_entry(
+            'analysis_driver_stages',
+            {'stage_id': self._stage_id(stage_name), 'date_started': self._now(), 'stage_name': stage_name,
+             'analysis_driver_proc': self.proc_id}
+        )
+        assert success
+
         stages = self.entity.get('stages', [])
-        new_stage = {'date_started': self._now(), 'stage_name': stage_name}
-        stages.append(new_stage)
+        stages.append(self._stage_id(stage_name))
         self.update_entity(stages=stages)
 
     def end_stage(self, stage_name, exit_status=0):
-        stages = self.entity['stages']
-        for s in stages:
-            if s['stage_name'] == stage_name:
-                s.update({'date_finished': self._now(), 'exit_status': exit_status})
-
-        self.update_entity(stages=stages)
+        rest_communication.patch_entry(
+            'analysis_driver_stages',
+            {'date_finished': self._now(), 'exit_status': exit_status}, 'stage_id', self._stage_id(stage_name)
+        )
 
     def get(self, key, ret_default=None):
         return self.entity.get(key, ret_default)
+
+    def _stage_id(self, stage_name):
+        return self.proc_id + '_' + stage_name
 
     @staticmethod
     def _now():

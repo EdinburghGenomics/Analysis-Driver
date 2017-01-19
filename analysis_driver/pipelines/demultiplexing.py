@@ -8,11 +8,11 @@ from analysis_driver.util import bash_commands
 from analysis_driver.dataset_scanner import RunDataset
 from analysis_driver.exceptions import PipelineError, SequencingRunError
 from egcg_core.app_logging import logging_default as log_cfg
-from analysis_driver.config import  default as cfg
+from analysis_driver.config import default as cfg
 from analysis_driver.quality_control.lane_duplicates import WellDuplicates
 from analysis_driver.reader.version_reader import write_versions_to_yaml
 from analysis_driver.report_generation.report_crawlers import RunCrawler
-from analysis_driver.transfer_data import prepare_run_data, output_run_data
+from analysis_driver.transfer_data import output_run_data
 
 app_logger = log_cfg.get_logger('demultiplexing')
 
@@ -26,7 +26,7 @@ def demultiplexing_pipeline(dataset):
     exit_status = 0
 
     dataset.start_stage('transfer')
-    input_run_folder = prepare_run_data(dataset)
+    input_run_folder = os.path.join(cfg['input_dir'], dataset.name)
     dataset.end_stage('transfer')
 
     run_id = os.path.basename(input_run_folder)
