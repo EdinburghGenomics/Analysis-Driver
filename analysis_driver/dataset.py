@@ -39,7 +39,7 @@ class Dataset(AppLogger):
         stages = rest_communication.get_documents(
             'analysis_driver_stages',
             all_pages=True,
-            where={'date_finished': None}
+            where={'analysis_driver_proc': self.most_recent_proc.get('proc_id'), 'date_finished': None}
         )
         return [s['stage_name'] for s in stages]
 
@@ -105,8 +105,9 @@ class Dataset(AppLogger):
         pid = self.most_recent_proc.get('pid')
         if pid:
             s += ' (%s)' % pid
-        if self.stages:
-            s += ' -- ' + ', '.join(self.stages)
+        stages = self.stages
+        if stages:
+            s += ' -- ' + ', '.join(stages)
         return s
 
     __repr__ = __str__
