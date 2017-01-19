@@ -134,27 +134,17 @@ class SampleSheet(AppLogger):
         to 'y150n,i8,y150n', depending on self.has_barcode.
         :param .run_info.Mask mask: A Mask object extracted from RunInfo.xml
         """
-        self.debug('Generating mask...')
+        out = ['y' + str(mask.num_cycles(mask.upstream_read) - 1) + 'n']
 
         if self.has_barcode:
             barcode_len = self.check_barcodes()
-            out = ['y' + str(mask.num_cycles(mask.upstream_read) - 1) + 'n']
-
             for i in mask.index_lengths:
                 diff = i - barcode_len
                 out.append('i' + str(barcode_len) + 'n' * diff)
 
-            out.append('y' + str(mask.num_cycles(mask.downstream_read) - 1) + 'n')
-            self.debug(out)
-            return ','.join(out)
-
-        elif not self.has_barcode:
-            out = [
-                'y' + str(mask.num_cycles(mask.upstream_read) - 1) + 'n',
-                'y' + str(mask.num_cycles(mask.downstream_read) - 1) + 'n'
-            ]
-            self.debug(out)
-            return ','.join(out)
+        out.append('y' + str(mask.num_cycles(mask.downstream_read) - 1) + 'n')
+        self.debug("Generated mask '%s'", out)
+        return ','.join(out)
 
     def validate(self, mask):
         """
@@ -162,12 +152,14 @@ class SampleSheet(AppLogger):
         :param .run_info.Mask mask: Mask object to check against
         """
         self.debug('Validating...')
-        if mask.has_barcodes and self.check_barcodes() != mask.barcode_len:
-            self.error(
-                'Barcode mismatch: %s (SampleSheet.csv) and %s (RunInfo.xml)' %
-                (self.check_barcodes(), mask.barcode_len)
-            )
-            return False
+        if mask.has_barcodes:
+            barcode_len = self.check_barcodes()
+            if barcode_len != mask.barcode_len:
+                self.error(
+                    'Barcode mismatch: %s (SampleSheet.csv) and %s (RunInfo.xml)' %
+                    (barcode_len, mask.barcode_len)
+                )
+                return False
         return True
 
     def get_samples(self, sample_project, sample_id):

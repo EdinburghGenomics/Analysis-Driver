@@ -13,6 +13,12 @@ class FakeEntity(Mock):
         self.name = name
 
 
+class FakeRunDataset(RunDataset):
+    @property
+    def stages(self):
+        return []
+
+
 def ppath(*parts):
     return '.'.join(('analysis_driver', 'dataset_scanner') + parts)
 
@@ -36,9 +42,6 @@ class TestScanner(TestAnalysisDriver):
 
     def tearDown(self):
         clean(self.base_dir)
-
-    def test_get_datasets_for_statuses(self, *args):
-        pass
 
     def test_report(self):
         dsets = {'new': ['this'], 'ready': ['that', 'other'], 'failed': ['another']}
@@ -83,7 +86,7 @@ class TestRunScanner(TestScanner):
         test_dataset_path = os.path.join(self.base_dir, 'test_dataset')
         os.mkdir(test_dataset_path)
         obs = self.scanner.get_dataset('test_dataset')
-        exp = RunDataset('test_dataset', test_dataset_path)
+        exp = FakeRunDataset('test_dataset', test_dataset_path)
         self._assert_datasets_equal(obs, exp)
 
     def test_get_dataset_records_for_statuses(self):
@@ -112,9 +115,9 @@ class TestRunScanner(TestScanner):
 
     def test_scan_datasets(self):
         fake_datasets = []
-        with patched_get():
+        with patched_get(), patch('analysis_driver.dataset.rest_communication.get_documents'):
             for x in ('this', 'that', 'other'):
-                d = RunDataset(x, os.path.join(self.base_dir, x), {'this': 'that'})
+                d = FakeRunDataset(x, os.path.join(self.base_dir, x), {'this': 'that'})
                 assert d.most_recent_proc.entity
                 fake_datasets.append(d)
         with patch(ppath('DatasetScanner._get_datasets_for_statuses'), return_value=fake_datasets) as p:
