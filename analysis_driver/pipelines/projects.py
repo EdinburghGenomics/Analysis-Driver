@@ -9,7 +9,7 @@ from analysis_driver.exceptions import PipelineError
 def project_pipeline(dataset):
 
     project_id = dataset.name
-    samples_for_project = rest_communication.get_documents('samples', where={'project_id': project_id, 'status': 'finished'})
+    samples_for_project = rest_communication.get_documents('aggregate/samples', match={'project_id': project_id, 'status': 'finished'})
     species_in_project = []
     for sample in samples_for_project:
         species = sample.get('species_name')
