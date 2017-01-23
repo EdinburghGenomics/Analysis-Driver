@@ -1,10 +1,10 @@
-import glob
 import os
 from egcg_core.util import find_file
 from egcg_core import rest_communication, clarity
 from analysis_driver.config import default as cfg
 from analysis_driver.quality_control import Relatedness
 from analysis_driver.exceptions import PipelineError
+from analysis_driver.transfer_data import output_project_data
 
 def project_pipeline(dataset):
 
@@ -36,4 +36,7 @@ def project_pipeline(dataset):
     r.start()
     vcftools_relatedness_expected_outfile, exit_status = r.join()
     dataset.end_stage('relatedness')
+
+    exit_status += output_project_data(working_dir, project_id)
+
     return exit_status
