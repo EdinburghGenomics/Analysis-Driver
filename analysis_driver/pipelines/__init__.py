@@ -1,6 +1,7 @@
 import luigi
 from egcg_core import clarity
 from egcg_core.app_logging import logging_default as log_cfg
+from egcg_core.config import cfg
 from analysis_driver import segmentation
 from analysis_driver.dataset_scanner import RunDataset, SampleDataset, ProjectDataset
 from analysis_driver.exceptions import PipelineError
@@ -15,28 +16,29 @@ def pipeline(d):
     _setup_luigi_logging()
 
     if isinstance(d, RunDataset):
-        final_stage = Demultiplexing
+        final_stage = Demultiplexing(dataset=d)
     elif isinstance(d, SampleDataset):
         species = clarity.get_species_from_sample(d.name)
         if species is None:
             raise PipelineError('No species information found in the LIMS for ' + d.name)
         elif species == 'Homo sapiens':
-            final_stage = BCBioVarCalling
+            final_stage = BCBioVarCalling(dataset=d)
         elif clarity.get_sample(d.name).udf.get('Analysis Type') == 'Variant Calling':
-            final_stage = VarCalling
+            final_stage = VarCalling()
         else:
-            final_stage = QC
+            final_stage = QC(dataset=d)
     elif isinstance(d, ProjectDataset):
-        final_stage = Project
+        final_stage = Project(dataset=d)
     else:
         raise AssertionError('Unexpected dataset type: ' + str(d))
 
-    segmentation.dataset = d
-    final_stage = final_stage()
-    luigi.build(
-        [final_stage],
-        local_scheduler=True
-    )
+    final_stage.exit_status = 9
+
+    luigi_params = {'tasks': [final_stage], 'local_scheduler': cfg.query('luigi', 'local_scheduler')}
+    if luigi_params['local_scheduler'] is not True:
+        luigi_params['scheduler_url'] = cfg['luigi']['scheduler_url']
+
+    luigi.build(**luigi_params)
     return final_stage.exit_status
 
 

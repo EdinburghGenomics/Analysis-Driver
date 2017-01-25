@@ -24,8 +24,14 @@ class Dataset(AppLogger):
     def __init__(self, name, most_recent_proc=None):
         self.name = name
         self.most_recent_proc = MostRecentProc(self.type, self.name, most_recent_proc)
-        self.ntf = NotificationCentre(self.name)
+        self._ntf = None
         self.expected_output_files = []
+
+    @property
+    def ntf(self):
+        if self._ntf is None:
+            self._ntf = NotificationCentre(self.name)
+        return self._ntf
 
     def add_output_file(self, output_record):
         self.expected_output_files.append(output_record)
@@ -65,7 +71,6 @@ class Dataset(AppLogger):
             where={'analysis_driver_proc': self.most_recent_proc.get('proc_id'), 'date_finished': None}
         )
         return [s['stage_name'] for s in stages]
-        return self.most_recent_proc.get('stages', [])
 
     def start(self):
         self._assert_status(DATASET_READY, DATASET_FORCE_READY, DATASET_NEW)
@@ -155,6 +160,11 @@ class NoCommunicationDataset(Dataset):
 
     def _is_ready(self):
         pass
+
+    def __str__(self):
+        return self.name
+
+    __repr__ = __str__
 
 
 class RunDataset(Dataset):

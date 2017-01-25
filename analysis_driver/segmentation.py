@@ -5,9 +5,6 @@ from analysis_driver.exceptions import PipelineError
 from analysis_driver.config import default as cfg
 
 
-dataset = None
-
-
 class EGCGParameter(luigi.Parameter):
     """Parameter that does not call `warnings.warn` in self.serialize."""
     def serialize(self, x):
@@ -24,13 +21,7 @@ class BasicStage(luigi.Task, AppLogger):
     previous_stages = ()
     exit_status = None
 
-    @property
-    def dataset(self):
-        return dataset
-
-    @property
-    def dataset_name(self):
-        return self.dataset.name
+    dataset = EGCGParameter()
 
     @property
     def job_dir(self):
@@ -38,7 +29,7 @@ class BasicStage(luigi.Task, AppLogger):
 
     @property
     def input_dir(self):
-        return join(cfg.get('intermediate_dir', cfg['input_dir']), self.dataset_name)
+        return join(cfg.get('intermediate_dir', cfg['input_dir']), self.dataset.name)
 
     @property
     def stage_name(self):
@@ -58,7 +49,7 @@ class BasicStage(luigi.Task, AppLogger):
 
         for s in p:
             if isinstance(s, type):
-                s = s()
+                s = s(dataset=self.dataset)
             yield s
 
 
@@ -139,13 +130,8 @@ class Stage4(ExampleStage):
 
 
 def example_pipeline(d):
-    global dataset
-    dataset = d
-    final_stage = Stage4()
-    luigi.build(
-        [final_stage],
-        local_scheduler=True
-    )
+    final_stage = Stage4(dataset=d)
+    luigi.build([final_stage], local_scheduler=True)
     return final_stage.exit_status
 
 
@@ -155,7 +141,7 @@ if __name__ == '__main__':
         example_pipeline(
             NoCommunicationDataset(
                 'test_dataset',
-                {'proc_id': 'rtest_Dataset_15_02_2016_12:14:31'}
+                {'proc_id': 'test_Dataset_15_02_2016_12:14:31'}
             )
         )
     )
