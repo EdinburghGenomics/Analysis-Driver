@@ -74,50 +74,33 @@ class RestAPITarget(luigi.Target):
         return s and bool(s.get('date_finished')) and s.get('exit_status') == 0
 
 
-# example Luigi workflow below
+# example Luigi workflow
 from os.path import join, dirname
-from time import sleep
 from analysis_driver.dataset import NoCommunicationDataset
 
 
-class ExampleStage(BasicStage):
-    def run(self):
-        print(self.stage_name)
-        print('starting')
-        sleep(5)
-        print('done')
+class Stage1(Stage):
+    def _run(self):
+        print('Doing some things')
         return 0
 
 
-class Stage1(ExampleStage):
-    pass
-
-
-class Stage2(ExampleStage):
+class Stage2(Stage1):
     previous_stages = Stage1
 
 
-class Stage3(ExampleStage):
-    previous_stages = Stage1
-
-
-class Stage4(ExampleStage):
-    previous_stages = (Stage2, Stage3)
+class Stage3(Stage1):
+    previous_stages = (Stage1, Stage2)
 
 
 def example_pipeline(d):
-    final_stage = Stage4(dataset=d)
+    final_stage = Stage3(dataset=d)
+    final_stage.exit_status = 9
     luigi.build([final_stage], local_scheduler=True)
     return final_stage.exit_status
 
 
 if __name__ == '__main__':
     cfg.load_config_file(join(dirname(dirname(__file__)), 'etc', 'example_analysisdriver.yaml'))
-    print(
-        example_pipeline(
-            NoCommunicationDataset(
-                'test_dataset',
-                {'proc_id': 'test_Dataset_15_02_2016_12:14:31'}
-            )
-        )
-    )
+    dataset = NoCommunicationDataset('test_dataset', {'proc_id': 'test_dataset_15_02_2016_12:14:31'})
+    print(example_pipeline(dataset))

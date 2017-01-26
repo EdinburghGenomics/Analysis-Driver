@@ -16,8 +16,6 @@ class Dataset(AppLogger):
     type = None
     endpoint = None
     id_field = None
-    _species = None
-    _user_sample_id = None
 
     def __init__(self, name, most_recent_proc=None):
         self.name = name
@@ -155,8 +153,6 @@ class RunDataset(Dataset):
     type = 'run'
     endpoint = 'runs'
     id_field = 'run_id'
-    _sample_sheet = None
-    _run_info = None
 
     def __init__(self, name, path, most_recent_proc=None):
         super().__init__(name, most_recent_proc)
