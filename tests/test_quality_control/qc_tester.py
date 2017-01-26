@@ -25,6 +25,6 @@ class QCTester(TestAnalysisDriver):
         )
 
         self.dataset.most_recent_proc = Mock()
-        self.dataset.ntf = Mock()
+        self.dataset._ntf = Mock()
         self.run_dataset.most_recent_proc = Mock()
-        self.run_dataset.ntf = Mock()
+        self.run_dataset._ntf = Mock()

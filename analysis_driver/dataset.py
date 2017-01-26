@@ -3,12 +3,10 @@ import threading
 from sys import modules
 from datetime import datetime
 from analysis_driver.notification import NotificationCentre
-from analysis_driver import reader
 from egcg_core import rest_communication, clarity
 from egcg_core.app_logging import AppLogger
 from egcg_core.exceptions import RestCommunicationError
 from analysis_driver.exceptions import AnalysisDriverError
-from analysis_driver.config import default as cfg
 from egcg_core.constants import DATASET_NEW, DATASET_READY, DATASET_FORCE_READY, DATASET_REPROCESS,\
     DATASET_PROCESSING, DATASET_PROCESSED_SUCCESS, DATASET_PROCESSED_FAIL, DATASET_ABORTED, ELEMENT_RUN_NAME,\
     ELEMENT_NB_Q30_R1_CLEANED, ELEMENT_NB_Q30_R2_CLEANED
@@ -25,32 +23,12 @@ class Dataset(AppLogger):
         self.name = name
         self.most_recent_proc = MostRecentProc(self.type, self.name, most_recent_proc)
         self._ntf = None
-        self.expected_output_files = []
 
     @property
     def ntf(self):
         if self._ntf is None:
             self._ntf = NotificationCentre(self.name)
         return self._ntf
-
-    def add_output_file(self, output_record):
-        self.expected_output_files.append(output_record)
-
-    @property
-    def species(self):
-        if self._species is None:
-            self._species = clarity.get_species_from_sample(self.name)
-        return self._species
-
-    @property
-    def user_sample_id(self):
-        if self._user_sample_id is None:
-            self._user_sample_id = clarity.get_user_sample_name(self.name, lenient=True)
-        return self._user_sample_id
-
-    @property
-    def job_dir(self):
-        return os.path.join(cfg['jobs_dir'], self.name)
 
     @property
     def dataset_status(self):
@@ -64,13 +42,19 @@ class Dataset(AppLogger):
             return db_proc_status
 
     @property
-    def stages(self):
+    def running_stages(self):
         stages = rest_communication.get_documents(
             'analysis_driver_stages',
             all_pages=True,
             where={'analysis_driver_proc': self.most_recent_proc.get('proc_id'), 'date_finished': None}
         )
         return [s['stage_name'] for s in stages]
+
+    def get_stage(self, stage_name):
+        return rest_communication.get_document(
+            'analysis_driver_stages',
+            where={'analysis_driver_proc': self.most_recent_proc.get('proc_id'), 'stage_name': stage_name}
+        )
 
     def start(self):
         self._assert_status(DATASET_READY, DATASET_FORCE_READY, DATASET_NEW)
@@ -134,7 +118,7 @@ class Dataset(AppLogger):
         pid = self.most_recent_proc.get('pid')
         if pid:
             s += ' (%s)' % pid
-        stages = self.stages
+        stages = self.running_stages
         if stages:
             s += ' -- ' + ', '.join(stages)
         return s
@@ -180,26 +164,6 @@ class RunDataset(Dataset):
 
     def _is_ready(self):
         return os.path.isfile(os.path.join(self.path, 'RTAComplete.txt'))
-
-    # TODO: ensure run_info and sample_sheet are evaluated th same way as in driver
-    @property
-    def run_info(self):
-        if self._run_info is None:
-            self._run_info = reader.RunInfo(self.path)
-        return self._run_info
-
-    @property
-    def sample_sheet(self):
-        if self._sample_sheet is None:
-            has_barcodes = self.run_info.mask.has_barcodes
-            reader.transform_sample_sheet(self.path, remove_barcode=not has_barcodes)
-            self._sample_sheet = reader.SampleSheet(
-                os.path.join(self.path, 'SampleSheet_analysis_driver.csv'),
-                has_barcode=has_barcodes
-            )
-            if not self._sample_sheet.validate(self.run_info.mask):
-                raise AnalysisDriverError('Validation failed. Check SampleSheet.csv and RunInfo.xml.')
-        return self._sample_sheet
 
 
 class SampleDataset(Dataset):

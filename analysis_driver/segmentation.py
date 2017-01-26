@@ -1,5 +1,4 @@
 import luigi
-from os.path import join, exists
 from egcg_core.app_logging import AppLogger
 from analysis_driver.exceptions import PipelineError
 from analysis_driver.config import default as cfg
@@ -24,14 +23,6 @@ class BasicStage(luigi.Task, AppLogger):
     dataset = EGCGParameter()
 
     @property
-    def job_dir(self):
-        return self.dataset.job_dir
-
-    @property
-    def input_dir(self):
-        return join(cfg.get('intermediate_dir', cfg['input_dir']), self.dataset.name)
-
-    @property
     def stage_name(self):
         if self.__stagename__:
             return self.__stagename__
@@ -54,10 +45,8 @@ class BasicStage(luigi.Task, AppLogger):
 
 
 class Stage(BasicStage):
-    expected_output_files = []
-
     def output(self):
-        return [RestAPITarget(self)] + self.expected_output_files
+        return [RestAPITarget(self)]
 
     def run(self):
         self.dataset.start_stage(self.stage_name)
@@ -65,10 +54,8 @@ class Stage(BasicStage):
         self.dataset.end_stage(self.stage_name, self.exit_status)
         if self.exit_status:
             raise PipelineError('Exit status was %s. Stopping' % self.exit_status)
-        for f in self.expected_output_files:
-            self.dataset.expected_output_files.append(f)
-            self.debug('Registered output file %s' % f.filename)
-        self.info('Finished with %s expected output files' % len(self.expected_output_files))
+
+        self.info('Finished stage %s' % self.stage_name)
 
     def _run(self):
         raise NotImplementedError
@@ -87,19 +74,8 @@ class RestAPITarget(luigi.Target):
         return s and bool(s.get('date_finished')) and s.get('exit_status') == 0
 
 
-class FileTarget(luigi.Target):
-    def __init__(self, filename, deliver, new_basename=None, required=True):
-        self.filename = filename
-        self.new_basename = new_basename
-        self.required = required
-        self.deliver = deliver
-
-    def exists(self):
-        return exists(self.filename) or not self.required
-
-
 # example Luigi workflow below
-from os.path import dirname
+from os.path import join, dirname
 from time import sleep
 from analysis_driver.dataset import NoCommunicationDataset
 

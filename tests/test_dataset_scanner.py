@@ -15,7 +15,7 @@ class FakeEntity(Mock):
 
 class FakeRunDataset(RunDataset):
     @property
-    def stages(self):
+    def running_stages(self):
         return []
 
 
