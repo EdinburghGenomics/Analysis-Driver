@@ -11,15 +11,14 @@ class Relatedness(QualityControl):
 
     def get_gatk_genotype_gvcfs_command(self):
         gVCF_variants = " ". join(["--variant " + i for i in self.gVCF_files])
-        out_prefix = self.project_id + '_genotype_gvcfs'
+        gatk_outfile = self.project_id + '_genotype_gvcfs.vcf'
         number_threads = 12
-        cmd = 'java -jar %s -T GenotypeGVCFs -nt %s -R %s %s -o %s' % (cfg['tools']['gatk'], number_threads, self.reference, gVCF_variants, out_prefix)
-        gatk_outfile = out_prefix + '.vcf'
+        cmd = 'java -jar %s -T GenotypeGVCFs -nt %s -R %s %s -o %s' % (cfg['tools']['gatk'], number_threads, self.reference, gVCF_variants, gatk_outfile)
         return cmd, gatk_outfile
 
     def get_vcftools_relatedness_command(self, vcftools_input_file):
-        cmd = '%s --relatedness2 --vcf %s' % (cfg['tools']['vcftools'], vcftools_input_file)
-        vcftools_relatedness_outfile = vcftools_input_file.split('.')[0] + '.relatedness2'
+        cmd = '%s --relatedness2 --vcf %s --out %s' % (cfg['tools']['vcftools'], vcftools_input_file, self.project_id)
+        vcftools_relatedness_outfile = self.project_id + '.relatedness2'
         return cmd, vcftools_relatedness_outfile
 
     def run_gatk(self):

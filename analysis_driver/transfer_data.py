@@ -70,7 +70,7 @@ def _output_data(source_dir, output_dir, working_dir):
 
 
 def output_project_data(source_dir, project_id):
-    return _output_data(source_dir, os.path.join(cfg['output_dir'], project_id), os.path.join(cfg['jobs_dir'], project_id))
+    return _output_data(source_dir, os.path.join(cfg['project']['input_dir'], project_id), os.path.join(cfg['jobs_dir'], project_id))
 
 
 def output_run_data(fastq_dir, run_id):
