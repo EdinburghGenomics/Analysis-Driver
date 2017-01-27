@@ -22,14 +22,14 @@ class Test_Relatedness(QCTester):
                       '--variant test_sample1.g.vcf.gz ' \
                       '--variant test_sample2.g.vcf.gz ' \
                       '--variant test_sample3.g.vcf.gz ' \
-                      '-o test_project_id_genotype_gvcfs'
+                      '-o test_project_id_genotype_gvcfs.vcf'
         assert outfile == 'test_project_id_genotype_gvcfs.vcf'
 
     def test_get_vcftools_relatedness_command(self):
         input_vcf = 'test_project_id_genotype_gvcfs.vcf'
         cmd, vcftools_outfile = self.r.get_vcftools_relatedness_command(input_vcf)
-        assert cmd == 'path/to/vcftools --relatedness2 --vcf test_project_id_genotype_gvcfs.vcf'
-        assert vcftools_outfile == 'test_project_id_genotype_gvcfs.relatedness2'
+        assert cmd == 'path/to/vcftools --relatedness2 --vcf test_project_id_genotype_gvcfs.vcf --out test_project_id'
+        assert vcftools_outfile == 'test_project_id.relatedness2'
 
     @patch('analysis_driver.quality_control.calculate_relatedness.Relatedness.get_gatk_genotype_gvcfs_command')
     @patch('analysis_driver.dataset.rest_communication')
