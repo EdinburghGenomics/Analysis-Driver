@@ -86,9 +86,8 @@ class TestRunCrawler(TestCrawler):
         self.compare_jsons(dict(self.crawler.projects), self.expected_output['projects'])
 
     def test_run_sample_lane_to_barcode(self):
-        has_barcode = True
         input_data = {(self.run_id, '10015AT0001', '1'): {'read_1_trimmed_bases': 714309214, 'read_2_trimmed_bases': 684692293}}
-        test = self.crawler._run_sample_lane_to_barcode(input_data, has_barcode)
+        test = self.crawler._run_sample_lane_to_barcode(input_data)
         assert test == {self.run_id + '_1_ATTACTCG': {'read_1_trimmed_bases': 714309214, 'read_2_trimmed_bases': 684692293}}
 
 
