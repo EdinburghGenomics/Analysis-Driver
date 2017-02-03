@@ -1,6 +1,6 @@
 import os
 from egcg_core.util import find_file
-from egcg_core import rest_communication, clarity
+from egcg_core import clarity
 from analysis_driver.config import output_files_config, default as cfg
 from analysis_driver.quality_control import Relatedness
 from analysis_driver.exceptions import PipelineError
@@ -9,16 +9,16 @@ from analysis_driver.transfer_data import output_project_data
 def project_pipeline(dataset):
 
     project_id = dataset.name
-    samples_for_project = rest_communication.get_documents('aggregate/samples', match={'project_id': project_id, 'status': 'finished'})
-    species_in_project = []
+    samples_for_project = dataset.sample_processed
+    species_in_project = set()
     for sample in samples_for_project:
         species = sample.get('species_name')
         if not species:
             species = clarity.get_species_from_sample(sample.get('sample_id'))
-        species_in_project.append(species)
-    if len(set(species_in_project)) != 1:
-        raise PipelineError('Wrong number of species in this project: expected 1')
-    species = list(set(species_in_project))[0]
+        species_in_project.add(species)
+    if len(species_in_project) != 1:
+        raise PipelineError('Unexpected number of species (%s) in this project'%(', '.join(species_in_project)))
+    species = species_in_project.pop()
 
     working_dir = os.path.join(cfg['jobs_dir'], project_id)
     reference = cfg['references'][species]['fasta']
