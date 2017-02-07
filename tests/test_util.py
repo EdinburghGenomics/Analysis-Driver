@@ -1,21 +1,19 @@
 import shutil
-import os.path
-from unittest.mock import patch
+import os
+import pytest
+from unittest.mock import Mock, patch
 from tests.test_analysisdriver import TestAnalysisDriver
 from analysis_driver import transfer_data, util
+from analysis_driver.exceptions import AnalysisDriverError
 from analysis_driver.config import default as cfg
 
 
-def ppath(*parts):
-    return 'egcg_core.clarity.' + '.'.join(parts)
-
-
 def patched_get_user_sample_name(sample_id):
-    return patch(ppath('get_user_sample_name'), return_value=sample_id)
+    return patch('egcg_core.clarity.get_user_sample_name', return_value=sample_id)
 
 
 def patched_find_project_from_sample(sample_id):
-    return patch(ppath('find_project_name_from_sample'), return_value='proj_' + sample_id)
+    return patch('egcg_core.clarity.find_project_name_from_sample', return_value='proj_' + sample_id)
 
 
 class TestTransferData(TestAnalysisDriver):
@@ -204,3 +202,46 @@ class TestTransferData(TestAnalysisDriver):
             bcbio_csv
         )
         assert expected in cmd
+
+
+def test_check_bcl_files():
+    run_info = Mock(
+        tiles=('s_1_1101', 's_2_1101', 's_1_1102', 's_2_1102'),
+        mask=Mock(reads=[Mock(attrib={'NumCycles': '1'})])
+    )
+
+    validation_log = os.path.join(TestAnalysisDriver.assets_path, 'bcl_validation.log')
+    if os.path.isfile(validation_log):
+        os.remove(validation_log)
+
+    with patch('analysis_driver.util.app_logger.info') as p:
+        exit_status = util.check_bcl_files(
+            os.path.join(TestAnalysisDriver.assets_path, 'bcl_validation'),
+            run_info,
+            validation_log
+        )
+        assert exit_status == 0
+        p.assert_any_call('Checking %s files', 4)
+        with open(validation_log, 'r') as f:
+            assert f.readlines() == ['L001/C1.1/s_1_1101.bcl.gz\n', 'L002/C1.1/s_2_1101.bcl.gz\n',
+                                     'L001/C1.1/s_1_1102.bcl.gz\n', 'L002/C1.1/s_2_1102.bcl.gz\n']
+
+        run_info.mask.reads.append(Mock(attrib={'NumCycles': '1'}))
+        p.reset_mock()
+
+        with pytest.raises(AnalysisDriverError) as e:
+            util.check_bcl_files(
+                os.path.join(TestAnalysisDriver.assets_path, 'bcl_validation'),
+                run_info,
+                validation_log
+            )
+        assert e.value.args[0] == 'Logged 1 corrupted files. Fix these and restart.'
+        p.assert_any_call('Checking %s files', 4)
+        p.assert_any_call('Found %s corrupted files: %s', 1, ['L001/C2.1/s_1_1102.bcl.gz'])
+
+        with open(validation_log, 'r') as f:
+            assert f.readlines() == [
+                'L001/C1.1/s_1_1101.bcl.gz\n', 'L002/C1.1/s_2_1101.bcl.gz\n', 'L001/C1.1/s_1_1102.bcl.gz\n',
+                'L002/C1.1/s_2_1102.bcl.gz\n', 'L001/C2.1/s_1_1101.bcl.gz\n', 'L002/C2.1/s_2_1101.bcl.gz\n',
+                'L002/C2.1/s_2_1102.bcl.gz\n'
+            ]

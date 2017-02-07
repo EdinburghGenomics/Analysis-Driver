@@ -1,7 +1,10 @@
 import os
 import csv
+from os.path import join, isfile
 from analysis_driver.config import default as cfg
+from analysis_driver.exceptions import AnalysisDriverError
 from egcg_core.app_logging import logging_default as log_cfg
+from egcg_core.executor import ArrayExecutor
 from egcg_core.util import str_join
 from . import bash_commands
 
@@ -45,3 +48,40 @@ def _write_bcbio_csv(run_dir, sample_id, fastqs, user_sample_id):
             writer.writerow([fq, user_sample_id])
 
     return csv_file
+
+
+def check_bcl_files(basecalls_dir, run_info, validation_log):
+    tile_ids = run_info.tiles
+    cycles = sum(int(e.attrib['NumCycles']) for e in run_info.mask.reads)
+    all_bcls = []
+
+    validated_bcls = []
+    if isfile(validation_log):
+        with open(validation_log, 'r') as f:
+            validated_bcls = [l.rstrip('\n') for l in f.readlines()]
+
+    for t in tile_ids:
+        lane = t[2]  # s_1_1101.bcl.gz
+        lane_dir = 'L00' + lane
+        all_bcls.extend(join(lane_dir, 'C' + str(c + 1) + '.1', t + '.bcl.gz') for c in range(cycles))
+
+    files_to_check = [f for f in all_bcls if f not in validated_bcls]
+
+    app_logger.info('Checking %s files', len(files_to_check))
+    e = ArrayExecutor(['gzip -t %s' % join(basecalls_dir, f) for f in files_to_check], stream=True)
+    e.start()
+    exit_status = e.join()
+
+    corrupted_files = []
+    with open(validation_log, 'a') as f:
+        # cmds and e.executors are in the same order, so zip produces corresponding bcls/exit statuses
+        for bcl, exit_status in zip(files_to_check, e.exit_statuses):
+            if exit_status == 0:
+                f.write(bcl + '\n')
+            else:
+                corrupted_files.append(bcl)
+
+    app_logger.info('Found %s corrupted files: %s', len(corrupted_files), corrupted_files)
+    if corrupted_files:
+        raise AnalysisDriverError('Logged %s corrupted files. Fix these and restart.' % len(corrupted_files))
+    return exit_status

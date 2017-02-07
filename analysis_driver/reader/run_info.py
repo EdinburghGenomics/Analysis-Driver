@@ -28,6 +28,7 @@ class RunInfo(AppLogger):
             self.mask.add(read)
 
         self.flowcell_name = root.find('Run/Flowcell').text
+        self.tiles = [e.text for e in root.find('Run/FlowcellLayout/TileSet/Tiles')]
 
 
 class Mask:
