@@ -69,6 +69,9 @@ class Dataset(AppLogger):
     def skip(self):
         self.most_recent_proc.finish(DATASET_PROCESSED_SUCCESS)
 
+    def force(self):
+        self.most_recent_proc.change_status(DATASET_FORCE_READY)
+
     def terminate(self):
         pid = self.most_recent_proc.get('pid')
         if pid and self._is_valid_pid(pid):
@@ -157,9 +160,6 @@ class SampleDataset(Dataset):
         self._non_useable_run_elements = None
         self._data_threshold = data_threshold
 
-    def force(self):
-        self.most_recent_proc.change_status(DATASET_FORCE_READY)
-
     @property
     def run_elements(self):
         if self._run_elements is None:
@@ -217,19 +217,38 @@ class ProjectDataset(Dataset):
 
     def __init__(self, name, most_recent_proc=None):
         super().__init__(name, most_recent_proc)
+        self._number_of_samples = None
+        self._samples_processed = None
 
     def _is_ready(self):
-        samples_processed = rest_communication.get_documents(
-            'samples',
-            where={'project_id': self.name}
-        )
-        samples_processed = len(samples_processed)
-        project_from_lims = get_project(self.name)
-        if not project_from_lims:
-            raise AnalysisDriverError('Could not find number of quoted samples in LIMS for ' + self.name)
+        if self.number_of_samples > 0 and self.number_of_samples > len(self.samples_processed):
+            return True
         else:
-            number_of_quoted_samples = project_from_lims[0].udf.get('Number of Quoted Samples')
-            return samples_processed >= number_of_quoted_samples
+            return False
+
+    @property
+    def sample_processed(self):
+        if not self._samples_processed:
+            self._samples_processed = rest_communication.get_documents(
+                'aggregate/samples',
+                match={'project_id': self.name, 'proc_status': 'finished'}
+            )
+        return self._samples_processed
+
+    @property
+    def number_of_samples(self):
+        if not self._number_of_samples:
+            project_from_lims = get_project(self.name)
+            if project_from_lims:
+                self._number_of_samples = project_from_lims.udf.get('Number of Quoted Samples')
+                if not self._number_of_samples:
+                    self._number_of_samples = -1
+            else:
+                raise AnalysisDriverError('Could not find number of quoted samples in LIMS for ' + self.name)
+        return self._number_of_samples
+
+    def __str__(self):
+        return '%s  (%s samples / %s) ' % ( super().__str__(), len(self.sample_processed), self.number_of_samples)
 
 
 class MostRecentProc:
