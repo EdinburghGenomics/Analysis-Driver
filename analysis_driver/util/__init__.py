@@ -1,6 +1,7 @@
 import os
 import csv
 from os.path import join, isfile
+import illuminate
 from analysis_driver.config import default as cfg
 from analysis_driver.exceptions import AnalysisDriverError
 from egcg_core.app_logging import logging_default as log_cfg
@@ -50,9 +51,9 @@ def _write_bcbio_csv(run_dir, sample_id, fastqs, user_sample_id):
     return csv_file
 
 
-def check_bcl_files(basecalls_dir, run_info, validation_log):
+def check_bcl_files(run_dir, run_info, validation_log):
     tile_ids = run_info.tiles
-    cycles = sum(int(e.attrib['NumCycles']) for e in run_info.mask.reads)
+    run_info_ncycles = sum(int(e.attrib['NumCycles']) for e in run_info.mask.reads)
     all_bcls = []
 
     validated_bcls = []
@@ -60,17 +61,35 @@ def check_bcl_files(basecalls_dir, run_info, validation_log):
         with open(validation_log, 'r') as f:
             validated_bcls = [l.rstrip('\n') for l in f.readlines()]
 
-    for t in tile_ids:
-        lane = t[2]  # s_1_1101.bcl.gz
-        lane_dir = 'L00' + lane
-        all_bcls.extend(join(lane_dir, 'C' + str(c + 1) + '.1', t + '.bcl.gz') for c in range(cycles))
+    all_cycles = _all_cycles(run_dir)
+    uniq_cycles = sorted(set(all_cycles), reverse=True)
+    if all_cycles[-1] > run_info_ncycles:
+        raise AnalysisDriverError(
+            'Number of cycles (%s) disagrees with RunInfo (%s)' % (all_cycles[-1], run_info_ncycles)
+        )
+
+    last_completed_cycle = None
+    for c in uniq_cycles:
+        if all_cycles.count(c) == len(tile_ids):
+            last_completed_cycle = c
+            break
+    if last_completed_cycle is None:
+        raise AnalysisDriverError('Bad cycles')
+
+    for c in range(last_completed_cycle):
+        cycle_id = 'C' + str(c + 1) + '.1'
+        for t in tile_ids:
+            lane = t[2]  # s_1_1101.bcl.gz
+            lane_id = 'L00' + lane
+            all_bcls.append(join(lane_id, cycle_id, t + '.bcl.gz'))
 
     files_to_check = [f for f in all_bcls if f not in validated_bcls]
 
+    basecalls_dir = os.path.join(run_dir, 'Data', 'Intensities', 'BaseCalls')
     app_logger.info('Checking %s files', len(files_to_check))
     e = ArrayExecutor(['gzip -t %s' % join(basecalls_dir, f) for f in files_to_check], stream=True)
     e.start()
-    exit_status = e.join()
+    e.join()
 
     corrupted_files = []
     with open(validation_log, 'a') as f:
@@ -82,6 +101,8 @@ def check_bcl_files(basecalls_dir, run_info, validation_log):
                 corrupted_files.append(bcl)
 
     app_logger.info('Found %s corrupted files: %s', len(corrupted_files), corrupted_files)
-    if corrupted_files:
-        raise AnalysisDriverError('Logged %s corrupted files. Fix these and restart.' % len(corrupted_files))
-    return exit_status
+    return corrupted_files
+
+
+def _all_cycles(run_dir):
+    return illuminate.InteropDataset(run_dir).ExtractionMetrics().data['cycle']
