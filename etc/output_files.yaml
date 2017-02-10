@@ -160,3 +160,10 @@ gatk_var_calling:
     basename: 'taxa_identified.json'
 
 
+project_process:
+  - location: ['']
+    basename: '{project_id}_genotype_gvcfs.vcf'
+
+  - location: ['']
+    basename: '{project_id}.relatedness2'
+
