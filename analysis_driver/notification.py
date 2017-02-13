@@ -6,7 +6,7 @@ class NotificationCentre(notifications.NotificationCentre):
         self.notify('Started pipeline', ('log', 'email'))
 
     def start_stage(self, stage_name):
-        self.notify('Started stage ' + stage_name, ('log', 'email'))
+        self.notify('Started stage ' + stage_name, ('log',))
 
     def end_stage(self, stage_name, exit_status=0):
         subs = ['log']

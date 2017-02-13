@@ -8,11 +8,6 @@ from egcg_core.constants import ELEMENT_RUN_NAME, ELEMENT_LANE, ELEMENT_PROJECT_
 app_logger = log_cfg.get_logger(__name__)
 
 
-def prepare_run_data(dataset):
-    app_logger.debug('Preparing dataset %s (%s)', dataset.name, dataset.dataset_status)
-    return os.path.join(cfg['input_dir'], dataset.name)
-
-
 def prepare_sample_data(dataset):
     app_logger.debug('Preparing dataset %s (%s)', dataset.name, dataset.dataset_status)
     fastqs = []
@@ -72,6 +67,10 @@ def _output_data(source_dir, output_dir, working_dir):
         os.makedirs(output_dir, exist_ok=True)
         command = rsync_from_to(source_dir, output_dir)
         return executor.execute(command, job_name='data_output', working_dir=working_dir).join()
+
+
+def output_project_data(source_dir, project_id):
+    return _output_data(source_dir, os.path.join(cfg['project']['input_dir'], project_id), os.path.join(cfg['jobs_dir'], project_id))
 
 
 def output_run_data(fastq_dir, run_id):
