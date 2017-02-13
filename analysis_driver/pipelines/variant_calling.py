@@ -10,7 +10,7 @@ from analysis_driver.reader.version_reader import write_versions_to_yaml
 app_logger = log_cfg.get_logger('variant_calling')
 
 
-def _gatk_var_calling(dataset, species):
+def _gatk_var_calling(dataset, reference, dbsnp, known_indels, species):
 
     sample_id = dataset.name
     gatk_run_dir = os.path.join(cfg['jobs_dir'], sample_id, 'gatk_var_calling')
@@ -31,14 +31,12 @@ def _gatk_var_calling(dataset, species):
             xmx=str(xmx * 1000),
             tmpdir=gatk_run_dir,
             gatk=cfg['tools']['gatk'],
-            ref=cfg['references'][species]['fasta'],
+            ref=reference,
             run_cls=run_cls,
             input_bam=input_bam,
             output=output
         )
 
-    dbsnp = cfg['references'][species]['dbsnp']
-    known_indels = cfg['references'][species].get('known_indels')
 
     basename = os.path.join(gatk_run_dir, user_sample_id)
     sorted_bam = os.path.join(cfg['jobs_dir'], sample_id, sample_id + '.bam')
@@ -130,12 +128,12 @@ def _gatk_var_calling(dataset, species):
     return base_recal + print_reads + realign_target + realign + haplotype + bgzip + tabix
 
 
-def var_calling_pipeline(dataset, species):
+def var_calling_pipeline(dataset, reference, dbsnp, known_indels, species):
     sample_id = dataset.name
     sample_dir = os.path.join(cfg['jobs_dir'], sample_id)
 
-    exit_status = bam_file_production(dataset, species)
-    exit_status += _gatk_var_calling(dataset, species)
+    exit_status = bam_file_production(dataset, reference, species)
+    exit_status += _gatk_var_calling(dataset, reference, dbsnp, known_indels,  species)
 
     # link the bcbio file into the final directory
     dir_with_linked_files = link_results_files(sample_id, sample_dir, 'gatk_var_calling')

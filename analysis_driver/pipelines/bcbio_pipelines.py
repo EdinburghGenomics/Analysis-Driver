@@ -128,8 +128,6 @@ def bcbio_var_calling_pipeline(dataset, genome_version, analysis_type):
 
 
 def _run_bcbio(sample_id, sample_dir, sample_fastqs, genome_version, analysis_type):
-    if not genome_version:
-        genome_version = cfg['genome']
     if not analysis_type:
         analysis_type = 'gatk'
     elif analysis_type.endswith('gatk'):

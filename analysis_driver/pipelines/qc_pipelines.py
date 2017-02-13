@@ -12,7 +12,7 @@ from analysis_driver.transfer_data import prepare_sample_data
 app_logger = log_cfg.get_logger('qc_pipeline')
 
 
-def bam_file_production(dataset, species):
+def bam_file_production(dataset, reference, species):
     exit_status = 0
 
     fastq_files = prepare_sample_data(dataset)
@@ -22,7 +22,6 @@ def bam_file_production(dataset, species):
     app_logger.info('Job dir: ' + sample_dir)
     user_sample_id = clarity.get_user_sample_name(sample_id, lenient=True)
 
-    reference = cfg.query('references', species, 'fasta')
     if not reference:
         raise PipelineError('Could not find reference for species %s in sample %s ' % (species, sample_id))
 
@@ -101,11 +100,11 @@ def bam_file_production(dataset, species):
     return exit_status
 
 
-def qc_pipeline(dataset, species):
+def qc_pipeline(dataset, reference, species):
     sample_id = dataset.name
     sample_dir = os.path.join(cfg['jobs_dir'], sample_id)
 
-    exit_status = bam_file_production(dataset, species)
+    exit_status = bam_file_production(dataset, reference, species)
 
     # link the bcbio file into the final directory
     dir_with_linked_files = link_results_files(sample_id, sample_dir, 'non_human_qc')
