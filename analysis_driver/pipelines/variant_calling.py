@@ -1,6 +1,6 @@
 import os
 from egcg_core import executor, clarity
-from analysis_driver.pipelines.common import link_results_files, output_data, cleanup
+from analysis_driver.pipelines.common import link_results_files, output_data, cleanup, get_genome_version, get_dbsnp, get_known_indels
 from analysis_driver.pipelines.qc_pipelines import bam_file_production
 from egcg_core.app_logging import logging_default as log_cfg
 from analysis_driver.config import default as cfg
@@ -128,9 +128,12 @@ def _gatk_var_calling(dataset, reference, dbsnp, known_indels, species):
     return base_recal + print_reads + realign_target + realign + haplotype + bgzip + tabix
 
 
-def var_calling_pipeline(dataset, reference, dbsnp, known_indels, species):
+def var_calling_pipeline(dataset, species):
     sample_id = dataset.name
     sample_dir = os.path.join(cfg['jobs_dir'], sample_id)
+    genome_version, reference = get_genome_version(sample_id, species)
+    dbsnp = get_dbsnp(genome_version)
+    known_indels = get_known_indels(genome_version)
 
     exit_status = bam_file_production(dataset, reference, species)
     exit_status += _gatk_var_calling(dataset, reference, dbsnp, known_indels,  species)

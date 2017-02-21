@@ -1,7 +1,7 @@
 import os
 from egcg_core import executor, clarity
 from analysis_driver import quality_control as qc
-from analysis_driver.pipelines.common import bcbio_prepare_sample, link_results_files, output_data, cleanup
+from analysis_driver.pipelines.common import bcbio_prepare_sample, link_results_files, output_data, cleanup, get_genome_version
 from analysis_driver.util import bash_commands
 from analysis_driver.exceptions import PipelineError
 from egcg_core.app_logging import logging_default as log_cfg
@@ -100,10 +100,10 @@ def bam_file_production(dataset, reference, species):
     return exit_status
 
 
-def qc_pipeline(dataset, reference, species):
+def qc_pipeline(dataset, species):
     sample_id = dataset.name
     sample_dir = os.path.join(cfg['jobs_dir'], sample_id)
-
+    genome_version, reference = get_genome_version(sample_id, species)
     exit_status = bam_file_production(dataset, reference, species)
 
     # link the bcbio file into the final directory
