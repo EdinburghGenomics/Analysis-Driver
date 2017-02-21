@@ -22,9 +22,6 @@ def bam_file_production(dataset, reference, species):
     app_logger.info('Job dir: ' + sample_dir)
     user_sample_id = clarity.get_user_sample_name(sample_id, lenient=True)
 
-    if not reference:
-        raise PipelineError('Could not find reference for species %s in sample %s ' % (species, sample_id))
-
     # merge fastq files
     dataset.start_stage('merge fastqs')
     fastq_pair = bcbio_prepare_sample(sample_dir, sample_id, fastq_files)
