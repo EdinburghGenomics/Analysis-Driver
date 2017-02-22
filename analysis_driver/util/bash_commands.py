@@ -124,6 +124,12 @@ def bamtools_stats(bam_file, output_file):
     app_logger.debug('Writing: ' + cmd)
     return cmd
 
+def samtools_stats(bam_file, output_file):
+    samtools_bin = cfg.query('tools', 'bamtools')
+    cmd = '%s stats %s > %s' % (samtools_bin, bam_file, output_file)
+    app_logger.debug('Writing: ' + cmd)
+    return cmd
+
 
 def md5sum(input_file):
     cmd = cfg.query('tools', 'md5sum', ret_default='md5sum') + ' %s > %s.md5' % (input_file, input_file)
