@@ -21,7 +21,7 @@ class TestVersion(TestAnalysisDriver):
         with patch('analysis_driver.reader.version_reader.VersionReader.get_version', return_value='1.2'):
             observed = get_versions()
 
-        expected_keys = ['bamtools', 'bcbio', 'bcftools', 'bcl2fastq', 'bwa', 'fastqc',
+        expected_keys = ['bcbio', 'bcftools', 'bcl2fastq', 'bwa', 'fastqc',
                          'fastqscreen', 'gatk', 'sambamba', 'samblaster', 'samtools',
                          'seqtk', 'tabix', 'verifybamid', 'well_duplicate', 'biobambam_sortmapdup']
         expected = dict((k, '1.2') for k in expected_keys)

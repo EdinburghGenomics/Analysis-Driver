@@ -125,7 +125,7 @@ def bamtools_stats(bam_file, output_file):
     return cmd
 
 def samtools_stats(bam_file, output_file):
-    samtools_bin = cfg.query('tools', 'bamtools')
+    samtools_bin = cfg.query('tools', 'samtools')
     cmd = '%s stats %s > %s' % (samtools_bin, bam_file, output_file)
     app_logger.debug('Writing: ' + cmd)
     return cmd
