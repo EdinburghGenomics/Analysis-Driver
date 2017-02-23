@@ -1,7 +1,6 @@
 import os
 import shutil
-from egcg_core import executor, clarity, util, archive_management
-from analysis_driver.util.bash_commands import rsync_from_to
+from egcg_core import clarity, util, archive_management
 from analysis_driver.config import default as cfg
 from egcg_core.app_logging import logging_default as log_cfg
 from egcg_core.constants import ELEMENT_RUN_NAME, ELEMENT_LANE, ELEMENT_PROJECT_ID, ELEMENT_NB_READS_CLEANED
