@@ -1,6 +1,10 @@
 Changelog for Analysis-Driver
 =============================
 
+0.13 (Unreleased)
+-----------------
+ - Replace bamtools stats with samtools stats
+
 0.12 
 ----
  - BCBio option for variant calling with Freebayes
