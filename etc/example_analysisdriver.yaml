@@ -38,7 +38,6 @@ default:
         samblaster: path/to/samblaster
         biobambam_sortmapdup: path/to/bamsormadup
         samtools: path/to/samtools
-        bamtools: path/to/bamtools
         sambamba: path/to/sambamba
         sickle: path/to/sickle
         bcftools: path/to/bcftools
