@@ -61,10 +61,6 @@ def create_links_from_bcbio(sample_id, input_dir, output_config, link_dir):
 
 
 def _output_data_and_archive(source_dir, output_dir,):
-    # previous analysis of that run/sample/project
-    if os.path.exists(output_dir):
-        app_logger.info('Removed %s from previous analysis before data output')
-        shutil.rmtree(output_dir)
     exit_status = util.move_dir(source_dir, output_dir)
     if exit_status == 0:
         if archive_management.archive_directory(output_dir):

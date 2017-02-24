@@ -4,6 +4,7 @@ Changelog for Analysis-Driver
 0.13 (Unreleased)
 -----------------
  - Replace bamtools stats with samtools stats
+ - Archive the output at the end of the process
 
 0.12 
 ----
