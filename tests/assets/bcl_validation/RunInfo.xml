@@ -1,0 +1,27 @@
+<?xml version="1.0"?>
+<RunInfo xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" Version="3">
+  <Run Id="a_run" Number="1">
+    <Flowcell>Flowcell_ID</Flowcell>
+    <Instrument>Instrument_ID</Instrument>
+    <Date>170224</Date>
+    <Reads>
+      <Read Number="1" NumCycles="151" IsIndexedRead="N" />
+      <Read Number="2" NumCycles="151" IsIndexedRead="N" />
+    </Reads>
+    <FlowcellLayout LaneCount="1" SurfaceCount="1" SwathCount="1" TileCount="1">
+      <TileSet TileNamingConvention="FourDigit">
+        <Tiles>
+          <Tile>1_1101</Tile>
+        </Tiles>
+      </TileSet>
+    </FlowcellLayout>
+    <AlignToPhiX />
+    <ImageDimensions Width="3188" Height="7241" />
+    <ImageChannels>
+      <Name>A</Name>
+      <Name>G</Name>
+      <Name>T</Name>
+      <Name>C</Name>
+    </ImageChannels>
+  </Run>
+</RunInfo>
