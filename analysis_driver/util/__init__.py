@@ -132,7 +132,7 @@ class BCLValidator(AppLogger):
             for bcl, exit_status in zip(bcls, e.exit_statuses):
                 f.write('%s,%s\n' % (bcl, exit_status))
 
-    def read_corrupted_files(self):
+    def read_invalid_files(self):
         with open(self.validation_log, 'r', newline='') as f:
             reader = csv.reader(f, delimiter=',')
             return [bcl for bcl, exit_status in reader if int(exit_status) != 0]

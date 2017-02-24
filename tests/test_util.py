@@ -277,7 +277,8 @@ class TestBCLValidator(TestAnalysisDriver):
                    return_value=[1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3]):
             bcls = self.val.get_bcls_to_check()
         self.val.run_bcl_check_local(bcls)
-        assert self.val.read_corrupted_files() == [
+        assert self.val.read_invalid_files() == [
+            os.path.join(self.val.basecalls_dir, 'L002', 'C3.1', 's_2_1101.bcl.gz'),
             os.path.join(self.val.basecalls_dir, 'L001', 'C3.1', 's_1_1102.bcl.gz')
         ]
 
