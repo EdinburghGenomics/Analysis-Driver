@@ -77,17 +77,17 @@ def bam_file_production(dataset, species):
     contam_check_status = species_contamination_check.exit_status + blast_contamination_check.exit_status
     dataset.end_stage('species contamination check', contam_check_status)
 
-    dataset.start_stage('bamtools_stat')
-    bamtools_stat_file = os.path.join(sample_dir, 'bamtools_stats.txt')
-    bamtools_exit_status = executor.execute(
-        bash_commands.bamtools_stats(expected_output_bam, bamtools_stat_file),
-        job_name='bamtools',
+    dataset.start_stage('samtools_stat')
+    samtools_stat_file = os.path.join(sample_dir, 'samtools_stats.txt')
+    samtools_exit_status = executor.execute(
+        bash_commands.samtools_stats(expected_output_bam, samtools_stat_file),
+        job_name='samtools',
         working_dir=sample_dir,
         cpus=1,
         mem=8,
         log_commands=False
     ).join()
-    dataset.end_stage('bamtools_stat', bamtools_exit_status)
+    dataset.end_stage('samtools_stats', samtools_exit_status)
 
     dataset.start_stage('coverage statistics')
     bam_file = os.path.join(sample_dir, expected_output_bam)
