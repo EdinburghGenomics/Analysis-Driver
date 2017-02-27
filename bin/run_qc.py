@@ -63,6 +63,14 @@ def _parse_args():
     contam_blast.add_argument('--fastq_file', required=True, nargs='+', help='fastq file to check for contamination')
     contam_blast.add_argument('--sample_id', required=True)
     contam_blast.set_defaults(func=contamination_blast)
+
+    relatedness_parser = subparsers.add_parser('relatedness')
+    relatedness_parser.add_argument('--gVCF_files', required=True, nargs='+')
+    relatedness_parser.add_argument('--reference', required=True)
+    relatedness_parser.add_argument('--work_dir', required=False)
+    relatedness_parser.add_argument('--project_id', required=True)
+    relatedness_parser.set_defaults(func=relatedness)
+
     return parser.parse_args()
 
 
@@ -200,6 +208,19 @@ def contamination_blast(args):
     contamination = qc.ContaminationBlast(dataset, work_dir, args.fastq_file)
     contamination.start()
     return contamination.join()
+
+
+def relatedness(args):
+    cfg.merge(cfg['project'])
+    if args.work_dir:
+        work_dir = args.work_dir
+    else:
+        work_dir = os.path.join(cfg['input_dir'], args.project_id)
+    os.makedirs(work_dir, exist_ok=True)
+    dataset = NoCommunicationDataset(args.project_id)
+    r = qc.Relatedness(dataset, work_dir, args.gVCF_files, args.reference, args.project_id)
+    r.start()
+    return r.join()
 
 
 if __name__ == '__main__':
