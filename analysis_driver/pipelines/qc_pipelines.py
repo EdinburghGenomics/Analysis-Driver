@@ -96,7 +96,7 @@ def bam_file_production(dataset, species):
     coverage_statistics_histogram.join()
     dataset.end_stage('coverage statistics', coverage_statistics_histogram.exit_status)
 
-    exit_status += fastqc_exit_status + bwa_exit_status + bamtools_exit_status
+    exit_status += fastqc_exit_status + bwa_exit_status + bamtools_exit_status + contam_check_status
 
     return exit_status
 
