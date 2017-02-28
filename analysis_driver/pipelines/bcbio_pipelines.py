@@ -84,7 +84,7 @@ def bcbio_var_calling_pipeline(dataset, species, analysis_type):
     if bcbio_exit_status:
         return bcbio_exit_status
 
-    exit_status += fastqc2_exit_status + bcbio_exit_status
+    exit_status += fastqc2_exit_status + bcbio_exit_status + contam_check_status
 
     # link the bcbio file into the final directory
     dir_with_linked_files = link_results_files(sample_id, sample_dir, 'bcbio')
