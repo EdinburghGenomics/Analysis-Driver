@@ -5,6 +5,7 @@ Changelog for Analysis-Driver
 -----------------
  - Replace bamtools stats with samtools stats
  - Archive the output at the end of the process
+ - fix bcbio alternative genome version  
 
 0.12 
 ----

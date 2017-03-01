@@ -171,8 +171,9 @@ class TestContaminationBlast(QCTester):
     def test_run_sample_fastq(self, mocked_execute, mocked_rest):
         instance = mocked_execute.return_value
         instance.join.return_value = 0
-        sample_fastq_outfile = self.blast.run_sample_fastq(self.fastq_file, nb_reads=3000)
+        sample_fastq_outfile, exit_status = self.blast.run_sample_fastq(self.fastq_file, nb_reads=3000)
         assert sample_fastq_outfile == 'test_run/fastqFile1_sample3000.fasta'
+        assert exit_status == 0
         mocked_execute.assert_called_once_with(
             'set -o pipefail; path/to/seqtk sample fastqFile1.fastq 3000 | path/to/seqtk seq -a > test_run/fastqFile1_sample3000.fasta',
             working_dir='test_run',
@@ -186,8 +187,9 @@ class TestContaminationBlast(QCTester):
     def test_run_blast(self, mocked_execute, mocked_rest):
         instance = mocked_execute.return_value
         instance.join.return_value = 0
-        blast_outfile = self.blast.run_blast(self.fasta_file)
+        blast_outfile, exit_status = self.blast.run_blast(self.fasta_file)
         assert blast_outfile == 'test_run/fastaFile1_blastn'
+        assert exit_status == 0
         mocked_execute.assert_called_once_with(
             ('export PATH=$PATH:/path/to/db/dir; path/to/blastn -query fastaFile1.fasta -db '
              'path/to/db/dir/nt -out test_run/fastaFile1_blastn -num_threads 12 -max_target_seqs 1 -max_hsps '

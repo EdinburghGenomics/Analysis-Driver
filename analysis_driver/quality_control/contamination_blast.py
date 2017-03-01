@@ -102,7 +102,7 @@ class ContaminationBlast(QualityControl):
         )
         exit_status = sample_fastq_executor.join()
         self.dataset.end_stage('sample_fastq', exit_status)
-        return fasta_outfile
+        return fasta_outfile, exit_status
 
     def run_blast(self, fasta_file):
         self.dataset.start_stage('contamination_blast')
@@ -116,12 +116,14 @@ class ContaminationBlast(QualityControl):
         )
         exit_status = contamination_blast_executor.join()
         self.dataset.end_stage('contamination_blast', exit_status)
-        return blast_outfile
+        return blast_outfile, exit_status
 
     def check_for_contamination(self):
+        exit_status = 0
         nb_reads = 3000
-        fasta_outfile = self.run_sample_fastq(self.fastq_file[0], nb_reads)
-        blast_outfile = self.run_blast(fasta_outfile)
+        fasta_outfile, sample_fastq_exit_status = self.run_sample_fastq(self.fastq_file[0], nb_reads)
+        blast_outfile, blast_exit_status = self.run_blast(fasta_outfile)
+        exit_status += blast_exit_status + sample_fastq_exit_status
         taxids = self.get_taxids(blast_outfile)
         taxon_dict = {'Total': nb_reads}
         for taxon in taxids:
@@ -129,10 +131,11 @@ class ContaminationBlast(QualityControl):
         outpath = os.path.join(self.working_dir, 'taxa_identified.json')
         with open(outpath, 'w') as outfile:
             json.dump(taxon_dict, outfile, sort_keys=True, indent=4, separators=(',', ':'))
+        return exit_status
 
     def run(self):
         try:
-            self.check_for_contamination()
+            self.exit_status = self.check_for_contamination()
         except Exception as e:
             self.exception = e
 
@@ -140,3 +143,4 @@ class ContaminationBlast(QualityControl):
         super().join(timeout=timeout)
         if self.exception:
             raise self.exception
+        return self.exit_status
