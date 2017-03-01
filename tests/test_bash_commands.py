@@ -87,9 +87,9 @@ def test_bwa_mem_biobambam_read_groups():
     assert cmd == expected_cmd
 
 
-def test_bamtools_stats():
-    expected = 'path/to/bamtools stats -in in.bam -insert > out.txt'
-    assert bash_commands.bamtools_stats('in.bam', 'out.txt') == expected
+def test_samtools_stats():
+    expected = 'path/to/samtools stats in.bam > out.txt'
+    assert bash_commands.samtools_stats('in.bam', 'out.txt') == expected
 
 
 def test_md5sum():

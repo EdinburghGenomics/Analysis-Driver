@@ -9,4 +9,4 @@ details:
     variantcaller: freebayes
     jointcaller: freebayes-joint
   analysis: variant2
-  genome_build: GRCh37
+  genome_build: hg19

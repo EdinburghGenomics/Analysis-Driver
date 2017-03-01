@@ -23,14 +23,9 @@ bcbio:
     basename: '{sample_id}-ready.bam.bai'
     new_name: '{sample_id}.bam.bai'
 
-  - location: ['samples_{runfolder}-merged', 'final', '{sample_id}', 'qc', 'bamtools']
-    basename: 'bamtools_stats.txt'
-    required: False
-
   - location: ['samples_{runfolder}-merged', 'final', '{sample_id}', 'qc', 'samtools']
     basename: '{sample_id}.txt'
     new_name: 'samtools_stats.txt'
-    required: False
 
   - location: ['samples_{runfolder}-merged', 'work', 'align', '{sample_id}']
     basename: '*{sample_id}*-sort-highdepth-stats.yaml'
@@ -80,20 +75,15 @@ bcbio:
 
 
 non_human_qc:
-  - location: ['']
-    basename: 'bamtools_stats.txt'
 
-#  - location: ['merged']
-#    basename: '{sample_id}_R1.fastq.gz'
+  - location: ['']
+    basename: 'samtools_stats.txt'
 
   - location: ['merged']
     basename: '{sample_id}_R1_fastqc.html'
 
   - location: ['merged']
     basename: '{sample_id}_R1_fastqc.zip'
-
-#  - location: ['merged']
-#    basename: '{sample_id}_R2.fastq.gz'
 
   - location: ['merged']
     basename: '{sample_id}_R2_fastqc.html'
@@ -114,20 +104,15 @@ non_human_qc:
 
 
 gatk_var_calling:
-  - location: ['']
-    basename: 'bamtools_stats.txt'
 
-#  - location: ['merged']
-#    basename: '{sample_id}_R1.fastq.gz'
+  - location: ['']
+    basename: 'samtools_stats.txt'
 
   - location: ['merged']
     basename: '{sample_id}_R1_fastqc.html'
 
   - location: ['merged']
     basename: '{sample_id}_R1_fastqc.zip'
-
-#  - location: ['merged']
-#    basename: '{sample_id}_R2.fastq.gz'
 
   - location: ['merged']
     basename: '{sample_id}_R2_fastqc.html'
@@ -159,4 +144,11 @@ gatk_var_calling:
   - location: ['']
     basename: 'taxa_identified.json'
 
+
+project_process:
+  - location: ['']
+    basename: '{project_id}_genotype_gvcfs.vcf'
+
+  - location: ['']
+    basename: '{project_id}.relatedness2'
 
