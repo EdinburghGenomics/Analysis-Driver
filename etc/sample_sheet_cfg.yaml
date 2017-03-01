@@ -1,9 +1,10 @@
-column_names:
-    sample_project: [Sample_Project, SampleProject, Project_Name]
-    sample_id:      [Sample_ID, SampleID]
-    sample_name:    [Sample_Name]
-    lane:           [Lane]
-    barcode:        [Index, index]
 
-transformations:
+clarity3:
     Project_Name: Sample_Project
+
+clarity4:
+    Sample_Name: Sample_ID
+    Sample_ID: Sample_Name
+
+    index: Index
+    index2: Index2

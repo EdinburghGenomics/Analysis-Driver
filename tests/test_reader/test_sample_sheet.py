@@ -1,4 +1,4 @@
-from os.path import join, isfile
+from os.path import join
 from tests.test_analysisdriver import TestAnalysisDriver
 from analysis_driver.reader import SampleSheet, RunInfo, transform_sample_sheet
 from analysis_driver.reader.sample_sheet import ProjectID, Line
@@ -35,15 +35,21 @@ def test_transform_sample_sheet():
     new_samplesheet = join(samplesheet_path, 'SampleSheet_analysis_driver.csv')
 
     transform_sample_sheet(samplesheet_path, remove_barcode=True)
-    assert isfile(new_samplesheet)
-    with open(new_samplesheet) as open_file:
-        obs = open_file.read()
-        assert samples_without_barcode in obs
+    with open(new_samplesheet) as f:
+        assert samples_without_barcode in f.read()
 
     transform_sample_sheet(samplesheet_path)
-    assert isfile(new_samplesheet)
-    with open(new_samplesheet) as open_file:
-        obs = open_file.read()
+    with open(new_samplesheet) as f:
+        assert samples_with_barcode in f.read()
+
+
+def test_transform_sample_sheet_seqlab2():
+    samplesheet_path = join(TestAnalysisDriver.assets_path, 'test_runs', 'clarity4_run')
+    new_samplesheet = join(samplesheet_path, 'SampleSheet_analysis_driver.csv')
+
+    transform_sample_sheet(samplesheet_path, clarity4=True)
+    with open(new_samplesheet) as f:
+        obs = f.read()
         assert samples_with_barcode in obs
 
 
@@ -119,11 +125,10 @@ class TestSampleProject(TestAnalysisDriver):
     def setUp(self):
         self.test_line = Line(
             {
-                'SampleProject': 'test_sp',
+                'Sample_Project': 'test_sp',
                 'Lane': '1337',
-                'SampleID': 'test_id',
+                'Sample_ID': 'test_id',
                 'Sample_Name': 'test_name',
-                'name': 'test_name',
                 'Index': 'ATGCAT'
             }
         )
@@ -137,11 +142,10 @@ class TestSampleProject(TestAnalysisDriver):
     def test_add_sample(self):
         new_line = Line(
             {
-                'SampleProject': 'test_sp',
+                'Sample_Project': 'test_sp',
                 'Lane': '1338',
-                'SampleID': 'test_id',
+                'Sample_ID': 'test_id',
                 'Sample_Name': 'test_name',
-                'name': 'test_name',
                 'Index': 'ATGCAG'
             }
         )
@@ -154,11 +158,10 @@ class TestSampleProject(TestAnalysisDriver):
         with pytest.raises(AssertionError) as e:
             new_line = Line(
                 {
-                    'SampleProject': 'another_test_sp',
+                    'Sample_Project': 'another_test_sp',
                     'Lane': '1338',
-                    'SampleID': 'another_test_id',
+                    'Sample_ID': 'another_test_id',
                     'Sample_Name': 'test_name',
-                    'name': 'another_test_name',
                     'Index': 'ATGCAG'
                 }
             )

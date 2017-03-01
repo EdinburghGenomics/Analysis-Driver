@@ -3,48 +3,39 @@ import os.path
 from collections import defaultdict
 from egcg_core.app_logging import AppLogger, logging_default as log_cfg
 from analysis_driver.exceptions import AnalysisDriverError
-from analysis_driver import config
+from analysis_driver.config import sample_sheet_config
 
 app_logger = log_cfg.get_logger('reader')
 
 
-def transform_sample_sheet(data_dir, remove_barcode=False):
+def transform_sample_sheet(data_dir, clarity4=False, remove_barcode=False):
     """
     Read SampleSheet.csv, translate column names and write to SampleSheet_analysis_driver.csv
     :param str data_dir: Full path to a data directory containing SampleSheet.csv
+    :param bool clarity4: Whether to
     :param bool remove_barcode: Whether to remove barcodes from the sample sheet
     """
-    before, header = _read_sample_sheet(os.path.join(data_dir, 'SampleSheet.csv'))
-    cols = before.readline().strip().split(',')
-    out_lines = []
-    transformations = config.sample_sheet_config.get('transformations', [])
-    for idx, col in enumerate(cols):
-        if col in transformations:
-            cols[idx] = transformations[col]
-    for line in header:
-        out_lines.append(line.strip())
-    out_lines.append('[Data],')
-    out_lines.append(','.join(cols))
-    index_col = index2_col = -1
-    if remove_barcode:
-        if 'Index' in cols:
-            index_col = cols.index('Index')
-        if 'Index2' in cols:
-            index2_col = cols.index('Index2')
-    for line in before:
+    sample_sheet_in, header = _read_sample_sheet(os.path.join(data_dir, 'SampleSheet.csv'))
+    cols_in = sample_sheet_in.readline().strip().split(',')
+    col_transformations = sample_sheet_config['clarity4'] if clarity4 else sample_sheet_config['clarity3']
+    cols_out = [col_transformations.get(c, c) for c in cols_in]
+
+    out_lines = [line.strip() for line in header]
+    out_lines.append(','.join(cols_out))
+
+    for line in sample_sheet_in:
         if remove_barcode:
             sp_line = line.strip().split(',')
-            if index_col >= 0:
-                sp_line[index_col] = ''
-            if index2_col >= 0:
-                sp_line[index2_col] = ''
+            sp_line[cols_out.index('Index')] = ''  # use the index of the 'Index' column!
+            sp_line[cols_out.index('Index2')] = ''
             out_lines.append(','.join(sp_line))
         else:
             out_lines.append(line.strip())
-    before.close()
+
+    sample_sheet_in.close()
     out_lines.append('')
-    with open(os.path.join(data_dir, 'SampleSheet_analysis_driver.csv'), 'w') as after:
-        after.write('\n'.join(out_lines))
+    with open(os.path.join(data_dir, 'SampleSheet_analysis_driver.csv'), 'w') as sample_sheet_out:
+        sample_sheet_out.write('\n'.join(out_lines))
 
 
 def _read_sample_sheet(sample_sheet):
@@ -57,12 +48,12 @@ def _read_sample_sheet(sample_sheet):
     counter = 1
     header = []
     for line in f:
+        header.append(line)
+        counter += 1
         if line.startswith('[Data]'):
             app_logger.debug('Starting reading sample sheet from line ' + str(counter))
             return f, header
-        else:
-            counter += 1
-            header.append(line)
+
     f.close()
     return None, None
 
@@ -181,24 +172,9 @@ class SampleID:
 class Line:
     """Represents a line in SampleSheet.csv below the '[Data]' marker."""
     def __init__(self, sample_sheet_line):
-        colnames = sample_sheet_line.keys()
-
-        self.project_id = self._get_column_value(sample_sheet_line, 'sample_project', colnames)
-        self.sample_id = self._get_column_value(sample_sheet_line, 'sample_id', colnames)
-        self.sample_name = self._get_column_value(sample_sheet_line, 'sample_name', colnames)
-        self.lanes = self._get_column_value(sample_sheet_line, 'lane', colnames).split('+')
-        self.barcode = self._get_column_value(sample_sheet_line, 'barcode', colnames)
-
-        self.extra_data = sample_sheet_line  # everything else has been removed by dict.pop
-
-    @staticmethod
-    def _get_column_name(colname, cols):
-        possible_fields = config.sample_sheet_config['column_names'][colname]
-        for field in possible_fields:
-            if field in cols:
-                return field
-        raise KeyError('Could not find column for ' + colname)
-
-    @classmethod
-    def _get_column_value(cls, line, colname, cols):
-        return line.pop(cls._get_column_name(colname, cols))
+        self.project_id = sample_sheet_line.pop('Sample_Project')
+        self.sample_id = sample_sheet_line.pop('Sample_ID')
+        self.sample_name = sample_sheet_line.pop('Sample_Name')
+        self.lanes = sample_sheet_line.pop('Lane').split('+')
+        self.barcode = sample_sheet_line.pop('Index')
+        self.extra_data = sample_sheet_line
