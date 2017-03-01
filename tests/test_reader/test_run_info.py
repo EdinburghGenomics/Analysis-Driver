@@ -22,11 +22,9 @@ class TestRunInfo(TestAnalysisDriver):
         assert self.run_info.flowcell_name == 'H5VJMCCXX'
 
     def test_tiles(self):
-        assert self.run_info.lanes == 8
-        assert self.run_info.tiles == ['1101']
-
-    def test_cycles(self):
-        assert self.run_info.cycles == 308
+        assert self.run_info.tiles == [
+            '1_1101', '2_1101', '3_1101', '4_1101', '5_1101', '6_1101', '7_1101', '8_1101'
+        ]
 
 
 class TestMask(TestAnalysisDriver):
