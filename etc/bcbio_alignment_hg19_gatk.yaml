@@ -8,4 +8,4 @@ details:
     variantcaller: gatk-haplotype
     jointcaller: gatk-haplotype-joint
   analysis: variant2
-  genome_build: GRCh37
+  genome_build: hg19
