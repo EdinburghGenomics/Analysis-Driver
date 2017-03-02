@@ -38,7 +38,9 @@ def demultiplexing_pipeline(dataset):
 
     run_info = reader.RunInfo(input_run_folder)
     dataset.start_stage('setup')
-    reader.transform_sample_sheet(input_run_folder, remove_barcode=not run_info.reads.has_barcodes)
+    reader.transform_sample_sheet(
+        input_run_folder, seqlab2=cfg.get('seqlab2', True), remove_barcode=not run_info.reads.has_barcodes
+    )
     sample_sheet = reader.SampleSheet(join(input_run_folder, 'SampleSheet_analysis_driver.csv'))
     sample_sheet.validate(run_info.reads)
 

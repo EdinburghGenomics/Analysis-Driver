@@ -34,11 +34,11 @@ def test_transform_sample_sheet():
     samplesheet_path = join(TestAnalysisDriver.assets_path, 'test_runs', 'barcoded_run')
     new_samplesheet = join(samplesheet_path, 'SampleSheet_analysis_driver.csv')
 
-    transform_sample_sheet(samplesheet_path, remove_barcode=True)
+    transform_sample_sheet(samplesheet_path, seqlab2=False, remove_barcode=True)
     with open(new_samplesheet) as f:
         assert samples_without_barcode in f.read()
 
-    transform_sample_sheet(samplesheet_path)
+    transform_sample_sheet(samplesheet_path, seqlab2=False)
     with open(new_samplesheet) as f:
         assert samples_with_barcode in f.read()
 
@@ -47,7 +47,7 @@ def test_transform_sample_sheet_seqlab2():
     samplesheet_path = join(TestAnalysisDriver.assets_path, 'test_runs', 'clarity4_run')
     new_samplesheet = join(samplesheet_path, 'SampleSheet_analysis_driver.csv')
 
-    transform_sample_sheet(samplesheet_path, clarity4=True)
+    transform_sample_sheet(samplesheet_path, seqlab2=True)
     with open(new_samplesheet) as f:
         obs = f.read()
         assert samples_with_barcode in obs
@@ -56,7 +56,7 @@ def test_transform_sample_sheet_seqlab2():
 class TestBarcodedSampleSheet(TestAnalysisDriver):
     def setUp(self):
         run_dir = join(self.assets_path, 'test_runs', 'barcoded_run')
-        transform_sample_sheet(run_dir)
+        transform_sample_sheet(run_dir, seqlab2=False)
 
         self.sample_sheet = SampleSheet(join(run_dir, 'SampleSheet_analysis_driver.csv'))
         self.run_info = RunInfo(run_dir)
@@ -88,7 +88,7 @@ class TestBarcodedSampleSheet(TestAnalysisDriver):
 class TestBarcodelessSampleSheet(TestAnalysisDriver):
     def setUp(self):
         run_dir = join(self.assets_path, 'test_runs', 'barcodeless_run')
-        transform_sample_sheet(run_dir, remove_barcode=True)
+        transform_sample_sheet(run_dir, seqlab2=False, remove_barcode=True)
 
         self.sample_sheet = SampleSheet(join(run_dir, 'SampleSheet_analysis_driver.csv'))
         self.run_info = RunInfo(run_dir)

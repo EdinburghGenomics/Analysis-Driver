@@ -8,16 +8,16 @@ from analysis_driver.config import sample_sheet_config
 app_logger = log_cfg.get_logger('reader')
 
 
-def transform_sample_sheet(data_dir, clarity4=False, remove_barcode=False):
+def transform_sample_sheet(data_dir, seqlab2=True, remove_barcode=False):
     """
     Read SampleSheet.csv, translate column names and write to SampleSheet_analysis_driver.csv
     :param str data_dir: Full path to a data directory containing SampleSheet.csv
-    :param bool clarity4: Whether to
+    :param bool seqlab2: Whether to use seqlab2 or seqlab1 column transformations
     :param bool remove_barcode: Whether to remove barcodes from the sample sheet
     """
     sample_sheet_in, header = _read_sample_sheet(os.path.join(data_dir, 'SampleSheet.csv'))
     cols_in = sample_sheet_in.readline().strip().split(',')
-    col_transformations = sample_sheet_config['clarity4'] if clarity4 else sample_sheet_config['clarity3']
+    col_transformations = sample_sheet_config['seqlab2'] if seqlab2 else sample_sheet_config['seqlab1']
     cols_out = [col_transformations.get(c, c) for c in cols_in]
 
     out_lines = [line.strip() for line in header]
