@@ -7,6 +7,7 @@ from egcg_core.app_logging import logging_default as log_cfg
 from analysis_driver.config import output_files_config, default as cfg
 from analysis_driver.report_generation.report_crawlers import SampleCrawler
 from analysis_driver.transfer_data import output_sample_data, create_links_from_bcbio
+from analysis_driver.exceptions import PipelineError
 
 app_logger = log_cfg.get_logger('common')
 
@@ -67,6 +68,24 @@ def bcbio_prepare_sample(job_dir, sample_id, fastq_files):
     app_logger.info('bcbio_prepare_samples finished with exit status ' + str(exit_status))
 
     return sample_fastqs
+
+
+def get_genome_version(dataset_name, species):
+    genome_version = clarity.get_sample(dataset_name).udf.get('Genome Version')
+    if genome_version is None:
+        genome_version = cfg.query('species', species, 'default')
+    reference = cfg.query('genomes', genome_version, 'fasta')
+    if not reference:
+        raise PipelineError('Could not find reference for species %s in sample %s ' % (species, dataset_name))
+    return genome_version, reference
+
+
+def get_dbsnp(genome_version):
+    return cfg.query('genomes', genome_version, 'dbsnp')
+
+
+def get_known_indels(genome_version):
+    return cfg.query('genomes', genome_version, 'known_indels')
 
 
 def cleanup(dataset_name):
