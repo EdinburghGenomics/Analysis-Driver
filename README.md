@@ -98,7 +98,7 @@ interacts with the external Rest API to push and pull data, and also controls no
     before)
   - dataset_status - Queries `self.most_recent_proc` to the get the running status of the dataset.
     `dataset_reprocess` is treated as invisible, and will show up as either `dataset_new` or `dataset_ready`.
-  - stages - Returns the names of all currently running pipeline stages
+  - running_stages - Returns the names of all currently running pipeline stages
   - start - Marks itself in the Rest API as running.
   - succeed, fail, abort, reset - Marks itself with the relevant status at the end of the pipeline run.
   - terminate - Gets the pid of a running pipeline and stops it. Optionally called in `client`.

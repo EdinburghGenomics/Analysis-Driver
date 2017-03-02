@@ -2,13 +2,12 @@ from unittest.mock import patch
 from tests.test_quality_control.qc_tester import QCTester
 from analysis_driver.quality_control.calculate_relatedness import Relatedness
 
-class Test_Relatedness(QCTester):
+
+class TestRelatedness(QCTester):
     def setUp(self):
         super().setUp()
         self.working_dir = 'test_project'
-        self.gVCF_files = ['test_sample1.g.vcf.gz',
-                           'test_sample2.g.vcf.gz',
-                           'test_sample3.g.vcf.gz']
+        self.gVCF_files = ['test_sample1.g.vcf.gz', 'test_sample2.g.vcf.gz', 'test_sample3.g.vcf.gz']
         self.reference = '/path/to/reference.fa'
         self.project_id = 'test_project_id'
         self.r = Relatedness(self.dataset, self.working_dir, self.gVCF_files, self.reference, self.project_id)

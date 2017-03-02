@@ -134,21 +134,14 @@ class TestTransferData(TestAnalysisDriver):
         shutil.rmtree(output_files)
         assert not os.path.exists(output_files)
 
-    def patched_rsync(self):
-        return patch(
-            'analysis_driver.transfer_data.rsync_from_to',
-            return_value='rsync -rLD --size-only %s/ %s' % (  # the trailing slash is important...
-                self._pseudo_links,
-                os.path.join(self._to_dir, 'proj_' + self.sample_id, self.sample_id)
-            )
-        )
 
     @property
     def _pseudo_links(self):
         return os.path.join(self.data_output, 'pseudo_links')
 
     def test_output_sample_data(self):
-        with patched_find_project_from_sample(self.sample_id), self.patched_rsync():
+        with patched_find_project_from_sample(self.sample_id), \
+                patch('analysis_driver.transfer_data.archive_management.archive_directory', return_value=True):
             exit_status = transfer_data.output_sample_data(
                 sample_id=self.sample_id,
                 source_dir=self._pseudo_links,

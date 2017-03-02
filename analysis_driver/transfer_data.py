@@ -1,6 +1,6 @@
 import os
-from egcg_core import executor, clarity, util
-from analysis_driver.util.bash_commands import rsync_from_to
+import shutil
+from egcg_core import clarity, util, archive_management
 from analysis_driver.config import default as cfg
 from egcg_core.app_logging import logging_default as log_cfg
 from egcg_core.constants import ELEMENT_RUN_NAME, ELEMENT_LANE, ELEMENT_PROJECT_ID, ELEMENT_NB_READS_CLEANED
@@ -60,30 +60,36 @@ def create_links_from_bcbio(sample_id, input_dir, output_config, link_dir):
         app_logger.error('link creation failed with exit status ' + str(exit_status))
 
 
-def _output_data(source_dir, output_dir, working_dir):
-    if util.same_fs(source_dir, output_dir):
-        return util.move_dir(source_dir, output_dir)
-    else:
-        os.makedirs(output_dir, exist_ok=True)
-        command = rsync_from_to(source_dir, output_dir)
-        return executor.execute(command, job_name='data_output', working_dir=working_dir).join()
+def _output_data_and_archive(source_dir, output_dir,):
+    exit_status = util.move_dir(source_dir, output_dir)
+    if exit_status == 0:
+        if archive_management.archive_directory(output_dir):
+            return 0
+        else:
+            return 1
+    return exit_status
 
 
 def output_project_data(source_dir, project_id):
-    return _output_data(source_dir, os.path.join(cfg['project']['input_dir'], project_id), os.path.join(cfg['jobs_dir'], project_id))
+    return _output_data_and_archive(
+        source_dir,
+        os.path.join(cfg['project']['input_dir'], project_id)
+    )
 
 
 def output_run_data(fastq_dir, run_id):
     """Retrieve and copy the fastq files to the output directory"""
-    return _output_data(fastq_dir, os.path.join(cfg['output_dir'], run_id), os.path.join(cfg['jobs_dir'], run_id))
+    return _output_data_and_archive(
+        fastq_dir,
+        os.path.join(cfg['output_dir'], run_id)
+    )
 
 
 def output_sample_data(sample_id, source_dir, output_dir):
     project_id = clarity.find_project_name_from_sample(sample_id)
     output_dir = os.path.join(output_dir, project_id, sample_id)
 
-    return _output_data(
+    return _output_data_and_archive(
         source_dir.rstrip('/') + '/',
-        output_dir.rstrip('/'),
-        os.path.join(cfg['jobs_dir'], sample_id)
+        output_dir.rstrip('/')
     )
