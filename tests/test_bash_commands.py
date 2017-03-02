@@ -1,16 +1,15 @@
 from os.path import join
 from tests.test_analysisdriver import helper
 from analysis_driver.util import bash_commands
-from analysis_driver.reader import SampleSheet, RunInfo
+from analysis_driver.reader import RunInfo
 from analysis_driver.config import default as cfg
 
 sample_sheet_csv = join(helper.assets_path, 'SampleSheet_analysis_driver.csv')
-sample_sheet = SampleSheet(join(helper.assets_path, 'test_runs', 'barcoded_run', 'SampleSheet_analysis_driver.csv'))
 run_info = RunInfo(helper.assets_path)
 
 
 def test_bcl2fastq():
-    mask = sample_sheet.generate_mask(run_info.mask)
+    mask = run_info.reads.generate_mask(sample_sheet_barcode_len=8)
     helper.compare_lists(
         observed=bash_commands.bcl2fastq(helper.assets_path, helper.fastq_path, sample_sheet_csv, mask),
         expected=(

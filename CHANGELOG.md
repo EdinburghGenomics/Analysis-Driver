@@ -4,8 +4,11 @@ Changelog for Analysis-Driver
 0.13 (Unreleased)
 -----------------
  - Replace bamtools stats with samtools stats
- - Archive the output at the end of the process
  - fix bcbio alternative genome version
+ - Support for multiple versions of genome per species (configuration file change required)
+ - Refactor SampleSheet and RunInfo
+ - Support for Seqlab2 sample sheets
+ - Archive the output at the end of the process
  - Running pipelines through the [Luigi](http://luigi.readthedocs.io) task runner
 
 0.12 
