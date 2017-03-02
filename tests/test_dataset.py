@@ -36,7 +36,7 @@ patched_update = patch(ppath('MostRecentProc.update_entity'))
 patched_initialise = patch(ppath('MostRecentProc.initialise_entity'))
 patched_finish = patch(ppath('MostRecentProc.finish'))
 patched_stages = patch(
-    ppath('Dataset.stages'),
+    ppath('Dataset.running_stages'),
     new_callable=PropertyMock(return_value=['this', 'that', 'other'])
 )
 
@@ -52,7 +52,7 @@ def patched_datetime(time='now'):
 
 
 def patched_expected_yield(y=1000000000):
-    return patch(ppath('get_expected_yield_for_sample'), return_value=y)
+    return patch(ppath('clarity.get_expected_yield_for_sample'), return_value=y)
 
 
 class TestDataset(TestAnalysisDriver):
@@ -60,7 +60,7 @@ class TestDataset(TestAnalysisDriver):
         self.base_dir = os.path.join(self.assets_path, 'dataset_scanner')
         seed_directories(self.base_dir)
         self.setup_dataset()
-        self.dataset.ntf = Mock()
+        self.dataset._ntf = Mock()
 
     def tearDown(self):
         clean(self.base_dir)
@@ -74,7 +74,7 @@ class TestDataset(TestAnalysisDriver):
 
     @patched_get([{'stage_name': 'this', 'date_started': 'now'}, {'stage_name': 'that', 'date_started': 'then'}])
     def test_stages(self, mocked_get):
-        assert self.dataset.stages == ['this', 'that']
+        assert self.dataset.running_stages == ['this', 'that']
         mocked_get.assert_called_with(
             'analysis_driver_stages',
             all_pages=True,

@@ -10,7 +10,7 @@ from analysis_driver.reader.version_reader import write_versions_to_yaml
 app_logger = log_cfg.get_logger('variant_calling')
 
 
-def _gatk_var_calling(dataset, reference, dbsnp, known_indels, species):
+def _gatk_var_calling(dataset, reference, dbsnp, known_indels):
 
     sample_id = dataset.name
     gatk_run_dir = os.path.join(cfg['jobs_dir'], sample_id, 'gatk_var_calling')
@@ -36,7 +36,6 @@ def _gatk_var_calling(dataset, reference, dbsnp, known_indels, species):
             input_bam=input_bam,
             output=output
         )
-
 
     basename = os.path.join(gatk_run_dir, user_sample_id)
     sorted_bam = os.path.join(cfg['jobs_dir'], sample_id, sample_id + '.bam')
@@ -136,7 +135,7 @@ def var_calling_pipeline(dataset, species):
     known_indels = get_known_indels(genome_version)
 
     exit_status = bam_file_production(dataset, reference, species)
-    exit_status += _gatk_var_calling(dataset, reference, dbsnp, known_indels,  species)
+    exit_status += _gatk_var_calling(dataset, reference, dbsnp, known_indels)
 
     # link the bcbio file into the final directory
     dir_with_linked_files = link_results_files(sample_id, sample_dir, 'gatk_var_calling')
