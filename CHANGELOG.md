@@ -4,8 +4,9 @@ Changelog for Analysis-Driver
 0.13 (Unreleased)
 -----------------
  - Replace bamtools stats with samtools stats
- - fix bcbio alternative genome version 
- 
+ - Archive the output at the end of the process
+ - fix bcbio alternative genome version  
+
 0.12 
 ----
  - BCBio option for variant calling with Freebayes
