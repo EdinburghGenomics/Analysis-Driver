@@ -4,7 +4,9 @@ Changelog for Analysis-Driver
 0.13 (Unreleased)
 -----------------
  - Replace bamtools stats with samtools stats
- - fix bcbio alternative genome version 
+ - fix bcbio alternative genome version
+ - Refactor SampleSheet and RunInfo
+ - Support for Seqlab2 sample sheets
  
 0.12 
 ----

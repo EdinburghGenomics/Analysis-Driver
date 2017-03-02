@@ -84,8 +84,8 @@ class RunCrawler(Crawler):
         self.run = {ELEMENT_RUN_NAME: self.run_id, ELEMENT_RUN_ELEMENTS: []}
         self.projects = defaultdict(dict)
 
-        for project_id, proj_obj in samplesheet.projects.items():
-            for sample_id_obj in proj_obj.sample_ids.values():
+        for proj in samplesheet.projects.values():
+            for sample_id_obj in proj.sample_ids.values():
                 for sample in sample_id_obj.lines:
                     for lane in sample.lanes:
                         run_element_id = '%s_%s' % (self.run_id, lane)
@@ -96,7 +96,7 @@ class RunCrawler(Crawler):
                             ELEMENT_BARCODE: sample.barcode,
                             ELEMENT_RUN_ELEMENT_ID: run_element_id,
                             ELEMENT_RUN_NAME: self.run_id,
-                            ELEMENT_PROJECT_ID: project_id,
+                            ELEMENT_PROJECT_ID: proj.name,
                             ELEMENT_SAMPLE_INTERNAL_ID: sample.sample_id,
                             ELEMENT_LIBRARY_INTERNAL_ID: sample.sample_name,
                             ELEMENT_LANE: lane
@@ -105,13 +105,13 @@ class RunCrawler(Crawler):
                         # Populate the libraries
                         lib = self.libraries[sample.sample_name]
                         lib[ELEMENT_SAMPLE_INTERNAL_ID] = sample.sample_id
-                        lib[ELEMENT_PROJECT_ID] = project_id
+                        lib[ELEMENT_PROJECT_ID] = proj.name
                         lib[ELEMENT_LIBRARY_INTERNAL_ID] = sample.sample_name
                         self._update_doc_list(lib, k=ELEMENT_RUN_ELEMENTS, v=run_element_id)
 
-                        # Populate the sample_projects
-                        proj = self.projects[project_id]
-                        proj[ELEMENT_PROJECT_ID] = project_id
+                        # Populate the projects
+                        proj = self.projects[proj.name]
+                        proj[ELEMENT_PROJECT_ID] = proj.name
                         self._update_doc_set(proj, k=ELEMENT_SAMPLES, v=sample.sample_id)
 
                         # Populate the lanes
@@ -287,7 +287,7 @@ class RunCrawler(Crawler):
                     pp('lanes', self.lanes.values(), ELEMENT_LANE_ID),
                     pp('runs', [self.run], ELEMENT_RUN_NAME),
                     pp('samples', self.libraries.values(), ELEMENT_SAMPLE_INTERNAL_ID, ['run_elements']),
-                    pp('sample_projects', self.projects.values(), ELEMENT_PROJECT_ID, ['samples'])
+                    pp('projects', self.projects.values(), ELEMENT_PROJECT_ID, ['samples'])
                 )
             )
 
