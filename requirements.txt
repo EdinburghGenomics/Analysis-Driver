@@ -1,3 +1,4 @@
-git+https://github.com/EdinburghGenomics/EGCG-Core.git@v0.6.5
+EGCG-Core==0.6.7
 luigi==2.5.0
 ete3==3.0.0b35
+illuminate==0.6.4

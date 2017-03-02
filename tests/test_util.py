@@ -1,21 +1,17 @@
 import shutil
-import os.path
-from unittest.mock import patch
+import os
+from unittest.mock import Mock, patch
 from tests.test_analysisdriver import TestAnalysisDriver
 from analysis_driver import transfer_data, util
 from analysis_driver.config import default as cfg
 
 
-def ppath(*parts):
-    return 'egcg_core.clarity.' + '.'.join(parts)
-
-
 def patched_get_user_sample_name(sample_id):
-    return patch(ppath('get_user_sample_name'), return_value=sample_id)
+    return patch('egcg_core.clarity.get_user_sample_name', return_value=sample_id)
 
 
 def patched_find_project_from_sample(sample_id):
-    return patch(ppath('find_project_name_from_sample'), return_value='proj_' + sample_id)
+    return patch('egcg_core.clarity.find_project_name_from_sample', return_value='proj_' + sample_id)
 
 
 class TestTransferData(TestAnalysisDriver):
@@ -138,21 +134,14 @@ class TestTransferData(TestAnalysisDriver):
         shutil.rmtree(output_files)
         assert not os.path.exists(output_files)
 
-    def patched_rsync(self):
-        return patch(
-            'analysis_driver.transfer_data.rsync_from_to',
-            return_value='rsync -rLD --size-only %s/ %s' % (  # the trailing slash is important...
-                self._pseudo_links,
-                os.path.join(self._to_dir, 'proj_' + self.sample_id, self.sample_id)
-            )
-        )
 
     @property
     def _pseudo_links(self):
         return os.path.join(self.data_output, 'pseudo_links')
 
     def test_output_sample_data(self):
-        with patched_find_project_from_sample(self.sample_id), self.patched_rsync():
+        with patched_find_project_from_sample(self.sample_id), \
+                patch('analysis_driver.transfer_data.archive_management.archive_directory', return_value=True):
             exit_status = transfer_data.output_sample_data(
                 sample_id=self.sample_id,
                 source_dir=self._pseudo_links,
@@ -204,3 +193,91 @@ class TestTransferData(TestAnalysisDriver):
             bcbio_csv
         )
         assert expected in cmd
+
+
+class TestBCLValidator(TestAnalysisDriver):
+    def setUp(self):
+        run_info = Mock(
+            tiles=('s_1_1101', 's_2_1101', 's_1_1102', 's_2_1102'),
+            mask=Mock(reads=[Mock(attrib={'NumCycles': '3'})])
+        )
+        self.job_dir = os.path.join(TestAnalysisDriver.assets_path, 'bcl_validation')
+        validation_log = os.path.join(self.job_dir, 'bcl_validation.log')
+        if os.path.isfile(validation_log):
+            os.remove(validation_log)
+
+        self.val = util.BCLValidator(self.job_dir, run_info, validation_log)
+
+    @patch('analysis_driver.util.BCLValidator._all_cycles_from_interop')
+    def test_get_bcl_files_to_check(self, mocked_cycles):
+        mocked_cycles.return_value = [1, 1, 1]  # no completed cycles
+        assert self.val.get_bcls_to_check() == []
+
+        mocked_cycles.return_value.extend([1, 2, 2, 2])  # completed cycle 1, but not cycle 2
+        assert self.val.get_bcls_to_check() == [
+            os.path.join(self.val.basecalls_dir, f)
+            for f in ('L001/C1.1/s_1_1101.bcl.gz', 'L002/C1.1/s_2_1101.bcl.gz',
+                      'L001/C1.1/s_1_1102.bcl.gz', 'L002/C1.1/s_2_1102.bcl.gz')
+        ]
+
+        mocked_cycles.return_value.extend([2, 3, 3, 3, 3])
+        obs = self.val.get_bcls_to_check()
+        exp = [
+            os.path.join(self.val.basecalls_dir, f)
+            for f in (
+                'L001/C1.1/s_1_1101.bcl.gz', 'L001/C1.1/s_1_1102.bcl.gz',
+                'L001/C2.1/s_1_1101.bcl.gz', 'L001/C2.1/s_1_1102.bcl.gz',
+                'L001/C3.1/s_1_1101.bcl.gz', 'L001/C3.1/s_1_1102.bcl.gz',
+                'L002/C1.1/s_2_1101.bcl.gz', 'L002/C1.1/s_2_1102.bcl.gz',
+                'L002/C2.1/s_2_1101.bcl.gz', 'L002/C2.1/s_2_1102.bcl.gz',
+                'L002/C3.1/s_2_1101.bcl.gz', 'L002/C3.1/s_2_1102.bcl.gz'
+            )
+        ]
+        assert sorted(obs) == sorted(exp)
+
+    @patch('analysis_driver.util.executor.execute', return_value=Mock(join=Mock(return_value=0)))
+    def test_run_bcl_check(self, mocked_execute):
+        with patch('analysis_driver.util.BCLValidator._all_cycles_from_interop',
+                   return_value=[1, 1, 1, 1]):
+            bcls = self.val.get_bcls_to_check()
+        self.val.run_bcl_check(bcls, self.job_dir, slice_size=2)
+
+        mocked_execute.assert_called_with(
+            '\n'.join('check_bcl ' + os.path.join(self.job_dir, f) for f in bcls[:2]),
+            '\n'.join('check_bcl ' + os.path.join(self.job_dir, f) for f in bcls[2:]),
+            prelim_cmds=[self.val.validate_expr],
+            job_name='bcl_validation',
+            working_dir=self.job_dir,
+            log_commands=False,
+            cpus=1,
+            mem=6
+        )
+
+        e = util.executor.SlurmExecutor(
+            '\n'.join('check_bcl ' + os.path.join(self.job_dir, f) for f in bcls[:2]),
+            '\n'.join('check_bcl ' + os.path.join(self.job_dir, f) for f in bcls[2:]),
+            prelim_cmds=[self.val.validate_expr],
+            job_name='bcl_validation',
+            working_dir=self.job_dir,
+            log_commands=False,
+            cpus=1,
+            mem=6
+        )
+        e.write_script()
+
+    def test_run_bcl_check_local(self):
+        with patch('analysis_driver.util.BCLValidator._all_cycles_from_interop',
+                   return_value=[1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3]):
+            bcls = self.val.get_bcls_to_check()
+        self.val.run_bcl_check_local(bcls)
+        assert self.val.read_invalid_files() == [
+            os.path.join(self.val.basecalls_dir, 'L002', 'C3.1', 's_2_1101.bcl.gz'),
+            os.path.join(self.val.basecalls_dir, 'L001', 'C3.1', 's_1_1102.bcl.gz')
+        ]
+
+    def test_cycles_from_interop(self):
+        interop_dir = os.path.join(self.job_dir, 'InterOp')
+        os.makedirs(interop_dir, exist_ok=True)
+        assert self.val._all_cycles_from_interop(self.job_dir) == []  # no ExtractionMetrics
+        open(os.path.join(interop_dir, 'ExtractionMetricsOut.bin'), 'w').close()
+        assert self.val._all_cycles_from_interop(self.job_dir) == []  # empty ExtractionMetrics

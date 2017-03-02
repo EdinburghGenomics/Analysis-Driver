@@ -19,14 +19,15 @@ def pipeline(d):
         final_stage = Demultiplexing(dataset=d)
     elif isinstance(d, SampleDataset):
         species = clarity.get_species_from_sample(d.name)
+        analysis_type = clarity.get_sample(d.name).udf.get('Analysis Type')
         if species is None:
             raise PipelineError('No species information found in the LIMS for ' + d.name)
         elif species == 'Homo sapiens':
-            final_stage = BCBioVarCalling(dataset=d)
-        elif clarity.get_sample(d.name).udf.get('Analysis Type') == 'Variant Calling':
-            final_stage = VarCalling()
+            final_stage = BCBioVarCalling(dataset=d, species=species, analysis_type=analysis_type)
+        elif analysis_type == 'Variant Calling':
+            final_stage = VarCalling(dataset=d, species=species)
         else:
-            final_stage = QC(dataset=d)
+            final_stage = QC(dataset=d, species=species)
     elif isinstance(d, ProjectDataset):
         final_stage = Project(dataset=d)
     else:
@@ -53,23 +54,25 @@ class Demultiplexing(segmentation.BasicStage):
 
 
 class BCBioVarCalling(segmentation.BasicStage):
+    species = segmentation.EGCGParameter()
+    analysis_type = segmentation.EGCGParameter()
+
     def run(self):
-        s = clarity.get_sample(self.dataset.name)
-        self.exit_status = bcbio_var_calling_pipeline(
-            self.dataset, s.udf.get('Genome Version'), s.udf.get('Analysis Type')
-        )
+        self.exit_status = bcbio_var_calling_pipeline(self.dataset, self.species, self.analysis_type)
 
 
 class VarCalling(segmentation.BasicStage):
+    species = segmentation.EGCGParameter()
+
     def run(self):
-        self.exit_status = var_calling_pipeline(
-            self.dataset, clarity.get_species_from_sample(self.dataset.name)
-        )
+        self.exit_status = var_calling_pipeline(self.dataset, self.species)
 
 
 class QC(segmentation.BasicStage):
+    species = segmentation.EGCGParameter()
+
     def run(self):
-        self.exit_status = qc_pipeline(self.dataset, clarity.get_species_from_sample(self.dataset.name))
+        self.exit_status = qc_pipeline(self.dataset, self.species)
 
 
 class Project(segmentation.BasicStage):
