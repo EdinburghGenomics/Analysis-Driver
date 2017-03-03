@@ -9,13 +9,13 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from analysis_driver.reader import SampleSheet
 from analysis_driver.report_generation.report_crawlers import SampleCrawler, RunCrawler
 from analysis_driver.config import default as cfg, load_config
-from analysis_driver.reader.run_info import RunInfo
 
 
 def main():
     if 'run' not in sys.argv and 'sample' not in sys.argv:
         print("no mode specified - use either 'run' or 'sample'")
         return 1
+
     parent = argparse.ArgumentParser(add_help=False)
     parent.add_argument('--test', action='store_true')
     p = argparse.ArgumentParser()
@@ -58,12 +58,11 @@ def run_crawler(args):
         adapter_trim_file = args.adapter_trim_file
     else:
         adapter_trim_file = os.path.join(run_dir, 'Stats', 'AdapterTrimming.txt')
-    run_info = RunInfo(os.path.join(run_dir))
+
     if args.samplesheet:
-        samplesheet = SampleSheet(args.samplesheet, has_barcode=run_info.mask.has_barcodes)
+        samplesheet = SampleSheet(args.samplesheet)
     else:
-        samplesheet = SampleSheet(os.path.join(run_dir, 'SampleSheet_analysis_driver.csv'),
-                                  has_barcode=run_info.mask.has_barcodes)
+        samplesheet = SampleSheet(os.path.join(run_dir, 'SampleSheet_analysis_driver.csv'))
 
     c = RunCrawler(args.run_id, samplesheet, adapter_trim_file=adapter_trim_file, conversion_xml_file=conversion_stats, run_dir=run_dir)
     if args.test:

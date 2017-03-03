@@ -3,7 +3,7 @@ import yaml
 from egcg_core import executor, clarity
 from analysis_driver import quality_control as qc
 from analysis_driver.exceptions import PipelineError
-from analysis_driver.pipelines.common import bcbio_prepare_sample, link_results_files, output_data, cleanup
+from analysis_driver.pipelines.common import bcbio_prepare_sample, link_results_files, output_data, cleanup, get_genome_version
 from analysis_driver.util import bash_commands
 from analysis_driver.dataset_scanner import SampleDataset
 from egcg_core.app_logging import logging_default as log_cfg
@@ -14,11 +14,10 @@ from analysis_driver.transfer_data import prepare_sample_data
 app_logger = log_cfg.get_logger('bcbio_pipelines')
 
 
-def bcbio_var_calling_pipeline(dataset, genome_version, analysis_type):
+def bcbio_var_calling_pipeline(dataset, species, analysis_type):
     """
     :param SampleDataset dataset:
     :param analysis_type:
-    :param genome_version:
     :return: Exit status
     :rtype: int
     """
@@ -27,6 +26,7 @@ def bcbio_var_calling_pipeline(dataset, genome_version, analysis_type):
 
     sample_id = dataset.name
     sample_dir = os.path.join(cfg['jobs_dir'], sample_id)
+    genome_version, reference = get_genome_version(sample_id, species)
     app_logger.info('Job dir: ' + sample_dir)
 
     # merge fastq files
@@ -84,7 +84,7 @@ def bcbio_var_calling_pipeline(dataset, genome_version, analysis_type):
     if bcbio_exit_status:
         return bcbio_exit_status
 
-    exit_status += fastqc2_exit_status + bcbio_exit_status
+    exit_status += fastqc2_exit_status + bcbio_exit_status + contam_check_status
 
     # link the bcbio file into the final directory
     dir_with_linked_files = link_results_files(sample_id, sample_dir, 'bcbio')
@@ -128,8 +128,6 @@ def bcbio_var_calling_pipeline(dataset, genome_version, analysis_type):
 
 
 def _run_bcbio(sample_id, sample_dir, sample_fastqs, genome_version, analysis_type):
-    if not genome_version:
-        genome_version = cfg['genome']
     if not analysis_type:
         analysis_type = 'gatk'
     elif analysis_type.endswith('gatk'):

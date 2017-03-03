@@ -11,7 +11,7 @@ Workflow,Generate FASTQ Only
 Adapter,AGATCGGAAGAGCACACGTCTGAACTCCAGTCA
 AdapterRead2,AGATCGGAAGAGCGTCGTGTAGGGAAAGAGTGT
 
-[Data],
+[Data]
 Lane,Sample_ID,Sample_Name,Sample_Plate,Sample_Well,Index2,Index,Sample_Project,GenomeFolder
 1,10015AT0001,10015ATpool01,,,,,10015AT,
 2,10015AT0001,10015ATpool01,,,,,10015AT,

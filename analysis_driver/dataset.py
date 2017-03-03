@@ -3,9 +3,8 @@ import threading
 from sys import modules
 from datetime import datetime
 from analysis_driver.notification import NotificationCentre
-from egcg_core import rest_communication
+from egcg_core import rest_communication, clarity
 from egcg_core.app_logging import AppLogger
-from egcg_core.clarity import get_expected_yield_for_sample, get_project, get_run
 from egcg_core.exceptions import RestCommunicationError
 from analysis_driver.exceptions import AnalysisDriverError
 from egcg_core.constants import DATASET_NEW, DATASET_READY, DATASET_FORCE_READY, DATASET_REPROCESS,\
@@ -21,7 +20,13 @@ class Dataset(AppLogger):
     def __init__(self, name, most_recent_proc=None):
         self.name = name
         self.most_recent_proc = MostRecentProc(self.type, self.name, most_recent_proc)
-        self.ntf = NotificationCentre(self.name)
+        self._ntf = None
+
+    @property
+    def ntf(self):
+        if self._ntf is None:
+            self._ntf = NotificationCentre(self.name)
+        return self._ntf
 
     @property
     def dataset_status(self):
@@ -35,13 +40,19 @@ class Dataset(AppLogger):
             return db_proc_status
 
     @property
-    def stages(self):
+    def running_stages(self):
         stages = rest_communication.get_documents(
             'analysis_driver_stages',
             all_pages=True,
             where={'analysis_driver_proc': self.most_recent_proc.get('proc_id'), 'date_finished': None}
         )
         return [s['stage_name'] for s in stages]
+
+    def get_stage(self, stage_name):
+        return rest_communication.get_document(
+            'analysis_driver_stages',
+            where={'analysis_driver_proc': self.most_recent_proc.get('proc_id'), 'stage_name': stage_name}
+        )
 
     def start(self):
         self._assert_status(DATASET_READY, DATASET_FORCE_READY, DATASET_NEW)
@@ -108,7 +119,7 @@ class Dataset(AppLogger):
         pid = self.most_recent_proc.get('pid')
         if pid:
             s += ' (%s)' % pid
-        stages = self.stages
+        stages = self.running_stages
         if stages:
             s += ' -- ' + ', '.join(stages)
         return s
@@ -134,6 +145,11 @@ class NoCommunicationDataset(Dataset):
 
     def _is_ready(self):
         pass
+
+    def __str__(self):
+        return self.name
+
+    __repr__ = __str__
 
 
 class RunDataset(Dataset):
@@ -190,7 +206,7 @@ class SampleDataset(Dataset):
     @property
     def data_threshold(self):
         if self._data_threshold is None:
-            self._data_threshold = get_expected_yield_for_sample(self.name)
+            self._data_threshold = clarity.get_expected_yield_for_sample(self.name)
         if not self._data_threshold:
             raise AnalysisDriverError('Could not find data threshold in LIMS for ' + self.name)
         return self._data_threshold
@@ -209,7 +225,6 @@ class SampleDataset(Dataset):
             s += '(non useable run elements in %s)' % ', '.join(non_useable_runs)
         else:
             s += '(no non useable run elements)'
-
         return s
 
 
@@ -230,7 +245,7 @@ class ProjectDataset(Dataset):
             return False
 
     @property
-    def sample_processed(self):
+    def samples_processed(self):
         if not self._samples_processed:
             self._samples_processed = rest_communication.get_documents(
                 'aggregate/samples',
@@ -241,7 +256,7 @@ class ProjectDataset(Dataset):
     @property
     def number_of_samples(self):
         if not self._number_of_samples:
-            project_from_lims = get_project(self.name)
+            project_from_lims = clarity.get_project(self.name)
             if project_from_lims:
                 self._number_of_samples = project_from_lims.udf.get('Number of Quoted Samples')
                 if not self._number_of_samples:
@@ -251,7 +266,7 @@ class ProjectDataset(Dataset):
         return self._number_of_samples
 
     def __str__(self):
-        return '%s  (%s samples / %s) ' % ( super().__str__(), len(self.sample_processed), self.number_of_samples)
+        return '%s  (%s samples / %s) ' % ( super().__str__(), len(self.samples_processed), self.number_of_samples)
 
 
 class MostRecentProc:

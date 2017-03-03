@@ -1,7 +1,7 @@
 import os
 from egcg_core import executor, clarity
 from analysis_driver import quality_control as qc
-from analysis_driver.pipelines.common import bcbio_prepare_sample, link_results_files, output_data, cleanup
+from analysis_driver.pipelines.common import bcbio_prepare_sample, link_results_files, output_data, cleanup, get_genome_version
 from analysis_driver.util import bash_commands
 from analysis_driver.exceptions import PipelineError
 from egcg_core.app_logging import logging_default as log_cfg
@@ -12,7 +12,7 @@ from analysis_driver.transfer_data import prepare_sample_data
 app_logger = log_cfg.get_logger('qc_pipeline')
 
 
-def bam_file_production(dataset, species):
+def bam_file_production(dataset, reference, species):
     exit_status = 0
 
     fastq_files = prepare_sample_data(dataset)
@@ -21,10 +21,6 @@ def bam_file_production(dataset, species):
     sample_dir = os.path.join(cfg['jobs_dir'], sample_id)
     app_logger.info('Job dir: ' + sample_dir)
     user_sample_id = clarity.get_user_sample_name(sample_id, lenient=True)
-
-    reference = cfg.query('references', species, 'fasta')
-    if not reference:
-        raise PipelineError('Could not find reference for species %s in sample %s ' % (species, sample_id))
 
     # merge fastq files
     dataset.start_stage('merge fastqs')
@@ -77,17 +73,17 @@ def bam_file_production(dataset, species):
     contam_check_status = species_contamination_check.exit_status + blast_contamination_check.exit_status
     dataset.end_stage('species contamination check', contam_check_status)
 
-    dataset.start_stage('bamtools_stat')
-    bamtools_stat_file = os.path.join(sample_dir, 'bamtools_stats.txt')
-    bamtools_exit_status = executor.execute(
-        bash_commands.bamtools_stats(expected_output_bam, bamtools_stat_file),
-        job_name='bamtools',
+    dataset.start_stage('samtools_stat')
+    samtools_stat_file = os.path.join(sample_dir, 'samtools_stats.txt')
+    samtools_exit_status = executor.execute(
+        bash_commands.samtools_stats(expected_output_bam, samtools_stat_file),
+        job_name='samtools',
         working_dir=sample_dir,
         cpus=1,
         mem=8,
         log_commands=False
     ).join()
-    dataset.end_stage('bamtools_stat', bamtools_exit_status)
+    dataset.end_stage('samtools_stats', samtools_exit_status)
 
     dataset.start_stage('coverage statistics')
     bam_file = os.path.join(sample_dir, expected_output_bam)
@@ -96,7 +92,7 @@ def bam_file_production(dataset, species):
     coverage_statistics_histogram.join()
     dataset.end_stage('coverage statistics', coverage_statistics_histogram.exit_status)
 
-    exit_status += fastqc_exit_status + bwa_exit_status + bamtools_exit_status
+    exit_status += fastqc_exit_status + bwa_exit_status + samtools_exit_status
 
     return exit_status
 
@@ -104,8 +100,8 @@ def bam_file_production(dataset, species):
 def qc_pipeline(dataset, species):
     sample_id = dataset.name
     sample_dir = os.path.join(cfg['jobs_dir'], sample_id)
-
-    exit_status = bam_file_production(dataset, species)
+    genome_version, reference = get_genome_version(sample_id, species)
+    exit_status = bam_file_production(dataset, reference, species)
 
     # link the bcbio file into the final directory
     dir_with_linked_files = link_results_files(sample_id, sample_dir, 'non_human_qc')

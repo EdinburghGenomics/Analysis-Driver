@@ -1,12 +1,12 @@
-import os
 import time
 import shutil
+from os.path import basename, join, exists
 from egcg_core import executor, clarity, util
 from analysis_driver import reader
 from analysis_driver.pipelines.common import cleanup
 from analysis_driver.util import bash_commands
 from analysis_driver.dataset_scanner import RunDataset
-from analysis_driver.exceptions import PipelineError, SequencingRunError
+from analysis_driver.exceptions import SequencingRunError
 from egcg_core.app_logging import logging_default as log_cfg
 from analysis_driver.config import default as cfg
 from analysis_driver.quality_control.lane_duplicates import WellDuplicates
@@ -26,22 +26,23 @@ def demultiplexing_pipeline(dataset):
     exit_status = 0
 
     dataset.start_stage('transfer')
-    input_run_folder = os.path.join(cfg['input_dir'], dataset.name)
+    input_run_folder = join(cfg['input_dir'], dataset.name)
     dataset.end_stage('transfer')
 
-    run_id = os.path.basename(input_run_folder)
-    job_dir = os.path.join(cfg['jobs_dir'], run_id)
-    fastq_dir = os.path.join(job_dir, 'fastq')
+    run_id = basename(input_run_folder)
+    job_dir = join(cfg['jobs_dir'], run_id)
+    fastq_dir = join(job_dir, 'fastq')
     app_logger.info('Input run folder (bcl data source): ' + input_run_folder)
     app_logger.info('Fastq dir: ' + fastq_dir)
     app_logger.info('Job dir: ' + job_dir)
 
     run_info = reader.RunInfo(input_run_folder)
     dataset.start_stage('setup')
-    reader.transform_sample_sheet(input_run_folder, remove_barcode=not run_info.mask.has_barcodes)
-    sample_sheet = reader.SampleSheet(os.path.join(input_run_folder, 'SampleSheet_analysis_driver.csv'), has_barcode=run_info.mask.has_barcodes)
-    if not sample_sheet.validate(run_info.mask):
-        raise PipelineError('Validation failed. Check SampleSheet.csv and RunInfo.xml.')
+    reader.transform_sample_sheet(
+        input_run_folder, seqlab2=cfg.get('seqlab2', True), remove_barcode=not run_info.reads.has_barcodes
+    )
+    sample_sheet = reader.SampleSheet(join(input_run_folder, 'SampleSheet_analysis_driver.csv'))
+    sample_sheet.validate(run_info.reads)
 
     # Send the information about the run to the rest API
     crawler = RunCrawler(run_id, sample_sheet)
@@ -61,7 +62,7 @@ def demultiplexing_pipeline(dataset):
         raise SequencingRunError(run_status)
 
     # bcl2fastq
-    mask = sample_sheet.generate_mask(run_info.mask)
+    mask = run_info.reads.generate_mask(sample_sheet.barcode_len)
     app_logger.info('bcl2fastq mask: ' + mask)  # e.g: mask = 'y150n,i6,y150n'
 
     dataset.start_stage('bcl2fastq')
@@ -155,27 +156,27 @@ def demultiplexing_pipeline(dataset):
     # Copy the Samplesheet Runinfo.xml run_parameters.xml to the fastq dir
     for f in ['SampleSheet.csv', 'SampleSheet_analysis_driver.csv', 'runParameters.xml',
               'RunInfo.xml', 'RTAConfiguration.xml']:
-        shutil.copy2(os.path.join(input_run_folder, f), os.path.join(fastq_dir, f))
-    if not os.path.exists(os.path.join(fastq_dir, 'InterOp')):
-        shutil.copytree(os.path.join(input_run_folder, 'InterOp'), os.path.join(fastq_dir, 'InterOp'))
+        shutil.copy2(join(input_run_folder, f), join(fastq_dir, f))
+    if not exists(join(fastq_dir, 'InterOp')):
+        shutil.copytree(join(input_run_folder, 'InterOp'), join(fastq_dir, 'InterOp'))
 
     # Find conversion xml file and adapter file, and send the results to the rest API
-    conversion_xml = os.path.join(fastq_dir, 'Stats', 'ConversionStats.xml')
-    adapter_trim_file = os.path.join(fastq_dir, 'Stats', 'AdapterTrimming.txt')
+    conversion_xml = join(fastq_dir, 'Stats', 'ConversionStats.xml')
+    adapter_trim_file = join(fastq_dir, 'Stats', 'AdapterTrimming.txt')
 
-    if os.path.exists(conversion_xml) and os.path.exists(adapter_trim_file):
+    if exists(conversion_xml) and exists(adapter_trim_file):
         app_logger.info('Found ConversionStats and AdaptorTrimming. Sending data.')
         crawler = RunCrawler(run_id, sample_sheet, adapter_trim_file=adapter_trim_file,
                              conversion_xml_file=conversion_xml, run_dir=fastq_dir)
         # TODO: review whether we need this
-        json_file = os.path.join(fastq_dir, 'demultiplexing_results.json')
+        json_file = join(fastq_dir, 'demultiplexing_results.json')
         crawler.write_json(json_file)
         crawler.send_data()
     else:
         app_logger.error('ConversionStats or AdaptorTrimming not found.')
         exit_status += 1
 
-    write_versions_to_yaml(os.path.join(fastq_dir, 'program_versions.yaml'))
+    write_versions_to_yaml(join(fastq_dir, 'program_versions.yaml'))
     dataset.start_stage('data_transfer')
     transfer_exit_status = output_run_data(fastq_dir, run_id)
     dataset.end_stage('data_transfer', transfer_exit_status)
