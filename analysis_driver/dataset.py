@@ -165,7 +165,7 @@ class RunDataset(Dataset):
         return True
 
     def is_sequencing(self):
-        return get_run(self.name).udf.get('Run Status') == 'RunStarted'
+        return clarity.get_run(self.name).udf.get('Run Status') == 'RunStarted'
 
 
 class SampleDataset(Dataset):

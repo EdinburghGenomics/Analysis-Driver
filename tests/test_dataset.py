@@ -40,7 +40,7 @@ patched_stages = patch(
     new_callable=PropertyMock(return_value=['this', 'that', 'other'])
 )
 patched_get_run = patch(
-    'analysis_driver.dataset.get_run',
+    'analysis_driver.dataset.clarity.get_run',
     return_value=Mock(udf={'Run Status': 'RunStarted'})
 )
 
