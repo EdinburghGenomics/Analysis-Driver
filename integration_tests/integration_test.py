@@ -183,14 +183,10 @@ class IntegrationTest(TestCase):
 
             # md5s
             output_dir = os.path.join(cfg['sample']['output_dir'], 'a_project', '10015AT0004')
-            obs = [
-                open(os.path.join(output_dir, f), 'r').readline().split(' ')[0]
-                for f in ('samtools_stats.txt', 'uid_10015AT0004.vcf.stats')
-            ]
-            exp = [
-                integration_cfg['bcbio']['md5s'][f]
-                for f in ('samtools_stats.txt.md5', 'uid_10015AT0004.vcf.stats.md5')
-            ]
+            files = ('samtools_stats.txt', 'uid_10015AT0004.vcf.stats', 'programs.txt', 'project_summary.yaml',
+                     'uid_10015AT0004_R1_screen.txt', 'taxa_identified.json')
+            obs = [open(os.path.join(output_dir, f + '.md5'), 'r').readline().split(' ')[0] for f in files]
+            exp = [integration_cfg['bcbio']['md5s'][f] for f in files]
             self.assertEqual(obs, exp)
 
     def test_var_calling(self):
@@ -200,11 +196,38 @@ class IntegrationTest(TestCase):
             self.assertEqual(exit_status, 0)
             obs_sample = rest_communication.get_document('samples', where={'sample_id': '10015AT0004'})
 
-            for k in ('coverage', 'expected_yield', 'species_name', 'duplicate_reads', 'mapped_reads',
-                      'properly_mapped_reads', 'bam_file_reads', 'median_coverage', 'species_contamination'):
-                self.assertEqual(obs_sample[k], integration_cfg['var_calling']['qc'][k])
+            qcs = ('coverage', 'expected_yield', 'species_name', 'duplicate_reads', 'mapped_reads',
+                   'properly_mapped_reads', 'bam_file_reads', 'median_coverage', 'species_contamination')
+            obs = [obs_sample[k] for k in qcs]
+            exp = [integration_cfg['var_calling']['qc'][k] for k in qcs]
+            self.assertEqual(obs, exp)
 
-    # TODO: def test_qc_pipeline(self):
+            output_dir = os.path.join(cfg['sample']['output_dir'], 'a_project', '10015AT0004')
+            files = ('samtools_stats.txt', 'uid_10015AT0004.depth', 'uid_10015AT0004_R1_screen.txt',
+                     'taxa_identified.json')
+            obs = [open(os.path.join(output_dir, f + '.md5'), 'r').readline().split(' ')[0] for f in files]
+            exp = [integration_cfg['var_calling']['md5s'][f] for f in files]
+            self.assertEqual(obs, exp)
+
+    def test_qc(self):
+        with patch_pipeline(species='Canis lupus familiaris', analysis_type='Not Variant Calling'):
+            sys.argv = [entry_point, '--sample']
+            exit_status = client.main()
+            self.assertEqual(exit_status, 0)
+            obs_sample = rest_communication.get_document('samples', where={'sample_id': '10015AT0004'})
+
+            qcs = ('coverage', 'expected_yield', 'species_name', 'duplicate_reads', 'mapped_reads',
+                   'properly_mapped_reads', 'bam_file_reads', 'median_coverage', 'species_contamination')
+            obs = [obs_sample[k] for k in qcs]
+            exp = [integration_cfg['var_calling']['qc'][k] for k in qcs]
+            self.assertEqual(obs, exp)
+
+            output_dir = os.path.join(cfg['sample']['output_dir'], 'a_project', '10015AT0004')
+            files = ('samtools_stats.txt', 'uid_10015AT0004.depth', 'uid_10015AT0004_R1_screen.txt',
+                     'taxa_identified.json')
+            obs = [open(os.path.join(output_dir, f + '.md5'), 'r').readline().split(' ')[0] for f in files]
+            exp = [integration_cfg['var_calling']['md5s'][f] for f in files]
+            self.assertEqual(obs, exp)
 
 
 def main():
