@@ -2,6 +2,7 @@ from .quality_control_base import QualityControl
 from analysis_driver.config import default as cfg
 from egcg_core import executor
 
+
 class Relatedness(QualityControl):
     def __init__(self, dataset, working_dir, gVCF_files, reference, project_id):
         super().__init__(dataset, working_dir)

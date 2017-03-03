@@ -3,262 +3,178 @@ import os.path
 from collections import defaultdict
 from egcg_core.app_logging import AppLogger, logging_default as log_cfg
 from analysis_driver.exceptions import AnalysisDriverError
-from analysis_driver import config
+from analysis_driver.config import sample_sheet_config
 
 app_logger = log_cfg.get_logger('reader')
 
 
-def transform_sample_sheet(data_dir, remove_barcode=False):
+def transform_sample_sheet(data_dir, seqlab2=True, remove_barcode=False):
     """
     Read SampleSheet.csv, translate column names and write to SampleSheet_analysis_driver.csv
     :param str data_dir: Full path to a data directory containing SampleSheet.csv
+    :param bool seqlab2: Whether to use seqlab2 or seqlab1 column transformations
     :param bool remove_barcode: Whether to remove barcodes from the sample sheet
     """
-    before, header = _read_sample_sheet(os.path.join(data_dir, 'SampleSheet.csv'))
-    cols = before.readline().strip().split(',')
-    out_lines = []
-    transformations = config.sample_sheet_config.get('transformations', [])
-    for idx, col in enumerate(cols):
-        if col in transformations:
-            cols[idx] = transformations[col]
-    for line in header:
-        out_lines.append(line.strip())
-    out_lines.append('[Data],')
-    out_lines.append(','.join(cols))
-    index_col = index2_col = -1
-    if remove_barcode:
-        if 'Index' in cols:
-            index_col = cols.index('Index')
-        if 'Index2' in cols:
-            index2_col = cols.index('Index2')
-    for line in before:
+    sample_sheet_in, header = _read_sample_sheet(os.path.join(data_dir, 'SampleSheet.csv'))
+    cols_in = sample_sheet_in.readline().strip().split(',')
+    col_transformations = sample_sheet_config['seqlab2'] if seqlab2 else sample_sheet_config['seqlab1']
+    cols_out = [col_transformations.get(c, c) for c in cols_in]
+
+    out_lines = [line.strip() for line in header]
+    out_lines.append(','.join(cols_out))
+
+    for line in sample_sheet_in:
         if remove_barcode:
             sp_line = line.strip().split(',')
-            if index_col >= 0:
-                sp_line[index_col] = ''
-            if index2_col >= 0:
-                sp_line[index2_col] = ''
+            sp_line[cols_out.index('Index')] = ''  # use the index of the 'Index' column!
+            sp_line[cols_out.index('Index2')] = ''
             out_lines.append(','.join(sp_line))
         else:
             out_lines.append(line.strip())
-    before.close()
+
+    sample_sheet_in.close()
     out_lines.append('')
-    with open(os.path.join(data_dir, 'SampleSheet_analysis_driver.csv'), 'w') as after:
-        after.write('\n'.join(out_lines))
+    with open(os.path.join(data_dir, 'SampleSheet_analysis_driver.csv'), 'w') as sample_sheet_out:
+        sample_sheet_out.write('\n'.join(out_lines))
 
 
 def _read_sample_sheet(sample_sheet):
     """
     Scan down a sample sheet until a [Data] line, then return the file object for further reading
-    :return tuple[file, list] f, header: The sample sheet file object, and all lines above [Data]
+    :return: The sample sheet file object, and all lines above [Data]
     """
     f = open(sample_sheet, 'r')
     app_logger.debug('Opened ' + f.name)
     counter = 1
     header = []
     for line in f:
+        header.append(line)
+        counter += 1
         if line.startswith('[Data]'):
             app_logger.debug('Starting reading sample sheet from line ' + str(counter))
             return f, header
-        else:
-            counter += 1
-            header.append(line)
+
     f.close()
     return None, None
 
 
 class SampleSheet(AppLogger):
-    def __init__(self, filename, has_barcode=True):
-        self.sample_projects = {}  # {name: samples} {str: Sample}
+    def __init__(self, filename):
+        self.projects = {}  # {name: samples} {str: Sample}
         self.filename = filename
+        self.lanes = defaultdict(list)
         self._populate()
-        self.debug('Sample project entries: ' + str(self.sample_projects))
-        if not has_barcode:
-            self.has_barcode = False
-            self._validate_one_sample_per_lane()
-        else:
-            self.has_barcode = True
+        self.debug('Sample project entries: ' + str(self.projects))
 
-    def check_barcodes(self):
+        self.barcode_len = self._check_barcodes()
+        self.has_barcodes = bool(self.barcode_len)
+        if not self.has_barcodes:
+            self._validate_one_sample_per_lane()
+
+    def _check_barcodes(self):
         """
         For each sample project, check that all the DNA barcodes are the same length
         :return: The DNA barcode length for the sample sheet
         """
-        last_sample = None
-        for name, sample_project in self.sample_projects.items():
-            self.debug('Checking sample project ' + name)
-            for name2, sample_id in sample_project.sample_ids.items():
-                self.debug('Checking sample id ' + name2)
-                for sample in sample_id.samples:
-                    try:
-                        if len(sample.barcode) == len(last_sample.barcode):
-                            pass
-                        else:
-                            raise ValueError(
-                                'Odd barcode length for %s: %s (%s) in sample project \'%s\' ' % (
-                                    sample.id, sample.barcode, len(sample.barcode), name
-                                )
+        last_line = None
+
+        for p in self.projects.values():
+            for s in p.sample_ids.values():
+                for l in s.lines:
+                    if last_line and len(last_line.barcode) != len(l.barcode):
+                        raise AnalysisDriverError(
+                            'Unexpected barcode length for %s: %s in project %s' % (
+                                l.sample_id, l.barcode, p.name
                             )
-                    except AttributeError:
-                        pass
-                    finally:
-                        last_sample = sample
-        self.debug('Barcode check done. Barcode len: %s', len(last_sample.barcode))
-        return len(last_sample.barcode)
+                        )
+                    last_line = l
+
+        self.debug('Barcode check done. Barcode len: %s', len(last_line.barcode))
+        return len(last_line.barcode)
 
     def _validate_one_sample_per_lane(self):
-        """
-        Check that only one sample is present in each lane and raise AnalysisDriverError if more than one is
-        found.
-        """
-        lane2samples = defaultdict(list)
-        for name, sample_project in self.sample_projects.items():
-            for name2, sample_id in sample_project.sample_ids.items():
-                for sample in sample_id.samples:
-                    for lane in sample.lane.split('+'):
-                        lane2samples[lane].append(sample)
-        for lane, samples in lane2samples.items():
-            if len(samples) > 1:
-                raise AnalysisDriverError(
-                    '%s samples in lane %s despite has barcode set to %s' % (
-                        len(samples), lane, self.has_barcode
-                    )
-                )
+        for k, v in self.lanes.items():
+            if len(v) > 1:
+                raise AnalysisDriverError('Barcodeless sample sheet has %s samples in lane %s' % (len(v), k))
 
-    def generate_mask(self, mask):
-        """
-        Translate:
-            <Read IsIndexedRead=N Number=1 NumCycles=151/>
-            <Read IsIndexedRead=Y Number=2 NumCycles=8/>
-            <Read IsIndexedRead=N Number=3 NumCycles=151/>
-        to 'y150n,i8,y150n', depending on self.has_barcode.
-        :param .run_info.Mask mask: A Mask object extracted from RunInfo.xml
-        """
-        out = ['y' + str(mask.num_cycles(mask.upstream_read) - 1) + 'n']
-
-        if self.has_barcode:
-            barcode_len = self.check_barcodes()
-            for i in mask.index_lengths:
-                diff = i - barcode_len
-                out.append('i' + str(barcode_len) + 'n' * diff)
-
-        out.append('y' + str(mask.num_cycles(mask.downstream_read) - 1) + 'n')
-        self.debug("Generated mask '%s'", out)
-        return ','.join(out)
-
-    def validate(self, mask):
+    def validate(self, reads):
         """
         Ensure that the SampleSheet is consistent with itself and RunInfo
-        :param .run_info.Mask mask: Mask object to check against
+        :param .run_info.Reads reads: Reads object to check against
         """
         self.debug('Validating...')
-        if mask.has_barcodes:
-            barcode_len = self.check_barcodes()
-            if barcode_len != mask.barcode_len:
-                self.error(
-                    'Barcode mismatch: %s (SampleSheet.csv) and %s (RunInfo.xml)' %
-                    (barcode_len, mask.barcode_len)
+        if self.has_barcodes != reads.has_barcodes:
+            raise AnalysisDriverError(
+                'Barcodedness mismatch: %s (sample_sheet) and %s (run_info)' % (
+                    self.has_barcodes, reads.has_barcodes
                 )
-                return False
+            )
+        if self.has_barcodes and self.barcode_len != reads.barcode_len:
+            raise AnalysisDriverError(
+                'Barcode mismatch: %s (sample_sheet) and %s (run_info)' % (
+                    self.barcode_len, reads.barcode_len
+                )
+            )
         return True
-
-    def get_samples(self, sample_project, sample_id):
-        return self.sample_projects[sample_project].sample_ids[sample_id].samples
 
     def _populate(self):
         f, header = _read_sample_sheet(self.filename)
         reader = csv.DictReader(f)
-        cols = reader.fieldnames
         counter = 0
+
         for line in reader:
             if any(line):
                 counter += 1
-                sample_project = line[self._get_column(cols, 'sample_project')]
-                sample_id = line[self._get_column(cols, 'sample_id')]
+                new_line = Line(line)
 
-                new_sample = Sample(
-                    sample_project=sample_project,
-                    lane=line[self._get_column(cols, 'lane')],
-                    sample_id=sample_id,
-                    sample_name=line[self._get_column(cols, 'sample_name')],
-                    barcode=line[self._get_column(cols, 'barcode')],
-                    **self._get_all_cols(
-                        line,
-                        ignore=['sample_project', 'sample_id', 'sample_name' 'lane', 'barcode']
-                    )
-                )
-
-                sample_project_obj = self._get_sample_project(sample_project)
-                sample_id_obj = sample_project_obj.get_sample_id(sample_id)
-                sample_id_obj.add_sample(new_sample)
+                for l in new_line.lanes:
+                    self.lanes[l].append(new_line)
+                project = self._get_project(new_line.project_id)
+                sample_id = project.get_sample_id(new_line.sample_id)
+                sample_id.add_line(new_line)
         f.close()
         self.debug('Added %s samples', counter)
 
-    def _get_sample_project(self, name):
-        sample_project = ValueError('Could not add sample project ' + name)
-        try:
-            sample_project = self.sample_projects[name]
-        except KeyError:
-            sample_project = SampleProject(name)
-            self.sample_projects[name] = sample_project
-        finally:
-            return sample_project
-
-    @staticmethod
-    def _get_column(header, name):
-        possible_fields = config.sample_sheet_config['column_names'][name]
-        for f in possible_fields:
-            if f in header:
-                return f
-        return None
-
-    @staticmethod
-    def _get_all_cols(line_dict, ignore=None):
-        d = {}
-        for k, v in line_dict.items():
-            if k not in ignore:
-                d[k] = v
-        return d
+    def _get_project(self, name):
+        if name not in self.projects:
+            self.projects[name] = ProjectID(name)
+        return self.projects[name]
 
 
-class SampleProject:
-    """Represents a sample project, and contains a list of SampleID objects"""
+class ProjectID:
+    """Represents a project, grouping SampleID objects"""
     def __init__(self, name):
         self.name = name
         self.sample_ids = {}
 
     def get_sample_id(self, name):
-        sample_id = ValueError('Could not add sample id ' + name)
-        try:
-            sample_id = self.sample_ids[name]
-        except KeyError:
-            sample_id = SampleID(name, self.name)
-            self.sample_ids[name] = sample_id
-        finally:
-            return sample_id
+        if name not in self.sample_ids:
+            self.sample_ids[name] = SampleID(name, project_id=self.name)
+        return self.sample_ids[name]
 
 
 class SampleID:
-    def __init__(self, name, sample_project):
+    """
+    Represents a sample in the sample sheet, which can have multiple barcodes, and therefore multiple lines in
+    the sample sheet.
+    """
+    def __init__(self, name, project_id):
         self.name = name
-        self.sample_project = sample_project
-        self.samples = []
+        self.project_id = project_id
+        self.lines = []
 
-    def add_sample(self, sample):
-        assert sample.sample_project == self.sample_project and sample.sample_id == self.name,\
-            'Adding invalid sample project to ' + self.name + ': ' + sample.sample_project
-        self.samples.append(sample)
+    def add_line(self, line):
+        assert line.project_id == self.project_id and line.sample_id == self.name,\
+            'Adding invalid sample project to ' + self.name + ': ' + line.project_id
+        self.lines.append(line)
 
 
-class Sample:
-    """
-    This represents a Sample, i.e. a line in SampleSheet.csv below the '[Data]' marker. Supports dict-style
-    attribute fetching, e.g. sample_object['lane']
-    """
-    def __init__(self, sample_project, sample_id, sample_name, lane, barcode, **kwargs):
-        self.sample_project = sample_project
-        self.sample_id = sample_id
-        self.sample_name = sample_name
-        self.lane = lane
-        self.barcode = barcode
-        self.extra_data = kwargs
+class Line:
+    """Represents a line in SampleSheet.csv below the '[Data]' marker."""
+    def __init__(self, sample_sheet_line):
+        self.project_id = sample_sheet_line.pop('Sample_Project')
+        self.sample_id = sample_sheet_line.pop('Sample_ID')
+        self.sample_name = sample_sheet_line.pop('Sample_Name')
+        self.lanes = sample_sheet_line.pop('Lane').split('+')
+        self.barcode = sample_sheet_line.pop('Index')
+        self.extra_data = sample_sheet_line
