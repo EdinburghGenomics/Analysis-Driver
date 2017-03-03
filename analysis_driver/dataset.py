@@ -5,7 +5,7 @@ from datetime import datetime
 from analysis_driver.notification import NotificationCentre
 from egcg_core import rest_communication
 from egcg_core.app_logging import AppLogger
-from egcg_core.clarity import get_expected_yield_for_sample, get_project
+from egcg_core.clarity import get_expected_yield_for_sample, get_project, get_run
 from egcg_core.exceptions import RestCommunicationError
 from analysis_driver.exceptions import AnalysisDriverError
 from egcg_core.constants import DATASET_NEW, DATASET_READY, DATASET_FORCE_READY, DATASET_REPROCESS,\
@@ -146,7 +146,10 @@ class RunDataset(Dataset):
         self.path = path
 
     def _is_ready(self):
-        return os.path.isfile(os.path.join(self.path, 'RTAComplete.txt'))
+        return True
+
+    def is_sequencing(self):
+        return get_run(self.name).udf.get('Run Status') == 'RunStarted'
 
 
 class SampleDataset(Dataset):
