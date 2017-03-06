@@ -4,3 +4,4 @@ from .gender_validation import GenderValidation
 from .median_coverage import SamtoolsDepth
 from .contamination_blast import ContaminationBlast
 from .calculate_relatedness import Relatedness
+from .bcl_validation import BCLValidator
