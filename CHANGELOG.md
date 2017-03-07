@@ -1,7 +1,7 @@
 Changelog for Analysis-Driver
 =============================
 
-0.13 (Unreleased)
+0.13 (2017-03-07)
 -----------------
  - Replace bamtools stats with samtools stats
  - fix bcbio alternative genome version
