@@ -15,7 +15,7 @@ class TestBCLValidator(TestAnalysisDriver):
         if os.path.isfile(validation_log):
             os.remove(validation_log)
 
-        self.val = BCLValidator(self.job_dir, run_info, validation_log, 'a dataset')
+        self.val = BCLValidator(self.job_dir, run_info, validation_log, Mock())
 
     @patch('analysis_driver.quality_control.BCLValidator._all_cycles_from_interop')
     def test_get_bcl_files_to_check(self, mocked_cycles):
@@ -90,3 +90,14 @@ class TestBCLValidator(TestAnalysisDriver):
         assert self.val._all_cycles_from_interop(self.job_dir) == []  # no ExtractionMetrics
         open(os.path.join(interop_dir, 'ExtractionMetricsOut.bin'), 'w').close()
         assert self.val._all_cycles_from_interop(self.job_dir) == []  # empty ExtractionMetrics
+
+    @patch('analysis_driver.quality_control.bcl_validation.executor.execute', return_value=Mock(join=Mock(return_value=0)))
+    @patch('analysis_driver.quality_control.BCLValidator.call_bcl_check')
+    def test_check_bcls(self, mocked_check_bcls, mocked_execute):
+        with patch('analysis_driver.quality_control.BCLValidator._all_cycles_from_interop',
+                   return_value=[1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3]):
+            with patch('analysis_driver.quality_control.bcl_validation.time.sleep'):
+                self.val.dataset.is_sequencing = Mock(side_effect=[True, True, False])
+                self.val.check_bcls()
+                assert mocked_check_bcls.called is True
+                assert mocked_check_bcls.call_count == 3
