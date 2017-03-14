@@ -2,14 +2,14 @@ import os
 import threading
 from sys import modules
 from datetime import datetime
-from analysis_driver.notification import NotificationCentre
 from egcg_core import rest_communication, clarity
+from egcg_core.config import cfg
 from egcg_core.app_logging import AppLogger
 from egcg_core.exceptions import RestCommunicationError
 from analysis_driver.exceptions import AnalysisDriverError
-from egcg_core.constants import DATASET_NEW, DATASET_READY, DATASET_FORCE_READY, DATASET_REPROCESS,\
-    DATASET_PROCESSING, DATASET_PROCESSED_SUCCESS, DATASET_PROCESSED_FAIL, DATASET_ABORTED, ELEMENT_RUN_NAME,\
-    ELEMENT_NB_Q30_R1_CLEANED, ELEMENT_NB_Q30_R2_CLEANED
+from analysis_driver.notification import NotificationCentre
+from analysis_driver import reader
+from egcg_core.constants import *
 
 
 class Dataset(AppLogger):
@@ -55,8 +55,9 @@ class Dataset(AppLogger):
         )
 
     def start(self):
-        self._assert_status(DATASET_READY, DATASET_FORCE_READY, DATASET_NEW)
-        self.most_recent_proc.initialise_entity()  # take a new entity
+        self._assert_status(DATASET_READY, DATASET_FORCE_READY, DATASET_NEW, DATASET_RESUME)
+        if self.dataset_status != DATASET_RESUME:
+            self.most_recent_proc.initialise_entity()  # take a new entity
         self.most_recent_proc.start()
         self.ntf.start_pipeline()
 
@@ -72,6 +73,10 @@ class Dataset(AppLogger):
 
     def abort(self):
         self.most_recent_proc.finish(DATASET_ABORTED)
+
+    def resume(self):
+        self.terminate()
+        self.most_recent_proc.change_status(DATASET_RESUME)
 
     def reset(self):
         self.terminate()
@@ -160,6 +165,31 @@ class RunDataset(Dataset):
     def __init__(self, name, path, most_recent_proc=None):
         super().__init__(name, most_recent_proc)
         self.path = path
+        self._run_info = None
+        self._sample_sheet = None
+        self.input_dir = os.path.join(cfg['input_dir'], self.name)
+
+    @property
+    def run_info(self):
+        if self._run_info is None:
+            self._run_info = reader.RunInfo(self.input_dir)
+        return self._run_info
+
+    @property
+    def sample_sheet(self):
+        if self._sample_sheet is None:
+            reader.transform_sample_sheet(
+                self.input_dir,
+                seqlab2=cfg.get('seqlab2', True),
+                remove_barcode=not self.run_info.reads.has_barcodes
+            )
+            self._sample_sheet = reader.SampleSheet(os.path.join(self.input_dir, 'SampleSheet_analysis_driver.csv'))
+            self._sample_sheet.validate(self.run_info.reads)
+        return self._sample_sheet
+
+    @property
+    def mask(self):
+        return self.run_info.reads.generate_mask(self.sample_sheet.barcode_len)
 
     def _is_ready(self):
         return os.path.isfile(os.path.join(self.path, 'RTAComplete.txt'))

@@ -5,18 +5,19 @@ from egcg_core.config import cfg
 from analysis_driver import segmentation
 from analysis_driver.dataset_scanner import RunDataset, SampleDataset, ProjectDataset
 from analysis_driver.exceptions import PipelineError
+from analysis_driver.pipelines import demultiplexing
 from analysis_driver.pipelines.qc_pipelines import qc_pipeline
 from analysis_driver.pipelines.bcbio_pipelines import bcbio_var_calling_pipeline
-from analysis_driver.pipelines.demultiplexing import demultiplexing_pipeline
 from analysis_driver.pipelines.variant_calling import var_calling_pipeline
 from analysis_driver.pipelines.projects import project_pipeline
 
 
 def pipeline(d):
-    _setup_luigi_logging()
+    luigi.interface.setup_interface_logging.has_run = True  # turn off Luigi's default logging setup
+    log_cfg.get_logger('luigi-interface', 10)  # just calling log_cfg.get_logger registers the luigi-interface
 
     if isinstance(d, RunDataset):
-        final_stage = Demultiplexing(dataset=d)
+        final_stage = demultiplexing.Cleanup(dataset=d)
     elif isinstance(d, SampleDataset):
         species = clarity.get_species_from_sample(d.name)
         analysis_type = clarity.get_sample(d.name).udf.get('Analysis Type')
@@ -41,16 +42,6 @@ def pipeline(d):
 
     luigi.build(**luigi_params)
     return final_stage.exit_status
-
-
-def _setup_luigi_logging():
-    luigi.interface.setup_interface_logging.has_run = True  # turn off Luigi's default logging setup
-    log_cfg.get_logger('luigi-interface', 10)  # just calling log_cfg.get_logger registers the luigi-interface
-
-
-class Demultiplexing(segmentation.BasicStage):
-    def run(self):
-        self.exit_status = demultiplexing_pipeline(self.dataset)
 
 
 class BCBioVarCalling(segmentation.BasicStage):

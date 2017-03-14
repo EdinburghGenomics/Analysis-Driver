@@ -46,6 +46,8 @@ def main():
             scanner.get_dataset(d).skip()
         for d in args.reset:
             scanner.get_dataset(d).reset()
+        for d in args.resume:
+            scanner.get_dataset(d).resume()
         for d in args.force:
             scanner.get_dataset(d).force()
         for d in args.stop:
@@ -155,14 +157,10 @@ def _parse_args():
     p.add_argument('--report', action='store_true', help='report on status of datasets')
     p.add_argument('--report-all', action='store_true', help='report all datasets, including finished ones')
     p.add_argument('--skip', nargs='+', default=[], help='mark a dataset as completed')
-    p.add_argument('--reset', nargs='+', default=[], help='unmark a dataset as unprocessed for rerunning')
+    p.add_argument('--reset', nargs='+', default=[], help='mark a dataset for rerunning from the last complete stage')
+    p.add_argument('--fullreset', nargs='+', default=[], help='mark a dataset for rerunning from the start')
     p.add_argument('--abort', nargs='+', default=[], help='mark a dataset as aborted')
-    p.add_argument(
-        '--force',
-        nargs='+',
-        default=[],
-        help='mark a sample for processing, even if below the data threshold'
-    )
+    p.add_argument('--force', nargs='+', default=[], help='mark a sample for processing, even if below the data threshold')
     p.add_argument('--stop', nargs='+', default=[], help='stop a currently processing run/sample')
 
     return p.parse_args()
