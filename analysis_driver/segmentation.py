@@ -24,9 +24,7 @@ class BasicStage(luigi.Task, AppLogger):
 
     @property
     def stage_name(self):
-        if self.__stagename__:
-            return self.__stagename__
-        return self.__class__.__name__.lower()
+        return self.__stagename__ or self.__class__.__name__.lower()
 
     def requires(self):
         """
@@ -42,7 +40,8 @@ class BasicStage(luigi.Task, AppLogger):
             if isinstance(s, type):
                 yield s(dataset=self.dataset)
             elif type(s) in (tuple, list):
-                yield s(dataset=self.dataset, **s[1])
+                cls, config = s
+                yield cls(dataset=self.dataset, **config)
 
 
 class Stage(BasicStage):

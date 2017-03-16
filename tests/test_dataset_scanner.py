@@ -1,10 +1,11 @@
 import os
+from shutil import rmtree
 from unittest.mock import Mock, patch
 from egcg_core.constants import DATASET_NEW, DATASET_ABORTED
 from analysis_driver.dataset import RunDataset, SampleDataset
 from analysis_driver.dataset_scanner import DatasetScanner, RunScanner, SampleScanner
 from tests.test_analysisdriver import TestAnalysisDriver
-from tests.test_dataset import patched_expected_yield, fake_proc, seed_directories, clean
+from tests.test_dataset import patched_expected_yield, fake_proc, seed_directories
 
 
 class FakeEntity(Mock):
@@ -41,7 +42,7 @@ class TestScanner(TestAnalysisDriver):
             f.write('ignored_dataset\n')
 
     def tearDown(self):
-        clean(self.base_dir)
+        rmtree(self.base_dir)
 
     def test_report(self):
         dsets = {'new': ['this'], 'ready': ['that', 'other'], 'failed': ['another']}

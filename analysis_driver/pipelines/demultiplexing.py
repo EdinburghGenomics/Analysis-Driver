@@ -7,7 +7,7 @@ from analysis_driver.pipelines.common import cleanup
 from analysis_driver import segmentation
 from analysis_driver.util import bash_commands
 from analysis_driver.exceptions import SequencingRunError
-from analysis_driver.quality_control.lane_duplicates import WellDuplicates
+from analysis_driver.quality_control import lane_duplicates
 from analysis_driver.reader.version_reader import write_versions_to_yaml
 from analysis_driver.report_generation.report_crawlers import RunCrawler
 from analysis_driver.transfer_data import output_run_data
@@ -74,13 +74,11 @@ class Bcl2FastqAndFilter(DemultiplexingStage):
         ).join()
 
 
-class _WellDuplicates(DemultiplexingStage):
+class WellDuplicates(DemultiplexingStage):
     previous_stages = [Setup]
 
     def _run(self):
-        # well duplicates
-        # This could be executed at the same time as bcl2fastq but I need the fastq directory to exist
-        well_dup_exec = WellDuplicates(self.dataset, self.job_dir, self.fastq_dir, self.input_dir)
+        well_dup_exec = lane_duplicates.WellDuplicates(self.dataset, self.job_dir, self.fastq_dir, self.input_dir)
         well_dup_exec.start()
         return well_dup_exec.join()
 
@@ -140,7 +138,7 @@ class MD5Sum(DemultiplexingStage):
 
 
 class QCOutput(DemultiplexingStage):
-    previous_stages = [_WellDuplicates, IntegrityCheck, FastQC, SeqtkFQChk, MD5Sum]
+    previous_stages = [WellDuplicates, IntegrityCheck, FastQC, SeqtkFQChk, MD5Sum]
 
     def _run(self):
         # Find conversion xml file and adapter file, and send the results to the rest API

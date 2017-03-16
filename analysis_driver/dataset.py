@@ -372,16 +372,25 @@ class MostRecentProc:
         self.update_entity(status=status, pid=None, end_date=self._now())
 
     def start_stage(self, stage_name):
-        success = rest_communication.post_entry(
+        doc = rest_communication.get_document(
             'analysis_driver_stages',
-            {'stage_id': self._stage_id(stage_name), 'date_started': self._now(), 'stage_name': stage_name,
-             'analysis_driver_proc': self.proc_id}
+            where={'stage_id': self._stage_id(stage_name)}
         )
-        assert success
-
-        stages = self.entity.get('stages', [])
-        stages.append(self._stage_id(stage_name))
-        self.update_entity(stages=stages)
+        if doc:
+            rest_communication.patch_entry(
+                'analysis_driver_stages',
+                {'date_started': self._now(), 'date_finished': None, 'exit_status': None},
+                'stage_id', self._stage_id(stage_name)
+            )
+        else:
+            rest_communication.post_entry(
+                'analysis_driver_stages',
+                {'stage_id': self._stage_id(stage_name), 'date_started': self._now(),
+                 'stage_name': stage_name, 'analysis_driver_proc': self.proc_id}
+            )
+            stages = self.entity.get('stages', [])
+            stages.append(self._stage_id(stage_name))
+            self.update_entity(stages=stages)
 
     def end_stage(self, stage_name, exit_status=0):
         rest_communication.patch_entry(

@@ -15,22 +15,18 @@ def seed_directories(base_dir):
             touch(os.path.join(base_dir, d, 'RTAComplete.txt'))
 
 
-def clean(base_dir):
-    rmtree(os.path.join(base_dir))
-
-
 def touch(path):
     open(path, 'w').close()
 
 
-def ppath(*parts):
-    return '.'.join(('analysis_driver', 'dataset') + parts)
+def ppath(target):
+    return 'analysis_driver.dataset.' + target
 
 
 fake_proc = {'proc_id': 'a_proc_id', 'dataset_type': 'test', 'dataset_name': 'test'}
 
-patched_patch = patch(ppath('rest_communication', 'patch_entry'))
-patched_post = patch(ppath('rest_communication', 'post_entry'))
+patched_patch = patch(ppath('rest_communication.patch_entry'))
+patched_post = patch(ppath('rest_communication.post_entry'))
 patched_pid = patch(ppath('os.getpid'), return_value=1)
 patched_update = patch(ppath('MostRecentProc.update_entity'))
 patched_initialise = patch(ppath('MostRecentProc.initialise_entity'))
@@ -41,10 +37,8 @@ patched_stages = patch(
 )
 
 
-def patched_get(content=None):
-    if content is None:
-        content = [fake_proc]
-    return patch(ppath('rest_communication', 'get_documents'), return_value=content)
+def patched_get_docs(content=None):
+    return patch(ppath('rest_communication.get_documents'), return_value=content or [fake_proc])
 
 
 def patched_datetime(time='now'):
@@ -63,7 +57,7 @@ class TestDataset(TestAnalysisDriver):
         self.dataset._ntf = Mock()
 
     def tearDown(self):
-        clean(self.base_dir)
+        rmtree(self.base_dir)
 
     def test_dataset_status(self):
         assert self.dataset.most_recent_proc.entity.get('status') is None
@@ -72,7 +66,7 @@ class TestDataset(TestAnalysisDriver):
         self.dataset.most_recent_proc.entity['status'] = 'a_status'
         assert self.dataset.dataset_status == 'a_status'
 
-    @patched_get([{'stage_name': 'this', 'date_started': 'now'}, {'stage_name': 'that', 'date_started': 'then'}])
+    @patched_get_docs([{'stage_name': 'this', 'date_started': 'now'}, {'stage_name': 'that', 'date_started': 'then'}])
     def test_stages(self, mocked_get):
         assert self.dataset.running_stages == ['this', 'that']
         mocked_get.assert_called_with(
@@ -145,7 +139,7 @@ class TestDataset(TestAnalysisDriver):
             assert str(self.dataset) == 'test_dataset -- this, that, other'
 
     def setup_dataset(self):
-        with patched_get():
+        with patched_get_docs():
             self.dataset = _TestDataset(
                 'test_dataset',
                 {'proc_id': 'a_proc_id', 'date_started': 'now', 'dataset_name': 'None', 'dataset_type': 'None'}
@@ -167,7 +161,7 @@ class TestRunDataset(TestDataset):
             ('dataset_ready', True),
             ('dataset_not_ready', False)
         )
-        with patched_get():
+        with patched_get_docs():
             for d_name, rta_complete in datasets:
                 d = RunDataset(d_name, os.path.join(self.base_dir, d_name))
                 assert d._is_ready() == rta_complete
@@ -238,13 +232,13 @@ class TestSampleDataset(TestDataset):
     def test_str(self):
         expected_str = 'test_dataset -- this, that, other  (480 / 1000000000  from a_run_id, another_run_id) (non useable run elements in a_run_id, another_run_id)'
         self.dataset._data_threshold = None
-        with patched_get(self.dataset.run_elements), patched_expected_yield(), patched_stages:
+        with patched_get_docs(self.dataset.run_elements), patched_expected_yield(), patched_stages:
             print(expected_str)
             print(str(self.dataset))
             assert str(self.dataset) == expected_str
 
     def setup_dataset(self):
-        with patched_get():
+        with patched_get_docs():
             self.dataset = SampleDataset(
                 'test_dataset',
                 most_recent_proc={'proc_id': 'a_proc_id', 'date_started': 'now',
@@ -267,7 +261,7 @@ class TestSampleDataset(TestDataset):
 
 class TestMostRecentProc(TestAnalysisDriver):
     def setUp(self):
-        with patched_get():
+        with patched_get_docs():
             self.proc = MostRecentProc('test', 'test')
         self.proc._entity = fake_proc.copy()
         self.proc.proc_id = 'a_proc_id'
@@ -275,7 +269,7 @@ class TestMostRecentProc(TestAnalysisDriver):
     def test_rest_entity_pre_existing(self):
         assert self.proc.entity == fake_proc
 
-    @patched_get()
+    @patched_get_docs()
     @patched_initialise
     def test_rest_entity_not_pre_existing(self, mocked_initialise, mocked_get):
         self.proc._entity = None
@@ -384,15 +378,27 @@ class TestMostRecentProc(TestAnalysisDriver):
 
     @patched_update
     @patched_post
-    def test_start_stage(self, mocked_post, mocked_update):
+    @patched_patch
+    @patch('analysis_driver.dataset.rest_communication.get_document')
+    def test_start_stage(self, mocked_get_doc, mocked_patch, mocked_post, mocked_update):
         with patched_datetime('then'):
-            self.proc.start_stage('stage_1')
 
-        mocked_update.assert_called_with(stages=['a_proc_id_stage_1'])
-        mocked_post.assert_called_with(
-            'analysis_driver_stages',
-            {'stage_id': 'a_proc_id_stage_1', 'date_started': 'then', 'stage_name': 'stage_1', 'analysis_driver_proc': 'a_proc_id'}
-        )
+            mocked_get_doc.return_value = True
+            self.proc.start_stage('stage_1')
+            assert mocked_update.call_count == 0
+            mocked_patch.assert_called_with(
+                'analysis_driver_stages',
+                {'date_started': 'then', 'date_finished': None, 'exit_status': None},
+                'stage_id', 'a_proc_id_stage_1'
+            )
+
+            mocked_get_doc.return_value = None
+            self.proc.start_stage('stage_1')
+            mocked_update.assert_called_with(stages=['a_proc_id_stage_1'])
+            mocked_post.assert_called_with(
+                'analysis_driver_stages',
+                {'stage_id': 'a_proc_id_stage_1', 'date_started': 'then', 'stage_name': 'stage_1', 'analysis_driver_proc': 'a_proc_id'}
+            )
 
         self.proc.entity['stages'] = ['a_proc_id_stage_1']
         with patched_datetime('later'):
