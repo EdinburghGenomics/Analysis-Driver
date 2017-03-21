@@ -1,4 +1,3 @@
-import os
 import shutil
 from os.path import basename, join, exists
 from egcg_core import executor, clarity, util
@@ -50,7 +49,7 @@ def demultiplexing_pipeline(dataset):
     crawler.send_data()
     dataset.end_stage('setup')
 
-    validation_log = os.path.join(job_dir, 'checked_bcls.csv')
+    validation_log = join(job_dir, 'checked_bcls.csv')
     b = BCLValidator(job_dir, run_info, validation_log, dataset)
     b.check_bcls()
     invalid_bcls = b.read_invalid_files()
