@@ -5,13 +5,13 @@ import illuminate
 from bitstring import ReadError
 from egcg_core import executor
 from egcg_core.util import str_join
-from egcg_core.app_logging import AppLogger, logging_default as log_cfg
 from analysis_driver.exceptions import AnalysisDriverError
-app_logger = log_cfg.get_logger('util')
+from .quality_control_base import QualityControl
 
 
-class BCLValidator(AppLogger):
+class BCLValidator(QualityControl):
     def __init__(self, run_dir, run_info, validation_log, dataset):
+        super().__init__(dataset, run_dir)
         self.run_dir = run_dir
         self.basecalls_dir = join(self.run_dir, 'Data', 'Intensities', 'BaseCalls')
         self.tile_ids = run_info.tiles

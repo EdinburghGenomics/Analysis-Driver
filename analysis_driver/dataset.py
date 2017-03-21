@@ -3,7 +3,6 @@ import threading
 from sys import modules
 from datetime import datetime
 from analysis_driver.notification import NotificationCentre
-from egcg_core.app_logging import logging_default as log_cfg
 from egcg_core import rest_communication, clarity
 from egcg_core.app_logging import AppLogger
 from egcg_core.exceptions import RestCommunicationError
@@ -12,7 +11,6 @@ from egcg_core.constants import DATASET_NEW, DATASET_READY, DATASET_FORCE_READY,
     DATASET_PROCESSING, DATASET_PROCESSED_SUCCESS, DATASET_PROCESSED_FAIL, DATASET_ABORTED, ELEMENT_RUN_NAME,\
     ELEMENT_NB_Q30_R1_CLEANED, ELEMENT_NB_Q30_R2_CLEANED
 
-app_logger = log_cfg.get_logger('versions')
 
 class Dataset(AppLogger):
     type = None
@@ -169,7 +167,7 @@ class RunDataset(Dataset):
     def is_sequencing(self):
         # Assume the run has started and not finished if the status is 'RunStarted' or if it hasn't yet appeared in the LIMS
         if not clarity.get_run(self.name):
-            app_logger.warning('Run %s not found in the LIMS', self.name)
+            self.warning('Run %s not found in the LIMS', self.name)
             return True
         return clarity.get_run(self.name).udf.get('Run Status') == 'RunStarted'
 
