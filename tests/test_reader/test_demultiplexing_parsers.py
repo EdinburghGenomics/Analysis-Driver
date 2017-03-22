@@ -71,7 +71,7 @@ class TestDemultiplexingStats(TestAnalysisDriver):
                                'Ovis aries': 2,
                                'Mus musculus': 4},
                           'percent_unmapped': 1.06,
-                          'percent_unmapped_focal': '',
+                          'percent_unmapped_focal': 100.0,
                           'total_reads_mapped': 100000}
 
     def test_calculate_mean(self):
