@@ -175,7 +175,8 @@ def parse_fastqscreen_file(filename, focal_species):
         return None
 
     uniquely_mapped = {}
-    focal_species_pc_unmapped = ''
+    # set to 100% as default in case no focal species is available
+    focal_species_pc_unmapped = float(100)
     species = []
     with open(filename) as open_file:
         lines = open_file.readlines()
