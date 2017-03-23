@@ -1,5 +1,6 @@
 import os
 import pytest
+from sys import modules
 from shutil import rmtree
 from unittest.mock import patch, Mock, PropertyMock
 from tests.test_analysisdriver import TestAnalysisDriver
@@ -119,8 +120,39 @@ class TestDataset(TestAnalysisDriver):
     @patch(ppath('MostRecentProc.change_status'))
     @patch(ppath('MostRecentProc.retrieve_entity'))
     def test_reset(self, mocked_retrieve_entity, mocked_change_status):
-        self.dataset.reset()
+        with patch(ppath('Dataset.terminate')):
+            self.dataset.reset()
         mocked_change_status.assert_called_with(c.DATASET_REPROCESS)
+
+    @patch(ppath('sleep'))
+    @patch(ppath('os.kill'))
+    @patch(ppath('Dataset._pid_running'), side_effect=[True, False])
+    def test_terminate(self, mocked_running, mocked_kill, mocked_sleep):
+        self.dataset.most_recent_proc._entity['pid'] = 1337
+        with patch(ppath('Dataset._pid_valid'), return_value=False) as mocked_valid:
+            self.dataset.terminate()
+            mocked_valid.assert_called_with(1337)
+            assert all(m.call_count == 0 for m in (mocked_kill, mocked_running, mocked_sleep))
+
+        with patch(ppath('Dataset._pid_valid'), return_value=True) as mocked_valid:
+            self.dataset.terminate()
+            mocked_valid.assert_called_with(1337)
+            mocked_kill.assert_called_with(1337, 10)
+            assert mocked_running.call_count == 2
+            assert mocked_sleep.call_count == 1
+
+    def test_pid_valid(self):
+        cmdlinefile = os.path.join(TestAnalysisDriver.assets_path, 'example.pid')
+        if os.path.isfile(cmdlinefile):
+            os.remove(cmdlinefile)
+
+        with patch(ppath('os.path.join'), return_value=cmdlinefile):
+            assert self.dataset._pid_valid(1337) is False
+
+            with open(cmdlinefile, 'w') as f:
+                f.write(modules['__main__'].__file__ + '\n')
+
+            assert self.dataset._pid_valid(1337) is True
 
     @patch(ppath('MostRecentProc.start_stage'))
     def test_start_stage(self, mocked_start_stage):

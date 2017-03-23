@@ -151,10 +151,8 @@ class QCOutput(DemultiplexingStage):
                 self.dataset.name, self.sample_sheet, adapter_trim_file=adapter_trim_file,
                 conversion_xml_file=conversion_xml, run_dir=self.fastq_dir
             )
-            # TODO: review whether we need this
-            json_file = join(self.fastq_dir, 'demultiplexing_results.json')
-            crawler.write_json(json_file)
             crawler.send_data()
+            return 0
         else:
             self.error('ConversionStats or AdaptorTrimming not found.')
             return 1

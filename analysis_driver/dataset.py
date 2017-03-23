@@ -2,6 +2,8 @@ import os
 import threading
 from sys import modules
 from datetime import datetime
+from time import sleep
+from errno import ESRCH
 from egcg_core import rest_communication, clarity
 from egcg_core.config import cfg
 from egcg_core.app_logging import AppLogger
@@ -9,7 +11,7 @@ from egcg_core.exceptions import RestCommunicationError
 from analysis_driver.exceptions import AnalysisDriverError
 from analysis_driver.notification import NotificationCentre
 from analysis_driver import reader
-from egcg_core.constants import *
+from egcg_core.constants import *  # pylint: disable=unused-import
 
 
 class Dataset(AppLogger):
@@ -32,10 +34,7 @@ class Dataset(AppLogger):
     def dataset_status(self):
         db_proc_status = self.most_recent_proc.get('status')
         if db_proc_status in (DATASET_REPROCESS, None):
-            if self._is_ready():
-                return DATASET_READY
-            else:
-                return DATASET_NEW
+            return DATASET_READY if self._is_ready() else DATASET_NEW
         else:
             return db_proc_status
 
@@ -90,9 +89,15 @@ class Dataset(AppLogger):
 
     def terminate(self):
         pid = self.most_recent_proc.get('pid')
-        if pid and self._is_valid_pid(pid):
-            self.info('Terminating pid %s for %s %s', pid, self.type, self.name)
-            os.kill(pid, 10)
+        self.info('Attempting to terminate pid %s for %s %s', pid, self.type, self.name)
+        if not pid or not self._pid_valid(pid):
+            self.error('Attempted to terminate invalid pid %s', pid)
+            return
+
+        os.kill(pid, 10)
+        while self._pid_running(pid):
+            sleep(1)
+        self.info('Terminated pid %s for %s %s', pid, self.type, self.name)
 
     def start_stage(self, stage_name):
         self.ntf.start_stage(stage_name)
@@ -103,11 +108,21 @@ class Dataset(AppLogger):
         self.most_recent_proc.end_stage(stage_name, exit_status)
 
     @staticmethod
-    def _is_valid_pid(pid):
+    def _pid_valid(pid):
         cmd_file = os.path.join('/', 'proc', str(pid), 'cmdline')
         if os.path.isfile(cmd_file):
             with open(cmd_file, 'r') as f:
                 return modules['__main__'].__file__ in f.read()
+        return False
+
+    @staticmethod
+    def _pid_running(pid):
+        try:
+            os.kill(pid, 0)
+        except OSError as err:
+            if err.errno == ESRCH:  # no such process
+                return False
+        return True
 
     def _assert_status(self, *allowed_statuses):
         # make sure the most recent process is the same as the one in the REST API
