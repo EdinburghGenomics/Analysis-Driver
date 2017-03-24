@@ -20,7 +20,7 @@ def main():
     load_config()
 
     if args.debug:
-        log_cfg.log_level = logging.DEBUG
+        log_cfg.set_log_level(logging.DEBUG)
 
     log_cfg.cfg = cfg.get('logging', {})
     log_cfg.configure_handlers_from_config()
