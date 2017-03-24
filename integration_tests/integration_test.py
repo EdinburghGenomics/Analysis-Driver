@@ -8,6 +8,7 @@ import subprocess
 import argparse
 from io import StringIO
 from time import sleep
+from shutil import rmtree
 from datetime import datetime
 from contextlib import redirect_stdout, contextmanager
 from egcg_core.config import cfg, Configuration
@@ -19,8 +20,6 @@ from analysis_driver import client
 
 cfg.load_config_file(os.getenv('ANALYSISDRIVERCONFIG'), env_var='ANALYSISDRIVERENV')
 integration_cfg = Configuration(os.getenv('INTEGRATIONCONFIG'))
-app_logger = logging_default.get_logger(__name__)
-
 entry_point = sys.argv[0]
 
 
@@ -72,12 +71,13 @@ def patch_pipeline(species='Homo sapiens', analysis_type='Variant Calling gatk')
     _patch('pipelines.clarity.get_sample', new=_fake_get_sample)
     _patch('report_generation.report_crawlers.clarity.get_species_from_sample', return_value=species)
     _patch('report_generation.report_crawlers.clarity.get_sample', new=_fake_get_sample)
-    _patch('dataset.get_expected_yield_for_sample', return_value=0.9)
+    _patch('dataset.clarity.get_expected_yield_for_sample', return_value=0.9)
     _patch('report_generation.report_crawlers.clarity.get_expected_yield_for_sample', return_value=0.9)
     _patch('dataset_scanner.get_list_of_samples', new=_fake_get_list_of_samples)
     _patch('pipelines.demultiplexing.clarity.get_run', return_value=Mock(udf={'Run Status': 'RunCompleted'}))
-    _patch('pipelines.common.clarity.find_project_name_from_sample', return_value='a_project')
-    _patch('quality_control.genotype_validation.clarity.find_project_name_from_sample', return_value='a_project')
+    _patch('pipelines.common.clarity.find_project_name_from_sample', return_value='10015AT')
+    _patch('pipelines.common.clarity.get_sample', return_value=Mock(udf={}))
+    _patch('quality_control.genotype_validation.clarity.find_project_name_from_sample', return_value='10015AT')
     _patch('pipelines.bcbio_pipelines.clarity.get_user_sample_name', new=_fake_get_user_sample_id)
     _patch('pipelines.common.clarity.get_user_sample_name', new=_fake_get_user_sample_id)
     _patch('pipelines.qc_pipelines.clarity.get_user_sample_name', new=_fake_get_user_sample_id)
@@ -104,16 +104,16 @@ class IntegrationTest(TestCase):
 
     def setUp(self):
         assert self.container_id is None
-        self.container_id = self._execute(['docker', 'run', '-d', 'egcg_reporting_app'])
+        self.container_id = self._execute('docker', 'run', '-d', 'egcg_reporting_app')
         assert self.container_id
-        container_info = json.loads(self._execute(['docker', 'inspect', self.container_id]))[0]
+        container_info = json.loads(self._execute('docker', 'inspect', self.container_id))[0]
         # for now, assume the container is running on the main 'bridge' network
         container_ip = container_info['NetworkSettings']['Networks']['bridge']['IPAddress']
         container_port = list(container_info['Config']['ExposedPorts'])[0].rstrip('/tcp')
         container_url = 'http://' + container_ip + ':' + container_port + '/api/0.1'
         rest_communication.default._baseurl = container_url
 
-        sleep(10)  # allow time for the container's database and API to start running
+        sleep(15)  # allow time for the container's database and API to start running
 
         run_id = '150723_E00306_0025_BHCHK3CCXX'
         barcode = 'GAGATTCC'
@@ -135,13 +135,43 @@ class IntegrationTest(TestCase):
              'run_elements': [e['run_element_id'] for e in run_elements]}
         )
 
+        # clean up any previous tests
+        self._try_rm_dir(os.path.join(cfg['run']['output_dir'], run_id))
+        self._try_rm_dir(os.path.join(cfg['sample']['output_dir'], '10015AT0004'))
+        self._try_rm_dir(os.path.join(cfg['jobs_dir'], run_id))
+        self._try_rm_dir(os.path.join(cfg['jobs_dir'], '10015AT0004'))
+
+        self._test_success = True
+
     def tearDown(self):
         assert self.container_id
-        self._execute(['docker', 'stop', self.container_id])
-        self._execute(['docker', 'rm', self.container_id])
+        self._execute('docker', 'stop', self.container_id)
+        self._execute('docker', 'rm', self.container_id)
+        logging_default.handlers = set()
+        logging_default.loggers = {}
+
+    def expect_equal(self, obs, exp, name=None):
+        if obs != exp:
+            print(
+                'Equality check {}failed:\nobs: {}\nexp: {}'.format(
+                    str(name) + ' ' if name else '',  str(obs), str(exp)
+                )
+            )
+            self._test_success = False
 
     @staticmethod
-    def _execute(cmd):
+    def _try_rm_dir(path):
+        if os.path.isdir(path):
+            rmtree(path)
+
+    @staticmethod
+    def _read_md5_file(md5_file):
+        if os.path.isfile(md5_file):
+            with open(md5_file, 'r') as f:
+                return f.readline().split(' ')[0]
+
+    @staticmethod
+    def _execute(*cmd):
         p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         out, err = p.communicate()
         if err:
@@ -152,82 +182,91 @@ class IntegrationTest(TestCase):
         with patch_pipeline():
             sys.argv = [entry_point, '--run']
             exit_status = client.main()
-            self.assertEqual(exit_status, 0)
+            self.expect_equal(exit_status, 0)
 
             rest_communication.patch_entries('run_elements', {'useable': 'yes'}, where={'sample_id': '10015AT0004'})
-            self.assertEqual(
+            self.expect_equal(
                 sorted(rest_communication.get_document('projects')['samples']),
-                ['10015AT000' + str(i) for i in (1, 2, 3, 4, 6, 7, 8, 9)]
+                ['10015AT000' + str(i) for i in (1, 2, 3, 4, 6, 7, 8, 9)],
+                'project_samples'
             )
-            self.assertEqual(len(rest_communication.get_document('samples', where={'sample_id': '10015AT0004'})['run_elements']), 8)
+            self.expect_equal(
+                len(rest_communication.get_document('samples', where={'sample_id': '10015AT0004'})['run_elements']),
+                8,
+                'run_element_count'
+            )
             output_dir = os.path.join(cfg['run']['output_dir'], '150723_E00306_0025_BHCHK3CCXX')
             output_fastqs = util.find_files(output_dir, '*.fastq.gz') + util.find_files(output_dir, '10015AT', '*', '*.fastq.gz')
-            self.assertEqual(len(output_fastqs), 126)  # 14 undetermined + 112 sample
+            self.expect_equal(len(output_fastqs), 126, 'fastqs')  # 14 undetermined + 112 sample
 
-            exp_md5s = [integration_cfg['demultiplexing']['md5s'][os.path.basename(f)] for f in output_fastqs]
+            exp_md5s = [integration_cfg['demultiplexing']['md5s'].get(os.path.basename(f)) for f in output_fastqs]
             obs_md5s = [hashlib.md5(gzip.open(f, 'r').read()).hexdigest() for f in output_fastqs]
-            self.assertEqual(obs_md5s, exp_md5s)
+            self.expect_equal(obs_md5s, exp_md5s, 'md5s')
+        assert self._test_success
 
     def test_bcbio(self):
         with patch_pipeline():
             sys.argv = [entry_point, '--sample']
             exit_status = client.main()
-            self.assertEqual(exit_status, 0)
+            self.expect_equal(exit_status, 0)
 
             # Rest data
             e = rest_communication.get_document('samples', where={'sample_id': '10015AT0004'})
             obs = (e['bam_file_reads'], e['coverage']['genome_size'], e['duplicate_reads'], e['called_gender'])
             qc = integration_cfg['bcbio']['qc']
             exp = (qc['bam_file_reads'], qc['genome_size'], qc['duplicate_reads'], qc['called_gender'])
-            self.assertEqual(obs, exp)
+            self.expect_equal(obs, exp, 'qc')
 
             # md5s
-            output_dir = os.path.join(cfg['sample']['output_dir'], 'a_project', '10015AT0004')
-            files = ('samtools_stats.txt', 'uid_10015AT0004.vcf.stats', 'programs.txt', 'project_summary.yaml',
-                     'uid_10015AT0004_R1_screen.txt', 'taxa_identified.json')
-            obs = [open(os.path.join(output_dir, f + '.md5'), 'r').readline().split(' ')[0] for f in files]
-            exp = [integration_cfg['bcbio']['md5s'][f] for f in files]
-            self.assertEqual(obs, exp)
+            output_dir = os.path.join(cfg['sample']['output_dir'], '10015AT', '10015AT0004')
+            files = ('samtools_stats.txt', 'uid_10015AT0004.vcf.stats', 'programs.txt',
+                     'project-summary.yaml', 'uid_10015AT0004_R1_screen.txt', 'taxa_identified.json')
+            obs = [self._read_md5_file(os.path.join(output_dir, f + '.md5')) for f in files]
+            exp = [integration_cfg['bcbio']['md5s'].get(f) for f in files]
+            self.expect_equal(obs, exp, 'md5s')
+        assert self._test_success
 
     def test_var_calling(self):
         with patch_pipeline(species='Canis lupus familiaris', analysis_type='Variant Calling'):
             sys.argv = [entry_point, '--sample']
             exit_status = client.main()
-            self.assertEqual(exit_status, 0)
+            self.expect_equal(exit_status, 0)
             obs_sample = rest_communication.get_document('samples', where={'sample_id': '10015AT0004'})
 
             qcs = ('coverage', 'expected_yield', 'species_name', 'duplicate_reads', 'mapped_reads',
                    'properly_mapped_reads', 'bam_file_reads', 'median_coverage', 'species_contamination')
-            obs = [obs_sample[k] for k in qcs]
-            exp = [integration_cfg['var_calling']['qc'][k] for k in qcs]
-            self.assertEqual(obs, exp)
+            obs = [obs_sample.get(k) for k in qcs]
+            exp = [integration_cfg['var_calling']['qc'].get(k) for k in qcs]
+            self.expect_equal(obs, exp, 'qc')
 
-            output_dir = os.path.join(cfg['sample']['output_dir'], 'a_project', '10015AT0004')
+            output_dir = os.path.join(cfg['sample']['output_dir'], '10015AT', '10015AT0004')
             files = ('samtools_stats.txt', 'uid_10015AT0004.depth', 'uid_10015AT0004_R1_screen.txt',
                      'taxa_identified.json')
-            obs = [open(os.path.join(output_dir, f + '.md5'), 'r').readline().split(' ')[0] for f in files]
-            exp = [integration_cfg['var_calling']['md5s'][f] for f in files]
-            self.assertEqual(obs, exp)
+            obs = [self._read_md5_file(os.path.join(output_dir, f + '.md5')) for f in files]
+            exp = [integration_cfg['var_calling']['md5s'].get(f) for f in files]
+            self.expect_equal(obs, exp, 'md5s')
+        assert self._test_success
 
     def test_qc(self):
         with patch_pipeline(species='Canis lupus familiaris', analysis_type='Not Variant Calling'):
             sys.argv = [entry_point, '--sample']
             exit_status = client.main()
-            self.assertEqual(exit_status, 0)
+            self.expect_equal(exit_status, 0)
             obs_sample = rest_communication.get_document('samples', where={'sample_id': '10015AT0004'})
 
             qcs = ('coverage', 'expected_yield', 'species_name', 'duplicate_reads', 'mapped_reads',
                    'properly_mapped_reads', 'bam_file_reads', 'median_coverage', 'species_contamination')
-            obs = [obs_sample[k] for k in qcs]
-            exp = [integration_cfg['var_calling']['qc'][k] for k in qcs]
-            self.assertEqual(obs, exp)
+            obs = [obs_sample.get(k) for k in qcs]
+            exp = [integration_cfg['var_calling']['qc'].get(k) for k in qcs]
+            self.expect_equal(obs, exp, 'qc')
 
-            output_dir = os.path.join(cfg['sample']['output_dir'], 'a_project', '10015AT0004')
+            output_dir = os.path.join(cfg['sample']['output_dir'], '10015AT', '10015AT0004')
             files = ('samtools_stats.txt', 'uid_10015AT0004.depth', 'uid_10015AT0004_R1_screen.txt',
                      'taxa_identified.json')
-            obs = [open(os.path.join(output_dir, f + '.md5'), 'r').readline().split(' ')[0] for f in files]
-            exp = [integration_cfg['var_calling']['md5s'][f] for f in files]
-            self.assertEqual(obs, exp)
+            obs = [self._read_md5_file(os.path.join(output_dir, f + '.md5')) for f in files]
+            exp = [integration_cfg['var_calling']['md5s'].get(f) for f in files]
+            self.expect_equal(obs, exp, 'md5s')
+        assert self._test_success
 
 
 def main():
