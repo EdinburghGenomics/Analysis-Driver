@@ -1,5 +1,8 @@
+import copy
 import json
 from collections import Counter, defaultdict
+
+import shutil
 from egcg_core import util, clarity
 from egcg_core.app_logging import AppLogger
 from egcg_core.rest_communication import post_or_patch as pp
@@ -44,11 +47,11 @@ class Crawler(AppLogger):
 
 
 class RunCrawler(Crawler):
-    def __init__(self, run_id, samplesheet, adapter_trim_file=None, conversion_xml_file=None, run_dir=None):
+    def __init__(self, run_id, dataset, adapter_trim_file=None, conversion_xml_file=None, run_dir=None):
         self.run_id = run_id
         self.adapter_trim_file = adapter_trim_file
-        self.samplesheet = samplesheet
-        self._populate_barcode_info_from_sample_sheet(samplesheet)
+        self.dataset = dataset
+        self._populate_barcode_info_from_dataset(dataset)
         self._populate_from_lims()
         if adapter_trim_file:
             self._populate_barcode_info_from_adapter_file(adapter_trim_file)
@@ -73,9 +76,9 @@ class RunCrawler(Crawler):
             d[k] = set()
         d[k].add(v)
 
-    def _populate_barcode_info_from_sample_sheet(self, samplesheet):
+    def _populate_barcode_info_from_dataset(self, dataset):
         """
-        :param analysis_driver.reader.SampleSheet samplesheet:
+        :param analysis_driver.dataset.RunDataset dataset:
         """
         self.barcodes_info = defaultdict(dict)
         self.unexpected_barcodes = {}
@@ -84,66 +87,59 @@ class RunCrawler(Crawler):
         self.run = {ELEMENT_RUN_NAME: self.run_id, ELEMENT_RUN_ELEMENTS: []}
         self.projects = defaultdict(dict)
 
-        for project in samplesheet.projects.values():
-            for sample_id_obj in project.sample_ids.values():
-                for sample in sample_id_obj.lines:
-                    for lane in sample.lanes:
-                        run_element_id = '%s_%s' % (self.run_id, lane)
-                        if samplesheet.has_barcodes:
-                            run_element_id += '_' + sample.barcode
+        for run_element in dataset.run_elements:
+                run_element_id = '%s_%s' % (dataset.name, run_element[ELEMENT_LANE])
+                barcode_info = copy.copy(run_element)
+                if dataset.has_barcodes:
+                    run_element_id += '_' + run_element[ELEMENT_BARCODE]
+                    barcode_info.pop(ELEMENT_BARCODE)
 
-                        self.barcodes_info[run_element_id] = {
-                            ELEMENT_BARCODE: sample.barcode,
-                            ELEMENT_RUN_ELEMENT_ID: run_element_id,
-                            ELEMENT_RUN_NAME: self.run_id,
-                            ELEMENT_PROJECT_ID: project.name,
-                            ELEMENT_SAMPLE_INTERNAL_ID: sample.sample_id,
-                            ELEMENT_LIBRARY_INTERNAL_ID: sample.sample_name,
-                            ELEMENT_LANE: lane
-                        }
+                barcode_info[ELEMENT_RUN_NAME] = dataset.name
+                barcode_info[ELEMENT_RUN_ELEMENT_ID] = run_element_id
+                self.barcodes_info[run_element_id] = barcode_info
 
-                        # Populate the libraries
-                        lib = self.libraries[sample.sample_name]
-                        lib[ELEMENT_SAMPLE_INTERNAL_ID] = sample.sample_id
-                        lib[ELEMENT_PROJECT_ID] = project.name
-                        lib[ELEMENT_LIBRARY_INTERNAL_ID] = sample.sample_name
-                        self._update_doc_list(lib, k=ELEMENT_RUN_ELEMENTS, v=run_element_id)
+                # Populate the libraries
+                lib = self.libraries[barcode_info[ELEMENT_SAMPLE_INTERNAL_ID]]
+                lib[ELEMENT_SAMPLE_INTERNAL_ID] = barcode_info[ELEMENT_SAMPLE_INTERNAL_ID]
+                lib[ELEMENT_PROJECT_ID] = barcode_info[ELEMENT_PROJECT_ID]
+                lib[ELEMENT_LIBRARY_INTERNAL_ID] = barcode_info[ELEMENT_LIBRARY_INTERNAL_ID]
+                self._update_doc_list(lib, k=ELEMENT_RUN_ELEMENTS, v=run_element_id)
 
-                        # Populate the projects
-                        proj = self.projects[project.name]
-                        proj[ELEMENT_PROJECT_ID] = project.name
-                        self._update_doc_set(proj, k=ELEMENT_SAMPLES, v=sample.sample_id)
+                # Populate the projects
+                proj = self.projects[barcode_info[ELEMENT_PROJECT_ID]]
+                proj[ELEMENT_PROJECT_ID] = barcode_info[ELEMENT_PROJECT_ID]
+                self._update_doc_set(proj, k=ELEMENT_SAMPLES, v=barcode_info[ELEMENT_SAMPLE_INTERNAL_ID])
 
-                        # Populate the lanes
-                        lane_id = '%s_%s' % (self.run_id, lane)
-                        ln = self.lanes[lane_id]
-                        ln[ELEMENT_RUN_NAME] = self.run_id
-                        ln[ELEMENT_LANE_ID] = lane_id
-                        ln[ELEMENT_LANE_NUMBER] = int(lane)
-                        self._update_doc_list(ln, k=ELEMENT_RUN_ELEMENTS, v=run_element_id)
+                # Populate the lanes
+                lane_id = '%s_%s' % (barcode_info[ELEMENT_RUN_NAME], run_element[ELEMENT_LANE])
+                ln = self.lanes[lane_id]
+                ln[ELEMENT_RUN_NAME] = barcode_info[ELEMENT_RUN_NAME]
+                ln[ELEMENT_LANE_ID] = lane_id
+                ln[ELEMENT_LANE_NUMBER] = run_element[ELEMENT_LANE]
+                self._update_doc_list(ln, k=ELEMENT_RUN_ELEMENTS, v=run_element_id)
 
-                        # Populate the run
-                        self.run[ELEMENT_RUN_ELEMENTS].append(run_element_id)
+                # Populate the run
+                self.run[ELEMENT_RUN_ELEMENTS].append(run_element_id)
 
-                        if samplesheet.has_barcodes:
-                            unknown_element_id = '%s_%s_%s' % (self.run_id, lane, 'unknown')
-                            self.barcodes_info[unknown_element_id] = {
-                                ELEMENT_BARCODE: 'unknown',
-                                ELEMENT_RUN_ELEMENT_ID: unknown_element_id,
-                                ELEMENT_RUN_NAME: self.run_id,
-                                ELEMENT_PROJECT_ID: 'default',
-                                ELEMENT_SAMPLE_INTERNAL_ID: 'Undetermined',
-                                ELEMENT_LIBRARY_INTERNAL_ID: 'Undetermined',
-                                ELEMENT_LANE: lane
+                if dataset.has_barcodes:
+                    unknown_element_id = '%s_%s_%s' % (self.dataset.name, run_element[ELEMENT_LANE], 'unknown')
+                    self.barcodes_info[unknown_element_id] = {
+                        ELEMENT_BARCODE: 'unknown',
+                        ELEMENT_RUN_ELEMENT_ID: unknown_element_id,
+                        ELEMENT_RUN_NAME: self.dataset.name,
+                        ELEMENT_PROJECT_ID: 'default',
+                        ELEMENT_SAMPLE_INTERNAL_ID: 'Undetermined',
+                        ELEMENT_LIBRARY_INTERNAL_ID: 'Undetermined',
+                        ELEMENT_LANE: run_element[ELEMENT_LANE]
                             }
         for project_id in self.projects:
             self.projects[project_id][ELEMENT_SAMPLES] = list(self.projects[project_id][ELEMENT_SAMPLES])
 
-        if samplesheet.has_barcodes:
+        if dataset.has_barcodes:
             # Add the unknown to the lane
             for lane_id in self.lanes:
                 lane = self.lanes[lane_id][ELEMENT_LANE_NUMBER]
-                unknown = '%s_%s_%s' % (self.run_id, lane, 'unknown')
+                unknown = '%s_%s_%s' % (self.dataset.name, lane, 'unknown')
                 self.lanes[lane_id][ELEMENT_RUN_ELEMENTS].append(unknown)
 
         self.run[ELEMENT_NUMBER_LANE] = len(self.lanes)
@@ -159,7 +155,7 @@ class RunCrawler(Crawler):
         for adapter_id in adapters_trimmed_by_id:
             run_element_id = None
             run_id, sample_id, lane = adapter_id
-            if self.samplesheet.has_barcodes:
+            if self.dataset.has_barcodes:
                 for i in self.barcodes_info:
                     if self.barcodes_info[i][ELEMENT_RUN_NAME] == run_id \
                             and self.barcodes_info[i][ELEMENT_LANE] == lane:

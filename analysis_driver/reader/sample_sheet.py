@@ -76,13 +76,14 @@ def generate_samplesheet_from_lims(run_id, filename, index1=False):
             line = {
                 'Sample_Project': sample.project.name,
                 'Sample_ID': sample.name,
-                'Sample_Name': artifact.name,
+                'Sample_Name': artifact.id,
                 'Lane': lane.split(':')[0],
             }
             if index1:
                 line['Index'] = match.group(3)
             else:
                 line['Index'] = ''
+            print(line)
             new_line = Line(line)
             for l in new_line.lanes:
                 instance.lanes[l].append(new_line)
@@ -224,4 +225,14 @@ class Line:
         self.lanes = sample_sheet_line.pop('Lane').split('+')
         self.barcode = sample_sheet_line.pop('Index')
         self.extra_data = sample_sheet_line
+
+
+
+if __name__ == "__main__":
+    from egcg_core.config import cfg
+    cfg.load_config_file('/Users/tcezard/scripts/script.yaml')
+    run_id = '170324_E00365_0195_AH7573ALXX'
+    run_id = '170322_E00375_0226_AH5K2NALXX'
+    filename = '/Users/tcezard/temp/SampleSheet.csv'
+    instance = generate_samplesheet_from_lims(run_id, filename, index1=True)
 

@@ -1,9 +1,13 @@
 import os
 import csv
 from os.path import join, isfile
+from datetime import datetime
+
 import illuminate
 from bitstring import ReadError
 from egcg_core import executor
+from egcg_core.constants import ELEMENT_LANE, ELEMENT_SAMPLE_INTERNAL_ID, ELEMENT_LIBRARY_INTERNAL_ID, \
+    ELEMENT_PROJECT_ID, ELEMENT_BARCODE
 from egcg_core.util import str_join
 from egcg_core.app_logging import AppLogger, logging_default as log_cfg
 from analysis_driver.config import default as cfg
@@ -143,3 +147,26 @@ class BCLValidator(AppLogger):
             return illuminate.InteropDataset(run_dir).ExtractionMetrics().data['cycle']
         except (illuminate.InteropFileNotFoundError, ReadError):
             return []
+
+
+def generate_samplesheet(dataset, filename, index1):
+    all_lines = [
+        '[Header]', 'Date, ' + datetime.now().strftime('%d/%m/%Y'), 'Workflow, Generate FASTQ Only', '',
+        '[Reads]', '151', '151', '', '[Settings]' 'Adapter, AGATCGGAAGAGCACACGTCTGAACTCCAGTCA',
+        'AdapterRead2, AGATCGGAAGAGCGTCGTGTAGGGAAAGAGTGT', '', '[Data]',
+        'Lane,Sample_ID,Sample_Name,Sample_Project,index'
+    ]
+    for run_element in dataset.run_elements:
+        line = [
+            run_element[ELEMENT_LANE],
+            run_element[ELEMENT_SAMPLE_INTERNAL_ID],
+            run_element[ELEMENT_LIBRARY_INTERNAL_ID],
+            run_element[ELEMENT_PROJECT_ID]
+        ]
+        if index1:
+            line.append(run_element[ELEMENT_BARCODE])
+        else:
+            line.append('')
+        all_lines.append(','.join(line))
+    with open(filename, 'w') as open_samplesheet:
+        open_samplesheet.write('\n'.join(all_lines) + '\n')
