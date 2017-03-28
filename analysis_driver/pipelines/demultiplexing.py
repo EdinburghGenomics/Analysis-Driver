@@ -56,8 +56,7 @@ def demultiplexing_pipeline(dataset):
     if invalid_bcls:
         raise AnalysisDriverError('Some BCL files are corrupted; check %s for details', validation_log)
 
-    run_status = clarity.get_run(run_id).udf.get('Run Status')
-    # TODO: catch bcl2fastq error logs instead
+    run_status = dataset.lims_run.udf.get('Run Status')
     if run_status != 'RunCompleted':
         app_logger.error('Run status is \'%s\'. Stopping.', run_status)
         raise SequencingRunError(run_status)
