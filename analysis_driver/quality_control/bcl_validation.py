@@ -30,7 +30,7 @@ class BCLValidator(QualityControl):
     def check_bcls(self):
         while self.dataset.is_sequencing():
             self.call_bcl_check()
-            time.sleep(3600)
+            time.sleep(1200)
         # call bcl check again in case the run is finished but not all bcl files have been checked
         self.call_bcl_check()
 
