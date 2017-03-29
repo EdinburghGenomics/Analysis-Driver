@@ -1,4 +1,3 @@
-import time
 import shutil
 from os.path import basename, join, exists
 from egcg_core import executor, clarity, util
@@ -6,10 +5,11 @@ from analysis_driver import reader
 from analysis_driver.pipelines.common import cleanup
 from analysis_driver.util import bash_commands
 from analysis_driver.dataset_scanner import RunDataset
-from analysis_driver.exceptions import SequencingRunError
+from analysis_driver.exceptions import SequencingRunError, AnalysisDriverError
 from egcg_core.app_logging import logging_default as log_cfg
 from analysis_driver.config import default as cfg
 from analysis_driver.quality_control.lane_duplicates import WellDuplicates
+from analysis_driver.quality_control import BCLValidator
 from analysis_driver.reader.version_reader import write_versions_to_yaml
 from analysis_driver.report_generation.report_crawlers import RunCrawler
 from analysis_driver.transfer_data import output_run_data
@@ -49,10 +49,14 @@ def demultiplexing_pipeline(dataset):
     crawler.send_data()
     dataset.end_stage('setup')
 
-    # Need to sleep to make sure the LIMS has had enough time to update itself
-    time.sleep(900)
-    run_status = clarity.get_run(run_id).udf.get('Run Status')
-    # TODO: catch bcl2fastq error logs instead
+    validation_log = join(job_dir, 'checked_bcls.csv')
+    b = BCLValidator(job_dir, run_info, validation_log, dataset)
+    b.check_bcls()
+    invalid_bcls = b.read_invalid_files()
+    if invalid_bcls:
+        raise AnalysisDriverError('Some BCL files are corrupted; check %s for details', validation_log)
+
+    run_status = dataset.lims_run.udf.get('Run Status')
     if run_status != 'RunCompleted':
         app_logger.error('Run status is \'%s\'. Stopping.', run_status)
         raise SequencingRunError(run_status)
