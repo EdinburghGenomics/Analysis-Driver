@@ -3,16 +3,16 @@ import threading
 from sys import modules
 from datetime import datetime
 import re
-
-from analysis_driver.notification import NotificationCentre
+from time import sleep
+from errno import ESRCH
 from egcg_core import rest_communication, clarity
+from egcg_core.config import cfg
 from egcg_core.app_logging import AppLogger
 from egcg_core.exceptions import RestCommunicationError
 from analysis_driver.exceptions import AnalysisDriverError
-from egcg_core.constants import DATASET_NEW, DATASET_READY, DATASET_FORCE_READY, DATASET_REPROCESS,\
-    DATASET_PROCESSING, DATASET_PROCESSED_SUCCESS, DATASET_PROCESSED_FAIL, DATASET_ABORTED, ELEMENT_RUN_NAME,\
-    ELEMENT_NB_Q30_R1_CLEANED, ELEMENT_NB_Q30_R2_CLEANED, ELEMENT_PROJECT_ID, ELEMENT_SAMPLE_INTERNAL_ID, \
-    ELEMENT_LIBRARY_INTERNAL_ID, ELEMENT_BARCODE, ELEMENT_LANE
+from analysis_driver.notification import NotificationCentre
+from analysis_driver import reader
+from egcg_core.constants import *  # pylint: disable=unused-import
 
 
 class Dataset(AppLogger):
@@ -35,10 +35,7 @@ class Dataset(AppLogger):
     def dataset_status(self):
         db_proc_status = self.most_recent_proc.get('status')
         if db_proc_status in (DATASET_REPROCESS, None):
-            if self._is_ready():
-                return DATASET_READY
-            else:
-                return DATASET_NEW
+            return DATASET_READY if self._is_ready() else DATASET_NEW
         else:
             return db_proc_status
 
@@ -58,8 +55,9 @@ class Dataset(AppLogger):
         )
 
     def start(self):
-        self._assert_status(DATASET_READY, DATASET_FORCE_READY, DATASET_NEW)
-        self.most_recent_proc.initialise_entity()  # take a new entity
+        self._assert_status(DATASET_READY, DATASET_FORCE_READY, DATASET_NEW, DATASET_RESUME)
+        if self.dataset_status != DATASET_RESUME:
+            self.most_recent_proc.initialise_entity()  # take a new entity
         self.most_recent_proc.start()
         self.ntf.start_pipeline()
 
@@ -76,6 +74,10 @@ class Dataset(AppLogger):
     def abort(self):
         self.most_recent_proc.finish(DATASET_ABORTED)
 
+    def resume(self):
+        self.terminate()
+        self.most_recent_proc.change_status(DATASET_RESUME)
+
     def reset(self):
         self.terminate()
         self.most_recent_proc.change_status(DATASET_REPROCESS)
@@ -88,9 +90,15 @@ class Dataset(AppLogger):
 
     def terminate(self):
         pid = self.most_recent_proc.get('pid')
-        if pid and self._is_valid_pid(pid):
-            self.info('Terminating pid %s for %s %s', pid, self.type, self.name)
-            os.kill(pid, 10)
+        self.info('Attempting to terminate pid %s for %s %s', pid, self.type, self.name)
+        if not pid or not self._pid_valid(pid):
+            self.error('Attempted to terminate invalid pid %s', pid)
+            return
+
+        os.kill(pid, 10)
+        while self._pid_running(pid):
+            sleep(1)
+        self.info('Terminated pid %s for %s %s', pid, self.type, self.name)
 
     def start_stage(self, stage_name):
         self.ntf.start_stage(stage_name)
@@ -101,11 +109,21 @@ class Dataset(AppLogger):
         self.most_recent_proc.end_stage(stage_name, exit_status)
 
     @staticmethod
-    def _is_valid_pid(pid):
+    def _pid_valid(pid):
         cmd_file = os.path.join('/', 'proc', str(pid), 'cmdline')
         if os.path.isfile(cmd_file):
             with open(cmd_file, 'r') as f:
                 return modules['__main__'].__file__ in f.read()
+        return False
+
+    @staticmethod
+    def _pid_running(pid):
+        try:
+            os.kill(pid, 0)
+        except OSError as err:
+            if err.errno == ESRCH:  # no such process
+                return False
+        return True
 
     def _assert_status(self, *allowed_statuses):
         # make sure the most recent process is the same as the one in the REST API
@@ -163,10 +181,36 @@ class RunDataset(Dataset):
     def __init__(self, name, path, most_recent_proc=None):
         super().__init__(name, most_recent_proc)
         self.path = path
+        self._run_info = None
+        self._sample_sheet = None
+        self.input_dir = os.path.join(cfg['input_dir'], self.name)
         self._run_elements = None
 
+
+    @property
+    def run_info(self):
+        if self._run_info is None:
+            self._run_info = reader.RunInfo(self.input_dir)
+        return self._run_info
+
+    @property
+    def sample_sheet(self):
+        if self._sample_sheet is None:
+            reader.transform_sample_sheet(
+                self.input_dir,
+                seqlab2=cfg.get('seqlab2', True),
+                remove_barcode=not self.run_info.reads.has_barcodes
+            )
+            self._sample_sheet = reader.SampleSheet(os.path.join(self.input_dir, 'SampleSheet_analysis_driver.csv'))
+            self._sample_sheet.validate(self.run_info.reads)
+        return self._sample_sheet
+
+    @property
+    def mask(self):
+        return self.run_info.reads.generate_mask(self.sample_sheet.barcode_len)
+
     def _is_ready(self):
-        return os.path.isfile(os.path.join(self.path, 'RTAComplete.txt'))
+        return True
 
     @property
     def run_elements(self):
@@ -217,6 +261,21 @@ class RunDataset(Dataset):
     def has_barcodes(self):
         run_process = clarity.get_run(self.name)
         return int(run_process.udf.get('Read')) > 2
+
+    @property
+    def lims_run(self):
+        if not self._lims_run:
+            self._lims_run = clarity.get_run(self.name)
+        return self._lims_run
+
+    def is_sequencing(self):
+        # Assume the run has started and not finished if the status is 'RunStarted' or if it hasn't yet appeared in the LIMS
+        if not self.lims_run:
+            self.warning('Run %s not found in the LIMS', self.name)
+            return True
+        # force the LIMS to update the RunStatus rather than passing the same cached RunStatus
+        self.lims_run.get(force=True)
+        return self.lims_run.udf.get('Run Status') == 'RunStarted'
 
 class SampleDataset(Dataset):
     type = 'sample'
@@ -395,16 +454,25 @@ class MostRecentProc:
         self.update_entity(status=status, pid=None, end_date=self._now())
 
     def start_stage(self, stage_name):
-        success = rest_communication.post_entry(
+        doc = rest_communication.get_document(
             'analysis_driver_stages',
-            {'stage_id': self._stage_id(stage_name), 'date_started': self._now(), 'stage_name': stage_name,
-             'analysis_driver_proc': self.proc_id}
+            where={'stage_id': self._stage_id(stage_name)}
         )
-        assert success
-
-        stages = self.entity.get('stages', [])
-        stages.append(self._stage_id(stage_name))
-        self.update_entity(stages=stages)
+        if doc:
+            rest_communication.patch_entry(
+                'analysis_driver_stages',
+                {'date_started': self._now(), 'date_finished': None, 'exit_status': None},
+                'stage_id', self._stage_id(stage_name)
+            )
+        else:
+            rest_communication.post_entry(
+                'analysis_driver_stages',
+                {'stage_id': self._stage_id(stage_name), 'date_started': self._now(),
+                 'stage_name': stage_name, 'analysis_driver_proc': self.proc_id}
+            )
+            stages = self.entity.get('stages', [])
+            stages.append(self._stage_id(stage_name))
+            self.update_entity(stages=stages)
 
     def end_stage(self, stage_name, exit_status=0):
         rest_communication.patch_entry(

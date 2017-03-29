@@ -17,31 +17,31 @@ class EGCGParameter(luigi.Parameter):
 
 class BasicStage(luigi.Task, AppLogger):
     __stagename__ = None
-    previous_stages = ()
+    previous_stages = []
     exit_status = None
 
     dataset = EGCGParameter()
 
     @property
     def stage_name(self):
-        if self.__stagename__:
-            return self.__stagename__
-        return self.__class__.__name__.lower()
+        return self.__stagename__ or self.__class__.__name__.lower()
 
     def requires(self):
         """
-        Generates prior Stages from self.previous_stages, which should be either a single luigi.Task or a
-        tuple. If it's a tuple, each element can be a luigi.Task or a
-        tuple[luigi.Task,dict[str,luigi.Parameter]].
+        Generates prior Stages from self.previous_stages, which should be a list of Stage configs:
+        [
+            Stage1,
+            (Stage2, {'a_parameter': EGCGParameter()})
+        ]
+        Stage1 will have no extra params, Stage2 will be created with the params in the second tuple element.
+        All Stages will be created with dataset=self.dataset
         """
-        p = self.previous_stages
-        if type(p) is not tuple:
-            p = (p,)
-
-        for s in p:
+        for s in self.previous_stages:
             if isinstance(s, type):
-                s = s(dataset=self.dataset)
-            yield s
+                yield s(dataset=self.dataset)
+            elif type(s) in (tuple, list):
+                cls, config = s
+                yield cls(dataset=self.dataset, **config)
 
 
 class Stage(BasicStage):
@@ -57,8 +57,16 @@ class Stage(BasicStage):
 
         self.info('Finished stage %s' % self.stage_name)
 
+    @property
+    def job_dir(self):
+        return join(cfg['jobs_dir'], self.dataset.name)
+
+    @property
+    def input_dir(self):
+        return join(cfg['input_dir'], self.dataset.name)
+
     def _run(self):
-        raise NotImplementedError
+        return 0
 
 
 class RestAPITarget(luigi.Target):

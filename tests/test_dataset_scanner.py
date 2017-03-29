@@ -1,10 +1,11 @@
 import os
+from shutil import rmtree
 from unittest.mock import Mock, patch
-from egcg_core.constants import DATASET_NEW, DATASET_ABORTED
+from egcg_core.constants import DATASET_READY, DATASET_NEW, DATASET_ABORTED
 from analysis_driver.dataset import RunDataset, SampleDataset
 from analysis_driver.dataset_scanner import DatasetScanner, RunScanner, SampleScanner
 from tests.test_analysisdriver import TestAnalysisDriver
-from tests.test_dataset import patched_expected_yield, fake_proc, seed_directories, clean
+from tests.test_dataset import patched_expected_yield, fake_proc, seed_directories
 
 
 class FakeEntity(Mock):
@@ -41,7 +42,7 @@ class TestScanner(TestAnalysisDriver):
             f.write('ignored_dataset\n')
 
     def tearDown(self):
-        clean(self.base_dir)
+        rmtree(self.base_dir)
 
     def test_report(self):
         dsets = {'new': ['this'], 'ready': ['that', 'other'], 'failed': ['another']}
@@ -123,8 +124,9 @@ class TestRunScanner(TestScanner):
         with patch(ppath('DatasetScanner._get_datasets_for_statuses'), return_value=fake_datasets) as p:
             obs = self.scanner.scan_datasets(DATASET_NEW)
             p.assert_any_call((DATASET_NEW, ))
-            exp = {DATASET_NEW: '[other, that, this]'}
-            assert str(obs[DATASET_NEW]) == exp[DATASET_NEW]
+            exp = {DATASET_READY: '[other, that, this]'}
+            print(exp)
+            assert str(obs[DATASET_READY]) == exp[DATASET_READY]
 
     def _setup_scanner(self):
         self.scanner = RunScanner({'input_dir': self.base_dir})

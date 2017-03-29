@@ -63,7 +63,16 @@ class TestDemultiplexingStats(TestAnalysisDriver):
     def test_parse_fastqscreen_file2(self):
         screen_file = os.path.join(self.assets_path, 'test_sample_R1_screen.txt')
         result = dm.parse_fastqscreen_file(screen_file, 'Mellivora capensis')
-        assert result is None
+        assert result == {'contaminant_unique_mapped':
+                              {'Bos taurus': 1,
+                               'Felis catus': 4,
+                               'Gallus gallus': 1,
+                               'Homo sapiens': 74144,
+                               'Ovis aries': 2,
+                               'Mus musculus': 4},
+                          'percent_unmapped': 1.06,
+                          'percent_unmapped_focal': 100.0,
+                          'total_reads_mapped': 100000}
 
     def test_calculate_mean(self):
         hist_file = os.path.join(self.assets_path, 'test_sample.depth')
