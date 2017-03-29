@@ -175,7 +175,8 @@ def parse_fastqscreen_file(filename, focal_species):
         return None
 
     uniquely_mapped = {}
-    focal_species_pc_unmapped = ''
+    # set to 100% as default in case no focal species is available
+    focal_species_pc_unmapped = float(100)
     species = []
     with open(filename) as open_file:
         lines = open_file.readlines()
@@ -186,24 +187,26 @@ def parse_fastqscreen_file(filename, focal_species):
             species_name = r.split('\t')[0].replace('_', ' ')
             species.append(species_name)
 
-    if focal_species in species:
-        for r in results:
-            species_name = r.split('\t')[0].replace('_', ' ')
-            results = r.split('\t')[1:12]
-
-            nb_uniquely_mapped = int(r.split('\t')[4]) + int(r.split('\t')[6])
-            uniquely_mapped[species_name] = nb_uniquely_mapped
-            if species_name == focal_species:
-                focal_species_pc_unmapped = float(results[2])
-        uniquely_mapped = {k: v for k, v in uniquely_mapped.items() if v != 0}
-        return {
-            ELEMENT_CONTAMINANT_UNIQUE_MAP: uniquely_mapped,
-            ELEMENT_TOTAL_READS_MAPPED: total_reads_mapped,
-            ELEMENT_PCNT_UNMAPPED_FOCAL: focal_species_pc_unmapped,
-            ELEMENT_PCNT_UNMAPPED: hit_no_genomes
-        }
-    else:
+    if not focal_species in species:
         app_logger.warning('The focal species is not included in the contaminant database')
+
+    for r in results:
+        species_name = r.split('\t')[0].replace('_', ' ')
+        results = r.split('\t')[1:12]
+
+        nb_uniquely_mapped = int(r.split('\t')[4]) + int(r.split('\t')[6])
+        uniquely_mapped[species_name] = nb_uniquely_mapped
+        if species_name == focal_species:
+            focal_species_pc_unmapped = float(results[2])
+
+    uniquely_mapped = {k: v for k, v in uniquely_mapped.items() if v != 0}
+
+    return {
+        ELEMENT_CONTAMINANT_UNIQUE_MAP: uniquely_mapped,
+        ELEMENT_TOTAL_READS_MAPPED: total_reads_mapped,
+        ELEMENT_PCNT_UNMAPPED_FOCAL: focal_species_pc_unmapped,
+        ELEMENT_PCNT_UNMAPPED: hit_no_genomes
+    }
 
 
 def read_histogram_file(input_file):

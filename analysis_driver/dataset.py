@@ -207,8 +207,22 @@ class RunDataset(Dataset):
         return self.run_info.reads.generate_mask(self.sample_sheet.barcode_len)
 
     def _is_ready(self):
-        return os.path.isfile(os.path.join(self.path, 'RTAComplete.txt'))
+        return True
 
+    @property
+    def lims_run(self):
+        if not self._lims_run:
+            self._lims_run = clarity.get_run(self.name)
+        return self._lims_run
+
+    def is_sequencing(self):
+        # Assume the run has started and not finished if the status is 'RunStarted' or if it hasn't yet appeared in the LIMS
+        if not self.lims_run:
+            self.warning('Run %s not found in the LIMS', self.name)
+            return True
+        # force the LIMS to update the RunStatus rather than passing the same cached RunStatus
+        self.lims_run.get(force=True)
+        return self.lims_run.udf.get('Run Status') == 'RunStarted'
 
 class SampleDataset(Dataset):
     type = 'sample'

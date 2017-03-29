@@ -1,13 +1,12 @@
-import time
 import shutil
 from os import mkdir
 from os.path import join, exists, isdir
-from egcg_core import executor, clarity, util
+from egcg_core import executor, util
 from analysis_driver.pipelines.common import cleanup
 from analysis_driver import segmentation
 from analysis_driver.util import bash_commands
-from analysis_driver.exceptions import SequencingRunError
-from analysis_driver.quality_control import lane_duplicates
+from analysis_driver.exceptions import SequencingRunError, AnalysisDriverError
+from analysis_driver.quality_control import lane_duplicates, BCLValidator
 from analysis_driver.reader.version_reader import write_versions_to_yaml
 from analysis_driver.report_generation.report_crawlers import RunCrawler
 from analysis_driver.transfer_data import output_run_data
@@ -32,13 +31,19 @@ class Setup(DemultiplexingStage):
         crawler = RunCrawler(self.dataset.name, self.dataset.sample_sheet)
         crawler.send_data()
 
-        # Need to sleep to make sure the LIMS has had enough time to update itself
-        time.sleep(900)
-        run_status = clarity.get_run(self.dataset.name).udf.get('Run Status')
-        # TODO: catch bcl2fastq error logs instead
+        validation_log = join(self.job_dir, 'checked_bcls.csv')
+        b = BCLValidator(self.job_dir, self.dataset.run_info, validation_log, self.dataset)
+        b.check_bcls()
+        invalid_bcls = b.read_invalid_files()
+        if invalid_bcls:
+            raise AnalysisDriverError('Some BCL files are corrupted; check %s for details', validation_log)
+
+        run_status = self.dataset.lims_run.udf.get('Run Status')
         if run_status != 'RunCompleted':
             self.error('Run status is \'%s\'. Stopping.', run_status)
             raise SequencingRunError(run_status)
+
+        return 0
 
 
 class Bcl2FastqAndFilter(DemultiplexingStage):

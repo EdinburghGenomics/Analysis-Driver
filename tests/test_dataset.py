@@ -36,6 +36,10 @@ patched_stages = patch(
     ppath('Dataset.running_stages'),
     new_callable=PropertyMock(return_value=['this', 'that', 'other'])
 )
+patched_get_run = patch(
+    'analysis_driver.dataset.clarity.get_run',
+    return_value=Mock(udf={'Run Status': 'RunStarted'})
+)
 
 
 def patched_get_docs(content=None):
@@ -62,7 +66,6 @@ class TestDataset(TestAnalysisDriver):
 
     def test_dataset_status(self):
         assert self.dataset.most_recent_proc.entity.get('status') is None
-        assert self.dataset.dataset_status == c.DATASET_NEW
 
         self.dataset.most_recent_proc.entity['status'] = 'a_status'
         assert self.dataset.dataset_status == 'a_status'
@@ -81,30 +84,31 @@ class TestDataset(TestAnalysisDriver):
     @patch(ppath('MostRecentProc.retrieve_entity'))
     def test_start(self, mocked_retrieve_entity, mocked_start, mocked_update):
         self.dataset.most_recent_proc.entity['status'] = c.DATASET_PROCESSING
-        with pytest.raises(AssertionError):
+        with patched_get_run:
+            with pytest.raises(AssertionError):
+                self.dataset.start()
+            del self.dataset.most_recent_proc.entity['status']
             self.dataset.start()
-
-        del self.dataset.most_recent_proc.entity['status']
-        self.dataset.start()
         for m in (mocked_update, self.dataset.ntf.start_pipeline, mocked_start):
             assert m.call_count == 1
 
     @patched_finish
     @patch(ppath('MostRecentProc.retrieve_entity'))
     def test_succeed(self, mocked_retrieve_entity, mocked_finish):
-        with pytest.raises(AssertionError):
+        with patched_get_run:
+            with pytest.raises(AssertionError):
+                self.dataset.succeed()
+            self.dataset.most_recent_proc.entity['status'] = c.DATASET_PROCESSING
             self.dataset.succeed()
-
-        self.dataset.most_recent_proc.entity['status'] = c.DATASET_PROCESSING
-        self.dataset.succeed()
         self.dataset.ntf.end_pipeline.assert_called_with(0)
         mocked_finish.assert_called_with(c.DATASET_PROCESSED_SUCCESS)
 
     @patched_finish
     @patch(ppath('MostRecentProc.retrieve_entity'))
     def test_fail(self, mocked_retrieve_entity, mocked_finish):
-        with pytest.raises(AssertionError):
-            self.dataset.succeed()
+        with patched_get_run:
+            with pytest.raises(AssertionError):
+                self.dataset.succeed()
 
         self.dataset.most_recent_proc.entity['status'] = c.DATASET_PROCESSING
         self.dataset.fail(1)
@@ -189,24 +193,15 @@ class _TestDataset(Dataset):
 
 class TestRunDataset(TestDataset):
     def test_is_ready(self):
-        datasets = (
-            ('dataset_ready', True),
-            ('dataset_not_ready', False)
-        )
         with patched_get_docs():
-            for d_name, rta_complete in datasets:
-                d = RunDataset(d_name, os.path.join(self.base_dir, d_name))
-                assert d._is_ready() == rta_complete
+            d = RunDataset('dataset_ready', os.path.join(self.base_dir, 'dataset_ready'))
+            assert d._is_ready() == True
 
     def test_dataset_status(self):
-        super().test_dataset_status()
-        del self.dataset.most_recent_proc.entity['status']
-        assert not self.dataset._is_ready()
-        assert self.dataset.dataset_status == c.DATASET_NEW
-        os.mkdir(os.path.join(self.base_dir, self.dataset.name))
-        touch(os.path.join(self.base_dir, self.dataset.name, 'RTAComplete.txt'))
-        assert self.dataset._is_ready()
-        assert self.dataset.dataset_status == c.DATASET_READY
+        with patched_get_run:
+            super().test_dataset_status()
+            del self.dataset.most_recent_proc.entity['status']
+            assert self.dataset.dataset_status == c.DATASET_READY
 
     def setup_dataset(self):
         self.dataset = RunDataset(
@@ -221,6 +216,8 @@ class TestSampleDataset(TestDataset):
     def test_dataset_status(self):
         with patched_expected_yield():
             super().test_dataset_status()
+            del self.dataset.most_recent_proc.entity['status']
+            assert self.dataset.dataset_status == c.DATASET_NEW
 
     @patch(ppath('MostRecentProc.change_status'))
     def test_force(self, mocked_change_status):
