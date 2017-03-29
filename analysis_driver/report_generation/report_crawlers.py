@@ -47,10 +47,10 @@ class Crawler(AppLogger):
 
 
 class RunCrawler(Crawler):
-    def __init__(self, run_id, dataset, adapter_trim_file=None, conversion_xml_file=None, run_dir=None):
-        self.run_id = run_id
-        self.adapter_trim_file = adapter_trim_file
+    def __init__(self, dataset, adapter_trim_file=None, conversion_xml_file=None, run_dir=None):
         self.dataset = dataset
+        self.run_id = self.dataset.name
+        self.adapter_trim_file = adapter_trim_file
         self._populate_barcode_info_from_dataset(dataset)
         self._populate_from_lims()
         if adapter_trim_file:
@@ -92,14 +92,13 @@ class RunCrawler(Crawler):
                 barcode_info = copy.copy(run_element)
                 if dataset.has_barcodes:
                     run_element_id += '_' + run_element[ELEMENT_BARCODE]
-                    barcode_info.pop(ELEMENT_BARCODE)
 
                 barcode_info[ELEMENT_RUN_NAME] = dataset.name
                 barcode_info[ELEMENT_RUN_ELEMENT_ID] = run_element_id
                 self.barcodes_info[run_element_id] = barcode_info
 
                 # Populate the libraries
-                lib = self.libraries[barcode_info[ELEMENT_SAMPLE_INTERNAL_ID]]
+                lib = self.libraries[barcode_info[ELEMENT_LIBRARY_INTERNAL_ID]]
                 lib[ELEMENT_SAMPLE_INTERNAL_ID] = barcode_info[ELEMENT_SAMPLE_INTERNAL_ID]
                 lib[ELEMENT_PROJECT_ID] = barcode_info[ELEMENT_PROJECT_ID]
                 lib[ELEMENT_LIBRARY_INTERNAL_ID] = barcode_info[ELEMENT_LIBRARY_INTERNAL_ID]
@@ -131,7 +130,7 @@ class RunCrawler(Crawler):
                         ELEMENT_SAMPLE_INTERNAL_ID: 'Undetermined',
                         ELEMENT_LIBRARY_INTERNAL_ID: 'Undetermined',
                         ELEMENT_LANE: run_element[ELEMENT_LANE]
-                            }
+                    }
         for project_id in self.projects:
             self.projects[project_id][ELEMENT_SAMPLES] = list(self.projects[project_id][ELEMENT_SAMPLES])
 
@@ -222,9 +221,9 @@ class RunCrawler(Crawler):
                 barcode_info[ELEMENT_LANE_PC_OPT_DUP] = dup_per_lane.get(int(lane))
 
     def _populate_barcode_info_from_conversion_file(self, conversion_xml):
-        all_barcodes, top_unknown_barcodes, all_barcodeless = dm.parse_conversion_stats(conversion_xml, self.samplesheet.has_barcodes)
+        all_barcodes, top_unknown_barcodes, all_barcodeless = dm.parse_conversion_stats(conversion_xml, self.dataset.has_barcodes)
         reads_per_lane = Counter()
-        if self.samplesheet.has_barcodes:
+        if self.dataset.has_barcodes:
             barcodes = all_barcodes
         else:
             barcodes = all_barcodeless
@@ -234,7 +233,7 @@ class RunCrawler(Crawler):
             reads_per_lane[lane] += clust_count_pf
             # For the moment, assume that nb_bases for r1 and r2 are the same.
             # TODO: remove this assumption by parsing ConversionStats.xml
-            if not self.samplesheet.has_barcodes:
+            if not self.dataset.has_barcodes:
                 barcode_info = self.barcodes_info.get('%s_%s' % (self.run_id, lane))
             else:
                 barcode_info = self.barcodes_info.get('%s_%s_%s' % (self.run_id, lane, barcode))

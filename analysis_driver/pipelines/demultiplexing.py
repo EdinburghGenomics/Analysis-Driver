@@ -4,7 +4,7 @@ from os.path import join, exists, isdir
 from egcg_core import executor, util
 from analysis_driver.pipelines.common import cleanup
 from analysis_driver import segmentation
-from analysis_driver.util import bash_commands
+from analysis_driver.util import bash_commands, generate_samplesheet
 from analysis_driver.exceptions import SequencingRunError, AnalysisDriverError
 from analysis_driver.quality_control import lane_duplicates, BCLValidator
 from analysis_driver.reader.version_reader import write_versions_to_yaml
@@ -27,24 +27,13 @@ class Setup(DemultiplexingStage):
         if not isdir(self.fastq_dir):
             mkdir(self.fastq_dir)
 
-        # run_id = basename(input_run_folder)
-        # job_dir = join(cfg['jobs_dir'], run_id)
-        # fastq_dir = join(job_dir, 'fastq')
-        # app_logger.info('Input run folder (bcl data source): ' + input_run_folder)
-        # app_logger.info('Fastq dir: ' + fastq_dir)
-        # app_logger.info('Job dir: ' + job_dir)
-        #
-        # run_info = reader.RunInfo(input_run_folder)
-        # dataset.start_stage('setup')
-        #
-        # util.generate_samplesheet(
-        #     run_id,
-        #     join(input_run_folder, 'SampleSheet_analysis_driver.csv'),
-        #     index1=run_info.reads.has_barcodes
-        # )
+        generate_samplesheet(
+            self.dataset,
+            join(self.input_dir, 'SampleSheet_analysis_driver.csv'),
+        )
 
         # Send the information about the run to the rest API
-        crawler = RunCrawler(self.dataset.name, self.dataset.sample_sheet)
+        crawler = RunCrawler(self.dataset)
         crawler.send_data()
 
         validation_log = join(self.job_dir, 'checked_bcls.csv')

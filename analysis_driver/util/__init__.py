@@ -52,9 +52,7 @@ def _write_bcbio_csv(run_dir, sample_id, fastqs, user_sample_id):
     return csv_file
 
 
-
-
-def generate_samplesheet(dataset, filename, index1):
+def generate_samplesheet(dataset, filename):
     all_lines = [
         '[Header]', 'Date, ' + datetime.now().strftime('%d/%m/%Y'), 'Workflow, Generate FASTQ Only', '',
         '[Reads]', '151', '151', '', '[Settings]' 'Adapter, AGATCGGAAGAGCACACGTCTGAACTCCAGTCA',
@@ -62,16 +60,12 @@ def generate_samplesheet(dataset, filename, index1):
         'Lane,Sample_ID,Sample_Name,Sample_Project,index'
     ]
     for run_element in dataset.run_elements:
-        line = [
+        all_lines.append(','.join([
             run_element[ELEMENT_LANE],
             run_element[ELEMENT_SAMPLE_INTERNAL_ID],
             run_element[ELEMENT_LIBRARY_INTERNAL_ID],
-            run_element[ELEMENT_PROJECT_ID]
-        ]
-        if index1:
-            line.append(run_element[ELEMENT_BARCODE])
-        else:
-            line.append('')
-        all_lines.append(','.join(line))
+            run_element[ELEMENT_PROJECT_ID],
+            run_element[ELEMENT_BARCODE]
+        ]))
     with open(filename, 'w') as open_samplesheet:
         open_samplesheet.write('\n'.join(all_lines) + '\n')

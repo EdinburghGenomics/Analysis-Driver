@@ -9,8 +9,9 @@ from egcg_core import rest_communication, clarity
 from egcg_core.config import cfg
 from egcg_core.app_logging import AppLogger
 from egcg_core.exceptions import RestCommunicationError
+from egcg_core.notifications import NotificationCentre
+
 from analysis_driver.exceptions import AnalysisDriverError
-from analysis_driver.notification import NotificationCentre
 from analysis_driver import reader
 from egcg_core.constants import *  # pylint: disable=unused-import
 
@@ -185,7 +186,8 @@ class RunDataset(Dataset):
         self._sample_sheet = None
         self.input_dir = os.path.join(cfg['input_dir'], self.name)
         self._run_elements = None
-
+        self._barcode_len = None
+        self._lims_run = None
 
     @property
     def run_info(self):
@@ -207,7 +209,7 @@ class RunDataset(Dataset):
 
     @property
     def mask(self):
-        return self.run_info.reads.generate_mask(self.sample_sheet.barcode_len)
+        return self.run_info.reads.generate_mask(self.barcode_len)
 
     def _is_ready(self):
         return True
@@ -221,6 +223,7 @@ class RunDataset(Dataset):
     def _run_elements_from_lims(self):
         from egcg_core import clarity
         run_elements = []
+
         def find_pooling_step_for_artifact(art, max_iteration=10, expected_pooling_step_name=None):
             nb_iteration = 0
             while len(art.input_artifact_list()) == 1:
@@ -248,19 +251,46 @@ class RunDataset(Dataset):
                 sample = artifact.samples[0]
                 reagent_label = artifact.reagent_labels[0]
                 match = re.match('(\w{4})-(\w{4}) \(([ATCG]{8})-([ATCG]{8})\)', reagent_label)
-                run_elements.append({
+                run_element = {
                     ELEMENT_PROJECT_ID: sample.project.name,
                     ELEMENT_SAMPLE_INTERNAL_ID: sample.name,
-                    ELEMENT_LIBRARY_INTERNAL_ID: artifact.id, # This is not the library id but it is unique
+                    ELEMENT_LIBRARY_INTERNAL_ID: artifact.id,  # This is not the library id but it is unique
                     ELEMENT_LANE: lane.split(':')[0],
-                    ELEMENT_BARCODE: match.group(3)
-                })
+                    ELEMENT_BARCODE: ''
+                }
+                if self.has_barcodes:
+                    run_element[ELEMENT_BARCODE] = match.group(3)
+                run_elements.append(run_element)
         return run_elements
 
     @property
     def has_barcodes(self):
-        run_process = clarity.get_run(self.name)
-        return int(run_process.udf.get('Read')) > 2
+        return self.run_info.reads.has_barcodes
+
+    @property
+    def barcode_len(self):
+        if not self._barcode_len:
+            self._barcode_len = self._check_barcodes()
+        return self._barcode_len
+
+    def _check_barcodes(self):
+        """
+        For each run element, check that all the DNA barcodes are the same length
+        :return: The DNA barcode length
+        """
+        previous_r = None
+
+        for r in self.run_elements:
+            if previous_r and len(previous_r[ELEMENT_BARCODE]) != len(r[ELEMENT_BARCODE]):
+                raise AnalysisDriverError(
+                    'Unexpected barcode length for %s: %s in project %s' % (
+                        r[ELEMENT_SAMPLE_INTERNAL_ID], r[ELEMENT_BARCODE], r[ELEMENT_PROJECT_ID]
+                    )
+                )
+            previous_r = r
+
+        self.debug('Barcode check done. Barcode len: %s', len(r[ELEMENT_BARCODE]))
+        return len(r[ELEMENT_BARCODE])
 
     @property
     def lims_run(self):
@@ -269,13 +299,15 @@ class RunDataset(Dataset):
         return self._lims_run
 
     def is_sequencing(self):
-        # Assume the run has started and not finished if the status is 'RunStarted' or if it hasn't yet appeared in the LIMS
+        # Assume the run has started and not finished if the status is 'RunStarted'
+        # or if it hasn't yet appeared in the LIMS
         if not self.lims_run:
             self.warning('Run %s not found in the LIMS', self.name)
             return True
         # force the LIMS to update the RunStatus rather than passing the same cached RunStatus
         self.lims_run.get(force=True)
         return self.lims_run.udf.get('Run Status') == 'RunStarted'
+
 
 class SampleDataset(Dataset):
     type = 'sample'
@@ -375,7 +407,7 @@ class ProjectDataset(Dataset):
         return self._number_of_samples
 
     def __str__(self):
-        return '%s  (%s samples / %s) ' % ( super().__str__(), len(self.samples_processed), self.number_of_samples)
+        return '%s  (%s samples / %s) ' % (super().__str__(), len(self.samples_processed), self.number_of_samples)
 
 
 class MostRecentProc:

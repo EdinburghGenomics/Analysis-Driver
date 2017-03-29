@@ -71,7 +71,7 @@ class Reads:
             raise AnalysisDriverError('Invalid IsIndexedRead parameter: ' + read.attrib['IsIndexedRead'])
         return read.attrib['IsIndexedRead'] == 'Y'
 
-    def generate_mask(self, sample_sheet_barcode_len):
+    def generate_mask(self, samples_barcode_len):
         """
         Translate:
             <Read IsIndexedRead=N Number=1 NumCycles=151/>
@@ -83,8 +83,8 @@ class Reads:
         out = ['y' + str(self.num_cycles(self.upstream_read) - 1) + 'n']
 
         for i in self.index_lengths:
-            diff = i - sample_sheet_barcode_len
-            out.append('i' + str(sample_sheet_barcode_len) + 'n' * diff)
+            diff = i - samples_barcode_len
+            out.append('i' + str(samples_barcode_len) + 'n' * diff)
 
         out.append('y' + str(self.num_cycles(self.downstream_read) - 1) + 'n')
         return ','.join(out)

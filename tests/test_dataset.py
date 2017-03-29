@@ -4,9 +4,9 @@ from sys import modules
 from shutil import rmtree
 from unittest.mock import patch, Mock, PropertyMock
 
-from egcg_core.constants import ELEMENT_PROJECT_ID, ELEMENT_SAMPLE_INTERNAL_ID
+from egcg_core.constants import ELEMENT_PROJECT_ID, ELEMENT_SAMPLE_INTERNAL_ID, ELEMENT_BARCODE
 
-from tests.test_analysisdriver import TestAnalysisDriver
+from tests.test_analysisdriver import TestAnalysisDriver, NamedMock
 from egcg_core import constants as c
 from analysis_driver.exceptions import AnalysisDriverError
 from analysis_driver.dataset import Dataset, RunDataset, SampleDataset, MostRecentProc
@@ -193,11 +193,6 @@ class _TestDataset(Dataset):
     def _is_ready(self):
         pass
 
-class NamedMock(Mock):
-    @property
-    def name(self):
-        return self.real_name
-
 class MockedSamples(NamedMock):
     project = Mock()
     project.name = 'project1'
@@ -279,17 +274,25 @@ class TestRunDataset(TestDataset):
     def test_run_elements_from_lims(self):
         d = RunDataset('test_dataset', os.path.join(self.base_dir, 'test_dataset'))
 
-        with patch('egcg_core.clarity.get_run', return_value=MockedRunProcess(container=mocked_flowcell_non_pooling)):
+        with patch('egcg_core.clarity.get_run', return_value=MockedRunProcess(container=mocked_flowcell_non_pooling)), \
+             patch.object(RunDataset, 'has_barcodes', new_callable=PropertyMock(return_value=False)):
             run_elements = d._run_elements_from_lims()
             assert len(set([r[ELEMENT_PROJECT_ID] for r in run_elements])) == 1
             assert len(set([r[ELEMENT_SAMPLE_INTERNAL_ID] for r in run_elements])) == 2
+            barcodes_len = set([len(r[ELEMENT_BARCODE]) for r in run_elements])
+            assert len(barcodes_len) == 1
+            assert barcodes_len.pop() == 0
 
         d = RunDataset('test_dataset', os.path.join(self.base_dir, 'test_dataset'))
 
-        with patch('egcg_core.clarity.get_run', return_value=MockedRunProcess(container=mocked_flowcell_pooling)):
+        with patch('egcg_core.clarity.get_run', return_value=MockedRunProcess(container=mocked_flowcell_pooling)), \
+             patch.object(RunDataset, 'has_barcodes', new_callable=PropertyMock(return_value=True)):
             run_elements = d._run_elements_from_lims()
             assert len(set([r[ELEMENT_PROJECT_ID] for r in run_elements])) == 1
             assert len(set([r[ELEMENT_SAMPLE_INTERNAL_ID] for r in run_elements])) == 4
+            barcodes_len = set([len(r[ELEMENT_BARCODE]) for r in run_elements])
+            assert len(barcodes_len) == 1
+            assert barcodes_len.pop() == 8
 
 
 class TestSampleDataset(TestDataset):
