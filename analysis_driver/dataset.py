@@ -157,9 +157,9 @@ class RunDataset(Dataset):
     endpoint = 'runs'
     id_field = 'run_id'
 
-    def __init__(self, name, path, most_recent_proc=None):
+    def __init__(self, name, most_recent_proc=None):
         super().__init__(name, most_recent_proc)
-        self.path = path
+        self._lims_run = None
 
     def _is_ready(self):
         return True
@@ -171,24 +171,26 @@ class RunDataset(Dataset):
         return self._lims_run
 
     def is_sequencing(self):
-        # Assume the run has started and not finished if the status is 'RunStarted' or if it hasn't yet appeared in the LIMS
+        # Assume the run is in progress if the status is 'RunStarted' or if it hasn't yet appeared in the LIMS
         if not self.lims_run:
             self.warning('Run %s not found in the LIMS', self.name)
             return True
-        # force the LIMS to update the RunStatus rather than passing the same cached RunStatus
+        # force the LIMS to update the RunStatus rather than passing the same cached Run Status
         self.lims_run.get(force=True)
         return self.lims_run.udf.get('Run Status') == 'RunStarted'
+
 
 class SampleDataset(Dataset):
     type = 'sample'
     endpoint = 'samples'
     id_field = 'sample_id'
 
-    def __init__(self, name, most_recent_proc=None, data_threshold=None):
+    def __init__(self, name, most_recent_proc=None, data_threshold=None, amount_data=None):
         super().__init__(name, most_recent_proc)
         self._run_elements = None
         self._non_useable_run_elements = None
         self._data_threshold = data_threshold
+        self._amount_data = amount_data
 
     @property
     def run_elements(self):
@@ -206,13 +208,16 @@ class SampleDataset(Dataset):
             )
         return self._non_useable_run_elements
 
-    def _amount_data(self):
-        return sum(
-            [
-                int(r.get(ELEMENT_NB_Q30_R1_CLEANED, 0)) + int(r.get(ELEMENT_NB_Q30_R2_CLEANED, 0))
-                for r in self.run_elements
-            ]
-        )
+    @property
+    def amount_data(self):
+        if self._amount_data is None:
+            self._amount_data = sum(
+                [
+                    int(r.get(ELEMENT_NB_Q30_R1_CLEANED, 0)) + int(r.get(ELEMENT_NB_Q30_R2_CLEANED, 0))
+                    for r in self.run_elements
+                ]
+            )
+        return self._amount_data
 
     @property
     def data_threshold(self):
@@ -223,14 +228,14 @@ class SampleDataset(Dataset):
         return self._data_threshold
 
     def _is_ready(self):
-        return self.data_threshold and int(self._amount_data()) > int(self.data_threshold)
+        return self.data_threshold and int(self.amount_data) > int(self.data_threshold)
 
     def __str__(self):
         runs = sorted(set(r.get(ELEMENT_RUN_NAME) for r in self.run_elements))
         non_useable_runs = sorted(set(r.get(ELEMENT_RUN_NAME) for r in self.non_useable_run_elements))
 
         s = '%s  (%s / %s  from %s) ' % (
-            super().__str__(), self._amount_data(), self.data_threshold, ', '.join(runs)
+            super().__str__(), self.amount_data, self.data_threshold, ', '.join(runs)
         )
         if non_useable_runs:
             s += '(non useable run elements in %s)' % ', '.join(non_useable_runs)
@@ -277,7 +282,7 @@ class ProjectDataset(Dataset):
         return self._number_of_samples
 
     def __str__(self):
-        return '%s  (%s samples / %s) ' % ( super().__str__(), len(self.samples_processed), self.number_of_samples)
+        return '%s  (%s samples / %s) ' % (super().__str__(), len(self.samples_processed), self.number_of_samples)
 
 
 class MostRecentProc:

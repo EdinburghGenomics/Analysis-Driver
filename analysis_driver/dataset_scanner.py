@@ -2,7 +2,6 @@ import os
 from collections import defaultdict
 from egcg_core.rest_communication import get_documents
 from egcg_core.app_logging import AppLogger
-from egcg_core.clarity import get_list_of_samples, sanitize_user_id
 from analysis_driver.dataset import RunDataset, SampleDataset, ProjectDataset
 from egcg_core.constants import DATASET_NEW, DATASET_READY, DATASET_FORCE_READY, DATASET_PROCESSING,\
     DATASET_PROCESSED_SUCCESS, DATASET_PROCESSED_FAIL, DATASET_ABORTED, DATASET_REPROCESS, DATASET_DELETED
@@ -57,11 +56,7 @@ class DatasetScanner(AppLogger):
         ]
 
     def _get_datasets_for_statuses(self, statuses):
-        self.debug('Creating Datasets for status %s', ', '.join(statuses))
-        return [
-            self.get_dataset(d[self.item_id], d.get('most_recent_proc'))
-            for d in self._get_dataset_records_for_statuses(statuses)
-        ]
+        raise NotImplementedError
 
     def scan_datasets(self, *rest_api_statuses):
         datasets = defaultdict(list)
@@ -98,10 +93,15 @@ class RunScanner(DatasetScanner):
     def __init__(self, config):
         super().__init__(config)
 
-    def get_dataset(self, name, most_recent_proc=None):
-        dataset_path = os.path.join(self.input_dir, name)
-        if os.path.exists(dataset_path):
-            return RunDataset(name, os.path.join(self.input_dir, name), most_recent_proc=most_recent_proc)
+    def get_dataset(self, name):
+        return RunDataset(name)
+
+    def _get_datasets_for_statuses(self, statuses):
+        self.debug('Creating Datasets for status %s', ', '.join(statuses))
+        return [
+            RunDataset(d[self.item_id], d.get('most_recent_proc'))
+            for d in self._get_dataset_records_for_statuses(statuses)
+        ]
 
     def _get_dataset_records_for_statuses(self, statuses):
         rest_api_datasets = super()._get_dataset_records_for_statuses(statuses)
@@ -123,34 +123,28 @@ class RunScanner(DatasetScanner):
         d = os.path.join(self.input_dir, dataset)
         if os.path.isdir(d) and not d.startswith('.'):
             observed = os.listdir(d)
-            return all([subdir in observed for subdir in self.expected_bcl_subdirs])
-        else:
-            return False
+            return all(subdir in observed for subdir in self.expected_bcl_subdirs)
+
+        return False
 
 
 class SampleScanner(DatasetScanner):
     endpoint = 'aggregate/samples'
     item_id = 'sample_id'
 
-    def get_dataset(self, name, most_recent_proc=None, data_threshold=None):
-        return SampleDataset(name, most_recent_proc, data_threshold)
+    def get_dataset(self, name):
+        return SampleDataset(name)
 
     def _get_datasets_for_statuses(self, statuses):
         self.debug('Creating Datasets for status %s', ', '.join(statuses))
-        datasets = {}
-        for r in self._get_dataset_records_for_statuses(statuses):
-            datasets[r[self.item_id]] = {'record': r}
-
-        if datasets:
-            self.debug('Querying Lims for %s samples', len(datasets))
-            for sample in get_list_of_samples(list(datasets)):
-                req_yield = sample.udf.get('Yield for Quoted Coverage (Gb)') * 1000000000
-                datasets[sanitize_user_id(sample.name)]['threshold'] = req_yield
-            self.debug('Lims query complete')
-
         return [
-            self.get_dataset(k, v['record'].get('most_recent_proc'), v.get('threshold'))
-            for k, v in datasets.items()
+            SampleDataset(
+                r[self.item_id],
+                r.get('most_recent_proc'),
+                r.get('expected_yield'),
+                r.get('clean_yield_q30') * 1000000000  # clean_yield_q30 is stored in Gb
+            )
+            for r in self._get_dataset_records_for_statuses(statuses)
         ]
 
 

@@ -168,7 +168,7 @@ class _TestDataset(Dataset):
 class TestRunDataset(TestDataset):
     def test_is_ready(self):
         with patched_get():
-            d = RunDataset('dataset_ready', os.path.join(self.base_dir, 'dataset_ready'))
+            d = RunDataset('dataset_ready')
             assert d._is_ready() == True
 
     def test_dataset_status(self):
@@ -180,7 +180,6 @@ class TestRunDataset(TestDataset):
     def setup_dataset(self):
         self.dataset = RunDataset(
             'test_dataset',
-            os.path.join(self.base_dir, 'test_dataset'),
             most_recent_proc={'proc_id': 'a_proc_id', 'date_started': 'now',
                               'dataset_name': 'None', 'dataset_type': 'None'}
         )
@@ -199,7 +198,7 @@ class TestSampleDataset(TestDataset):
         mocked_change_status.assert_called_with(c.DATASET_FORCE_READY)
 
     def test_amount_data(self):
-        assert self.dataset._amount_data() == 480
+        assert self.dataset.amount_data == 480
 
     @patched_expected_yield()
     def test_data_threshold(self, mocked_exp_yield):
@@ -229,6 +228,7 @@ class TestSampleDataset(TestDataset):
                 'clean_q30_bases_r2': 1350000000
             }
         ]
+        self.dataset._amount_data = None
         assert self.dataset._is_ready()
         assert mocked_instance.call_count == 1  # even after 2 calls to data_threshold
 
@@ -248,16 +248,8 @@ class TestSampleDataset(TestDataset):
                                   'dataset_name': 'None', 'dataset_type': 'None'}
             )
         self.dataset._run_elements = [
-            {
-                'run_id': 'a_run_id',
-                'clean_q30_bases_r1': 120,
-                'clean_q30_bases_r2': 115
-            },
-            {
-                'run_id': 'another_run_id',
-                'clean_q30_bases_r1': 110,
-                'clean_q30_bases_r2': 135
-            }
+            {'run_id': 'a_run_id', 'clean_q30_bases_r1': 120, 'clean_q30_bases_r2': 115},
+            {'run_id': 'another_run_id', 'clean_q30_bases_r1': 110, 'clean_q30_bases_r2': 135}
         ]
         self.dataset._data_threshold = 1000000000
 
