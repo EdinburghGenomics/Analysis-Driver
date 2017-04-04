@@ -92,7 +92,6 @@ def patch_pipeline(species='Homo sapiens', analysis_type='Variant Calling gatk')
     _patch('quality_control.genotype_validation.clarity.get_sample_names_from_project', return_value=set())
     _patch('quality_control.genotype_validation.clarity.get_sample_genotype', return_value=set())
     _patch('quality_control.lane_duplicates.WellDuplicates._well_duplicates', new=_fake_welldups)
-    _patch('pipelines.demultiplexing.time.sleep')
 
     yield
 

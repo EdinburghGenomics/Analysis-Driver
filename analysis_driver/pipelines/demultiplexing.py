@@ -20,7 +20,7 @@ class DemultiplexingStage(segmentation.Stage):
 
 class Setup(DemultiplexingStage):
     def _run(self):
-        self.info('Job dir: ' + self.job_dir)
+        self.info('Job dir: ' + self.jobs_dir)
         self.info('Input BCL folder: ' + self.input_dir)
         self.info('Fastq dir: ' + self.fastq_dir)
 
