@@ -1,15 +1,14 @@
 import copy
-import json
 from collections import Counter, defaultdict
 
-import shutil
 from egcg_core import util, clarity
 from egcg_core.app_logging import AppLogger
+from egcg_core.constants import *  # pylint: disable=unused-import
 from egcg_core.rest_communication import post_or_patch as pp
+
+from analysis_driver.config import default as cfg
 from analysis_driver.exceptions import PipelineError
 from analysis_driver.reader import demultiplexing_parsers as dm, mapping_stats_parsers as mp
-from analysis_driver.config import default as cfg
-from egcg_core.constants import *  # pylint: disable=unused-import
 
 _gender_aliases = {'female': ['f', 'female', 'girl', 'woman'], 'male': ['m', 'male', 'boy', 'man']}
 
@@ -60,7 +59,7 @@ class RunCrawler(Crawler):
         if run_dir:
             self._populate_barcode_info_from_seqtk_fqchk_files(run_dir)
         if run_dir:
-            welldup_files = util.find_files(run_dir, run_id + '.wellduplicate')
+            welldup_files = util.find_files(run_dir, self.dataset + '.wellduplicate')
             if welldup_files:
                 self._populate_barcode_info_from_well_dup(welldup_files[0])
 

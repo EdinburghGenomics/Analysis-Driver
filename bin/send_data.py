@@ -62,7 +62,7 @@ def run_crawler(args):
 
     dataset = RunDataset(args.run_id)
 
-    c = RunCrawler(args.run_id, dataset, adapter_trim_file=adapter_trim_file, conversion_xml_file=conversion_stats, run_dir=run_dir)
+    c = RunCrawler(dataset, adapter_trim_file=adapter_trim_file, conversion_xml_file=conversion_stats, run_dir=run_dir)
     if args.test:
         print(
             json.dumps(

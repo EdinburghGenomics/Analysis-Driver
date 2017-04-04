@@ -204,7 +204,7 @@ class RunDataset(Dataset):
                 self,
                 self._sample_sheet_file,
             )
-        return self._sample_sheet
+        return self._sample_sheet_file
 
     @property
     def mask(self):

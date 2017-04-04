@@ -152,7 +152,7 @@ class QCOutput(DemultiplexingStage):
         if exists(conversion_xml) and exists(adapter_trim_file):
             self.info('Found ConversionStats and AdaptorTrimming. Sending data.')
             crawler = RunCrawler(
-                self.dataset.name, self.sample_sheet, adapter_trim_file=adapter_trim_file,
+                self.dataset, adapter_trim_file=adapter_trim_file,
                 conversion_xml_file=conversion_xml, run_dir=self.fastq_dir
             )
             crawler.send_data()
