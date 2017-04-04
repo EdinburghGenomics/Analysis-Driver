@@ -184,7 +184,7 @@ class RunDataset(Dataset):
     def __init__(self, name, most_recent_proc=None):
         super().__init__(name, most_recent_proc)
         self._run_info = None
-        self.sample_sheet_file = None
+        self._sample_sheet_file = None
         self.input_dir = os.path.join(cfg['input_dir'], self.name)
         self._run_elements = None
         self._barcode_len = None
