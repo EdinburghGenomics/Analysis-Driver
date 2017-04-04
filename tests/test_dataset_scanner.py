@@ -79,15 +79,12 @@ class TestScanner(TestAnalysisDriver):
 
     def _assert_datasets_equal(self, obs, exp):
         assert obs.name == exp.name
-        assert obs.path == exp.path
 
 
 class TestRunScanner(TestScanner):
     def test_get_dataset(self):
-        test_dataset_path = os.path.join(self.base_dir, 'test_dataset')
-        os.mkdir(test_dataset_path)
         obs = self.scanner.get_dataset('test_dataset')
-        exp = FakeRunDataset('test_dataset', test_dataset_path)
+        exp = FakeRunDataset('test_dataset')
         self._assert_datasets_equal(obs, exp)
 
     def test_get_dataset_records_for_statuses(self):
@@ -118,7 +115,7 @@ class TestRunScanner(TestScanner):
         fake_datasets = []
         with patched_get(), patch('analysis_driver.dataset.rest_communication.get_documents'):
             for x in ('this', 'that', 'other'):
-                d = FakeRunDataset(x, os.path.join(self.base_dir, x), {'this': 'that'})
+                d = FakeRunDataset(x, {'this': 'that'})
                 assert d.most_recent_proc.entity
                 fake_datasets.append(d)
         with patch(ppath('DatasetScanner._get_datasets_for_statuses'), return_value=fake_datasets) as p:

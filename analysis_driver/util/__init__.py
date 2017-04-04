@@ -55,7 +55,7 @@ def _write_bcbio_csv(run_dir, sample_id, fastqs, user_sample_id):
 def generate_samplesheet(dataset, filename):
     all_lines = [
         '[Header]', 'Date, ' + datetime.now().strftime('%d/%m/%Y'), 'Workflow, Generate FASTQ Only', '',
-        '[Reads]', '151', '151', '', '[Settings]' 'Adapter, AGATCGGAAGAGCACACGTCTGAACTCCAGTCA',
+        '[Settings]', 'Adapter, AGATCGGAAGAGCACACGTCTGAACTCCAGTCA',
         'AdapterRead2, AGATCGGAAGAGCGTCGTGTAGGGAAAGAGTGT', '', '[Data]',
         'Lane,Sample_ID,Sample_Name,Sample_Project,index'
     ]

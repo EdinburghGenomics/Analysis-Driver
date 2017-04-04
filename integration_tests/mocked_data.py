@@ -31,8 +31,28 @@ mocked_lane_artifact_pool = NamedMock(
         NamedMock(real_name='LP6002014-DTP_A08', reagent_labels=['D708-D502 (TAATGCGC-ATAGAGGC)'],
                   samples=[MockedSamples(real_name='10015AT0008')])
     ]),
-    parent_process=Mock(type=NamedMock(real_name='Create PDP Pool'))
+    parent_process=Mock(type=NamedMock(real_name='Create PDP Pool')),
+reagent_labels=[
+    'D701-D502 (ATTACTCG-ATAGAGGC)',
+    'D702-D502 (TCCGGAGA-ATAGAGGC)',
+    'D703-D502 (CGCTCATT-ATAGAGGC)',
+    'D704-D502 (GAGATTCC-ATAGAGGC)',
+    'D705-D502 (ATTCAGAA-ATAGAGGC)',
+    'D706-D502 (GAATTCGT-ATAGAGGC)',
+    'D707-D502 (CTGAAGCT-ATAGAGGC)',
+    'D708-D502 (TAATGCGC-ATAGAGGC)'
+], samples=[
+        '10015AT0001',
+        '10015AT0002',
+        '10015AT0003',
+        '10015AT0004',
+        '10015AT0005',
+        '10015AT0006',
+        '10015AT0007',
+        '10015AT0008'
+    ]
 )
+
 
 mocked_flowcell_pooling = Mock(placements={
     '1:1': mocked_lane_artifact_pool,

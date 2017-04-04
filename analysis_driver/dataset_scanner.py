@@ -100,8 +100,9 @@ class RunScanner(DatasetScanner):
 
     def get_dataset(self, name, most_recent_proc=None):
         dataset_path = os.path.join(self.input_dir, name)
+        print(dataset_path)
         if os.path.exists(dataset_path):
-            return RunDataset(name, os.path.join(self.input_dir, name), most_recent_proc=most_recent_proc)
+            return RunDataset(name, most_recent_proc=most_recent_proc)
 
     def _get_dataset_records_for_statuses(self, statuses):
         rest_api_datasets = super()._get_dataset_records_for_statuses(statuses)

@@ -15,12 +15,12 @@ from analysis_driver.transfer_data import output_run_data
 class DemultiplexingStage(segmentation.Stage):
     @property
     def fastq_dir(self):
-        return join(self.jobs_dir, 'fastq')
+        return join(self.job_dir, 'fastq')
 
 
 class Setup(DemultiplexingStage):
     def _run(self):
-        self.info('Job dir: ' + self.jobs_dir)
+        self.info('Job dir: ' + self.job_dir)
         self.info('Input BCL folder: ' + self.input_dir)
         self.info('Fastq dir: ' + self.fastq_dir)
 

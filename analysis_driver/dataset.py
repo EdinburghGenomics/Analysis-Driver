@@ -179,9 +179,8 @@ class RunDataset(Dataset):
     endpoint = 'runs'
     id_field = 'run_id'
 
-    def __init__(self, name, path, most_recent_proc=None):
+    def __init__(self, name, most_recent_proc=None):
         super().__init__(name, most_recent_proc)
-        self.path = path
         self._run_info = None
         self._sample_sheet = None
         self.input_dir = os.path.join(cfg['input_dir'], self.name)
