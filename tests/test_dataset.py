@@ -274,7 +274,7 @@ class TestRunDataset(TestDataset):
     def test_run_elements_from_lims(self):
         d = RunDataset('test_dataset', os.path.join(self.base_dir, 'test_dataset'))
 
-        with patch('egcg_core.clarity.get_run', return_value=MockedRunProcess(container=mocked_flowcell_non_pooling)), \
+        with patch('analysis_driver.dataset.clarity.get_run', return_value=MockedRunProcess(container=mocked_flowcell_non_pooling)), \
              patch.object(RunDataset, 'has_barcodes', new_callable=PropertyMock(return_value=False)):
             run_elements = d._run_elements_from_lims()
             assert len(set([r[ELEMENT_PROJECT_ID] for r in run_elements])) == 1

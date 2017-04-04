@@ -17,6 +17,7 @@ from egcg_core import rest_communication, notifications, util, executor
 from unittest import TestCase
 from unittest.mock import Mock, patch
 from analysis_driver import client
+from integration_tests.mocked_data import mocked_clarity_run
 
 cfg.load_config_file(os.getenv('ANALYSISDRIVERCONFIG'), env_var='ANALYSISDRIVERENV')
 integration_cfg = Configuration(os.getenv('INTEGRATIONCONFIG'))
@@ -74,7 +75,7 @@ def patch_pipeline(species='Homo sapiens', analysis_type='Variant Calling gatk')
     _patch('dataset.clarity.get_expected_yield_for_sample', return_value=0.9)
     _patch('report_generation.report_crawlers.clarity.get_expected_yield_for_sample', return_value=0.9)
     _patch('dataset_scanner.get_list_of_samples', new=_fake_get_list_of_samples)
-    _patch('pipelines.demultiplexing.clarity.get_run', return_value=Mock(udf={'Run Status': 'RunCompleted'}))
+    _patch('dataset.clarity.get_run', return_value=mocked_clarity_run)
     _patch('pipelines.common.clarity.find_project_name_from_sample', return_value='10015AT')
     _patch('pipelines.common.clarity.get_sample', return_value=Mock(udf={}))
     _patch('quality_control.genotype_validation.clarity.find_project_name_from_sample', return_value='10015AT')

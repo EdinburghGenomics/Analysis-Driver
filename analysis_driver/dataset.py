@@ -9,11 +9,11 @@ from egcg_core import rest_communication, clarity
 from egcg_core.config import cfg
 from egcg_core.app_logging import AppLogger
 from egcg_core.exceptions import RestCommunicationError
-from egcg_core.notifications import NotificationCentre
+from egcg_core.constants import *  # pylint: disable=unused-import
 
 from analysis_driver.exceptions import AnalysisDriverError
 from analysis_driver import reader
-from egcg_core.constants import *  # pylint: disable=unused-import
+from analysis_driver.notification import NotificationCentre
 
 
 class Dataset(AppLogger):
