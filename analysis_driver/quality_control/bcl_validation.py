@@ -6,6 +6,7 @@ from bitstring import ReadError
 from egcg_core import executor
 from egcg_core.util import str_join
 from analysis_driver.exceptions import AnalysisDriverError
+from analysis_driver.reader.run_info import Reads
 from .quality_control_base import QualityControl
 
 
@@ -15,7 +16,7 @@ class BCLValidator(QualityControl):
         self.run_dir = run_dir
         self.basecalls_dir = join(self.run_dir, 'Data', 'Intensities', 'BaseCalls')
         self.tile_ids = run_info.tiles
-        self.ncycles = sum(int(e.attrib['NumCycles']) for e in run_info.mask.reads)
+        self.ncycles = sum(Reads.num_cycles(r) for r in run_info.reads)
         self.validation_log = validation_log
         self.validate_expr = str_join(
             'function check_bcl { gzip -t $1; x=$?; echo "$1,$x" >> ', self.validation_log, '; }'

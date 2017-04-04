@@ -23,13 +23,13 @@ mocked_lane_artifact_pool = NamedMock(
         NamedMock(id='LP6002014-DTP_A04', reagent_labels=['D704-D502 (GAGATTCC-ATAGAGGC)'],
                   samples=[MockedSamples(real_name='10015AT0004')]),
         NamedMock(id='LP6002014-DTP_A05', reagent_labels=['D705-D502 (ATTCAGAA-ATAGAGGC)'],
-                  samples=[MockedSamples(real_name='10015AT0005')]),
-        NamedMock(id='LP6002014-DTP_A06', reagent_labels=['D706-D502 (GAATTCGT-ATAGAGGC)'],
                   samples=[MockedSamples(real_name='10015AT0006')]),
-        NamedMock(id='LP6002014-DTP_A07', reagent_labels=['D707-D502 (CTGAAGCT-ATAGAGGC)'],
+        NamedMock(id='LP6002014-DTP_A06', reagent_labels=['D706-D502 (GAATTCGT-ATAGAGGC)'],
                   samples=[MockedSamples(real_name='10015AT0007')]),
+        NamedMock(id='LP6002014-DTP_A07', reagent_labels=['D707-D502 (CTGAAGCT-ATAGAGGC)'],
+                  samples=[MockedSamples(real_name='10015AT0008')]),
         NamedMock(id='LP6002014-DTP_A08', reagent_labels=['D708-D502 (TAATGCGC-ATAGAGGC)'],
-                  samples=[MockedSamples(real_name='10015AT0008')])
+                  samples=[MockedSamples(real_name='10015AT0009')])
     ]),
     parent_process=Mock(type=NamedMock(real_name='Create PDP Pool')),
 reagent_labels=[
