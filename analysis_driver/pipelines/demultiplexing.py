@@ -27,11 +27,6 @@ class Setup(DemultiplexingStage):
         if not isdir(self.fastq_dir):
             mkdir(self.fastq_dir)
 
-        generate_samplesheet(
-            self.dataset,
-            join(self.input_dir, 'SampleSheet_analysis_driver.csv'),
-        )
-
         # Send the information about the run to the rest API
         crawler = RunCrawler(self.dataset)
         crawler.send_data()
@@ -57,7 +52,7 @@ class Bcl2FastqAndFilter(DemultiplexingStage):
         self.info('bcl2fastq mask: ' + self.dataset.mask)  # e.g: mask = 'y150n,i6,y150n'
         bcl2fastq_exit_status = executor.execute(
             bash_commands.bcl2fastq(
-                self.input_dir, self.fastq_dir, self.dataset.sample_sheet.filename, self.dataset.mask
+                self.input_dir, self.fastq_dir, self.dataset.sample_sheet_file, self.dataset.mask
             ),
             job_name='bcl2fastq',
             working_dir=self.job_dir,

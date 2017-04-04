@@ -49,7 +49,7 @@ class BCLValidator(QualityControl):
 
         last_completed_cycle = 0
         for c in sorted(set(all_cycles), reverse=True):
-            if all_cycles.count(c) == len(self.tile_ids):
+            if all_cycles.count(c) >= len(self.tile_ids):
                 last_completed_cycle = c + 1  # compensate for zero-indexing
                 break
 
@@ -65,9 +65,9 @@ class BCLValidator(QualityControl):
         for c in range(1, last_completed_cycle):
             cycle_id = 'C%s.1' % c
             for t in self.tile_ids:
-                lane = t[2]  # s_1_1101.bcl.gz
+                lane = t[0]  # 1_1101
                 lane_id = 'L00' + lane
-                bcl = join(self.basecalls_dir, lane_id, cycle_id, t + '.bcl.gz')
+                bcl = join(self.basecalls_dir, lane_id, cycle_id, 's_' + t + '.bcl.gz')
                 if bcl not in validated_bcls:
                     bcls_to_check.append(bcl)
 

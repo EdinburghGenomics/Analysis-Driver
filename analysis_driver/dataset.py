@@ -10,10 +10,12 @@ from egcg_core.config import cfg
 from egcg_core.app_logging import AppLogger
 from egcg_core.exceptions import RestCommunicationError
 from egcg_core.constants import *  # pylint: disable=unused-import
+from os.path import join
 
 from analysis_driver.exceptions import AnalysisDriverError
 from analysis_driver import reader
 from analysis_driver.notification import NotificationCentre
+from analysis_driver.util import generate_samplesheet
 
 
 class Dataset(AppLogger):
@@ -182,7 +184,7 @@ class RunDataset(Dataset):
     def __init__(self, name, most_recent_proc=None):
         super().__init__(name, most_recent_proc)
         self._run_info = None
-        self._sample_sheet = None
+        self.sample_sheet_file = None
         self.input_dir = os.path.join(cfg['input_dir'], self.name)
         self._run_elements = None
         self._barcode_len = None
@@ -195,15 +197,13 @@ class RunDataset(Dataset):
         return self._run_info
 
     @property
-    def sample_sheet(self):
-        if self._sample_sheet is None:
-            reader.transform_sample_sheet(
-                self.input_dir,
-                seqlab2=cfg.get('seqlab2', True),
-                remove_barcode=not self.run_info.reads.has_barcodes
+    def sample_sheet_file(self):
+        if self._sample_sheet_file is None:
+            self._sample_sheet_file = join(self.input_dir, 'SampleSheet_analysis_driver.csv')
+            generate_samplesheet(
+                self,
+                self._sample_sheet_file,
             )
-            self._sample_sheet = reader.SampleSheet(os.path.join(self.input_dir, 'SampleSheet_analysis_driver.csv'))
-            self._sample_sheet.validate(self.run_info.reads)
         return self._sample_sheet
 
     @property

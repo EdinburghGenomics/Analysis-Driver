@@ -8,7 +8,7 @@ from analysis_driver.quality_control import BCLValidator
 class TestBCLValidator(TestAnalysisDriver):
     def setUp(self):
         run_info = Mock(
-            tiles=('s_1_1101', 's_2_1101', 's_1_1102', 's_2_1102'),
+            tiles=('1_1101', '2_1101', '1_1102', '2_1102'),
             reads=Mock(reads=[Mock(attrib={'NumCycles': '3'})])
         )
         self.job_dir = os.path.join(TestAnalysisDriver.assets_path, 'bcl_validation')
