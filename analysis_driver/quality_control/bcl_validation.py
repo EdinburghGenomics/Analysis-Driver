@@ -11,13 +11,13 @@ from .quality_control_base import QualityControl
 
 
 class BCLValidator(QualityControl):
-    def __init__(self, run_dir, run_info, validation_log, dataset):
+    def __init__(self, run_dir, dataset):
         super().__init__(dataset, run_dir)
-        self.run_dir = run_dir
+        self.run_dir = dataset.input_dir
         self.basecalls_dir = join(self.run_dir, 'Data', 'Intensities', 'BaseCalls')
-        self.tile_ids = run_info.tiles
-        self.ncycles = sum(Reads.num_cycles(r) for r in run_info.reads.reads)
-        self.validation_log = validation_log
+        self.tile_ids = dataset.run_info.tiles
+        self.ncycles = sum(Reads.num_cycles(r) for r in dataset.run_info.reads.reads)
+        self.validation_log = join(self.run_dir, 'checked_bcls.csv')
         self.validate_expr = str_join(
             'function check_bcl { gzip -t $1; x=$?; echo "$1,$x" >> ', self.validation_log, '; }'
         )
@@ -41,8 +41,8 @@ class BCLValidator(QualityControl):
         cycle (i.e. has a full set of tiles), and find all bcls for those cycles/tiles that haven't yet been
         checked.
         """
-        all_cycles = self._all_cycles_from_interop(self.run_dir)
-        if all_cycles[-1] > self.ncycles:
+        all_cycles = self._all_cycles_from_interop()
+        if all_cycles and all_cycles[-1] > self.ncycles:
             raise AnalysisDriverError(
                 'Number of cycles (%s) disagrees with RunInfo (%s)' % (all_cycles[-1], self.ncycles)
             )
@@ -111,9 +111,9 @@ class BCLValidator(QualityControl):
             reader = csv.reader(f, delimiter=',')
             return [bcl for bcl, exit_status in reader if int(exit_status) != 0]
 
-    @staticmethod
-    def _all_cycles_from_interop(run_dir):
+    def _all_cycles_from_interop(self):
         try:
-            return illuminate.InteropDataset(run_dir).ExtractionMetrics().data['cycle']
+            return illuminate.InteropDataset(self.run_dir).ExtractionMetrics().data['cycle']
         except (illuminate.InteropFileNotFoundError, ReadError):
+            self.warning('Cannot load Interop from %s' % self.run_dir)
             return []

@@ -36,12 +36,11 @@ class Setup(DemultiplexingStage):
         crawler = RunCrawler(self.dataset)
         crawler.send_data()
 
-        validation_log = join(self.job_dir, 'checked_bcls.csv')
-        b = BCLValidator(self.job_dir, self.dataset.run_info, validation_log, self.dataset)
+        b = BCLValidator(self.job_dir, self.dataset)
         b.check_bcls()
         invalid_bcls = b.read_invalid_files()
         if invalid_bcls:
-            raise AnalysisDriverError('Some BCL files are corrupted; check %s for details', validation_log)
+            raise AnalysisDriverError('Some BCL files are corrupted; check %s for details', b.validation_log)
 
         run_status = self.dataset.lims_run.udf.get('Run Status')
         if run_status != 'RunCompleted':
