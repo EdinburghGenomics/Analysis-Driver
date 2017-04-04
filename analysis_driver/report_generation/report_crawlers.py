@@ -59,7 +59,7 @@ class RunCrawler(Crawler):
         if run_dir:
             self._populate_barcode_info_from_seqtk_fqchk_files(run_dir)
         if run_dir:
-            welldup_files = util.find_files(run_dir, self.dataset + '.wellduplicate')
+            welldup_files = util.find_files(run_dir, self.dataset.name + '.wellduplicate')
             if welldup_files:
                 self._populate_barcode_info_from_well_dup(welldup_files[0])
 
