@@ -16,7 +16,7 @@ class BCLValidator(QualityControl):
         self.run_dir = run_dir
         self.basecalls_dir = join(self.run_dir, 'Data', 'Intensities', 'BaseCalls')
         self.tile_ids = run_info.tiles
-        self.ncycles = sum(Reads.num_cycles(r) for r in run_info.reads)
+        self.ncycles = sum(Reads.num_cycles(r) for r in run_info.reads.reads)
         self.validation_log = validation_log
         self.validate_expr = str_join(
             'function check_bcl { gzip -t $1; x=$?; echo "$1,$x" >> ', self.validation_log, '; }'

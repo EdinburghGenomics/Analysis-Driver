@@ -9,7 +9,7 @@ class TestBCLValidator(TestAnalysisDriver):
     def setUp(self):
         run_info = Mock(
             tiles=('s_1_1101', 's_2_1101', 's_1_1102', 's_2_1102'),
-            reads=[Mock(attrib={'NumCycles': '3'})]
+            reads=Mock(reads=[Mock(attrib={'NumCycles': '3'})])
         )
         self.job_dir = os.path.join(TestAnalysisDriver.assets_path, 'bcl_validation')
         validation_log = os.path.join(self.job_dir, 'bcl_validation.log')
