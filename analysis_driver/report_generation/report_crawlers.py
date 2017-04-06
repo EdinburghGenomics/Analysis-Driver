@@ -1,4 +1,3 @@
-import json
 from collections import Counter, defaultdict
 from egcg_core import util, clarity
 from egcg_core.app_logging import AppLogger
@@ -6,7 +5,7 @@ from egcg_core.rest_communication import post_or_patch as pp
 from analysis_driver.exceptions import PipelineError
 from analysis_driver.reader import demultiplexing_parsers as dm, mapping_stats_parsers as mp
 from analysis_driver.config import default as cfg
-from egcg_core.constants import *
+from egcg_core.constants import *  # pylint: disable=unused-import
 
 _gender_aliases = {'female': ['f', 'female', 'girl', 'woman'], 'male': ['m', 'male', 'boy', 'man']}
 
@@ -265,18 +264,6 @@ class RunCrawler(Crawler):
                 ELEMENT_BARCODE: barcode,
                 ELEMENT_NB_READS_PASS_FILTER: int(clust_count)
             }
-
-    def write_json(self, json_file):
-        payload = {
-            'run_elements': list(self.barcodes_info.values()),
-            'unexpected_barcodes': list(self.unexpected_barcodes.values()),
-            'lanes': list(self.lanes.values()),
-            'runs': self.run,
-            'samples': list(self.libraries.values()),
-            'project': list(self.projects.values())
-        }
-        with open(json_file, 'w') as open_file:
-            json.dump(payload, open_file, indent=4)
 
     def send_data(self):
         if self._check_config():
