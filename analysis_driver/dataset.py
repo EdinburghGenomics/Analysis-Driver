@@ -1,19 +1,20 @@
 import os
-import threading
-from sys import modules
-from datetime import datetime
 import re
-from time import sleep
+import threading
+from datetime import datetime
 from errno import ESRCH
-from egcg_core import rest_communication, clarity
-from egcg_core.config import cfg
-from egcg_core.app_logging import AppLogger
-from egcg_core.exceptions import RestCommunicationError
-from egcg_core.constants import *  # pylint: disable=unused-import
 from os.path import join
+from sys import modules
+from time import sleep
 
-from analysis_driver.exceptions import AnalysisDriverError
+from egcg_core import rest_communication, clarity
+from egcg_core.app_logging import AppLogger
+from egcg_core.config import cfg
+from egcg_core.constants import *  # pylint: disable=unused-import
+from egcg_core.exceptions import RestCommunicationError
+
 from analysis_driver import reader
+from analysis_driver.exceptions import AnalysisDriverError
 from analysis_driver.notification import NotificationCentre
 from analysis_driver.util import generate_samplesheet
 
@@ -236,8 +237,7 @@ class RunDataset(Dataset):
                 )
             return art.input_artifact_list()
 
-        run_process = clarity.get_run(self.name)
-        flowcell = set(run_process.parent_processes()).pop().output_containers()[0]
+        flowcell = set(self.lims_run.parent_processes()).pop().output_containers()[0]
         for lane in flowcell.placements:
             if len(flowcell.placements[lane].reagent_labels) > 1:
                 artifacts = find_pooling_step_for_artifact(flowcell.placements[lane],

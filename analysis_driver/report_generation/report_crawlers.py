@@ -48,7 +48,6 @@ class Crawler(AppLogger):
 class RunCrawler(Crawler):
     def __init__(self, dataset, adapter_trim_file=None, conversion_xml_file=None, run_dir=None):
         self.dataset = dataset
-        self.run_id = self.dataset.name
         self.adapter_trim_file = adapter_trim_file
         self._populate_barcode_info_from_dataset(dataset)
         self._populate_from_lims()
@@ -83,7 +82,7 @@ class RunCrawler(Crawler):
         self.unexpected_barcodes = {}
         self.libraries = defaultdict(dict)
         self.lanes = defaultdict(dict)
-        self.run = {ELEMENT_RUN_NAME: self.run_id, ELEMENT_RUN_ELEMENTS: []}
+        self.run = {ELEMENT_RUN_NAME: self.dataset.name, ELEMENT_RUN_ELEMENTS: []}
         self.projects = defaultdict(dict)
 
         for run_element in dataset.run_elements:
@@ -167,7 +166,7 @@ class RunCrawler(Crawler):
         return run_element_adapters_trimmed
 
     def _populate_barcode_info_from_adapter_file(self, adapter_trim_file):
-        parsed_trimmed_adapters = dm.parse_adapter_trim_file(adapter_trim_file, self.run_id)
+        parsed_trimmed_adapters = dm.parse_adapter_trim_file(adapter_trim_file, self.dataset.name)
         run_element_adapters_trimmed = self._run_sample_lane_to_barcode(parsed_trimmed_adapters)
         for run_element_id in self.barcodes_info:
             self.barcodes_info[run_element_id][ELEMENT_ADAPTER_TRIM_R1] = run_element_adapters_trimmed[run_element_id]['read_1_trimmed_bases']
@@ -233,9 +232,9 @@ class RunCrawler(Crawler):
             # For the moment, assume that nb_bases for r1 and r2 are the same.
             # TODO: remove this assumption by parsing ConversionStats.xml
             if not self.dataset.has_barcodes:
-                barcode_info = self.barcodes_info.get('%s_%s' % (self.run_id, lane))
+                barcode_info = self.barcodes_info.get('%s_%s' % (self.dataset.name, lane))
             else:
-                barcode_info = self.barcodes_info.get('%s_%s_%s' % (self.run_id, lane, barcode))
+                barcode_info = self.barcodes_info.get('%s_%s_%s' % (self.dataset.name, lane, barcode))
 
             barcode_info[ELEMENT_NB_READS_SEQUENCED] = clust_count
             barcode_info[ELEMENT_NB_READS_PASS_FILTER] = clust_count_pf
@@ -250,10 +249,10 @@ class RunCrawler(Crawler):
                 barcode[ELEMENT_PC_READ_IN_LANE] = barcode[ELEMENT_NB_READS_PASS_FILTER] / reads_for_lane
 
         for lane, barcode, clust_count in top_unknown_barcodes:
-            unknown_element_id = '%s_%s_%s' % (self.run_id, lane, barcode)
+            unknown_element_id = '%s_%s_%s' % (self.dataset.name, lane, barcode)
             self.unexpected_barcodes[unknown_element_id] = {
                 ELEMENT_RUN_ELEMENT_ID: unknown_element_id,
-                ELEMENT_RUN_NAME: self.run_id,
+                ELEMENT_RUN_NAME: self.dataset.name,
                 ELEMENT_LANE: lane,
                 ELEMENT_PC_READ_IN_LANE: int(clust_count) / reads_per_lane.get(lane),
                 ELEMENT_BARCODE: barcode,

@@ -1,17 +1,15 @@
-import os
 import csv
-from os.path import join, isfile
+import os
 from datetime import datetime
 
-import illuminate
-from bitstring import ReadError
-from egcg_core import executor
+from egcg_core.app_logging import logging_default as log_cfg
 from egcg_core.constants import ELEMENT_LANE, ELEMENT_SAMPLE_INTERNAL_ID, ELEMENT_LIBRARY_INTERNAL_ID, \
     ELEMENT_PROJECT_ID, ELEMENT_BARCODE
 from egcg_core.util import str_join
-from egcg_core.app_logging import AppLogger, logging_default as log_cfg
+
 from analysis_driver.config import default as cfg
 from . import bash_commands
+
 app_logger = log_cfg.get_logger('util')
 
 

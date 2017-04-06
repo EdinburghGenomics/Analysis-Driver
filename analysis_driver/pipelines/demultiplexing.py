@@ -4,7 +4,7 @@ from os.path import join, exists, isdir
 from egcg_core import executor, util
 from analysis_driver.pipelines.common import cleanup
 from analysis_driver import segmentation
-from analysis_driver.util import bash_commands, generate_samplesheet
+from analysis_driver.util import bash_commands
 from analysis_driver.exceptions import SequencingRunError, AnalysisDriverError
 from analysis_driver.quality_control import lane_duplicates, BCLValidator
 from analysis_driver.reader.version_reader import write_versions_to_yaml
