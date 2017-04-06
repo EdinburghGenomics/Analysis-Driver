@@ -93,9 +93,9 @@ class Dataset(AppLogger):
 
     def terminate(self):
         pid = self.most_recent_proc.get('pid')
-        self.info('Attempting to terminate pid %s for %s %s', pid, self.type, self.name)
+        self.debug('Attempting to terminate pid %s for %s %s', pid, self.type, self.name)
         if not pid or not self._pid_valid(pid):
-            self.error('Attempted to terminate invalid pid %s', pid)
+            self.debug('Attempted to terminate invalid pid %s', pid)
             return
 
         os.kill(pid, 10)
