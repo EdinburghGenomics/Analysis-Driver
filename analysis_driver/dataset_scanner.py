@@ -100,7 +100,6 @@ class RunScanner(DatasetScanner):
 
     def get_dataset(self, name, most_recent_proc=None):
         dataset_path = os.path.join(self.input_dir, name)
-        print(dataset_path)
         if os.path.exists(dataset_path):
             return RunDataset(name, most_recent_proc=most_recent_proc)
 

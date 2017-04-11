@@ -221,7 +221,6 @@ class RunDataset(Dataset):
         return self._run_elements
 
     def _run_elements_from_lims(self):
-        from egcg_core import clarity
         run_elements = []
 
         def find_pooling_step_for_artifact(art, max_iteration=10, expected_pooling_step_name=None):
@@ -298,8 +297,7 @@ class RunDataset(Dataset):
         return self._lims_run
 
     def is_sequencing(self):
-        # Assume the run has started and not finished if the status is 'RunStarted'
-        # or if it hasn't yet appeared in the LIMS
+        # assume that not being in the LIMS counts as 'is_sequencing'
         if not self.lims_run:
             self.warning('Run %s not found in the LIMS', self.name)
             return True

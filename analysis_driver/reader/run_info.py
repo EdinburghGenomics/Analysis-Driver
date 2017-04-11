@@ -77,7 +77,7 @@ class Reads:
             <Read IsIndexedRead=N Number=1 NumCycles=151/>
             <Read IsIndexedRead=Y Number=2 NumCycles=8/>
             <Read IsIndexedRead=N Number=3 NumCycles=151/>
-        to 'y150n,i8,y150n'. If the sample sheet says the barcode is shorter, trailing 'n's are added, e.g.
+        to 'y150n,i8,y150n'. If samples_barcode_len says the barcode is shorter, trailing 'n's are added, e.g.
         'y150n,i6nn,y150n'.
         """
         out = ['y' + str(self.num_cycles(self.upstream_read) - 1) + 'n']
