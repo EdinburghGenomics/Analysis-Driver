@@ -1,9 +1,14 @@
 import os.path
 import json
-from unittest.mock import patch
+from unittest.mock import patch, Mock
+
+from egcg_core.constants import ELEMENT_PROJECT_ID, ELEMENT_SAMPLE_INTERNAL_ID, ELEMENT_LIBRARY_INTERNAL_ID, \
+    ELEMENT_LANE, ELEMENT_BARCODE
+
 from tests.test_analysisdriver import TestAnalysisDriver
 from analysis_driver import report_generation
 from analysis_driver.reader import SampleSheet
+from tests.test_dataset import NamedMock
 
 ppath = 'analysis_driver.report_generation.report_crawlers.'
 
@@ -34,7 +39,6 @@ class TestCrawler(TestAnalysisDriver):
             elif type(v) is dict:
                 cls._sort_lists(v)
 
-
 class TestRunCrawler(TestCrawler):
     run_id = 'a_run_id'
     _expected_output = None
@@ -59,10 +63,42 @@ class TestRunCrawler(TestCrawler):
                 'a_run_id_1_ATTACTCG': {'read_1_trimmed_bases': 714309214, 'read_2_trimmed_bases': 684692293},
                 'a_run_id_2_ATTACTCG': {'read_1_trimmed_bases': 284712861, 'read_2_trimmed_bases': 282625840}}
         )
+        run_element1 = {
+            ELEMENT_PROJECT_ID: '10015AT',
+            ELEMENT_SAMPLE_INTERNAL_ID: '10015AT0001',
+            ELEMENT_LIBRARY_INTERNAL_ID: 'LP6002014-DTP_A01',
+            ELEMENT_LANE: '1',
+            ELEMENT_BARCODE: 'ATTACTCG'
+        }
+        run_element2 = {
+            ELEMENT_PROJECT_ID: '10015AT',
+            ELEMENT_SAMPLE_INTERNAL_ID: '10015AT0002',
+            ELEMENT_LIBRARY_INTERNAL_ID: 'LP6002014-DTP_A02',
+            ELEMENT_LANE: '1',
+            ELEMENT_BARCODE: 'TCCGGAGA'
+        }
+        run_element3 = {
+            ELEMENT_PROJECT_ID: '10015AT',
+            ELEMENT_SAMPLE_INTERNAL_ID: '10015AT0001',
+            ELEMENT_LIBRARY_INTERNAL_ID: 'LP6002014-DTP_A01',
+            ELEMENT_LANE: '2',
+            ELEMENT_BARCODE: 'ATTACTCG'
+        }
+        run_element4 = {
+            ELEMENT_PROJECT_ID: '10015AT',
+            ELEMENT_SAMPLE_INTERNAL_ID: '10015AT0002',
+            ELEMENT_LIBRARY_INTERNAL_ID: 'LP6002014-DTP_A02',
+            ELEMENT_LANE: '2',
+            ELEMENT_BARCODE: 'TCCGGAGA'
+        }
+        dataset = NamedMock(
+            real_name='a_run_id',
+            run_elements=[run_element1, run_element2, run_element3, run_element4],
+            has_barcodes=True
+        )
         with patched_lims_info, patched_data:
             self.crawler = report_generation.RunCrawler(
-                self.run_id,
-                SampleSheet(os.path.join(self.test_data, 'SampleSheet_analysis_driver.csv')),
+                dataset,
                 os.path.join(self.test_data, 'AdapterTrimming.txt'),
                 os.path.join(self.test_data, 'ConversionStats.xml')
             )

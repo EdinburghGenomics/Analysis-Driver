@@ -4,18 +4,17 @@ from tests.test_analysisdriver import TestAnalysisDriver
 from egcg_core import executor
 from analysis_driver.quality_control import BCLValidator
 
+
 class TestBCLValidator(TestAnalysisDriver):
     def setUp(self):
         run_info = Mock(
-            tiles=('s_1_1101', 's_2_1101', 's_1_1102', 's_2_1102'),
-            mask=Mock(reads=[Mock(attrib={'NumCycles': '3'})])
+            tiles=('1_1101', '2_1101', '1_1102', '2_1102'),
+            reads=Mock(reads=[Mock(attrib={'NumCycles': '3'})])
         )
         self.job_dir = os.path.join(TestAnalysisDriver.assets_path, 'bcl_validation')
-        validation_log = os.path.join(self.job_dir, 'bcl_validation.log')
-        if os.path.isfile(validation_log):
-            os.remove(validation_log)
-
-        self.val = BCLValidator(self.job_dir, run_info, validation_log, Mock())
+        self.val = BCLValidator(self.job_dir, Mock(input_dir=self.job_dir, run_info=run_info))
+        if os.path.isfile(self.val.validation_log):
+            os.remove(self.val.validation_log)
 
     @patch('analysis_driver.quality_control.BCLValidator._all_cycles_from_interop')
     def test_get_bcl_files_to_check(self, mocked_cycles):
@@ -87,9 +86,9 @@ class TestBCLValidator(TestAnalysisDriver):
     def test_cycles_from_interop(self):
         interop_dir = os.path.join(self.job_dir, 'InterOp')
         os.makedirs(interop_dir, exist_ok=True)
-        assert self.val._all_cycles_from_interop(self.job_dir) == []  # no ExtractionMetrics
+        assert self.val._all_cycles_from_interop() == []  # no ExtractionMetrics
         open(os.path.join(interop_dir, 'ExtractionMetricsOut.bin'), 'w').close()
-        assert self.val._all_cycles_from_interop(self.job_dir) == []  # empty ExtractionMetrics
+        assert self.val._all_cycles_from_interop() == []  # empty ExtractionMetrics
 
     @patch('analysis_driver.quality_control.bcl_validation.executor.execute', return_value=Mock(join=Mock(return_value=0)))
     @patch('analysis_driver.quality_control.BCLValidator.call_bcl_check')

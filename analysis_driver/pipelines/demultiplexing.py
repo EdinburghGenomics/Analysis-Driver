@@ -15,7 +15,7 @@ from analysis_driver.transfer_data import output_run_data
 class DemultiplexingStage(segmentation.Stage):
     @property
     def fastq_dir(self):
-        return join(self.jobs_dir, 'fastq')
+        return join(self.job_dir, 'fastq')
 
 
 class Setup(DemultiplexingStage):
@@ -28,15 +28,14 @@ class Setup(DemultiplexingStage):
             mkdir(self.fastq_dir)
 
         # Send the information about the run to the rest API
-        crawler = RunCrawler(self.dataset.name, self.dataset.sample_sheet)
+        crawler = RunCrawler(self.dataset)
         crawler.send_data()
 
-        validation_log = join(self.job_dir, 'checked_bcls.csv')
-        b = BCLValidator(self.job_dir, self.dataset.run_info, validation_log, self.dataset)
+        b = BCLValidator(self.job_dir, self.dataset)
         b.check_bcls()
         invalid_bcls = b.read_invalid_files()
         if invalid_bcls:
-            raise AnalysisDriverError('Some BCL files are corrupted; check %s for details', validation_log)
+            raise AnalysisDriverError('Some BCL files are corrupted; check %s for details', b.validation_log)
 
         run_status = self.dataset.lims_run.udf.get('Run Status')
         if run_status != 'RunCompleted':
@@ -53,7 +52,7 @@ class Bcl2FastqAndFilter(DemultiplexingStage):
         self.info('bcl2fastq mask: ' + self.dataset.mask)  # e.g: mask = 'y150n,i6,y150n'
         bcl2fastq_exit_status = executor.execute(
             bash_commands.bcl2fastq(
-                self.input_dir, self.fastq_dir, self.dataset.sample_sheet.filename, self.dataset.mask
+                self.input_dir, self.fastq_dir, self.dataset.sample_sheet_file, self.dataset.mask
             ),
             job_name='bcl2fastq',
             working_dir=self.job_dir,
@@ -153,7 +152,7 @@ class QCOutput(DemultiplexingStage):
         if exists(conversion_xml) and exists(adapter_trim_file):
             self.info('Found ConversionStats and AdaptorTrimming. Sending data.')
             crawler = RunCrawler(
-                self.dataset.name, self.sample_sheet, adapter_trim_file=adapter_trim_file,
+                self.dataset, adapter_trim_file=adapter_trim_file,
                 conversion_xml_file=conversion_xml, run_dir=self.fastq_dir
             )
             crawler.send_data()

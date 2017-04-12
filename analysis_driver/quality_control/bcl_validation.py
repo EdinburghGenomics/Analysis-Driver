@@ -6,17 +6,18 @@ from bitstring import ReadError
 from egcg_core import executor
 from egcg_core.util import str_join
 from analysis_driver.exceptions import AnalysisDriverError
+from analysis_driver.reader.run_info import Reads
 from .quality_control_base import QualityControl
 
 
 class BCLValidator(QualityControl):
-    def __init__(self, run_dir, run_info, validation_log, dataset):
+    def __init__(self, run_dir, dataset):
         super().__init__(dataset, run_dir)
-        self.run_dir = run_dir
+        self.run_dir = dataset.input_dir
         self.basecalls_dir = join(self.run_dir, 'Data', 'Intensities', 'BaseCalls')
-        self.tile_ids = run_info.tiles
-        self.ncycles = sum(int(e.attrib['NumCycles']) for e in run_info.mask.reads)
-        self.validation_log = validation_log
+        self.tile_ids = dataset.run_info.tiles
+        self.ncycles = sum(Reads.num_cycles(r) for r in dataset.run_info.reads.reads)
+        self.validation_log = join(self.run_dir, 'checked_bcls.csv')
         self.validate_expr = str_join(
             'function check_bcl { gzip -t $1; x=$?; echo "$1,$x" >> ', self.validation_log, '; }'
         )
@@ -40,15 +41,15 @@ class BCLValidator(QualityControl):
         cycle (i.e. has a full set of tiles), and find all bcls for those cycles/tiles that haven't yet been
         checked.
         """
-        all_cycles = self._all_cycles_from_interop(self.run_dir)
-        if all_cycles[-1] > self.ncycles:
+        all_cycles = self._all_cycles_from_interop()
+        if all_cycles and all_cycles[-1] > self.ncycles:
             raise AnalysisDriverError(
                 'Number of cycles (%s) disagrees with RunInfo (%s)' % (all_cycles[-1], self.ncycles)
             )
 
         last_completed_cycle = 0
         for c in sorted(set(all_cycles), reverse=True):
-            if all_cycles.count(c) == len(self.tile_ids):
+            if all_cycles.count(c) >= len(self.tile_ids):
                 last_completed_cycle = c + 1  # compensate for zero-indexing
                 break
 
@@ -64,9 +65,9 @@ class BCLValidator(QualityControl):
         for c in range(1, last_completed_cycle):
             cycle_id = 'C%s.1' % c
             for t in self.tile_ids:
-                lane = t[2]  # s_1_1101.bcl.gz
+                lane = t[0]  # 1_1101
                 lane_id = 'L00' + lane
-                bcl = join(self.basecalls_dir, lane_id, cycle_id, t + '.bcl.gz')
+                bcl = join(self.basecalls_dir, lane_id, cycle_id, 's_' + t + '.bcl.gz')
                 if bcl not in validated_bcls:
                     bcls_to_check.append(bcl)
 
@@ -110,9 +111,9 @@ class BCLValidator(QualityControl):
             reader = csv.reader(f, delimiter=',')
             return [bcl for bcl, exit_status in reader if int(exit_status) != 0]
 
-    @staticmethod
-    def _all_cycles_from_interop(run_dir):
+    def _all_cycles_from_interop(self):
         try:
-            return illuminate.InteropDataset(run_dir).ExtractionMetrics().data['cycle']
+            return illuminate.InteropDataset(self.run_dir).ExtractionMetrics().data['cycle']
         except (illuminate.InteropFileNotFoundError, ReadError):
+            self.warning('Cannot load Interop from %s' % self.run_dir)
             return []

@@ -4,8 +4,11 @@ Changelog for Analysis-Driver
 0.14 (unreleased)
 -----------------
 
-- Nothing changed yet.
-
+ - Add function to retrieve run metadata from the LIMS in RunDataset, generate the Samplesheet from it
+ - Demultiplexing pipeline is now segmented
+ - Run processing starts as the first files arrives from the sequencer
+ - Bcl validation runs throughout the sequencing
+ - Fix bug in species contamintion
 
 0.13 (2017-03-07)
 -----------------

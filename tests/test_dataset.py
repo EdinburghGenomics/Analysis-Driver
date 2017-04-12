@@ -3,14 +3,18 @@ import pytest
 from sys import modules
 from shutil import rmtree
 from unittest.mock import patch, Mock, PropertyMock
-from tests.test_analysisdriver import TestAnalysisDriver
+
+from egcg_core.constants import ELEMENT_PROJECT_ID, ELEMENT_SAMPLE_INTERNAL_ID, ELEMENT_BARCODE
+
+from integration_tests.mocked_data import MockedSamples, MockedRunProcess
+from tests.test_analysisdriver import TestAnalysisDriver, NamedMock
 from egcg_core import constants as c
 from analysis_driver.exceptions import AnalysisDriverError
 from analysis_driver.dataset import Dataset, RunDataset, SampleDataset, MostRecentProc
 
 
 def seed_directories(base_dir):
-    for d in ('dataset_ready', 'dataset_not_ready', 'ignored_dataset'):
+    for d in ('dataset_ready', 'dataset_not_ready', 'ignored_dataset', 'test_dataset'):
         os.makedirs(os.path.join(base_dir, d), exist_ok=True)
         if d in ('dataset_ready',):
             touch(os.path.join(base_dir, d, 'RTAComplete.txt'))
@@ -191,10 +195,56 @@ class _TestDataset(Dataset):
         pass
 
 
+mocked_lane_artifact1 = NamedMock(real_name='art1', reagent_labels=['D701-D502 (ATTACTCG-ATAGAGGC)'], samples=[MockedSamples(real_name='sample1')])
+mocked_lane_artifact2 = NamedMock(real_name='art2', reagent_labels=['D702-D502 (TCCGGAGA-ATAGAGGC)'], samples=[MockedSamples(real_name='sample2')])
+mocked_lane_artifact3 = NamedMock(real_name='art3', reagent_labels=['D703-D502 (CGCTCATT-ATAGAGGC)'], samples=[MockedSamples(real_name='sample3')])
+mocked_lane_artifact4 = NamedMock(real_name='art4', reagent_labels=['D704-D502 (GAGATTCC-ATAGAGGC)'], samples=[MockedSamples(real_name='sample4')])
+mocked_lane_artifact5 = NamedMock(real_name='art5', reagent_labels=['D705-D502 (ATTCAGAA-ATAGAGGC)'], samples=[MockedSamples(real_name='sample5')])
+mocked_lane_artifact6 = NamedMock(real_name='art6', reagent_labels=['D706-D502 (GAATTCGT-ATAGAGGC)'], samples=[MockedSamples(real_name='sample6')])
+mocked_lane_artifact_pool = NamedMock(real_name='artpool', reagent_labels=[
+    'D703-D502 (CGCTCATT-ATAGAGGC)',
+    'D704-D502 (GAGATTCC-ATAGAGGC)',
+    'D705-D502 (ATTCAGAA-ATAGAGGC)',
+    'D706-D502 (GAATTCGT-ATAGAGGC)',
+], samples=[
+    'sample3',
+    'sample4',
+    'sample5',
+    'sample6'
+], input_artifact_list=Mock(return_value=[
+    mocked_lane_artifact3,
+    mocked_lane_artifact4,
+    mocked_lane_artifact5,
+    mocked_lane_artifact6
+]), parent_process=Mock(type=NamedMock(real_name='Create PDP Pool')))
+
+mocked_flowcell_non_pooling = Mock(placements={
+    '1:1': mocked_lane_artifact1,
+    '2:1': mocked_lane_artifact2,
+    '3:1': mocked_lane_artifact1,
+    '4:1': mocked_lane_artifact2,
+    '5:1': mocked_lane_artifact1,
+    '6:1': mocked_lane_artifact2,
+    '7:1': mocked_lane_artifact1,
+    '8:1': mocked_lane_artifact2
+})
+
+mocked_flowcell_pooling = Mock(placements={
+    '1:1': mocked_lane_artifact_pool,
+    '2:1': mocked_lane_artifact_pool,
+    '3:1': mocked_lane_artifact_pool,
+    '4:1': mocked_lane_artifact_pool,
+    '5:1': mocked_lane_artifact_pool,
+    '6:1': mocked_lane_artifact_pool,
+    '7:1': mocked_lane_artifact_pool,
+    '8:1': mocked_lane_artifact_pool
+})
+
+
 class TestRunDataset(TestDataset):
     def test_is_ready(self):
         with patched_get_docs():
-            d = RunDataset('dataset_ready', os.path.join(self.base_dir, 'dataset_ready'))
+            d = RunDataset('dataset_ready')
             assert d._is_ready() == True
 
     def test_dataset_status(self):
@@ -206,10 +256,32 @@ class TestRunDataset(TestDataset):
     def setup_dataset(self):
         self.dataset = RunDataset(
             'test_dataset',
-            os.path.join(self.base_dir, 'test_dataset'),
             most_recent_proc={'proc_id': 'a_proc_id', 'date_started': 'now',
                               'dataset_name': 'None', 'dataset_type': 'None'}
         )
+
+    def test_run_elements_from_lims(self):
+        d = RunDataset('test_dataset')
+
+        with patch('analysis_driver.dataset.clarity.get_run', return_value=MockedRunProcess(container=mocked_flowcell_non_pooling)), \
+             patch.object(RunDataset, 'has_barcodes', new_callable=PropertyMock(return_value=False)):
+            run_elements = d._run_elements_from_lims()
+            assert len(set([r[ELEMENT_PROJECT_ID] for r in run_elements])) == 1
+            assert len(set([r[ELEMENT_SAMPLE_INTERNAL_ID] for r in run_elements])) == 2
+            barcodes_len = set([len(r[ELEMENT_BARCODE]) for r in run_elements])
+            assert len(barcodes_len) == 1
+            assert barcodes_len.pop() == 0
+
+        d = RunDataset('test_dataset')
+
+        with patch('egcg_core.clarity.get_run', return_value=MockedRunProcess(container=mocked_flowcell_pooling)), \
+             patch.object(RunDataset, 'has_barcodes', new_callable=PropertyMock(return_value=True)):
+            run_elements = d._run_elements_from_lims()
+            assert len(set([r[ELEMENT_PROJECT_ID] for r in run_elements])) == 1
+            assert len(set([r[ELEMENT_SAMPLE_INTERNAL_ID] for r in run_elements])) == 4
+            barcodes_len = set([len(r[ELEMENT_BARCODE]) for r in run_elements])
+            assert len(barcodes_len) == 1
+            assert barcodes_len.pop() == 8
 
 
 class TestSampleDataset(TestDataset):

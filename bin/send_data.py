@@ -5,6 +5,8 @@ import argparse
 import json
 from egcg_core.app_logging import logging_default as log_cfg
 
+from analysis_driver.dataset import RunDataset
+
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from analysis_driver.reader import SampleSheet
 from analysis_driver.report_generation.report_crawlers import SampleCrawler, RunCrawler
@@ -23,7 +25,6 @@ def main():
 
     run_parser = subparsers.add_parser('run', parents=[parent])
     run_parser.add_argument('run_id')
-    run_parser.add_argument('--samplesheet')
     run_parser.add_argument('--conversion_stats', nargs='?', default=None)
     run_parser.add_argument('--adapter_trim_file', nargs='?', default=None)
     run_parser.add_argument('--run_dir', help='e.g. jobs/<run_id>')
@@ -59,12 +60,9 @@ def run_crawler(args):
     else:
         adapter_trim_file = os.path.join(run_dir, 'Stats', 'AdapterTrimming.txt')
 
-    if args.samplesheet:
-        samplesheet = SampleSheet(args.samplesheet)
-    else:
-        samplesheet = SampleSheet(os.path.join(run_dir, 'SampleSheet_analysis_driver.csv'))
+    dataset = RunDataset(args.run_id)
 
-    c = RunCrawler(args.run_id, samplesheet, adapter_trim_file=adapter_trim_file, conversion_xml_file=conversion_stats, run_dir=run_dir)
+    c = RunCrawler(dataset, adapter_trim_file=adapter_trim_file, conversion_xml_file=conversion_stats, run_dir=run_dir)
     if args.test:
         print(
             json.dumps(

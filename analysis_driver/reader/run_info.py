@@ -71,20 +71,20 @@ class Reads:
             raise AnalysisDriverError('Invalid IsIndexedRead parameter: ' + read.attrib['IsIndexedRead'])
         return read.attrib['IsIndexedRead'] == 'Y'
 
-    def generate_mask(self, sample_sheet_barcode_len):
+    def generate_mask(self, samples_barcode_len):
         """
         Translate:
             <Read IsIndexedRead=N Number=1 NumCycles=151/>
             <Read IsIndexedRead=Y Number=2 NumCycles=8/>
             <Read IsIndexedRead=N Number=3 NumCycles=151/>
-        to 'y150n,i8,y150n'. If the sample sheet says the barcode is shorter, trailing 'n's are added, e.g.
+        to 'y150n,i8,y150n'. If samples_barcode_len says the barcode is shorter, trailing 'n's are added, e.g.
         'y150n,i6nn,y150n'.
         """
         out = ['y' + str(self.num_cycles(self.upstream_read) - 1) + 'n']
 
         for i in self.index_lengths:
-            diff = i - sample_sheet_barcode_len
-            out.append('i' + str(sample_sheet_barcode_len) + 'n' * diff)
+            diff = i - samples_barcode_len
+            out.append('i' + str(samples_barcode_len) + 'n' * diff)
 
         out.append('y' + str(self.num_cycles(self.downstream_read) - 1) + 'n')
         return ','.join(out)

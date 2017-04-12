@@ -1,17 +1,22 @@
 import os
+import re
 import threading
-from sys import modules
 from datetime import datetime
-from time import sleep
 from errno import ESRCH
+from os.path import join
+from sys import modules
+from time import sleep
+
 from egcg_core import rest_communication, clarity
-from egcg_core.config import cfg
 from egcg_core.app_logging import AppLogger
+from egcg_core.config import cfg
+from egcg_core.constants import *  # pylint: disable=unused-import
 from egcg_core.exceptions import RestCommunicationError
+
+from analysis_driver import reader
 from analysis_driver.exceptions import AnalysisDriverError
 from analysis_driver.notification import NotificationCentre
-from analysis_driver import reader
-from egcg_core.constants import *  # pylint: disable=unused-import
+from analysis_driver.util import generate_samplesheet
 
 
 class Dataset(AppLogger):
@@ -177,12 +182,14 @@ class RunDataset(Dataset):
     endpoint = 'runs'
     id_field = 'run_id'
 
-    def __init__(self, name, path, most_recent_proc=None):
+    def __init__(self, name, most_recent_proc=None):
         super().__init__(name, most_recent_proc)
-        self.path = path
         self._run_info = None
-        self._sample_sheet = None
+        self._sample_sheet_file = None
         self.input_dir = os.path.join(cfg['input_dir'], self.name)
+        self._run_elements = None
+        self._barcode_len = None
+        self._lims_run = None
 
     @property
     def run_info(self):
@@ -191,23 +198,97 @@ class RunDataset(Dataset):
         return self._run_info
 
     @property
-    def sample_sheet(self):
-        if self._sample_sheet is None:
-            reader.transform_sample_sheet(
-                self.input_dir,
-                seqlab2=cfg.get('seqlab2', True),
-                remove_barcode=not self.run_info.reads.has_barcodes
+    def sample_sheet_file(self):
+        if self._sample_sheet_file is None:
+            self._sample_sheet_file = join(self.input_dir, 'SampleSheet_analysis_driver.csv')
+            generate_samplesheet(
+                self,
+                self._sample_sheet_file,
             )
-            self._sample_sheet = reader.SampleSheet(os.path.join(self.input_dir, 'SampleSheet_analysis_driver.csv'))
-            self._sample_sheet.validate(self.run_info.reads)
-        return self._sample_sheet
+        return self._sample_sheet_file
 
     @property
     def mask(self):
-        return self.run_info.reads.generate_mask(self.sample_sheet.barcode_len)
+        return self.run_info.reads.generate_mask(self.barcode_len)
 
     def _is_ready(self):
         return True
+
+    @property
+    def run_elements(self):
+        if not self._run_elements:
+            self._run_elements = self._run_elements_from_lims()
+        return self._run_elements
+
+    def _run_elements_from_lims(self):
+        run_elements = []
+
+        def find_pooling_step_for_artifact(art, max_iteration=10, expected_pooling_step_name=None):
+            nb_iteration = 0
+            while len(art.input_artifact_list()) == 1:
+                art = art.input_artifact_list()[0]
+                if nb_iteration == max_iteration:
+                    raise ValueError('Cannot find pooling step after %s iteraction' % max_iteration)
+                nb_iteration += 1
+            if expected_pooling_step_name and art.parent_process.type.name != expected_pooling_step_name:
+                raise ValueError(
+                    'Mismatching Step name: %s != %s' % (expected_pooling_step_name, art.parent_process.type.name)
+                )
+            return art.input_artifact_list()
+
+        flowcell = set(self.lims_run.parent_processes()).pop().output_containers()[0]
+        for lane in flowcell.placements:
+            if len(flowcell.placements[lane].reagent_labels) > 1:
+                artifacts = find_pooling_step_for_artifact(flowcell.placements[lane],
+                                                           expected_pooling_step_name='Create PDP Pool')
+            else:
+                artifacts = [flowcell.placements[lane]]
+            for artifact in artifacts:
+                assert len(artifact.samples) == 1
+                assert len(artifact.reagent_labels) == 1
+                sample = artifact.samples[0]
+                reagent_label = artifact.reagent_labels[0]
+                match = re.match('(\w{4})-(\w{4}) \(([ATCG]{8})-([ATCG]{8})\)', reagent_label)
+                run_element = {
+                    ELEMENT_PROJECT_ID: sample.project.name,
+                    ELEMENT_SAMPLE_INTERNAL_ID: sample.name,
+                    ELEMENT_LIBRARY_INTERNAL_ID: artifact.id,  # This is not the library id but it is unique
+                    ELEMENT_LANE: lane.split(':')[0],
+                    ELEMENT_BARCODE: ''
+                }
+                if self.has_barcodes:
+                    run_element[ELEMENT_BARCODE] = match.group(3)
+                run_elements.append(run_element)
+        return run_elements
+
+    @property
+    def has_barcodes(self):
+        return self.run_info.reads.has_barcodes
+
+    @property
+    def barcode_len(self):
+        if not self._barcode_len:
+            self._barcode_len = self._check_barcodes()
+        return self._barcode_len
+
+    def _check_barcodes(self):
+        """
+        For each run element, check that all the DNA barcodes are the same length
+        :return: The DNA barcode length
+        """
+        previous_r = None
+
+        for r in self.run_elements:
+            if previous_r and len(previous_r[ELEMENT_BARCODE]) != len(r[ELEMENT_BARCODE]):
+                raise AnalysisDriverError(
+                    'Unexpected barcode length for %s: %s in project %s' % (
+                        r[ELEMENT_SAMPLE_INTERNAL_ID], r[ELEMENT_BARCODE], r[ELEMENT_PROJECT_ID]
+                    )
+                )
+            previous_r = r
+
+        self.debug('Barcode check done. Barcode len: %s', len(r[ELEMENT_BARCODE]))
+        return len(r[ELEMENT_BARCODE])
 
     @property
     def lims_run(self):
@@ -216,13 +297,14 @@ class RunDataset(Dataset):
         return self._lims_run
 
     def is_sequencing(self):
-        # Assume the run has started and not finished if the status is 'RunStarted' or if it hasn't yet appeared in the LIMS
+        # assume that not being in the LIMS counts as 'is_sequencing'
         if not self.lims_run:
             self.warning('Run %s not found in the LIMS', self.name)
             return True
         # force the LIMS to update the RunStatus rather than passing the same cached RunStatus
         self.lims_run.get(force=True)
         return self.lims_run.udf.get('Run Status') == 'RunStarted'
+
 
 class SampleDataset(Dataset):
     type = 'sample'
@@ -322,7 +404,7 @@ class ProjectDataset(Dataset):
         return self._number_of_samples
 
     def __str__(self):
-        return '%s  (%s samples / %s) ' % ( super().__str__(), len(self.samples_processed), self.number_of_samples)
+        return '%s  (%s samples / %s) ' % (super().__str__(), len(self.samples_processed), self.number_of_samples)
 
 
 class MostRecentProc:

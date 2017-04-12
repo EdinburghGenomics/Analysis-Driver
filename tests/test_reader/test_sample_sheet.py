@@ -1,4 +1,5 @@
 from os.path import join
+from unittest.mock import patch, _set_return_value, Mock, MagicMock
 from tests.test_analysisdriver import TestAnalysisDriver
 from analysis_driver.reader import SampleSheet, RunInfo, transform_sample_sheet
 from analysis_driver.reader.sample_sheet import ProjectID, Line
