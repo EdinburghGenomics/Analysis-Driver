@@ -1,31 +1,20 @@
 import argparse
 import os
 import sys
+from luigi import Parameter
 from egcg_core import executor, util
-from .quality_control_base import QualityControl
+from analysis_driver.segmentation import Stage
 
 
-class GenderValidation(QualityControl):
-    """
-    This class will perform the Gender validation steps. It subclasses Thread, allowing it to run in the
-    background.
-    """
-    def __init__(self, dataset, working_dir, vcf_file):
-        super().__init__(dataset, working_dir)
-        self.vcf_file = vcf_file
+class GenderValidation(Stage):
+    vcf_file = Parameter()
 
-    def _gender_call(self):
-        """
-        Detect gender of the sample based on the %het on the X chromosome.
-        :rtype: list
-        :return list of file containing the results of the validation.
-        """
-        self.dataset.start_stage('gender_validation')
-
+    def _run(self):
+        """Detect gender of the sample based on the %het on the X chromosome."""
         name, ext = os.path.splitext(self.vcf_file)
         if ext == '.gz':
             file_opener = 'zcat'
-            name, dummy = os.path.splitext(name)
+            name, gz = os.path.splitext(name)
         else:
             file_opener = 'cat'
 
@@ -41,29 +30,15 @@ class GenderValidation(QualityControl):
         ) + ' > ' + gender_call_file
         self.info(command)
 
-        exit_status = executor.execute(
+        return executor.execute(
             command,
             job_name='sex_detection',
-            working_dir=self.working_dir,
+            working_dir=self.job_dir,
             walltime=6,
             cpus=1,
             mem=2,
             log_commands=False
         ).join()
-        self.dataset.end_stage('gender_validation', exit_status)
-        return exit_status
-
-    def run(self):
-        try:
-            self.exit_status = self._gender_call()
-        except Exception as e:
-            self.exception = e
-
-    def join(self, timeout=None):
-        super().join(timeout=timeout)
-        if self.exception:
-            raise self.exception
-        return self.exit_status
 
 
 def main():
@@ -72,7 +47,7 @@ def main():
     args = _parse_args()
     os.makedirs(args.working_dir, exist_ok=True)
     dataset = SampleScanner(cfg).get_dataset(args.sample_id)
-    s = GenderValidation(dataset, args.working_dir, args.vcf_file)
+    s = GenderValidation(dataset=dataset, vcf_file=args.vcf_file)
     s.start()
     return s.join()
 

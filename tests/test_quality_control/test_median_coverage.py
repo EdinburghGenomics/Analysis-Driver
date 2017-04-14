@@ -9,21 +9,13 @@ class TestSamtoolsDepth(QCTester):
                'sort -k 1,1 -nk 2,2 > testfile.depth')
 
     def test_get_samtools_depth_command(self):
-        bam_file = 'testfile.bam'
-        working_dir = 'test_sample'
-        g = SamtoolsDepth(self.dataset, bam_file=bam_file, working_dir=working_dir)
-        cmd, outfile = g._get_samtools_depth_command()
-        assert cmd == self.exp_cmd
-        assert outfile == 'testfile.depth'
+        g = SamtoolsDepth(dataset=self.dataset, bam_file='testfile.bam')
+        assert g._samtools_depth_command() == self.exp_cmd
 
     @patch('egcg_core.executor.execute', autospec=True)
     def test_run_samtools_depth(self, mocked_execute):
-        bam_file = 'testfile.bam'
-        working_dir = 'test_sample'
-        g = SamtoolsDepth(self.dataset, bam_file=bam_file, working_dir=working_dir)
-        instance = mocked_execute.return_value
-        instance.join.return_value = 0
-        g._run_samtools_depth()
+        g = SamtoolsDepth(dataset=self.dataset, bam_file='testfile.bam')
+        g._run()
         mocked_execute.assert_called_once_with(
-            self.exp_cmd, job_name='samtoolsdepth', working_dir='test_sample', cpus=1, mem=6
+            self.exp_cmd, job_name='samtoolsdepth', working_dir='path/to/jobs/test_sample', cpus=1, mem=6
         )

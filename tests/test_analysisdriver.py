@@ -6,8 +6,8 @@ from analysis_driver.config import default as cfg, _etc_config
 from os.path import join, dirname
 import json
 
-class NamedMock(Mock):
 
+class NamedMock(Mock):
     @property
     def name(self):
         return self.real_name

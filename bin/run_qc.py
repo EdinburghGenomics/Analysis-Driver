@@ -65,7 +65,7 @@ def _parse_args():
     contam_blast.set_defaults(func=contamination_blast)
 
     relatedness_parser = subparsers.add_parser('relatedness')
-    relatedness_parser.add_argument('--gVCF_files', required=True, nargs='+')
+    relatedness_parser.add_argument('--gvcfs', required=True, nargs='+')
     relatedness_parser.add_argument('--reference', required=True)
     relatedness_parser.add_argument('--work_dir', required=False)
     relatedness_parser.add_argument('--project_id', required=True)
@@ -173,7 +173,7 @@ def run_sample_contamination_check(args):
         work_dir = os.path.join(cfg['jobs_dir'], args.sample_id)
     os.makedirs(work_dir, exist_ok=True)
     dataset = NoCommunicationDataset(args.sample_id)
-    sample_contamination_check = qc.VerifyBamId(dataset, work_dir, args.bam_file)
+    sample_contamination_check = qc.VerifyBamID(dataset, work_dir, args.bam_file)
     sample_contamination_check.start()
     exit_status = sample_contamination_check.join()
     return exit_status

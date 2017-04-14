@@ -1,40 +1,44 @@
-import os.path
 import json
+import os.path
 from ete3 import NCBITaxa
 from collections import Counter
+from luigi import Parameter, IntParameter
 from egcg_core import executor
-from .quality_control_base import QualityControl
 from analysis_driver.config import default as cfg
 from analysis_driver.exceptions import AnalysisDriverError
+from analysis_driver.segmentation import Stage
 
 
-class ContaminationBlast(QualityControl):
-    def __init__(self, dataset, working_dir, fastq_file):
-        super().__init__(dataset, working_dir)
-        self.fastq_file = fastq_file
-        self._ncbi = None
+class ContaminationBlast(Stage):
+    fastq_file = Parameter()
+    nb_reads = IntParameter(default=3000)
+    _ncbi = None
 
-    def sample_fastq_command(self, fastq_file, nb_reads):
-        fasta_outfile = os.path.join(
-            self.working_dir,
-            os.path.basename(fastq_file).split('.')[0] + '_sample%s.fasta' % nb_reads
+    @property
+    def fasta_outfile(self):
+        return os.path.join(
+            self.job_dir,
+            os.path.basename(self.fastq_file).split('.')[0] + '_sample%s.fasta' % self.nb_reads
         )
-        cmd = 'set -o pipefail; {seqtk} sample {fastq} {nb_reads} | {seqtk} seq -a > {fasta}'.format(
-            nb_reads=nb_reads, seqtk=cfg['tools']['seqtk'], fastq=fastq_file, fasta=fasta_outfile
-        )
-        return cmd, fasta_outfile
 
-    def fasta_blast_command(self, fasta_file):
+    @property
+    def blast_outfile(self):
+        return os.path.join(self.job_dir, os.path.basename(self.fasta_outfile).split('.')[0] + '_blastn')
+
+    def sample_fastq_command(self):
+        return 'set -o pipefail; {seqtk} sample {fastq} {nb_reads} | {seqtk} seq -a > {fasta}'.format(
+            nb_reads=self.nb_reads, seqtk=cfg['tools']['seqtk'], fastq=self.fastq_file, fasta=self.fasta_outfile
+        )
+
+    def fasta_blast_command(self):
         db_dir = cfg['contamination-check']['db_dir']
-        nt_db = os.path.join(db_dir, 'nt')
-        blast_outfile = os.path.join(self.working_dir, os.path.basename(fasta_file).split('.')[0] + '_blastn')
-
         cmd = ('export PATH=$PATH:/{db_dir}; {blastn} -query {fasta_file} -db {nt} -out {blast_outfile} '
                '-num_threads 12 -max_target_seqs 1 -max_hsps 1 '
                "-outfmt '6 qseqid sseqid length pident evalue sgi sacc staxids sscinames scomnames stitle'")
-        cmd = cmd.format(db_dir=db_dir, blastn=cfg['tools']['blastn'], fasta_file=fasta_file, nt=nt_db,
-                         blast_outfile=blast_outfile)
-        return cmd, blast_outfile
+        return cmd.format(
+            db_dir=db_dir, blastn=cfg['tools']['blastn'], fasta_file=self.fasta_outfile,
+            nt=os.path.join(db_dir, 'nt'), blast_outfile=self.blast_outfile
+        )
 
     @staticmethod
     def get_taxids(blast):
@@ -90,57 +94,34 @@ class ContaminationBlast(QualityControl):
 
         return taxon_dict
 
-    def run_sample_fastq(self, fastq_file, nb_reads):
-        self.dataset.start_stage('sample_fastq')
-        sample_fastq_command, fasta_outfile = self.sample_fastq_command(fastq_file, nb_reads)
-        sample_fastq_executor = executor.execute(
-            sample_fastq_command,
+    def run_sample_fastq(self):
+        return executor.execute(
+            self.sample_fastq_command(),
             job_name='sample_fastq',
-            working_dir=self.working_dir,
+            working_dir=self.job_dir,
             cpus=2,
             mem=10
-        )
-        exit_status = sample_fastq_executor.join()
-        self.dataset.end_stage('sample_fastq', exit_status)
-        return fasta_outfile, exit_status
+        ).join()
 
-    def run_blast(self, fasta_file):
-        self.dataset.start_stage('contamination_blast')
-        fasta_blast_command, blast_outfile = self.fasta_blast_command(fasta_file)
-        contamination_blast_executor = executor.execute(
-            fasta_blast_command,
+    def run_blast(self):
+        return executor.execute(
+            self.fasta_blast_command(),
             job_name='contamination_blast',
-            working_dir=self.working_dir,
+            working_dir=self.job_dir,
             cpus=12,
             mem=20
-        )
-        exit_status = contamination_blast_executor.join()
-        self.dataset.end_stage('contamination_blast', exit_status)
-        return blast_outfile, exit_status
+        ).join()
 
-    def check_for_contamination(self):
-        exit_status = 0
-        nb_reads = 3000
-        fasta_outfile, sample_fastq_exit_status = self.run_sample_fastq(self.fastq_file[0], nb_reads)
-        blast_outfile, blast_exit_status = self.run_blast(fasta_outfile)
-        exit_status += blast_exit_status + sample_fastq_exit_status
-        taxids = self.get_taxids(blast_outfile)
-        taxon_dict = {'Total': nb_reads}
+    def _run(self):
+        exit_status = self.run_sample_fastq()
+        exit_status += self.run_blast()
+        taxids = self.get_taxids(self.blast_outfile)
+        taxon_dict = {'Total': self.nb_reads}
         for taxon in taxids:
             taxon_dict = self.get_all_taxa_identified(taxon_dict, taxon, taxids)
+
         outpath = os.path.join(self.working_dir, 'taxa_identified.json')
         with open(outpath, 'w') as outfile:
             json.dump(taxon_dict, outfile, sort_keys=True, indent=4, separators=(',', ':'))
+
         return exit_status
-
-    def run(self):
-        try:
-            self.exit_status = self.check_for_contamination()
-        except Exception as e:
-            self.exception = e
-
-    def join(self, timeout=None):
-        super().join(timeout=timeout)
-        if self.exception:
-            raise self.exception
-        return self.exit_status

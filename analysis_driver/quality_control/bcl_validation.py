@@ -1,27 +1,33 @@
 import csv
 import time
-from os.path import join, isfile
 import illuminate
+from os.path import join, isfile
 from bitstring import ReadError
 from egcg_core import executor
 from egcg_core.util import str_join
 from analysis_driver.exceptions import AnalysisDriverError
 from analysis_driver.reader.run_info import Reads
-from .quality_control_base import QualityControl
+from analysis_driver.segmentation import Stage
 
 
-class BCLValidator(QualityControl):
-    def __init__(self, run_dir, dataset):
-        super().__init__(dataset, run_dir)
-        self.run_dir = dataset.input_dir
-        self.basecalls_dir = join(self.run_dir, 'Data', 'Intensities', 'BaseCalls')
-        self.tile_ids = dataset.run_info.tiles
-        self.ncycles = sum(Reads.num_cycles(r) for r in dataset.run_info.reads.reads)
-        self.validation_log = join(self.run_dir, 'checked_bcls.csv')
-        self.validate_expr = str_join(
+class BCLValidator(Stage):
+    @property
+    def run_dir(self):
+        return self.dataset.input_dir
+
+    @property
+    def basecalls_dir(self):
+        return join(self.run_dir, 'Data', 'Intensities', 'BaseCalls')
+
+    @property
+    def validation_log(self):
+        return join(self.run_dir, 'checked_bcls.csv')
+
+    @property
+    def validate_expr(self):
+        return str_join(
             'function check_bcl { gzip -t $1; x=$?; echo "$1,$x" >> ', self.validation_log, '; }'
         )
-        self.dataset = dataset
 
     def call_bcl_check(self):
         bcls = self.get_bcls_to_check()
@@ -42,14 +48,17 @@ class BCLValidator(QualityControl):
         checked.
         """
         all_cycles = self._all_cycles_from_interop()
-        if all_cycles and all_cycles[-1] > self.ncycles:
+        ncycles = sum(Reads.num_cycles(r) for r in self.dataset.run_info.reads.reads)
+        if all_cycles and all_cycles[-1] > ncycles:
             raise AnalysisDriverError(
-                'Number of cycles (%s) disagrees with RunInfo (%s)' % (all_cycles[-1], self.ncycles)
+                'Number of cycles (%s) disagrees with RunInfo (%s)' % (all_cycles[-1], ncycles)
             )
+
+        tile_ids = self.dataset.run_info.tiles
 
         last_completed_cycle = 0
         for c in sorted(set(all_cycles), reverse=True):
-            if all_cycles.count(c) >= len(self.tile_ids):
+            if all_cycles.count(c) >= len(tile_ids):
                 last_completed_cycle = c + 1  # compensate for zero-indexing
                 break
 
@@ -64,7 +73,7 @@ class BCLValidator(QualityControl):
         bcls_to_check = []
         for c in range(1, last_completed_cycle):
             cycle_id = 'C%s.1' % c
-            for t in self.tile_ids:
+            for t in tile_ids:
                 lane = t[0]  # 1_1101
                 lane_id = 'L00' + lane
                 bcl = join(self.basecalls_dir, lane_id, cycle_id, 's_' + t + '.bcl.gz')

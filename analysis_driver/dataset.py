@@ -316,6 +316,34 @@ class SampleDataset(Dataset):
         self._run_elements = None
         self._non_useable_run_elements = None
         self._data_threshold = data_threshold
+        self._species = None
+        self._genome_version = None
+        self._user_sample_id = None
+
+    @property
+    def species(self):
+        if self._species is None:
+            self._species = clarity.get_species_from_sample(self.name)
+        return self._species
+
+    @property
+    def genome_version(self):
+        if self._genome_version is None:
+            g = clarity.get_sample(self.name).udf.get('Genome Version')
+            if g is None:
+                g = cfg.query('species', self.species, 'default')
+            self._genome_version = g
+        return self._genome_version
+
+    @property
+    def reference_genome(self):
+        return cfg['genomes'][self.genome_version]['fasta']
+
+    @property
+    def user_sample_id(self):
+        if self._user_sample_id is None:
+            self._user_sample_id = clarity.get_user_sample_name(self.name)
+        return self._user_sample_id
 
     @property
     def run_elements(self):

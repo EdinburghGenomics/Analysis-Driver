@@ -1,4 +1,4 @@
-from os.path import join as pjoin
+from os.path import join
 from unittest.mock import patch, mock_open, call
 from analysis_driver.util.bash_commands import export_env_vars
 from tests.test_quality_control.qc_tester import QCTester
@@ -6,7 +6,6 @@ from analysis_driver.config import default as cfg
 from analysis_driver.quality_control import GenotypeValidation
 from analysis_driver.reader.mapping_stats_parsers import parse_genotype_concordance
 
-patched_rest_communication = patch('analysis_driver.dataset.rest_communication')
 patched_execute = patch('egcg_core.executor.execute')
 
 
@@ -15,18 +14,17 @@ class TestGenotypeValidation(QCTester):
         super().setUp()
         self.sample_id = 'test_sample'
         self.fastq_files = [
-            pjoin('samples', self.sample_id, 'fastq_R1.fastq.gz'),
-            pjoin('samples', self.sample_id, 'fastq_R2.fastq.gz')
+            join('samples', self.sample_id, 'fastq_R1.fastq.gz'),
+            join('samples', self.sample_id, 'fastq_R2.fastq.gz')
         ]
-        self.validator = GenotypeValidation(
-            self.dataset,
-            working_dir=pjoin(cfg['jobs_dir'], self.sample_id),
-            fastq_files=self.fastq_files
-        )
+        with patch('analysis_driver.dataset.Dataset.running_stages', new=[]):
+            self.validator = GenotypeValidation(
+                dataset=self.dataset,
+                fastq_files=self.fastq_files
+            )
 
     def test_bwa_aln(self):
         reference = cfg['genotype-validation']['reference']
-
         observed = self.validator._bwa_aln(self.fastq_files, self.sample_id, self.sample_id + '.bam', reference)
         expected = (
             "{bwa} sampe -r '@RG\\tID:1\\tSM:{sample_id}' {reference} "
@@ -45,28 +43,24 @@ class TestGenotypeValidation(QCTester):
         )
         assert observed == expected
 
-    @patched_rest_communication
     @patch('analysis_driver.quality_control.GenotypeValidation._bwa_aln', return_value='long_bwa_command')
     @patched_execute
-    def test_bwa_alignment(self, mocked_execute, mocked_bwa_aln, mocked_rest):
-        instance = mocked_execute.return_value
-        instance.join.return_value = 0
-        expected_bam = self.validator._bwa_alignment()
-        assert expected_bam == pjoin('path/to/jobs/', self.sample_id, self.sample_id + '_geno_val.bam')
+    def test_bwa_alignment(self, mocked_execute, mocked_bwa_aln):
+        self.validator._bwa_alignment()
+        assert self.validator.output_bam == join('path/to/jobs/', self.sample_id, self.sample_id + '_geno_val.bam')
         assert mocked_execute.call_count == 1
         mocked_execute.assert_called_once_with(
             'long_bwa_command',
             job_name='alignment_bwa',
             cpus=4,
-            working_dir=pjoin(cfg['jobs_dir'], self.sample_id),
+            working_dir=join(cfg['jobs_dir'], self.sample_id),
             mem=8
         )
 
-    @patched_rest_communication
     @patched_execute
-    def test_snp_calling(self, mocked_execute, mocked_rest):
-        bam_file = pjoin('path/to/bam', self.sample_id, self.sample_id + '_geno_val.bam')
-        expected_vcf = pjoin('path/to/jobs', self.sample_id, self.sample_id + '_genotype_validation.vcf.gz')
+    def test_snp_calling(self, mocked_execute):
+        bam_file = join('path/to/bam', self.sample_id, self.sample_id + '_geno_val.bam')
+        expected_vcf = join('path/to/jobs', self.sample_id, self.sample_id + '_genotype_validation.vcf.gz')
         command = ' '.join(
             ['java -Xmx4G -jar %s -T UnifiedGenotyper -nt 4' % cfg.query('tools', 'gatk'),
              '-R %s' % cfg.query('genotype-validation', 'reference'),
@@ -74,25 +68,23 @@ class TestGenotypeValidation(QCTester):
              '--standard_min_confidence_threshold_for_emitting 0',
              '-out_mode EMIT_ALL_SITES -I %s -o %s' % (bam_file, expected_vcf)]
         )
-        output_vcf = self.validator._snp_calling(bam_file)
-        assert output_vcf == expected_vcf
-        assert mocked_execute.call_count == 1
-        mocked_execute.assert_called_once_with(
+        self.validator._snp_calling(bam_file)
+        assert self.validator.seq_vcf_file == expected_vcf
+        mocked_execute.assert_called_with(
             command,
             prelim_cmds=export_env_vars(),
             job_name='snpcall_gatk',
-            working_dir=pjoin(cfg['jobs_dir'], self.sample_id),
+            working_dir=join(cfg['jobs_dir'], self.sample_id),
             cpus=4,
             mem=4
         )
 
-    @patched_rest_communication
     @patched_execute
-    def test_vcf_validation(self, mocked_execute, mocked_rest):
-        work_dir = pjoin(cfg.query('jobs_dir'), self.sample_id)
-        vcf_file = pjoin(work_dir, self.sample_id + '_expected_genotype.vcf')
-        genotype_vcf = pjoin(work_dir, self.sample_id + '_genotype_validation.vcf.gz')
-        validation_results = pjoin(work_dir, self.sample_id + '_genotype_validation.txt')
+    def test_vcf_validation(self, mocked_execute):
+        work_dir = join(cfg.query('jobs_dir'), self.sample_id)
+        vcf_file = join(work_dir, self.sample_id + '_expected_genotype.vcf')
+        genotype_vcf = join(work_dir, self.sample_id + '_genotype_validation.vcf.gz')
+        validation_results = join(work_dir, self.sample_id + '_genotype_validation.txt')
 
         sample2genotype = {self.sample_id: vcf_file}
         with patch('os.path.isfile', side_effect=[True, False]):
@@ -133,8 +125,8 @@ class TestGenotypeValidation(QCTester):
 
     def test_merge_validation_results(self):
         sample2genotype_validation = {
-            'T00001P001A01': pjoin(self.assets_path, 'sample_data', 'T00001P001A01-validation.txt'),
-            'T00001P001A02': pjoin(self.assets_path, 'sample_data', 'T00001P001A02-validation.txt')
+            'T00001P001A01': join(self.assets_path, 'sample_data', 'T00001P001A01-validation.txt'),
+            'T00001P001A02': join(self.assets_path, 'sample_data', 'T00001P001A02-validation.txt')
         }
         o1 = parse_genotype_concordance(sample2genotype_validation.get('T00001P001A01'))
         o2 = parse_genotype_concordance(sample2genotype_validation.get('T00001P001A02'))
@@ -172,9 +164,9 @@ class TestGenotypeValidation(QCTester):
 
     @patched_execute
     def test_rename_expected_genotype(self, mocked_execute):
-        genotype_vcf = pjoin('path/to/jobs', self.sample_id, self.sample_id + '_genotype_validation.vcf.gz')
+        genotype_vcf = join('path/to/jobs', self.sample_id, self.sample_id + '_genotype_validation.vcf.gz')
         sample_name = 'test_sample'
-        work_dir = pjoin(cfg['jobs_dir'], sample_name)
+        work_dir = join(cfg['jobs_dir'], sample_name)
         self.validator._rename_expected_genotype({sample_name: genotype_vcf})
         command = ('{bcftools} reheader -s <(echo {sample_name}) {genotype_vcf} > '
                    '{genotype_vcf}.tmp; mv {genotype_vcf}.tmp {genotype_vcf}').format(

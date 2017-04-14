@@ -12,7 +12,7 @@ class TestBCLValidator(TestAnalysisDriver):
             reads=Mock(reads=[Mock(attrib={'NumCycles': '3'})])
         )
         self.job_dir = os.path.join(TestAnalysisDriver.assets_path, 'bcl_validation')
-        self.val = BCLValidator(self.job_dir, Mock(input_dir=self.job_dir, run_info=run_info))
+        self.val = BCLValidator(dataset=Mock(input_dir=self.job_dir, run_info=run_info))
         if os.path.isfile(self.val.validation_log):
             os.remove(self.val.validation_log)
 
@@ -43,7 +43,7 @@ class TestBCLValidator(TestAnalysisDriver):
         ]
         assert sorted(obs) == sorted(exp)
 
-    @patch('analysis_driver.quality_control.bcl_validation.executor.execute', return_value=Mock(join=Mock(return_value=0)))
+    @patch('analysis_driver.quality_control.bcl_validation.executor.execute')
     def test_run_bcl_check(self, mocked_execute):
         with patch('analysis_driver.quality_control.BCLValidator._all_cycles_from_interop',
                    return_value=[1, 1, 1, 1]):
@@ -90,13 +90,18 @@ class TestBCLValidator(TestAnalysisDriver):
         open(os.path.join(interop_dir, 'ExtractionMetricsOut.bin'), 'w').close()
         assert self.val._all_cycles_from_interop() == []  # empty ExtractionMetrics
 
-    @patch('analysis_driver.quality_control.bcl_validation.executor.execute', return_value=Mock(join=Mock(return_value=0)))
     @patch('analysis_driver.quality_control.BCLValidator.call_bcl_check')
-    def test_check_bcls(self, mocked_check_bcls, mocked_execute):
-        with patch('analysis_driver.quality_control.BCLValidator._all_cycles_from_interop',
-                   return_value=[1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3]):
-            with patch('analysis_driver.quality_control.bcl_validation.time.sleep'):
-                self.val.dataset.is_sequencing = Mock(side_effect=[True, True, False])
-                self.val.check_bcls()
-                assert mocked_check_bcls.called is True
-                assert mocked_check_bcls.call_count == 3
+    def test_check_bcls(self, mocked_check_bcls):
+        patched_cycles = patch(
+            'analysis_driver.quality_control.BCLValidator._all_cycles_from_interop',
+            return_value=[1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3]
+        )
+        patched_execute = patch(
+            'analysis_driver.quality_control.bcl_validation.executor.execute',
+            return_value=Mock(join=Mock(return_value=0))
+        )
+        with patched_cycles, patched_execute, patch('time.sleep'):
+            self.val.dataset.is_sequencing = Mock(side_effect=[True, True, False])
+            self.val.check_bcls()
+            assert mocked_check_bcls.called is True
+            assert mocked_check_bcls.call_count == 3

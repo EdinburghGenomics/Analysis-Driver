@@ -1,4 +1,5 @@
 import luigi
+from os.path import join
 from egcg_core.app_logging import AppLogger
 from analysis_driver.exceptions import PipelineError
 from analysis_driver.config import default as cfg
@@ -17,10 +18,13 @@ class EGCGParameter(luigi.Parameter):
 
 class BasicStage(luigi.Task, AppLogger):
     __stagename__ = None
-    previous_stages = []
     exit_status = None
 
+    previous_stages = luigi.ListParameter(default=[])
     dataset = EGCGParameter()
+
+    def output(self):
+        return [luigi.LocalTarget(join(self.job_dir, '.' + self.stage_name + '.stage'))]
 
     @property
     def stage_name(self):
@@ -43,6 +47,10 @@ class BasicStage(luigi.Task, AppLogger):
                 cls, config = s
                 yield cls(dataset=self.dataset, **config)
 
+    @property
+    def job_dir(self):
+        return join(cfg['jobs_dir'], self.dataset.name)
+
 
 class Stage(BasicStage):
     def output(self):
@@ -56,10 +64,6 @@ class Stage(BasicStage):
             raise PipelineError('Exit status was %s. Stopping' % self.exit_status)
 
         self.info('Finished stage %s' % self.stage_name)
-
-    @property
-    def job_dir(self):
-        return join(cfg['jobs_dir'], self.dataset.name)
 
     @property
     def input_dir(self):
@@ -83,7 +87,7 @@ class RestAPITarget(luigi.Target):
 
 
 # example Luigi workflow
-from os.path import join, dirname
+from os.path import dirname
 from analysis_driver.dataset import NoCommunicationDataset
 
 

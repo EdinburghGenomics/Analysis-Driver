@@ -1,52 +1,29 @@
 import os
+from luigi import Parameter
 from egcg_core import executor
 from analysis_driver.config import default as cfg
-from .quality_control_base import QualityControl
+from analysis_driver.segmentation import Stage
 
 
-class SamtoolsDepth(QualityControl):
-    def __init__(self, dataset, working_dir, bam_file):
-        super().__init__(dataset, working_dir)
-        self.bam_file = bam_file
-        self.working_dir = working_dir
-        self.median_coverage_expected_outfiles = None
+class SamtoolsDepth(Stage):
+    bam_file = Parameter()
 
-    def _get_samtools_depth_command(self):
-        samtools_bin = cfg['tools']['samtools']
-        name, ext = os.path.splitext(self.bam_file)
-        samtools_depth_out_file = name + '.depth'
-        samtools_depth_command = (
+    @property
+    def samtools_depth_out_file(self):
+        return os.path.splitext(self.bam_file)[0] + '.depth'
+
+    def _samtools_depth_command(self):
+        return (
             '%s depth -a -a -q 0 -Q 0 %s | '
             'awk -F "\t" \'{array[$1"\t"$3]+=1} END{for (val in array){print val"\t"array[val]}}\' | '
             'sort -k 1,1 -nk 2,2 > %s'
-        ) % (samtools_bin, self.bam_file, samtools_depth_out_file)
-        return samtools_depth_command, samtools_depth_out_file
+        ) % (cfg['tools']['samtools'], self.bam_file, self.samtools_depth_out_file)
 
-    def _run_samtools_depth(self):
-        """
-        :return string: the expected outfile from samtools depth
-        """
-        samtools_depth_command, samtools_depth_out_file = self._get_samtools_depth_command()
-        self.dataset.start_stage('run_samtools_depth')
-        samtools_depth_executor = executor.execute(
-            samtools_depth_command,
+    def _run(self):
+        return executor.execute(
+            self._samtools_depth_command(),
             job_name='samtoolsdepth',
-            working_dir=self.working_dir,
+            working_dir=self.job_dir,
             cpus=1,
             mem=6
-        )
-        exit_status = samtools_depth_executor.join()
-        self.dataset.end_stage('run_samtools_depth', exit_status)
-        return samtools_depth_out_file
-
-    def run(self):
-        try:
-            self.median_coverage_expected_outfiles = self._run_samtools_depth()
-        except Exception as e:
-            self.exception = e
-
-    def join(self, timeout=None):
-        super().join(timeout=timeout)
-        if self.exception:
-            raise self.exception
-        return self.median_coverage_expected_outfiles
+        ).join()

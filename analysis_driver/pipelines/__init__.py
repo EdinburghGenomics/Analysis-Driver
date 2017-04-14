@@ -5,9 +5,8 @@ from egcg_core.config import cfg
 from analysis_driver import segmentation
 from analysis_driver.dataset_scanner import RunDataset, SampleDataset, ProjectDataset
 from analysis_driver.exceptions import PipelineError
-from analysis_driver.pipelines import demultiplexing
+from analysis_driver.pipelines import demultiplexing, bcbio_pipelines
 from analysis_driver.pipelines.qc_pipelines import qc_pipeline
-from analysis_driver.pipelines.bcbio_pipelines import bcbio_var_calling_pipeline
 from analysis_driver.pipelines.variant_calling import var_calling_pipeline
 from analysis_driver.pipelines.projects import project_pipeline
 
@@ -24,7 +23,7 @@ def pipeline(d):
         if species is None:
             raise PipelineError('No species information found in the LIMS for ' + d.name)
         elif species == 'Homo sapiens':
-            final_stage = BCBioVarCalling(dataset=d, species=species, analysis_type=analysis_type)
+            final_stage = bcbio_pipelines.Cleanup(dataset=d, species=species, analysis_type=analysis_type)
         elif analysis_type == 'Variant Calling':
             final_stage = VarCalling(dataset=d, species=species)
         else:
@@ -42,14 +41,6 @@ def pipeline(d):
 
     luigi.build(**luigi_params)
     return final_stage.exit_status
-
-
-class BCBioVarCalling(segmentation.BasicStage):
-    species = segmentation.EGCGParameter()
-    analysis_type = segmentation.EGCGParameter()
-
-    def run(self):
-        self.exit_status = bcbio_var_calling_pipeline(self.dataset, self.species, self.analysis_type)
 
 
 class VarCalling(segmentation.BasicStage):
