@@ -5,9 +5,7 @@ from egcg_core.config import cfg
 from analysis_driver import segmentation
 from analysis_driver.dataset_scanner import RunDataset, SampleDataset, ProjectDataset
 from analysis_driver.exceptions import PipelineError
-from analysis_driver.pipelines import demultiplexing, bcbio_pipelines
-from analysis_driver.pipelines.qc_pipelines import qc_pipeline
-from analysis_driver.pipelines.variant_calling import var_calling_pipeline
+from analysis_driver.pipelines import demultiplexing, bcbio, qc, variant_calling
 from analysis_driver.pipelines.projects import project_pipeline
 
 
@@ -16,18 +14,18 @@ def pipeline(d):
     log_cfg.get_logger('luigi-interface', 10)  # just calling log_cfg.get_logger registers the luigi-interface
 
     if isinstance(d, RunDataset):
-        final_stage = demultiplexing.Cleanup(dataset=d)
+        final_stage = demultiplexing.build_pipeline(d)
     elif isinstance(d, SampleDataset):
         species = clarity.get_species_from_sample(d.name)
         analysis_type = clarity.get_sample(d.name).udf.get('Analysis Type')
         if species is None:
             raise PipelineError('No species information found in the LIMS for ' + d.name)
         elif species == 'Homo sapiens':
-            final_stage = bcbio_pipelines.Cleanup(dataset=d, species=species, analysis_type=analysis_type)
+            final_stage = bcbio.build_pipeline(d)
         elif analysis_type == 'Variant Calling':
-            final_stage = VarCalling(dataset=d, species=species)
+            final_stage = variant_calling.build_pipeline(d)
         else:
-            final_stage = QC(dataset=d, species=species)
+            final_stage = qc.build_pipeline(d)
     elif isinstance(d, ProjectDataset):
         final_stage = Project(dataset=d)
     else:
@@ -41,20 +39,6 @@ def pipeline(d):
 
     luigi.build(**luigi_params)
     return final_stage.exit_status
-
-
-class VarCalling(segmentation.BasicStage):
-    species = segmentation.EGCGParameter()
-
-    def run(self):
-        self.exit_status = var_calling_pipeline(self.dataset, self.species)
-
-
-class QC(segmentation.BasicStage):
-    species = segmentation.EGCGParameter()
-
-    def run(self):
-        self.exit_status = qc_pipeline(self.dataset, self.species)
 
 
 class Project(segmentation.BasicStage):

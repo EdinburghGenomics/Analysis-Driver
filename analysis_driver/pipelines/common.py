@@ -6,10 +6,87 @@ from analysis_driver.util import bash_commands, bcbio_prepare_samples_cmd
 from egcg_core.app_logging import logging_default as log_cfg
 from analysis_driver.config import output_files_config, default as cfg
 from analysis_driver.report_generation.report_crawlers import SampleCrawler
-from analysis_driver.transfer_data import output_sample_data, create_links_from_bcbio
+from analysis_driver.transfer_data import output_sample_data, create_links_from_bcbio, prepare_sample_data
 from analysis_driver.exceptions import PipelineError
-
+from analysis_driver import quality_control as qc
+from analysis_driver import segmentation
 app_logger = log_cfg.get_logger('common')
+
+
+class VarCallingStage(segmentation.Stage):
+    @property
+    def fastq_pair(self):
+        return util.find_files(self.job_dir, 'merged', self.dataset.user_sample_id + '_R?.fastq.gz')
+
+    @property
+    def expected_output_bam(self):
+        return os.path.join(self.job_dir, self.dataset.name + '.bam')
+
+
+class MergeFastqs(VarCallingStage):
+    def _run(self):
+        fastq_files = prepare_sample_data(self.dataset)
+        bcbio_prepare_sample(self.job_dir, self.dataset.name, fastq_files)
+        return 0
+
+
+class FastQC(VarCallingStage):
+    def _run(self):
+        return executor.execute(
+            *[bash_commands.fastqc(fastq_file) for fastq_file in self.fastq_pair],
+            job_name='fastqc',
+            working_dir=self.job_dir,
+            cpus=1,
+            mem=2
+        ).join()
+
+
+class BWAMem(VarCallingStage):
+    def _run(self):
+        return executor.execute(
+            bash_commands.bwa_mem_biobambam(
+                self.fastq_pair,
+                self.dataset.reference_genome,
+                self.expected_output_bam,
+                {'ID': '1', 'SM': self.dataset.user_sample_id, 'PL': 'illumina'},
+                thread=16
+            ),
+            job_name='bwa_mem',
+            working_dir=self.job_dir,
+            cpus=16,
+            mem=64
+        ).join()
+
+
+class SamtoolsStats(VarCallingStage):
+    def _run(self):
+        return executor.execute(
+            bash_commands.samtools_stats(
+                self.expected_output_bam,
+                os.path.join(self.job_dir, 'samtools_stats.txt')
+            ),
+            job_name='samtools',
+            working_dir=self.job_dir,
+            cpus=1,
+            mem=8,
+            log_commands=False
+        ).join()
+
+
+def build_bam_file_production(dataset):
+
+    def stage(cls, **params):
+        return cls(dataset=dataset, **params)
+
+    merge_fastqs = stage(MergeFastqs)
+    fastqc = stage(FastQC, previous_stages=[merge_fastqs])
+    bwa = stage(BWAMem, previous_stages=[MergeFastqs])
+    contam = stage(qc.ContaminationCheck, previous_stages=[bwa], fastq_files=bwa.fastq_pair[:1])
+    blast = stage(qc.ContaminationBlast, previous_stages=[bwa], fastq_file=bwa.fastq_pair[0])
+    samtools_stat = stage(SamtoolsStats, previous_stages=[fastqc, bwa, contam, blast])
+    samtools_depth = stage(qc.SamtoolsDepth, bam_file=bwa.expected_output_bam)
+
+    return [samtools_stat, samtools_depth]
 
 
 def link_results_files(sample_id, sample_dir, output_fileset):

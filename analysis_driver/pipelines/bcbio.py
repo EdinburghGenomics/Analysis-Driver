@@ -4,58 +4,16 @@ from egcg_core import executor, clarity, util
 from analysis_driver import segmentation
 from analysis_driver import quality_control as qc
 from analysis_driver.exceptions import PipelineError
-from analysis_driver.pipelines.common import bcbio_prepare_sample, link_results_files, output_data, cleanup
+from analysis_driver.pipelines import common
 from analysis_driver.util import bash_commands
 from analysis_driver.config import default as cfg
 from analysis_driver.reader.version_reader import write_versions_to_yaml
-from analysis_driver.transfer_data import prepare_sample_data
 
 
 class BCBioStage(segmentation.Stage):
     @property
     def fastq_pair(self):
         return util.find_files(self.job_dir, 'merged', self.dataset.user_sample_id + '_R?.fastq.gz')
-
-
-class MergeFastqs(BCBioStage):
-    def _run(self):
-        fastq_files = prepare_sample_data(self.dataset)
-        bcbio_prepare_sample(self.job_dir, self.dataset.name, fastq_files)
-        return 0
-
-
-class FastQC(BCBioStage):
-    previous_stages = [MergeFastqs]
-
-    def _run(self):
-        return executor.execute(
-            *[bash_commands.fastqc(fastq_file) for fastq_file in self.fastq_pair],
-            job_name='fastqc2',
-            working_dir=self.job_dir,
-            cpus=1,
-            mem=2
-        ).join()
-
-
-class BCBioAndQC(segmentation.BasicStage):
-    previous_stages = [
-        (FastQC, {'previous_stages': [FastQC]}),
-        (qc.ContaminationCheck, {'previous_stages': [FastQC]}),
-        (qc.ContaminationBlast, {'previous_stages': [FastQC]}),
-        (qc.GenotypeValidation, {'previous_stages': [FastQC]}),
-        (BCBio, {'previous_stages': [FastQC]})
-    ]
-
-
-class PostBCBioQC(segmentation.BasicStage):
-    @property
-    def previous_stages(self):
-        return [
-            (qc.GenderValidation, {'vcf_file': self.vcf_file, 'previous_stages': BCBioAndQC}),
-            (qc.VCFStats, {'vcf_file': self.vcf_file, 'previous_stages': BCBioAndQC}),
-            (qc.VerifyBamID, {'bam_file': self.bam_file, 'previous_stages': BCBioAndQC}),
-            (qc.SamtoolsDepth, {'bam_file': self.bam_file, 'previous_stages': BCBioAndQC})
-        ]
 
     @property
     def vcf(self):
@@ -78,20 +36,16 @@ class PostBCBioQC(segmentation.BasicStage):
 
 
 class Output(BCBioStage):
-    previous_stages = [PostBCBioQC]
-
     def _run(self):
         # link the bcbio file into the final directory
-        dir_with_linked_files = link_results_files(self.dataset.name, self.job_dir, 'bcbio')
+        dir_with_linked_files = common.link_results_files(self.dataset.name, self.job_dir, 'bcbio')
         write_versions_to_yaml(os.path.join(dir_with_linked_files, 'program_versions.yaml'))
-        return output_data(self.dataset, self.job_dir, self.dataset.name, dir_with_linked_files)
+        return common.output_data(self.dataset, self.job_dir, self.dataset.name, dir_with_linked_files)
 
 
 class Cleanup(BCBioStage):
-    previous_stages = [Output]
-
     def _run(self):
-        return cleanup(self.dataset.name)
+        return common.cleanup(self.dataset.name)
 
 
 class BCBio(BCBioStage):
@@ -155,3 +109,28 @@ class BCBio(BCBioStage):
         )
         os.chdir(original_dir)
         return bcbio_executor.join()
+
+
+def build_pipeline(dataset):
+
+    def stage(cls, **params):
+        return cls(dataset=dataset, **params)
+
+    merge_fastqs = stage(common.MergeFastqs)
+    fastqc = stage(common.FastQC, previous_stages=[merge_fastqs])
+    contam_check = stage(qc.ContaminationCheck, previous_stages=[fastqc])
+    blast = stage(qc.ContaminationBlast, previous_stages=[fastqc])
+    geno_val = stage(qc.GenotypeValidation, previous_stages=[fastqc])
+    bcbio = stage(BCBio, previous_stages=[fastqc])
+    bcbio_and_qc = [bcbio, fastqc, contam_check, blast, geno_val]
+
+    gender_val = stage(qc.GenderValidation, vcf_file=bcbio.vcf_file, previous_stages=bcbio_and_qc),
+    vcfstats = stage(qc.VCFStats, vcf_file=bcbio.vcf_file, previous_stages=bcbio_and_qc),
+    verify_bam_id = stage(qc.VerifyBamID, bam_file=bcbio.bam_file, previous_stages=bcbio_and_qc),
+    samtools_depth = stage(qc.SamtoolsDepth, bam_file=bcbio.bam_file, previous_stages=bcbio_and_qc)
+    post_bcbio_qc = [gender_val, vcfstats, verify_bam_id, samtools_depth]
+
+    output = stage(Output, previous_stages=post_bcbio_qc)
+    cleanup = stage(Cleanup, previous_stages=[output])
+
+    return cleanup

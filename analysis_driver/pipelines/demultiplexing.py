@@ -46,8 +46,6 @@ class Setup(DemultiplexingStage):
 
 
 class Bcl2FastqAndFilter(DemultiplexingStage):
-    previous_stages = [Setup]
-
     def _run(self):
         self.info('bcl2fastq mask: ' + self.dataset.mask)  # e.g: mask = 'y150n,i6,y150n'
         bcl2fastq_exit_status = executor.execute(
@@ -79,8 +77,6 @@ class Bcl2FastqAndFilter(DemultiplexingStage):
 
 
 class WellDuplicates(DemultiplexingStage):
-    previous_stages = [Setup]
-
     def _run(self):
         well_dup_exec = lane_duplicates.WellDuplicates(self.dataset, self.job_dir, self.fastq_dir, self.input_dir)
         well_dup_exec.start()
@@ -88,8 +84,6 @@ class WellDuplicates(DemultiplexingStage):
 
 
 class IntegrityCheck(DemultiplexingStage):
-    previous_stages = [Bcl2FastqAndFilter]
-
     def _run(self):
         return executor.execute(
             *[bash_commands.gzip_test(fq) for fq in util.find_all_fastqs(self.fastq_dir)],
@@ -101,8 +95,6 @@ class IntegrityCheck(DemultiplexingStage):
 
 
 class FastQC(DemultiplexingStage):
-    previous_stages = [Bcl2FastqAndFilter]
-
     def _run(self):
         return executor.execute(
             *[bash_commands.fastqc(fq) for fq in util.find_all_fastqs(self.fastq_dir)],
@@ -114,8 +106,6 @@ class FastQC(DemultiplexingStage):
 
 
 class SeqtkFQChk(DemultiplexingStage):
-    previous_stages = [Bcl2FastqAndFilter]
-
     def _run(self):
         return executor.execute(
             *[bash_commands.seqtk_fqchk(fq) for fq in util.find_all_fastqs(self.fastq_dir)],
@@ -128,8 +118,6 @@ class SeqtkFQChk(DemultiplexingStage):
 
 
 class MD5Sum(DemultiplexingStage):
-    previous_stages = [Bcl2FastqAndFilter]
-
     def _run(self):
         return executor.execute(
             *[bash_commands.md5sum(fq) for fq in util.find_all_fastqs(self.fastq_dir)],
@@ -142,8 +130,6 @@ class MD5Sum(DemultiplexingStage):
 
 
 class QCOutput(DemultiplexingStage):
-    previous_stages = [WellDuplicates, IntegrityCheck, FastQC, SeqtkFQChk, MD5Sum]
-
     def _run(self):
         # Find conversion xml file and adapter file, and send the results to the rest API
         conversion_xml = join(self.fastq_dir, 'Stats', 'ConversionStats.xml')
@@ -163,15 +149,30 @@ class QCOutput(DemultiplexingStage):
 
 
 class DataOutput(DemultiplexingStage):
-    previous_stages = [QCOutput]
-
     def _run(self):
         write_versions_to_yaml(join(self.fastq_dir, 'program_versions.yaml'))
         return output_run_data(self.fastq_dir, self.dataset.name)
 
 
 class Cleanup(DemultiplexingStage):
-    previous_stages = [DataOutput]
-
     def _run(self):
         return cleanup(self.dataset.name)
+
+
+def build_pipeline(dataset):
+
+    def stage(cls, **params):
+        return cls(dataset=dataset, **params)
+
+    setup = stage(Setup)
+    bcl2fastq = stage(Bcl2FastqAndFilter, previous_stages=[setup])
+    welldups = stage(WellDuplicates, previous_stages=[setup])
+    integrity_check = stage(IntegrityCheck, previous_stages=[bcl2fastq])
+    fastqc = stage(FastQC, previous_stages=[bcl2fastq])
+    seqtk = stage(SeqtkFQChk, previous_stages=[bcl2fastq])
+    md5 = stage(MD5Sum, previous_stages=[bcl2fastq])
+    qc_output = stage(QCOutput, previous_stages=[welldups, integrity_check, fastqc, seqtk, md5])
+    data_output = stage(DataOutput, previous_stages=qc_output)
+    _cleanup = stage(Cleanup, previous_stages=data_output)
+
+    return _cleanup
