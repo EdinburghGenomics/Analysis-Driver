@@ -23,34 +23,26 @@ class TestBCLValidator(TestAnalysisDriver):
 
         mocked_cycles.return_value.extend([1, 2, 2, 2])  # completed cycle 1, but not cycle 2
         assert self.val.get_bcls_to_check() == [
-            os.path.join(self.val.basecalls_dir, f)
-            for f in ('L001/C1.1/s_1_1101.bcl.gz', 'L002/C1.1/s_2_1101.bcl.gz',
-                      'L001/C1.1/s_1_1102.bcl.gz', 'L002/C1.1/s_2_1102.bcl.gz')
+            'L001/C1.1/s_1_1101.bcl.gz', 'L002/C1.1/s_2_1101.bcl.gz',
+            'L001/C1.1/s_1_1102.bcl.gz', 'L002/C1.1/s_2_1102.bcl.gz'
         ]
 
         mocked_cycles.return_value.extend([2, 3, 3, 3, 3])
         obs = self.val.get_bcls_to_check()
         exp = [
-            os.path.join(self.val.basecalls_dir, f)
-            for f in (
-                'L001/C1.1/s_1_1101.bcl.gz', 'L001/C1.1/s_1_1102.bcl.gz',
-                'L001/C2.1/s_1_1101.bcl.gz', 'L001/C2.1/s_1_1102.bcl.gz',
-                'L001/C3.1/s_1_1101.bcl.gz', 'L001/C3.1/s_1_1102.bcl.gz',
-                'L002/C1.1/s_2_1101.bcl.gz', 'L002/C1.1/s_2_1102.bcl.gz',
-                'L002/C2.1/s_2_1101.bcl.gz', 'L002/C2.1/s_2_1102.bcl.gz',
-                'L002/C3.1/s_2_1101.bcl.gz', 'L002/C3.1/s_2_1102.bcl.gz'
-            )
+            'L001/C1.1/s_1_1101.bcl.gz', 'L001/C1.1/s_1_1102.bcl.gz',
+            'L001/C2.1/s_1_1101.bcl.gz', 'L001/C2.1/s_1_1102.bcl.gz',
+            'L001/C3.1/s_1_1101.bcl.gz', 'L001/C3.1/s_1_1102.bcl.gz',
+            'L002/C1.1/s_2_1101.bcl.gz', 'L002/C1.1/s_2_1102.bcl.gz',
+            'L002/C2.1/s_2_1101.bcl.gz', 'L002/C2.1/s_2_1102.bcl.gz',
+            'L002/C3.1/s_2_1101.bcl.gz', 'L002/C3.1/s_2_1102.bcl.gz'
         ]
         assert sorted(obs) == sorted(exp)
 
     @patch('analysis_driver.quality_control.bcl_validation.executor.execute', return_value=Mock(join=Mock(return_value=0)))
     def test_run_bcl_check(self, mocked_execute):
         with patch('analysis_driver.quality_control.BCLValidator._all_cycles_from_interop',
-                   return_value=[
-                       1, 1, 1, 1,
-                       2, 2, 2, 2,
-                       3, 3, 3, 3
-                   ]):
+                   return_value=[1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3]):
             bcls = self.val.get_bcls_to_check()
         self.val.run_bcl_check(bcls, slice_size=2, max_job_number=5)
 

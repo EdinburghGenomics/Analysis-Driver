@@ -99,14 +99,14 @@ class BCLValidator(QualityControl):
 
     def run_bcl_check_local(self, bcls, parallel=True):
         """Run bcl checks locally through ArrayExecutor."""
-        e = executor.ArrayExecutor(['gzip -t ' + f for f in bcls], stream=parallel)
+        e = executor.ArrayExecutor(['gzip -t ' + join(self.basecalls_dir, f) for f in bcls], stream=parallel)
         e.start()
         e.join()
 
         with open(self.validation_log, 'a') as f:
             # cmds and e.executors are in the same order, so zip produces corresponding bcls/exit statuses
             for bcl, exit_status in zip(bcls, e.exit_statuses):
-                f.write('%s,%s\n' % (bcl, exit_status))
+                f.write('%s,%s\n' % (join(self.basecalls_dir, bcl), exit_status))
 
     def read_invalid_files(self):
         with open(self.validation_log, 'r', newline='') as f:
