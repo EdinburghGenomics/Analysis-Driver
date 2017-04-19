@@ -19,7 +19,7 @@ class BCLValidator(QualityControl):
         self.ncycles = sum(Reads.num_cycles(r) for r in dataset.run_info.reads.reads)
         self.validation_log = join(self.run_dir, 'checked_bcls.csv')
         self.validate_expr = str_join(
-            'function check_bcl { gzip -t ', self.basecalls_dir, '/${1}; x=$?; echo "$1,$x" >> ', self.validation_log, '; }'
+            'function check_bcl { f=', self.basecalls_dir, '/${1}; gzip -t $f; x=$?; echo "$f,$x" >> ', self.validation_log, '; }'
         )
         self.dataset = dataset
 
