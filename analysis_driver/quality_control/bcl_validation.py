@@ -11,22 +11,22 @@ from .quality_control_base import QualityControl
 
 
 class BCLValidator(QualityControl):
-    def __init__(self, run_dir, dataset):
-        super().__init__(dataset, run_dir)
+    def __init__(self, job_dir, dataset):
+        super().__init__(dataset, job_dir)
         self.run_dir = dataset.input_dir
         self.basecalls_dir = join(self.run_dir, 'Data', 'Intensities', 'BaseCalls')
         self.tile_ids = dataset.run_info.tiles
         self.ncycles = sum(Reads.num_cycles(r) for r in dataset.run_info.reads.reads)
         self.validation_log = join(self.run_dir, 'checked_bcls.csv')
         self.validate_expr = str_join(
-            'function check_bcl { gzip -t $1; x=$?; echo "$1,$x" >> ', self.validation_log, '; }'
+            'function check_bcl { gzip -t ', self.basecalls_dir, '/${1}; x=$?; echo "$1,$x" >> ', self.validation_log, '; }'
         )
         self.dataset = dataset
 
     def call_bcl_check(self):
         bcls = self.get_bcls_to_check()
         if bcls:
-            self.run_bcl_check(bcls, self.run_dir)
+            self.run_bcl_check(bcls)
 
     def check_bcls(self):
         while self.dataset.is_sequencing():
@@ -46,7 +46,6 @@ class BCLValidator(QualityControl):
             raise AnalysisDriverError(
                 'Number of cycles (%s) disagrees with RunInfo (%s)' % (all_cycles[-1], self.ncycles)
             )
-
         last_completed_cycle = 0
         for c in sorted(set(all_cycles), reverse=True):
             if all_cycles.count(c) >= len(self.tile_ids):
@@ -67,32 +66,35 @@ class BCLValidator(QualityControl):
             for t in self.tile_ids:
                 lane = t[0]  # 1_1101
                 lane_id = 'L00' + lane
-                bcl = join(self.basecalls_dir, lane_id, cycle_id, 's_' + t + '.bcl.gz')
+                bcl = join(lane_id, cycle_id, 's_' + t + '.bcl.gz')
                 if bcl not in validated_bcls:
                     bcls_to_check.append(bcl)
 
         self.info('Will check %s bcls up to cycle %s', len(bcls_to_check), last_completed_cycle - 1)
         return bcls_to_check
 
-    def run_bcl_check(self, bcls, job_dir, slice_size=50):
+    def run_bcl_check(self, bcls, slice_size=50, max_job_number=500):
         """
         Run bcl checks through executor.execute. Commands will be collapsed to 50 sequential commands per
         array job so we don't spam the resource manager with 200,000 commands at once.
         """
-        sliced_job_array = [
-            ['check_bcl %s' % join(self.basecalls_dir, f) for f in bcls[start:start+slice_size]]
-            for start in range(0, len(bcls), slice_size)
-        ]
+        max_nb_bcl = max_job_number * slice_size
+        for i in range(0, len(bcls), max_nb_bcl):
+            tmp_bcls = bcls[i:i + max_nb_bcl]
+            sliced_job_array = [
+                ['check_bcl %s' % f for f in tmp_bcls[start:start+slice_size]]
+                for start in range(0, len(tmp_bcls), slice_size)
+            ]
 
-        executor.execute(
-            *['\n'.join(cmd_slice) for cmd_slice in sliced_job_array],
-            prelim_cmds=[self.validate_expr],
-            job_name='bcl_validation',
-            working_dir=job_dir,
-            log_commands=False,
-            cpus=1,
-            mem=6
-        ).join()
+            executor.execute(
+                *['\n'.join(cmd_slice) for cmd_slice in sliced_job_array],
+                prelim_cmds=[self.validate_expr],
+                job_name='bcl_validation',
+                working_dir=self.working_dir,
+                log_commands=False,
+                cpus=1,
+                mem=6
+            ).join()
         self.info('Finished validation. Check validation log for exit statuses per file.')
 
     def run_bcl_check_local(self, bcls, parallel=True):
