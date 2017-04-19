@@ -4,7 +4,7 @@ Changelog for Analysis-Driver
 0.15 (unreleased)
 -----------------
 
-- Nothing changed yet.
+- Fix BCL validation bug in previous version
 
 
 0.14 (2017-04-18)
