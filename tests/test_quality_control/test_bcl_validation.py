@@ -1,7 +1,6 @@
 import os
 from unittest.mock import Mock, patch, call
 from tests.test_analysisdriver import TestAnalysisDriver
-from egcg_core import executor
 from analysis_driver.quality_control import BCLValidator
 
 
@@ -44,7 +43,7 @@ class TestBCLValidator(TestAnalysisDriver):
         with patch('analysis_driver.quality_control.BCLValidator._all_cycles_from_interop',
                    return_value=[1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3]):
             bcls = self.val.get_bcls_to_check()
-        self.val.run_bcl_check(bcls, slice_size=2, max_job_number=5)
+        self.val.run_bcl_check(bcls, self.job_dir, slice_size=2, max_job_number=5)
 
         assert mocked_execute.call_count == 2
         call_1 = call(
@@ -69,19 +68,7 @@ class TestBCLValidator(TestAnalysisDriver):
             cpus=1,
             mem=6
         )
-        mocked_execute.assert_has_calls([call_1, call_2])
-
-        e = executor.SlurmExecutor(
-            '\n'.join('check_bcl ' + os.path.join(self.job_dir, f) for f in bcls[:2]),
-            '\n'.join('check_bcl ' + os.path.join(self.job_dir, f) for f in bcls[2:]),
-            prelim_cmds=[self.val.validate_expr],
-            job_name='bcl_validation',
-            working_dir=self.job_dir,
-            log_commands=False,
-            cpus=1,
-            mem=6
-        )
-        e.write_script()
+        mocked_execute.assert_has_calls([call_1, call().join(), call_2, call().join()])
 
     def test_run_bcl_check_local(self):
         with patch('analysis_driver.quality_control.BCLValidator._all_cycles_from_interop',

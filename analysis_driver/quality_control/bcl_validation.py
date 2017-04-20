@@ -32,7 +32,7 @@ class BCLValidator(Stage):
     def call_bcl_check(self):
         bcls = self.get_bcls_to_check()
         if bcls:
-            self.run_bcl_check(bcls)
+            self.run_bcl_check(bcls, self.run_dir)
 
     def check_bcls(self):
         while self.dataset.is_sequencing():
@@ -83,7 +83,7 @@ class BCLValidator(Stage):
         self.info('Will check %s bcls up to cycle %s', len(bcls_to_check), last_completed_cycle - 1)
         return bcls_to_check
 
-    def run_bcl_check(self, bcls, slice_size=50, max_job_number=500):
+    def run_bcl_check(self, bcls, job_dir, slice_size=50, max_job_number=500):
         """
         Run bcl checks through executor.execute. Commands will be collapsed to 50 sequential commands per
         array job so we don't spam the resource manager with 200,000 commands at once.
@@ -100,7 +100,7 @@ class BCLValidator(Stage):
                 *['\n'.join(cmd_slice) for cmd_slice in sliced_job_array],
                 prelim_cmds=[self.validate_expr],
                 job_name='bcl_validation',
-                working_dir=self.working_dir,
+                working_dir=job_dir,
                 log_commands=False,
                 cpus=1,
                 mem=6
