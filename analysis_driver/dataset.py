@@ -303,7 +303,7 @@ class RunDataset(Dataset):
             return True
         # force the LIMS to update the RunStatus rather than passing the same cached RunStatus
         self.lims_run.get(force=True)
-        return self.lims_run.udf.get('Run Status') == 'RunStarted'
+        return self.lims_run.udf.get('Run Status') in ['RunStarted', 'RunPaused']
 
 
 class SampleDataset(Dataset):
