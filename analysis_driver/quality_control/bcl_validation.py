@@ -100,10 +100,10 @@ class BCLValidator(QualityControl):
                 mem=6
             ).join()
 
-        # Merge the valid bcl and the tested bcls
-        valid_bcls = self.read_valid_files()
+        # Merge the valid bcls and the tested bcls
         with open(self.validation_log, 'w') as f:
-            f.write('\n'.join(['%s,0' % bcl for bcl in valid_bcls]) + '\n')
+            for bcl in self.read_valid_files():
+                f.write('%s,0\n' % (bcl))
             if isfile(validation_log_tmp):
                 for bcl, exit_status in self.read_check_bcl_files(validation_log_tmp):
                     f.write('%s,%s\n' % (bcl), exit_status)
@@ -113,14 +113,17 @@ class BCLValidator(QualityControl):
         if not validation_log:
             validation_log = self.validation_log
         with open(validation_log, 'r', newline='') as f:
-            return csv.reader(f, delimiter=',')
+            return [i for i in csv.reader(f, delimiter=',')]
 
     def read_invalid_files(self):
-        return [bcl for bcl, exit_status in self.read_check_bcl_files() if int(exit_status) != 0]
+        if isfile(self.validation_log):
+            return [bcl for bcl, exit_status in self.read_check_bcl_files() if int(exit_status) != 0]
+        else:
+            return []
 
     def read_valid_files(self):
         if isfile(self.validation_log):
-            return [bcl for bcl, exit_status in self.read_check_bcl_files() if int(exit_status) != 0]
+            return [bcl for bcl, exit_status in self.read_check_bcl_files() if int(exit_status) == 0]
         else:
             return []
 
