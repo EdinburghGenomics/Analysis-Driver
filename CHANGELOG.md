@@ -1,7 +1,19 @@
 Changelog for Analysis-Driver
 =============================
 
-0.14 (unreleased)
+0.15 (unreleased)
+-----------------
+
+- Nothing changed yet.
+
+
+0.14.1 (2017-04-19)
+-------------------
+
+- Fix BCL validation bug in previous version
+
+
+0.14 (2017-04-18)
 -----------------
 
  - Add function to retrieve run metadata from the LIMS in RunDataset, generate the Samplesheet from it

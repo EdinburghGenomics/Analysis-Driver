@@ -26,13 +26,13 @@ class BCLValidator(Stage):
     @property
     def validate_expr(self):
         return str_join(
-            'function check_bcl { gzip -t $1; x=$?; echo "$1,$x" >> ', self.validation_log, '; }'
+            'function check_bcl { gzip -t ', self.basecalls_dir, '/${1}; x=$?; echo "$1,$x" >> ', self.validation_log, '; }'
         )
 
     def call_bcl_check(self):
         bcls = self.get_bcls_to_check()
         if bcls:
-            self.run_bcl_check(bcls, self.run_dir)
+            self.run_bcl_check(bcls)
 
     def check_bcls(self):
         while self.dataset.is_sequencing():
@@ -76,44 +76,47 @@ class BCLValidator(Stage):
             for t in tile_ids:
                 lane = t[0]  # 1_1101
                 lane_id = 'L00' + lane
-                bcl = join(self.basecalls_dir, lane_id, cycle_id, 's_' + t + '.bcl.gz')
+                bcl = join(lane_id, cycle_id, 's_' + t + '.bcl.gz')
                 if bcl not in validated_bcls:
                     bcls_to_check.append(bcl)
 
         self.info('Will check %s bcls up to cycle %s', len(bcls_to_check), last_completed_cycle - 1)
         return bcls_to_check
 
-    def run_bcl_check(self, bcls, job_dir, slice_size=50):
+    def run_bcl_check(self, bcls, slice_size=50, max_job_number=500):
         """
         Run bcl checks through executor.execute. Commands will be collapsed to 50 sequential commands per
         array job so we don't spam the resource manager with 200,000 commands at once.
         """
-        sliced_job_array = [
-            ['check_bcl %s' % join(self.basecalls_dir, f) for f in bcls[start:start+slice_size]]
-            for start in range(0, len(bcls), slice_size)
-        ]
+        max_nb_bcl = max_job_number * slice_size
+        for i in range(0, len(bcls), max_nb_bcl):
+            tmp_bcls = bcls[i:i + max_nb_bcl]
+            sliced_job_array = [
+                ['check_bcl %s' % f for f in tmp_bcls[start:start+slice_size]]
+                for start in range(0, len(tmp_bcls), slice_size)
+            ]
 
-        executor.execute(
-            *['\n'.join(cmd_slice) for cmd_slice in sliced_job_array],
-            prelim_cmds=[self.validate_expr],
-            job_name='bcl_validation',
-            working_dir=job_dir,
-            log_commands=False,
-            cpus=1,
-            mem=6
-        ).join()
+            executor.execute(
+                *['\n'.join(cmd_slice) for cmd_slice in sliced_job_array],
+                prelim_cmds=[self.validate_expr],
+                job_name='bcl_validation',
+                working_dir=self.working_dir,
+                log_commands=False,
+                cpus=1,
+                mem=6
+            ).join()
         self.info('Finished validation. Check validation log for exit statuses per file.')
 
     def run_bcl_check_local(self, bcls, parallel=True):
         """Run bcl checks locally through ArrayExecutor."""
-        e = executor.ArrayExecutor(['gzip -t ' + f for f in bcls], stream=parallel)
+        e = executor.ArrayExecutor(['gzip -t ' + join(self.basecalls_dir, f) for f in bcls], stream=parallel)
         e.start()
         e.join()
 
         with open(self.validation_log, 'a') as f:
             # cmds and e.executors are in the same order, so zip produces corresponding bcls/exit statuses
             for bcl, exit_status in zip(bcls, e.exit_statuses):
-                f.write('%s,%s\n' % (bcl, exit_status))
+                f.write('%s,%s\n' % (join(self.basecalls_dir, bcl), exit_status))
 
     def read_invalid_files(self):
         with open(self.validation_log, 'r', newline='') as f:
