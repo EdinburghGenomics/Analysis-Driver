@@ -252,7 +252,7 @@ class RunDataset(Dataset):
                 run_element = {
                     ELEMENT_PROJECT_ID: sample.project.name,
                     ELEMENT_SAMPLE_INTERNAL_ID: sample.name,
-                    ELEMENT_LIBRARY_INTERNAL_ID: artifact.id,  # This is not the library id but it is unique
+                    ELEMENT_LIBRARY_INTERNAL_ID: sample.id,  # This is not the library id but it is unique
                     ELEMENT_LANE: lane.split(':')[0],
                     ELEMENT_BARCODE: ''
                 }
