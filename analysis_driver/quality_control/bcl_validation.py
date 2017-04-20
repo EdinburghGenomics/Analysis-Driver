@@ -100,9 +100,10 @@ class BCLValidator(QualityControl):
                 mem=6
             ).join()
 
+        valid_bcl = self.read_valid_files()
         # Merge the valid bcls and the tested bcls
         with open(self.validation_log, 'w') as f:
-            for bcl in self.read_valid_files():
+            for bcl in valid_bcl:
                 f.write('%s,0\n' % (bcl))
             if isfile(validation_log_tmp):
                 for bcl, exit_status in self.read_check_bcl_files(validation_log_tmp):
