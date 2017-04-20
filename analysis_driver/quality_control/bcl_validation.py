@@ -2,6 +2,7 @@ import csv
 import time
 from os.path import join, isfile
 import illuminate
+import os
 from bitstring import ReadError
 from egcg_core import executor
 from egcg_core.util import str_join
@@ -18,10 +19,13 @@ class BCLValidator(QualityControl):
         self.tile_ids = dataset.run_info.tiles
         self.ncycles = sum(Reads.num_cycles(r) for r in dataset.run_info.reads.reads)
         self.validation_log = join(self.run_dir, 'checked_bcls.csv')
-        self.validate_expr = str_join(
-            'function check_bcl { gzip -t ', self.basecalls_dir, '/${1}; x=$?; echo "$1,$x" >> ', self.validation_log, '; }'
-        )
         self.dataset = dataset
+
+    def validate_expr(self, validation_log):
+        return str_join(
+            'function check_bcl { gzip -t ', self.basecalls_dir, '/${1}; x=$?; echo "$1,$x" >> ', validation_log,
+            '; }'
+        )
 
     def call_bcl_check(self):
         bcls = self.get_bcls_to_check()
@@ -55,10 +59,7 @@ class BCLValidator(QualityControl):
         if last_completed_cycle == 0:  # no cycles are complete, so do nothing
             return []
 
-        validated_bcls = []
-        if isfile(self.validation_log):
-            with open(self.validation_log, 'r') as f:
-                validated_bcls = [l.rstrip('\n') for l in f.readlines()]
+        validated_bcls = self.read_valid_files()
 
         bcls_to_check = []
         for c in range(1, last_completed_cycle):
@@ -73,12 +74,15 @@ class BCLValidator(QualityControl):
         self.info('Will check %s bcls up to cycle %s', len(bcls_to_check), last_completed_cycle - 1)
         return bcls_to_check
 
-    def run_bcl_check(self, bcls, slice_size=50, max_job_number=500):
+    def run_bcl_check(self, bcls, slice_size=100, max_job_number=500):
         """
         Run bcl checks through executor.execute. Commands will be collapsed to 50 sequential commands per
         array job so we don't spam the resource manager with 200,000 commands at once.
         """
         max_nb_bcl = max_job_number * slice_size
+        validation_log_tmp = join(self.working_dir, 'tmp_checked_bcls.csv')
+        if isfile(validation_log_tmp):
+            os.remove(validation_log_tmp)
         for i in range(0, len(bcls), max_nb_bcl):
             tmp_bcls = bcls[i:i + max_nb_bcl]
             sliced_job_array = [
@@ -88,30 +92,37 @@ class BCLValidator(QualityControl):
 
             executor.execute(
                 *['\n'.join(cmd_slice) for cmd_slice in sliced_job_array],
-                prelim_cmds=[self.validate_expr],
+                prelim_cmds=[self.validate_expr(validation_log_tmp)],
                 job_name='bcl_validation',
                 working_dir=self.working_dir,
                 log_commands=False,
                 cpus=1,
                 mem=6
             ).join()
-        self.info('Finished validation. Check validation log for exit statuses per file.')
 
-    def run_bcl_check_local(self, bcls, parallel=True):
-        """Run bcl checks locally through ArrayExecutor."""
-        e = executor.ArrayExecutor(['gzip -t ' + join(self.basecalls_dir, f) for f in bcls], stream=parallel)
-        e.start()
-        e.join()
+        # Merge the valid bcl and the tested bcls
+        valid_bcls = self.read_valid_files()
+        with open(self.validation_log, 'w') as f:
+            f.write('\n'.join(['%s,0' % bcl for bcl in valid_bcls]) + '\n')
+            if isfile(validation_log_tmp):
+                for bcl, exit_status in self.read_check_bcl_files(validation_log_tmp):
+                    f.write('%s,%s\n' % (bcl), exit_status)
+        self.info('Finished validation. Found %s invalid file' % len(self.read_invalid_files()))
 
-        with open(self.validation_log, 'a') as f:
-            # cmds and e.executors are in the same order, so zip produces corresponding bcls/exit statuses
-            for bcl, exit_status in zip(bcls, e.exit_statuses):
-                f.write('%s,%s\n' % (join(self.basecalls_dir, bcl), exit_status))
+    def read_check_bcl_files(self, validation_log=None):
+        if not validation_log:
+            validation_log = self.validation_log
+        with open(validation_log, 'r', newline='') as f:
+            return csv.reader(f, delimiter=',')
 
     def read_invalid_files(self):
-        with open(self.validation_log, 'r', newline='') as f:
-            reader = csv.reader(f, delimiter=',')
-            return [bcl for bcl, exit_status in reader if int(exit_status) != 0]
+        return [bcl for bcl, exit_status in self.read_check_bcl_files() if int(exit_status) != 0]
+
+    def read_valid_files(self):
+        if isfile(self.validation_log):
+            return [bcl for bcl, exit_status in self.read_check_bcl_files() if int(exit_status) != 0]
+        else:
+            return []
 
     def _all_cycles_from_interop(self):
         try:
