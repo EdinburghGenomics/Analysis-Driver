@@ -19,7 +19,7 @@ class ContaminationCheck(Stage):
 
     @property
     def fastqscreen_expected_outfiles(self):
-        return [f.rstrip('.fastq.gz') + '_screen.txt' for f in self.fastq_files]
+        return [f.replace('.fastq.gz', '_screen.txt') for f in self.fastq_files]
 
     def _run(self):
         fastqscreen_run_command = self._fastqscreen_command()

@@ -1,18 +1,17 @@
 import os
-import sys
-import glob
 import logging
 import argparse
-from egcg_core import executor, clarity
+from sys import path
+from egcg_core import executor, clarity, util
 from egcg_core.clarity import get_user_sample_name
 from egcg_core.app_logging import logging_default as log_cfg
 
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from analysis_driver import quality_control as qc
 from analysis_driver.config import default as cfg, load_config
 from analysis_driver.exceptions import AnalysisDriverError
 from analysis_driver.dataset import NoCommunicationDataset
-from analysis_driver.util.bash_commands import rsync_from_to, is_remote_path
+from analysis_driver.util.bash_commands import rsync_from_to
 from analysis_driver.reader.demultiplexing_parsers import parse_fastqscreen_file
 
 
@@ -20,208 +19,132 @@ def main():
     args = _parse_args()
     load_config()
     log_cfg.default_level = logging.DEBUG
-    log_cfg.add_handler(logging.StreamHandler(stream=sys.stdout), logging.DEBUG)
-    args.func(args)
+    log_cfg.add_stdout_handler(logging.DEBUG)
+
+    dataset = NoCommunicationDataset(args.dataset_name)
+    os.makedirs(os.path.join(cfg['jobs_dir'], args.dataset_name), exist_ok=True)
+    args.func(dataset, args)
 
 
 def _parse_args():
     parser = argparse.ArgumentParser()
+    parser.add_argument('--dataset_name', required=True)
     subparsers = parser.add_subparsers()
 
     geno_val = subparsers.add_parser('genotype_validation')
     geno_val.add_argument('--project_id', required=True)
-    geno_val.add_argument('--sample_id', required=True)
     geno_val.add_argument('--check_neighbour', action='store_true', default=False)
     geno_val.add_argument('--check_project', action='store_true', default=False)
     geno_val.add_argument('--check_samples', nargs='*')
     geno_val.set_defaults(func=run_genotype_validation)
 
     sp_contamination = subparsers.add_parser('species_contamination_check')
-    sp_contamination.add_argument('--fastq_files', required=True, nargs='+', help='the fastq file pairs')
-    sp_contamination.add_argument('--work_dir', required=True)
-    sp_contamination.add_argument('--sample_id', required=True)
+    sp_contamination.add_argument('--fastq_files', required=True, nargs='+', help='fastq file pair')
     sp_contamination.set_defaults(func=run_species_contamination_check)
 
     sample_contamination = subparsers.add_parser('sample_contamination_check')
-    sample_contamination.add_argument('--bam_file', required=True, help='the fastq file pairs')
-    sample_contamination.add_argument('--work_dir', required=False)
-    sample_contamination.add_argument('--sample_id', required=True)
+    sample_contamination.add_argument('--bam_file', required=True)
     sample_contamination.set_defaults(func=run_sample_contamination_check)
 
     gender_val = subparsers.add_parser('gender_validation')
-    gender_val.add_argument('--sample_id', type=str, help='sample ID for creating a Sample dataset object')
     gender_val.add_argument('-v', '--vcf_file', dest='vcf_file', type=str, help='vcf file used to detect gender')
-    gender_val.add_argument('-s', '--working_dir', dest='working_dir', type=str, help='executor work dir')
+    gender_val.set_defaults(func=run_gender_validation)
 
     median_cov = subparsers.add_parser('median_coverage')
     median_cov.add_argument('--bam_file', required=True, help='the fastq file pairs')
-    median_cov.add_argument('--work_dir', required=False)
-    median_cov.add_argument('--sample_id', required=True)
     median_cov.set_defaults(func=median_coverage)
 
     contam_blast = subparsers.add_parser('contamination_blast')
     contam_blast.add_argument('--fastq_file', required=True, nargs='+', help='fastq file to check for contamination')
-    contam_blast.add_argument('--sample_id', required=True)
     contam_blast.set_defaults(func=contamination_blast)
 
     relatedness_parser = subparsers.add_parser('relatedness')
     relatedness_parser.add_argument('--gvcfs', required=True, nargs='+')
     relatedness_parser.add_argument('--reference', required=True)
-    relatedness_parser.add_argument('--work_dir', required=False)
-    relatedness_parser.add_argument('--project_id', required=True)
     relatedness_parser.set_defaults(func=relatedness)
 
     return parser.parse_args()
 
 
-def run_genotype_validation(args):
-    def retrieve_data(paths, work_dir, allow_fail=False):
-        cmd = rsync_from_to(paths, work_dir)
-        exit_status = executor.execute(
-            cmd, job_name='retrieve_data', working_dir=work_dir, cpus=1, mem=2
-        ).join()
-        if exit_status != 0 and not allow_fail:
-            raise AnalysisDriverError("Copy of the file(s) from remote has failed")
-
+def run_genotype_validation(dataset, args):
     # Get the sample specific config
     cfg.merge(cfg['sample'])
-    projects_source = cfg.query('output_dir')
-    work_dir = os.path.join(cfg['jobs_dir'], args.sample_id)
-    os.makedirs(work_dir, exist_ok=True)
 
-    # Hack to retrieve the fastq file from the CIFS share
-    if is_remote_path(projects_source):
-        # First try to retrieve the genotype vcf file
-        genotype_vcfs = os.path.join(projects_source, args.project_id, args.sample_id, '*_genotype_validation.vcf.gz')
-        retrieve_data(genotype_vcfs, work_dir, allow_fail=True)
-        genotype_vcfs = glob.glob(os.path.join(work_dir, '*_genotype_validation.vcf.gz'))
-        if not genotype_vcfs:
-            # Need to retrieve the fastq files localy
-            fastq_files = os.path.join(projects_source, args.project_id, args.sample_id, '*_R?.fastq.gz')
-            retrieve_data(fastq_files, work_dir)
-            fastq_files = glob.glob(os.path.join(work_dir, '*_R?.fastq.gz'))
-            genotype_vcf = None
-        else:
-            genotype_vcf = genotype_vcfs[0]
-            fastq_files = []
+    sample_output_dir = os.path.join(cfg['output_dir'], args.project_id, dataset.name)
+    genotype_vcfs = util.find_files(sample_output_dir, '*_genotype_validation.vcf.gz')
+    if not genotype_vcfs:
+        fastq_files = util.find_files(sample_output_dir, '*_R?.fastq.gz')
+        genotype_vcf = None
     else:
-        genotype_vcfs = glob.glob(os.path.join(projects_source, args.project_id, args.sample_id, '*_genotype_validation.vcf.gz'))
-        if not genotype_vcfs:
-            fastq_files = glob.glob(os.path.join(projects_source, args.project_id, args.sample_id, '*_R?.fastq.gz'))
-            genotype_vcf = None
-        else:
-            genotype_vcf = genotype_vcfs[0]
-            fastq_files = []
+        genotype_vcf = genotype_vcfs[0]
+        fastq_files = []
 
-    dataset = NoCommunicationDataset(args.sample_id)
     geno_val = qc.GenotypeValidation(
-        dataset,
-        work_dir,
-        sorted(fastq_files),
+        dataset=dataset,
+        fastq_files=sorted(fastq_files),
         vcf_file=genotype_vcf,
         check_neighbour=args.check_neighbour,
         check_project=args.check_project,
         list_samples=args.check_samples
     )
-    geno_val.start()
+    geno_val.run()
 
-    seq_vcf_file, validation_results = geno_val.join()
-    user_sample_id = get_user_sample_name(sample_name=args.sample_id)
+    user_sample_id = get_user_sample_name(dataset.name)
     output_commands = []
-    for f in [seq_vcf_file, validation_results]:
+    for f in [geno_val.seq_vcf_file, geno_val.validation_results.get(dataset.name)]:
         if f and os.path.exists(f):
             out_file = os.path.join(
-                projects_source,
-                args.project_id,
-                args.sample_id,
-                os.path.basename(f).replace(args.sample_id, user_sample_id)
+                sample_output_dir,
+                os.path.basename(f).replace(dataset.name, user_sample_id)
             )
             output_commands.append(rsync_from_to(f, out_file))
 
     exit_status = executor.execute(
         *output_commands,
         job_name='output_results',
-        working_dir=work_dir,
+        working_dir=geno_val.job_dir,
         cpus=1,
         mem=2
     ).join()
 
     if exit_status != 0:
-        raise AnalysisDriverError("Copy of the results files to remote has failed")
+        raise AnalysisDriverError('Copy of the results files to remote has failed')
 
 
-def run_species_contamination_check(args):
-    if args.work_dir:
-        work_dir = args.work_dir
-    else:
-        work_dir = os.path.join(cfg['jobs_dir'], args.sample_id)
-    os.makedirs(work_dir, exist_ok=True)
-    dataset = NoCommunicationDataset(args.sample_id)
-    species_contamination_check = qc.ContaminationCheck(dataset, work_dir, sorted(args.fastq_files))
-    species_contamination_check.start()
-    expected_output_files = species_contamination_check.join()
-    expected_output_files = (''.join(expected_output_files))
-    species_name = clarity.get_species_from_sample(args.sample_id)
-    fastqscreen_result = parse_fastqscreen_file(expected_output_files, species_name)
+def run_species_contamination_check(dataset, args):
+    species_contamination_check = qc.ContaminationCheck(dataset=dataset, fastq_files=sorted(args.fastq_files))
+    species_contamination_check.run()
+
+    species_name = clarity.get_species_from_sample(dataset.name)
+    fastqscreen_result = parse_fastqscreen_file(species_contamination_check.fastqscreen_expected_outfiles, species_name)
     print(fastqscreen_result)
 
 
-def run_sample_contamination_check(args):
-    if args.work_dir:
-        work_dir = args.work_dir
-    else:
-        work_dir = os.path.join(cfg['jobs_dir'], args.sample_id)
-    os.makedirs(work_dir, exist_ok=True)
-    dataset = NoCommunicationDataset(args.sample_id)
-    sample_contamination_check = qc.VerifyBamID(dataset, work_dir, args.bam_file)
-    sample_contamination_check.start()
-    exit_status = sample_contamination_check.join()
-    return exit_status
+def run_sample_contamination_check(dataset, args):
+    v = qc.VerifyBamID(dataset=dataset, bam_file=args.bam_file)
+    v.run()
 
 
-def run_gender_validation(args):
-    if args.work_dir:
-        work_dir = args.work_dir
-    else:
-        work_dir = os.path.join(cfg['jobs_dir'], args.sample_id)
-    os.makedirs(work_dir, exist_ok=True)
-    dataset = NoCommunicationDataset(args.sample_id)
-    s = qc.GenderValidation(dataset, work_dir, args.vcf_file)
-    s.start()
-    return s.join()
+def run_gender_validation(dataset, args):
+    g = qc.GenderValidation(dataset=dataset, vcf_file=args.vcf_file)
+    g.run()
 
 
-def median_coverage(args):
-    work_dir = os.path.join(cfg['jobs_dir'], args.sample_id)
-    os.makedirs(work_dir, exist_ok=True)
-    dataset = NoCommunicationDataset(args.sample_id)
-    c = qc.SamtoolsDepth(dataset, work_dir, args.bam_file)
-    c.start()
-    coverage = c.join()
-    print(coverage)
+def median_coverage(dataset, args):
+    s = qc.SamtoolsDepth(dataset=dataset, bam_file=args.bam_file)
+    s.run()
 
 
-def contamination_blast(args):
-    work_dir = os.path.join(cfg['jobs_dir'], args.sample_id)
-    os.makedirs(work_dir, exist_ok=True)
-    dataset = NoCommunicationDataset(args.sample_id)
-    contamination = qc.ContaminationBlast(dataset, work_dir, args.fastq_file)
-    contamination.start()
-    return contamination.join()
+def contamination_blast(dataset, args):
+    b = qc.ContaminationBlast(dataset=dataset, fastq_file=args.fastq_file)
+    b.run()
 
 
-def relatedness(args):
-    cfg.merge(cfg['project'])
-    if args.work_dir:
-        work_dir = args.work_dir
-    else:
-        work_dir = os.path.join(cfg['input_dir'], args.project_id)
-    os.makedirs(work_dir, exist_ok=True)
-    dataset = NoCommunicationDataset(args.project_id)
-    r = qc.Relatedness(dataset, work_dir, args.gVCF_files, args.reference, args.project_id)
-    r.start()
-    return r.join()
+def relatedness(dataset, args):
+    r = qc.Relatedness(dataset=dataset, gvcf_files=args.gvcf_files,
+                       reference=args.reference, project_id=dataset.name)
+    r.run()
 
 
 if __name__ == '__main__':
-    sys.exit(main())
+    main()

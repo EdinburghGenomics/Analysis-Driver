@@ -20,6 +20,7 @@ class SamtoolsDepth(Stage):
         ) % (cfg['tools']['samtools'], self.bam_file, self.samtools_depth_out_file)
 
     def _run(self):
+        self.info('Generating depth file: %s', self.samtools_depth_out_file)
         return executor.execute(
             self._samtools_depth_command(),
             job_name='samtoolsdepth',

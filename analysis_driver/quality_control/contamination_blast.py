@@ -27,7 +27,8 @@ class ContaminationBlast(Stage):
 
     def sample_fastq_command(self):
         return 'set -o pipefail; {seqtk} sample {fastq} {nb_reads} | {seqtk} seq -a > {fasta}'.format(
-            nb_reads=self.nb_reads, seqtk=cfg['tools']['seqtk'], fastq=self.fastq_file, fasta=self.fasta_outfile
+            nb_reads=self.nb_reads, seqtk=cfg['tools']['seqtk'], fastq=self.fastq_file,
+            fasta=self.fasta_outfile
         )
 
     def fasta_blast_command(self):

@@ -15,20 +15,20 @@ class TestRelatedness(QCTester):
             project_id='test_project_id'
         )
 
-    def test_get_gatk_genotype_gvcfs_command(self):
-        assert self.r.get_gatk_genotype_gvcfs_command() == (
+    def test_gatk_genotype_gvcfs_cmd(self):
+        assert self.r.gatk_genotype_gvcfs_cmd() == (
             'java -jar path/to/GenomeAnalysisTK.jar -T GenotypeGVCFs -nt 12 -R /path/to/reference.fa '
             '--variant test_sample1.g.vcf.gz --variant test_sample2.g.vcf.gz --variant test_sample3.g.vcf.gz '
             '-o test_project_id_genotype_gvcfs.vcf'
         )
 
-    def test_get_vcftools_relatedness_command(self):
+    def test_vcftools_relatedness_cmd(self):
         exp = 'path/to/vcftools --relatedness2 --vcf test_project_id_genotype_gvcfs.vcf --out test_project_id'
-        assert self.r.get_vcftools_relatedness_command() == exp
+        assert self.r.vcftools_relatedness_cmd() == exp
 
     @patch('egcg_core.executor.execute')
     def test_run_gatk(self, mocked_execute):
-        with patch(ppath + 'Relatedness.get_gatk_genotype_gvcfs_command', return_value='test_command'):
+        with patch(ppath + 'Relatedness.gatk_genotype_gvcfs_cmd', return_value='test_command'):
             self.r.run_gatk()
             mocked_execute.assert_called_with(
                 'test_command',
@@ -40,7 +40,7 @@ class TestRelatedness(QCTester):
 
     @patch('egcg_core.executor.execute')
     def test_run_vcftools(self, mocked_execute):
-        with patch(ppath + 'Relatedness.get_vcftools_relatedness_command', return_value='test_command'):
+        with patch(ppath + 'Relatedness.vcftools_relatedness_cmd', return_value='test_command'):
             self.r.run_vcftools()
         mocked_execute.assert_called_with(
             'test_command',

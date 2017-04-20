@@ -5,9 +5,10 @@ from analysis_driver.config import output_files_config, default as cfg
 from analysis_driver.quality_control import Relatedness
 from analysis_driver.exceptions import PipelineError
 from analysis_driver.transfer_data import output_project_data
+from analysis_driver import segmentation
 
 
-def project_pipeline(dataset):
+def build_pipeline(dataset):
     project_id = dataset.name
     samples_for_project = dataset.sample_processed
 
@@ -30,33 +31,32 @@ def project_pipeline(dataset):
     if len(gvcf_files) < 2:
         raise PipelineError('Incorrect number of gVCF files: require at least two')
 
-    dataset.start_stage('relatedness')
-    working_dir = os.path.join(cfg['jobs_dir'], project_id)
     reference = cfg['references'][species]['fasta']
-    r = Relatedness(dataset, working_dir, gvcf_files, reference, project_id)
-    r.start()
-    vcftools_relatedness_expected_outfile, exit_status = r.join()
-    dataset.end_stage('relatedness')
+    relatedness = Relatedness(dataset=dataset, gvcf_files=gvcf_files, reference=reference, project_id=project_id)
+    output = Output(dataset=dataset, previous_stages=[relatedness])
+    return output
 
-    dir_with_output_files = os.path.join(working_dir, 'relatedness_outfiles')
-    os.makedirs(dir_with_output_files, exist_ok=True)
-    files_to_symlink = output_files_config.query('project_process')
 
-    for symlink_file in files_to_symlink:
-        source = os.path.join(
-            working_dir,
-            os.path.join(*symlink_file['location']),
-            symlink_file['basename'].format(project_id=project_id)
-        )
+class Output(segmentation.Stage):
+    def _run(self):
 
-        symlink_path = os.path.join(dir_with_output_files, symlink_file['basename'].format(project_id=project_id))
-        if os.path.isfile(source):
-            if os.path.islink(symlink_path):
-                os.unlink(symlink_path)
-            os.symlink(source, symlink_path)
-        else:
-            raise PipelineError('Could not find the file ' + source + ', unable to create link')
+        dir_with_output_files = os.path.join(self.job_dir, 'relatedness_outfiles')
+        os.makedirs(dir_with_output_files, exist_ok=True)
+        files_to_symlink = output_files_config.query('project_process')
 
-    exit_status += output_project_data(dir_with_output_files, project_id)
+        for symlink_file in files_to_symlink:
+            source = os.path.join(
+                self.job_dir,
+                os.path.join(*symlink_file['location']),
+                symlink_file['basename'].format(project_id=self.dataset.name)
+            )
 
-    return exit_status
+            symlink_path = os.path.join(dir_with_output_files, symlink_file['basename'].format(project_id=self.dataset.name))
+            if os.path.isfile(source):
+                if os.path.islink(symlink_path):
+                    os.unlink(symlink_path)
+                os.symlink(source, symlink_path)
+            else:
+                raise PipelineError('Could not find the file ' + source + ', unable to create link')
+
+        return output_project_data(dir_with_output_files, self.dataset.name)

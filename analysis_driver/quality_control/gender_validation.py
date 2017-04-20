@@ -48,8 +48,7 @@ def main():
     os.makedirs(args.working_dir, exist_ok=True)
     dataset = SampleScanner(cfg).get_dataset(args.sample_id)
     s = GenderValidation(dataset=dataset, vcf_file=args.vcf_file)
-    s.start()
-    return s.join()
+    s.run()
 
 
 def _parse_args():

@@ -2,11 +2,9 @@ import luigi
 from egcg_core import clarity
 from egcg_core.app_logging import logging_default as log_cfg
 from egcg_core.config import cfg
-from analysis_driver import segmentation
 from analysis_driver.dataset_scanner import RunDataset, SampleDataset, ProjectDataset
 from analysis_driver.exceptions import PipelineError
-from analysis_driver.pipelines import demultiplexing, bcbio, qc, variant_calling
-from analysis_driver.pipelines.projects import project_pipeline
+from analysis_driver.pipelines import demultiplexing, bcbio, qc, variant_calling, projects
 
 
 def pipeline(d):
@@ -14,23 +12,24 @@ def pipeline(d):
     log_cfg.get_logger('luigi-interface', 10)  # just calling log_cfg.get_logger registers the luigi-interface
 
     if isinstance(d, RunDataset):
-        final_stage = demultiplexing.build_pipeline(d)
+        _pipeline = demultiplexing
     elif isinstance(d, SampleDataset):
         species = clarity.get_species_from_sample(d.name)
         analysis_type = clarity.get_sample(d.name).udf.get('Analysis Type')
         if species is None:
             raise PipelineError('No species information found in the LIMS for ' + d.name)
         elif species == 'Homo sapiens':
-            final_stage = bcbio.build_pipeline(d)
+            _pipeline = bcbio
         elif analysis_type == 'Variant Calling':
-            final_stage = variant_calling.build_pipeline(d)
+            _pipeline = variant_calling
         else:
-            final_stage = qc.build_pipeline(d)
+            _pipeline = qc
     elif isinstance(d, ProjectDataset):
-        final_stage = Project(dataset=d)
+        _pipeline = projects
     else:
         raise AssertionError('Unexpected dataset type: ' + str(d))
 
+    final_stage = _pipeline.build_pipeline(d)
     final_stage.exit_status = 9
 
     luigi_params = {'tasks': [final_stage], 'local_scheduler': cfg.query('luigi', 'local_scheduler')}
@@ -39,8 +38,3 @@ def pipeline(d):
 
     luigi.build(**luigi_params)
     return final_stage.exit_status
-
-
-class Project(segmentation.BasicStage):
-    def run(self):
-        self.exit_status = project_pipeline(self.dataset)
