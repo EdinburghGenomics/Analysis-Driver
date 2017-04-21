@@ -1,13 +1,8 @@
 Changelog for Analysis-Driver
 =============================
 
-0.15 (unreleased)
------------------
-
-- Nothing changed yet.
-
-0.14.2 (unreleased)
------------------
+0.14.2 (2017-04-21)
+-------------------
 
  - Fix samplesheet generation when one sample is repeated over multiple lanes
  - Continuously check failed bcl file to make sure they really are failed
