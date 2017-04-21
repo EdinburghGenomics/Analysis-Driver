@@ -44,6 +44,7 @@ class TestBCLValidator(TestAnalysisDriver):
         with patch('analysis_driver.quality_control.BCLValidator._all_cycles_from_interop',
                    return_value=[1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3]):
             bcls = self.val.get_bcls_to_check()
+        validation_log_tmp = os.path.join(self.val.working_dir, 'tmp_checked_bcls.csv')
         self.val.run_bcl_check(bcls, slice_size=2, max_job_number=5)
 
         assert mocked_execute.call_count == 2
@@ -53,7 +54,7 @@ class TestBCLValidator(TestAnalysisDriver):
             '\n'.join('check_bcl ' + f for f in bcls[4:6]),
             '\n'.join('check_bcl ' + f for f in bcls[6:8]),
             '\n'.join('check_bcl ' + f for f in bcls[8:10]),
-            prelim_cmds=[self.val.validate_expr],
+            prelim_cmds=[self.val.validate_expr(validation_log_tmp)],
             job_name='bcl_validation',
             working_dir=self.job_dir,
             log_commands=False,
@@ -62,7 +63,7 @@ class TestBCLValidator(TestAnalysisDriver):
         )
         call_2 = call(
             '\n'.join('check_bcl ' + f for f in bcls[10:12]),
-            prelim_cmds=[self.val.validate_expr],
+            prelim_cmds=[self.val.validate_expr(validation_log_tmp)],
             job_name='bcl_validation',
             working_dir=self.job_dir,
             log_commands=False,
@@ -74,7 +75,7 @@ class TestBCLValidator(TestAnalysisDriver):
         e = executor.SlurmExecutor(
             '\n'.join('check_bcl ' + os.path.join(self.job_dir, f) for f in bcls[:2]),
             '\n'.join('check_bcl ' + os.path.join(self.job_dir, f) for f in bcls[2:]),
-            prelim_cmds=[self.val.validate_expr],
+            prelim_cmds=[self.val.validate_expr(validation_log_tmp)],
             job_name='bcl_validation',
             working_dir=self.job_dir,
             log_commands=False,
@@ -82,16 +83,6 @@ class TestBCLValidator(TestAnalysisDriver):
             mem=6
         )
         e.write_script()
-
-    def test_run_bcl_check_local(self):
-        with patch('analysis_driver.quality_control.BCLValidator._all_cycles_from_interop',
-                   return_value=[1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3]):
-            bcls = self.val.get_bcls_to_check()
-        self.val.run_bcl_check_local(bcls)
-        assert self.val.read_invalid_files() == [
-            os.path.join(self.val.basecalls_dir, 'L002', 'C3.1', 's_2_1101.bcl.gz'),
-            os.path.join(self.val.basecalls_dir, 'L001', 'C3.1', 's_1_1102.bcl.gz')
-        ]
 
     def test_cycles_from_interop(self):
         interop_dir = os.path.join(self.job_dir, 'InterOp')

@@ -33,14 +33,16 @@ class Setup(DemultiplexingStage):
 
         b = BCLValidator(self.job_dir, self.dataset)
         b.check_bcls()
-        invalid_bcls = b.read_invalid_files()
-        if invalid_bcls:
-            raise AnalysisDriverError('Some BCL files are corrupted; check %s for details', b.validation_log)
 
+        # make sure the run is not aborted or errored before checking the bcl files
         run_status = self.dataset.lims_run.udf.get('Run Status')
         if run_status != 'RunCompleted':
             self.error('Run status is \'%s\'. Stopping.', run_status)
             raise SequencingRunError(run_status)
+
+        invalid_bcls = b.read_invalid_files()
+        if invalid_bcls:
+            raise AnalysisDriverError('Some BCL files are corrupted; check %s for details', b.validation_log)
 
         return 0
 
