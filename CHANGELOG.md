@@ -1,8 +1,8 @@
 Changelog for Analysis-Driver
 =============================
 
-0.15 (unreleased)
------------------
+0.14.3 (2017-04-28)
+-------------------
 
 - Removed need for SampleSheet to exist for a Run to be picked up
 
