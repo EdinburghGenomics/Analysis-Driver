@@ -43,6 +43,10 @@ class BasicStage(luigi.Task, AppLogger):
                 cls, config = s
                 yield cls(dataset=self.dataset, **config)
 
+    def on_failure(self, exception):
+        self.dataset.register_exception(self, exception)
+        return super().on_failure(exception)
+
 
 class Stage(BasicStage):
     def output(self):

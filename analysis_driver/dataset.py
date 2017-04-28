@@ -7,6 +7,7 @@ from errno import ESRCH
 from os.path import join
 from sys import modules
 from time import sleep
+from collections import OrderedDict
 
 from egcg_core import rest_communication, clarity
 from egcg_core.app_logging import AppLogger
@@ -24,6 +25,7 @@ class Dataset(AppLogger):
     type = None
     endpoint = None
     id_field = None
+    exceptions = OrderedDict()
 
     def __init__(self, name, most_recent_proc=None):
         self.name = name
@@ -147,6 +149,23 @@ class Dataset(AppLogger):
     @property
     def _is_ready(self):
         raise NotImplementedError
+
+    def register_exception(self, luigi_task, exception):
+        self.exceptions[luigi_task.stage_name] = exception
+
+    def raise_exceptions(self):
+        if self.exceptions:
+            self.critical('%s exceptions registered with dataset %s', len(self.exceptions), self.name)
+            for name in self.exceptions:
+                self.critical(
+                    'exception: %s%s raised in %s',
+                    self.exceptions[name].__class__.__name__,
+                    self.exceptions[name].args,
+                    name
+                )
+            # Only raise the first exception raised by tasks
+            task_name = list(self.exceptions.keys())[0]
+            raise self.exceptions[task_name]
 
     def __str__(self):
         s = self.name

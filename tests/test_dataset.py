@@ -9,7 +9,7 @@ from egcg_core.constants import ELEMENT_PROJECT_ID, ELEMENT_SAMPLE_INTERNAL_ID, 
 from integration_tests.mocked_data import MockedSamples, MockedRunProcess
 from tests.test_analysisdriver import TestAnalysisDriver, NamedMock
 from egcg_core import constants as c
-from analysis_driver.exceptions import AnalysisDriverError
+from analysis_driver.exceptions import AnalysisDriverError, SequencingRunError
 from analysis_driver.dataset import Dataset, RunDataset, SampleDataset, MostRecentProc
 
 
@@ -184,6 +184,11 @@ class TestDataset(TestAnalysisDriver):
                 'test_dataset',
                 {'proc_id': 'a_proc_id', 'date_started': 'now', 'dataset_name': 'None', 'dataset_type': 'None'}
             )
+
+    def test_raise_exceptions(self):
+        self.dataset.register_exception(Mock(stage_name='task1'), SequencingRunError('RunErrored'))
+        with pytest.raises(SequencingRunError):
+            self.dataset.raise_exceptions()
 
 
 class _TestDataset(Dataset):
