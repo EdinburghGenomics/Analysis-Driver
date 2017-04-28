@@ -93,7 +93,7 @@ class DatasetScanner(AppLogger):
 class RunScanner(DatasetScanner):
     endpoint = 'aggregate/all_runs'
     item_id = 'run_id'
-    expected_bcl_subdirs = ('SampleSheet.csv', 'RunInfo.xml', 'Data')
+    expected_bcl_subdirs = ('RunInfo.xml', 'Data')
 
     def __init__(self, config):
         super().__init__(config)
