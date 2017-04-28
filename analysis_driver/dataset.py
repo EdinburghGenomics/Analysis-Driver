@@ -1,6 +1,7 @@
 import os
 import re
 import threading
+import signal
 from datetime import datetime
 from errno import ESRCH
 from os.path import join
@@ -93,16 +94,24 @@ class Dataset(AppLogger):
         self.most_recent_proc.change_status(DATASET_FORCE_READY)
 
     def terminate(self):
+        self._terminate(signal.SIGUSR2)
+
+    def soft_terminate(self):
+        '''send SIGUSR1 to analysis driver and rely on luigi picking it up.
+        Luigi will stop submitting new job but finish the currently running jobs'''
+        self._terminate(signal.SIGUSR1)
+
+    def _terminate(self, signal_id):
         pid = self.most_recent_proc.get('pid')
-        self.debug('Attempting to terminate pid %s for %s %s', pid, self.type, self.name)
+        self.debug('Attempting to terminate pid %s for %s %s with signal %s', pid, self.type, self.name, signal_id)
         if not pid or not self._pid_valid(pid):
-            self.debug('Attempted to terminate invalid pid %s', pid)
+            self.debug('Attempted to terminate invalid pid %s with signal %s', pid, signal_id)
             return
 
-        os.kill(pid, 10)
+        os.kill(pid, signal_id)
         while self._pid_running(pid):
             sleep(1)
-        self.info('Terminated pid %s for %s %s', pid, self.type, self.name)
+        self.info('Terminated pid %s for %s %s with signal %s', pid, self.type, self.name, signal_id)
 
     def start_stage(self, stage_name):
         self.ntf.start_stage(stage_name)
