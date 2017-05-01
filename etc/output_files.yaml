@@ -23,6 +23,10 @@ bcbio:
     basename: '{sample_id}-ready.bam.bai'
     new_name: '{sample_id}.bam.bai'
 
+  - location: ['samples_{runfolder}-merged', 'final', '{sample_id}']
+    basename: '{sample_id}-ready.depth'
+    new_name: '{sample_id}.depth'
+
   - location: ['samples_{runfolder}-merged', 'final', '{sample_id}', 'qc', 'samtools']
     basename: '{sample_id}.txt'
     new_name: 'samtools_stats.txt'
@@ -72,6 +76,18 @@ bcbio:
 
   - location: ['']
     basename: 'taxa_identified.json'
+
+  - location: ['']
+    basename: '{runfolder}-chr22-vbi.selfSM'
+    new_name: '{sample_id}-chr22-vbi.selfSM'
+
+  - location: ['samples_{runfolder}-merged', 'final', '*_{sample_id}']
+    basename: '{sample_id}-joint-gatk-haplotype-joint.sex'
+    new_name: '{sample_id}.sex'
+
+  - location: ['samples_{runfolder}-merged', 'final', '*_{sample_id}']
+    basename: '{sample_id}-joint-gatk-haplotype-joint.vcf.stats'
+    new_name: '{sample_id}.vcf.stats'
 
 
 non_human_qc:

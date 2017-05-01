@@ -3,7 +3,7 @@ import os.path
 from ete3 import NCBITaxa
 from collections import Counter
 from luigi import Parameter, IntParameter
-from egcg_core import executor
+from egcg_core import executor, util
 from analysis_driver.config import default as cfg
 from analysis_driver.exceptions import AnalysisDriverError
 from analysis_driver.segmentation import Stage
@@ -27,7 +27,7 @@ class ContaminationBlast(Stage):
 
     def sample_fastq_command(self):
         return 'set -o pipefail; {seqtk} sample {fastq} {nb_reads} | {seqtk} seq -a > {fasta}'.format(
-            nb_reads=self.nb_reads, seqtk=cfg['tools']['seqtk'], fastq=self.fastq_file,
+            nb_reads=self.nb_reads, seqtk=cfg['tools']['seqtk'], fastq=util.find_file(self.fastq_file),
             fasta=self.fasta_outfile
         )
 
@@ -121,7 +121,7 @@ class ContaminationBlast(Stage):
         for taxon in taxids:
             taxon_dict = self.get_all_taxa_identified(taxon_dict, taxon, taxids)
 
-        outpath = os.path.join(self.working_dir, 'taxa_identified.json')
+        outpath = os.path.join(self.job_dir, 'taxa_identified.json')
         with open(outpath, 'w') as outfile:
             json.dump(taxon_dict, outfile, sort_keys=True, indent=4, separators=(',', ':'))
 

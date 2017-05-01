@@ -11,7 +11,7 @@ class GenderValidation(Stage):
 
     def _run(self):
         """Detect gender of the sample based on the %het on the X chromosome."""
-        name, ext = os.path.splitext(self.vcf_file)
+        name, ext = os.path.splitext(util.find_file(self.vcf_file))
         if ext == '.gz':
             file_opener = 'zcat'
             name, gz = os.path.splitext(name)

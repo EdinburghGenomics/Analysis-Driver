@@ -1,20 +1,19 @@
 import os
 import shutil
 from luigi import Parameter, ListParameter
-from egcg_core import executor
+from egcg_core import executor, util
 from analysis_driver.config import default as cfg
 from analysis_driver.segmentation import Stage
 
 
 class ContaminationCheck(Stage):
-    fastq_files = ListParameter()
+    fq_pattern = Parameter()
 
     def _fastqscreen_command(self):
-        assert 1 <= len(self.fastq_files) <= 2, 'Bad number of fastqs: %s' % self.fastq_files
+        fqs = util.find_files(self.fq_pattern)
+        assert 1 <= len(fqs) <= 2, 'Bad number of fastqs: %s' % fqs
         return '%s --aligner bowtie2 %s --conf %s --force' % (
-            cfg['tools']['fastqscreen'],
-            ' '.join(self.fastq_files),
-            cfg['contamination-check']['fastqscreen_conf']
+            cfg['tools']['fastqscreen'], ' '.join(fqs), cfg['contamination-check']['fastqscreen_conf']
         )
 
     @property
@@ -42,7 +41,7 @@ class VerifyBamID(Stage):
     def _filter_bam(self):
         # use only chromosome 22 for speed
         return executor.execute(
-            cfg['tools']['samtools'] + ' view -b %s chr22 > %s' % (self.bam_file, self.filtered_bam),
+            cfg['tools']['samtools'] + ' view -b %s chr22 > %s' % (util.find_file(self.bam_file), self.filtered_bam),
             job_name='filter_bam22',
             working_dir=self.job_dir,
             cpus=1,
@@ -92,9 +91,13 @@ class VCFStats(Stage):
     vcf_file = Parameter()
 
     def _run(self):
-        name, ext = os.path.splitext(self.vcf_file)
+        vcf = util.find_file(self.vcf_file)
+        if not vcf:
+            return 1
+
+        name, ext = os.path.splitext(vcf)
         stats_file = name + '.stats'
-        cmd = '%s vcfstats %s > %s' % (cfg['tools']['rtg'], self.vcf_file, stats_file)
+        cmd = '%s vcfstats %s > %s' % (cfg['tools']['rtg'], vcf, stats_file)
         exit_status = executor.execute(
             cmd,
             job_name='rtg_vcfstats',

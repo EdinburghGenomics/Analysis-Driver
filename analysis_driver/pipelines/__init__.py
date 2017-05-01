@@ -14,11 +14,10 @@ def pipeline(d):
     if isinstance(d, RunDataset):
         _pipeline = demultiplexing
     elif isinstance(d, SampleDataset):
-        species = clarity.get_species_from_sample(d.name)
         analysis_type = clarity.get_sample(d.name).udf.get('Analysis Type')
-        if species is None:
+        if d.species is None:
             raise PipelineError('No species information found in the LIMS for ' + d.name)
-        elif species == 'Homo sapiens':
+        elif d.species == 'Homo sapiens':
             _pipeline = bcbio
         elif analysis_type == 'Variant Calling':
             _pipeline = variant_calling

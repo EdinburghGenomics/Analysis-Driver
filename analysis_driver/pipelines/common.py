@@ -15,11 +15,11 @@ app_logger = log_cfg.get_logger('common')
 
 class VarCallingStage(segmentation.Stage):
     @property
-    def fastq_pair(self):
-        return util.find_files(self.job_dir, 'merged', self.dataset.user_sample_id + '_R?.fastq.gz')
+    def fq_pattern(self):
+        return os.path.join(self.job_dir, 'merged', self.dataset.user_sample_id + '_R?.fastq.gz')
 
     @property
-    def expected_output_bam(self):
+    def exp_bam_path(self):
         return os.path.join(self.job_dir, self.dataset.name + '.bam')
 
 
@@ -33,7 +33,7 @@ class MergeFastqs(VarCallingStage):
 class FastQC(VarCallingStage):
     def _run(self):
         return executor.execute(
-            *[bash_commands.fastqc(fastq_file) for fastq_file in self.fastq_pair],
+            *[bash_commands.fastqc(f) for f in util.find_files(self.fq_pattern)],
             job_name='fastqc',
             working_dir=self.job_dir,
             cpus=1,
@@ -45,9 +45,9 @@ class BWAMem(VarCallingStage):
     def _run(self):
         return executor.execute(
             bash_commands.bwa_mem_biobambam(
-                self.fastq_pair,
+                util.find_files(self.fq_pattern),
                 self.dataset.reference_genome,
-                self.expected_output_bam,
+                self.exp_bam_path,
                 {'ID': '1', 'SM': self.dataset.user_sample_id, 'PL': 'illumina'},
                 thread=16
             ),
@@ -62,7 +62,7 @@ class SamtoolsStats(VarCallingStage):
     def _run(self):
         return executor.execute(
             bash_commands.samtools_stats(
-                self.expected_output_bam,
+                self.exp_bam_path,
                 os.path.join(self.job_dir, 'samtools_stats.txt')
             ),
             job_name='samtools',
@@ -80,11 +80,11 @@ def build_bam_file_production(dataset):
 
     merge_fastqs = stage(MergeFastqs)
     fastqc = stage(FastQC, previous_stages=[merge_fastqs])
-    bwa = stage(BWAMem, previous_stages=[MergeFastqs])
-    contam = stage(qc.ContaminationCheck, previous_stages=[bwa], fastq_files=bwa.fastq_pair[:1])
-    blast = stage(qc.ContaminationBlast, previous_stages=[bwa], fastq_file=bwa.fastq_pair[0])
+    bwa = stage(BWAMem, previous_stages=[merge_fastqs])
+    contam = stage(qc.ContaminationCheck, previous_stages=[bwa], fq_pattern=bwa.fq_pattern)
+    blast = stage(qc.ContaminationBlast, previous_stages=[bwa], fastq_file=bwa.fq_pattern.replace('?', '1'))
     samtools_stat = stage(SamtoolsStats, previous_stages=[fastqc, bwa, contam, blast])
-    samtools_depth = stage(qc.SamtoolsDepth, bam_file=bwa.expected_output_bam)
+    samtools_depth = stage(qc.SamtoolsDepth, bam_file=bwa.exp_bam_path, previous_stages=[bwa])
 
     return [samtools_stat, samtools_depth]
 
@@ -108,7 +108,7 @@ def output_data(dataset, sample_dir, sample_id, dir_with_linked_files):
 
     # upload the data to the rest API
     project_id = clarity.find_project_name_from_sample(sample_id)
-    c = SampleCrawler(sample_id, project_id, dir_with_linked_files)
+    c = SampleCrawler(sample_id, project_id)
     c.send_data()
 
     # md5sum

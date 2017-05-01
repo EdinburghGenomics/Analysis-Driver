@@ -1,4 +1,4 @@
-from egcg_core import executor
+from egcg_core import executor, util
 from luigi import Parameter, ListParameter
 from analysis_driver.config import default as cfg
 from analysis_driver.segmentation import Stage
@@ -14,7 +14,7 @@ class Relatedness(Stage):
         return self.project_id + '_genotype_gvcfs.vcf'
 
     def gatk_genotype_gvcfs_cmd(self):
-        gvcf_variants = ' '. join(['--variant ' + i for i in self.gvcf_files])
+        gvcf_variants = ' '. join(['--variant ' + util.find_file(i) for i in self.gvcf_files])
         number_threads = 12
         return 'java -jar %s -T GenotypeGVCFs -nt %s -R %s %s -o %s' % (
             cfg['tools']['gatk'], number_threads, self.reference, gvcf_variants, self.gatk_outfile

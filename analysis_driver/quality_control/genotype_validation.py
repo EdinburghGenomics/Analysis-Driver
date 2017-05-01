@@ -1,6 +1,6 @@
 import os
 from luigi import Parameter, BoolParameter, ListParameter
-from egcg_core import executor, clarity
+from egcg_core import executor, clarity, util
 from analysis_driver.exceptions import PipelineError
 from analysis_driver.util import bash_commands
 from analysis_driver.config import default as cfg
@@ -9,7 +9,7 @@ from analysis_driver.segmentation import Stage
 
 
 class GenotypeValidation(Stage):
-    fastq_files = ListParameter()
+    fq_pattern = Parameter()
     vcf_file = Parameter(default=None)
     check_neighbour = BoolParameter(default=False)
     check_project = BoolParameter(default=False)
@@ -58,7 +58,7 @@ class GenotypeValidation(Stage):
 
     def _bwa_alignment(self):
         return executor.execute(
-            self._bwa_aln(self.fastq_files),
+            self._bwa_aln(util.find_files(self.fq_pattern)),
             job_name='alignment_bwa',
             working_dir=self.job_dir,
             cpus=4,

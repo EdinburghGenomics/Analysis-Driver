@@ -200,5 +200,5 @@ def build_pipeline(dataset):
     tabix = stage(Tabix, previous_stages=[bgzip])
 
     output = stage(Output, previous_stages=[tabix])
-    _cleanup = stage(Cleanup, previous_stage=[output])
+    _cleanup = stage(Cleanup, previous_stages=[output])
     return _cleanup

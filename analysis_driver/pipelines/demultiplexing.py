@@ -76,13 +76,6 @@ class Bcl2FastqAndFilter(DemultiplexingStage):
         ).join()
 
 
-class WellDuplicates(DemultiplexingStage):
-    def _run(self):
-        well_dup_exec = lane_duplicates.WellDuplicates(self.dataset, self.job_dir, self.fastq_dir, self.input_dir)
-        well_dup_exec.start()
-        return well_dup_exec.join()
-
-
 class IntegrityCheck(DemultiplexingStage):
     def _run(self):
         return executor.execute(
@@ -166,13 +159,13 @@ def build_pipeline(dataset):
 
     setup = stage(Setup)
     bcl2fastq = stage(Bcl2FastqAndFilter, previous_stages=[setup])
-    welldups = stage(WellDuplicates, previous_stages=[setup])
+    welldups = stage(lane_duplicates.WellDuplicates, run_directory=bcl2fastq.input_dir, output_directory=bcl2fastq.fastq_dir, previous_stages=[setup])
     integrity_check = stage(IntegrityCheck, previous_stages=[bcl2fastq])
     fastqc = stage(FastQC, previous_stages=[bcl2fastq])
     seqtk = stage(SeqtkFQChk, previous_stages=[bcl2fastq])
     md5 = stage(MD5Sum, previous_stages=[bcl2fastq])
     qc_output = stage(QCOutput, previous_stages=[welldups, integrity_check, fastqc, seqtk, md5])
-    data_output = stage(DataOutput, previous_stages=qc_output)
-    _cleanup = stage(Cleanup, previous_stages=data_output)
+    data_output = stage(DataOutput, previous_stages=[qc_output])
+    _cleanup = stage(Cleanup, previous_stages=[data_output])
 
     return _cleanup
