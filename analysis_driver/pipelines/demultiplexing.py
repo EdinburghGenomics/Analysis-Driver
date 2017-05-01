@@ -65,7 +65,7 @@ class Bcl2FastqAndFilter(DemultiplexingStage):
             return bcl2fastq_exit_status
 
         # Copy the Samplesheet Runinfo.xml run_parameters.xml to the fastq dir
-        for f in ('SampleSheet.csv', 'SampleSheet_analysis_driver.csv', 'runParameters.xml',
+        for f in ('SampleSheet_analysis_driver.csv', 'runParameters.xml',
                   'RunInfo.xml', 'RTAConfiguration.xml'):
             shutil.copy2(join(self.input_dir, f), join(self.fastq_dir, f))
         if not exists(join(self.fastq_dir, 'InterOp')):
