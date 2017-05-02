@@ -1,6 +1,6 @@
 import os
 import shutil
-from luigi import Parameter, ListParameter
+from luigi import Parameter
 from egcg_core import executor, util
 from analysis_driver.config import default as cfg
 from analysis_driver.segmentation import Stage
@@ -18,7 +18,7 @@ class ContaminationCheck(Stage):
 
     @property
     def fastqscreen_expected_outfiles(self):
-        return [f.replace('.fastq.gz', '_screen.txt') for f in self.fastq_files]
+        return self.fq_pattern.replace('.fastq.gz', '_screen.txt')
 
     def _run(self):
         fastqscreen_run_command = self._fastqscreen_command()

@@ -10,12 +10,14 @@ class TestSamtoolsDepth(QCTester):
 
     def test_get_samtools_depth_command(self):
         g = SamtoolsDepth(dataset=self.dataset, bam_file='testfile.bam')
-        assert g._samtools_depth_command() == self.exp_cmd
+        with patch('analysis_driver.quality_control.median_coverage.find_file', new=self.fake_find_file):
+            assert g._samtools_depth_command() == self.exp_cmd
 
     @patch('egcg_core.executor.execute', autospec=True)
     def test_run_samtools_depth(self, mocked_execute):
         g = SamtoolsDepth(dataset=self.dataset, bam_file='testfile.bam')
-        g._run()
+        with patch('analysis_driver.quality_control.median_coverage.find_file', new=self.fake_find_file):
+            g._run()
         mocked_execute.assert_called_once_with(
             self.exp_cmd, job_name='samtoolsdepth', working_dir='path/to/jobs/test_sample', cpus=1, mem=6
         )

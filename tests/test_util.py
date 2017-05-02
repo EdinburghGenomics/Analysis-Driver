@@ -1,13 +1,9 @@
-import shutil
 import os
-from unittest.mock import Mock, patch
+import shutil
+from unittest.mock import patch
 from tests.test_analysisdriver import TestAnalysisDriver
 from analysis_driver import transfer_data, util
-from analysis_driver.config import default as cfg
-
-
-def patched_get_user_sample_name(sample_id):
-    return patch('egcg_core.clarity.get_user_sample_name', return_value=sample_id)
+from analysis_driver.config import OutputFileConfiguration
 
 
 def patched_find_project_from_sample(sample_id):
@@ -15,129 +11,50 @@ def patched_find_project_from_sample(sample_id):
 
 
 class TestTransferData(TestAnalysisDriver):
+    data_output = os.path.join(TestAnalysisDriver.assets_path, 'data_output')
     sample_id = '10015AT0001'
 
     def setUp(self):
-        self.param_remappings = (
-            {'name': 'output_dir', 'new': self._to_dir},
-            {'name': 'jobs_dir', 'new': os.path.join(self.data_output, 'jobs')}
-        )
-        for p in self.param_remappings:
-            p['original'] = cfg.get(p['name'])
-            cfg.content[p['name']] = p['new']
+        self.link_dir = os.path.join(self.data_output, 'linked_output_files')
+        os.makedirs(self.link_dir, exist_ok=True)
 
+        self._to_dir = os.path.join(self.data_output, 'to', '')
         os.makedirs(self._to_dir, exist_ok=True)
+        self._pseudo_links = os.path.join(self.data_output, 'pseudo_links')
+        self.output_cfg = OutputFileConfiguration('non_human_qc')
         self._create_pseudo_links()
 
     def tearDown(self):
-        for p in self.param_remappings:
-            cfg.content[p['name']] = p['original']
-
         shutil.rmtree(self._to_dir)
         shutil.rmtree(self._pseudo_links)
-
-    @property
-    def _to_dir(self):
-        return os.path.join(self.data_output, 'to', '')
+        if os.path.isdir(self.link_dir):
+            shutil.rmtree(self.link_dir)
 
     def _create_pseudo_links(self):
         os.makedirs(self._pseudo_links, exist_ok=True)
-        for f in [
-            '10015AT0001.bam',
-            '10015AT0001.bam.bai',
-            '10015AT0001.g.vcf.gz',
-            '10015AT0001.g.vcf.gz.tbi',
-            '10015AT0001_R1.fastq.gz',
-            '10015AT0001_R2.fastq.gz',
-            '1_2015-10-16_samples_10015AT0001-merged-sort-callable.bed',
-            '1_2015-10-16_samples_10015AT0001-merged-sort-highdepth-stats.yaml',
-            'ConversionStats.xml',
-            'bamtools_stats.txt'
-        ]:
-            open(os.path.join(self._pseudo_links, f), 'a').close()
+        for k in self.output_cfg.content:
+            f = os.path.join(
+                self._pseudo_links,
+                self.output_cfg.output_dir_file(k).format(
+                    sample_id=self.sample_id, user_sample_id=self.sample_id
+                )
+            )
+            open(f, 'a').close()
 
     def test_create_links(self):
-        if not os.path.exists(os.path.join(self.data_output, 'jobs', self.sample_id)):
-            os.makedirs(os.path.join(self.data_output, 'jobs', self.sample_id))
-
-        records = [
-            {
-                'location': ['samples_{runfolder}-merged', 'final', '{sample_id}'],
-                'basename': '{sample_id}-gatk-haplotype.vcf.gz',
-                'new_name': '{sample_id}.g.vcf.gz'
-            },
-            {
-                'location': ['samples_{runfolder}-merged', 'final', '{sample_id}'],
-                'basename': '{sample_id}-gatk-haplotype.vcf.gz.tbi',
-                'new_name': '{sample_id}.g.vcf.gz.tbi'
-            },
-            {
-                'location': ['samples_{runfolder}-merged', 'final', '{sample_id}'],
-                'basename': '{sample_id}-ready.bam',
-                'new_name': '{sample_id}.bam'
-            },
-            {
-                'location': ['samples_{runfolder}-merged', 'final', '{sample_id}'],
-                'basename': '{sample_id}-ready.bam.bai',
-
-                'new_name': '{sample_id}.bam.bai'
-            },
-            {
-                'location': ['samples_{runfolder}-merged', 'final', '{sample_id}', 'qc', 'bamtools'],
-                'basename': 'bamtools_stats.txt'
-            },
-            {
-                'location': ['samples_{runfolder}-merged', 'work', 'align', '{sample_id}'],
-                'basename': '*{sample_id}*-sort-highdepth-stats.yaml'
-            },
-            {
-                'location': ['samples_{runfolder}-merged', 'work', 'align', '{sample_id}'],
-                'basename': '*{sample_id}*-sort-callable.bed'
-            },
-
-            {'location': ['merged'], 'basename': '{sample_id}_R1.fastq.gz'},
-            {'location': ['merged'], 'basename': '{sample_id}_R2.fastq.gz'},
-            {'location': ['fastq', 'Stats'], 'basename': 'ConversionStats.xml'}
-        ]
-
-        dir_with_linked_files = os.path.join(self.data_output, 'linked_output_files')
-        if os.path.isdir(dir_with_linked_files):
-            shutil.rmtree(dir_with_linked_files)
-        os.makedirs(dir_with_linked_files)
-
-        with patched_get_user_sample_name(self.sample_id):
+        with patch('egcg_core.clarity.get_user_sample_name', return_value=self.sample_id):
             list_of_linked_files = transfer_data.create_links_from_bcbio(
-                self.sample_id,
-                self.data_output,
-                records,
-                dir_with_linked_files
+                self.sample_id, self.data_output, self.output_cfg, self.link_dir
             )
 
         output_files = os.path.join(self.data_output, 'linked_output_files')
 
-        expected_outputs = [
-            '10015AT0001.bam',
-            '10015AT0001.bam.bai',
-            '10015AT0001.g.vcf.gz',
-            '10015AT0001.g.vcf.gz.tbi',
-            '10015AT0001_R1.fastq.gz',
-            '10015AT0001_R2.fastq.gz',
-            '1_2015-10-16_samples_10015AT0001-merged-sort-callable.bed',
-            '1_2015-10-16_samples_10015AT0001-merged-sort-highdepth-stats.yaml',
-            'ConversionStats.xml',
-            'bamtools_stats.txt'
-            # 'run_config.yaml'
-        ]
-        o = list(sorted(os.listdir(output_files)))
-        assert len(list_of_linked_files) == len(expected_outputs)
-        assert o == expected_outputs
-        shutil.rmtree(output_files)
-        assert not os.path.exists(output_files)
-
-
-    @property
-    def _pseudo_links(self):
-        return os.path.join(self.data_output, 'pseudo_links')
+        expected_outputs = ['10015AT0001.depth', '10015AT0001_R1_fastqc.html', '10015AT0001_R1_fastqc.zip',
+                            '10015AT0001_R1_screen.txt', '10015AT0001_R2_fastqc.html',
+                            '10015AT0001_R2_fastqc.zip', 'samtools_stats.txt', 'taxa_identified.json']
+        assert sorted(os.listdir(output_files)) == expected_outputs == sorted(
+            os.path.basename(f) for f in list_of_linked_files
+        )
 
     def test_output_sample_data(self):
         with patched_find_project_from_sample(self.sample_id), \
@@ -149,19 +66,9 @@ class TestTransferData(TestAnalysisDriver):
             )
         output_files = os.path.join(self._to_dir, 'proj_' + self.sample_id, self.sample_id)
 
-        expected_outputs = [
-            '10015AT0001.bam',
-            '10015AT0001.bam.bai',
-            '10015AT0001.g.vcf.gz',
-            '10015AT0001.g.vcf.gz.tbi',
-            '10015AT0001_R1.fastq.gz',
-            '10015AT0001_R2.fastq.gz',
-            '1_2015-10-16_samples_10015AT0001-merged-sort-callable.bed',
-            '1_2015-10-16_samples_10015AT0001-merged-sort-highdepth-stats.yaml',
-            'ConversionStats.xml',
-            'bamtools_stats.txt'
-            # 'run_config.yaml'
-        ]
+        expected_outputs = ['10015AT0001.depth', '10015AT0001_R1_fastqc.html', '10015AT0001_R1_fastqc.zip',
+                            '10015AT0001_R1_screen.txt', '10015AT0001_R2_fastqc.html',
+                            '10015AT0001_R2_fastqc.zip', 'samtools_stats.txt', 'taxa_identified.json']
 
         o = sorted(os.listdir(output_files))
         assert exit_status == 0

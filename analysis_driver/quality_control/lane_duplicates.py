@@ -4,6 +4,7 @@ from egcg_core import executor
 from analysis_driver.config import default as cfg
 from analysis_driver.segmentation import Stage
 
+
 class WellDuplicates(Stage):
     run_directory = Parameter()
     output_directory = Parameter()
@@ -20,4 +21,3 @@ class WellDuplicates(Stage):
             self._welldups_cmd(),
             job_name='welldup', working_dir=self.job_dir, cpus=1, mem=2, log_commands=False
         ).join()
-

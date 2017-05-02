@@ -8,7 +8,7 @@ from egcg_core.app_logging import logging_default as log_cfg
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from analysis_driver.dataset import RunDataset
 from analysis_driver.report_generation.report_crawlers import SampleCrawler, RunCrawler
-from analysis_driver.config import default as cfg, load_config
+from analysis_driver.config import default as cfg, load_config, OutputFileConfiguration
 
 
 def main():
@@ -31,6 +31,7 @@ def main():
     sample_parser = subparsers.add_parser('sample', parents=[parent])
     sample_parser.add_argument('project_id')
     sample_parser.add_argument('sample_id')
+    sample_parser.add_argument('--output_fileset')
     sample_parser.add_argument('--input_dir')
     sample_parser.set_defaults(func=sample_crawler)
 
@@ -82,7 +83,12 @@ def run_crawler(args):
 
 def sample_crawler(args):
     assert os.listdir(args.input_dir)
-    c = SampleCrawler(args.sample_id, args.project_id, args.input_dir)
+    c = SampleCrawler(
+        args.sample_id,
+        args.project_id, args.input_dir,
+        OutputFileConfiguration(args.output_fileset),
+        post_pipeline=True
+    )
     if args.test:
         print(json.dumps({'samples': c.sample}, indent=4))
     else:

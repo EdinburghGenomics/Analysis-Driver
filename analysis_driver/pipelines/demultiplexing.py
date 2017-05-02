@@ -2,9 +2,9 @@ import shutil
 from os import mkdir
 from os.path import join, exists, isdir
 from egcg_core import executor, util
-from analysis_driver.pipelines.common import cleanup
 from analysis_driver import segmentation
 from analysis_driver.util import bash_commands
+from analysis_driver.pipelines.common import Cleanup
 from analysis_driver.exceptions import SequencingRunError, AnalysisDriverError
 from analysis_driver.quality_control import lane_duplicates, BCLValidator
 from analysis_driver.reader.version_reader import write_versions_to_yaml
@@ -145,11 +145,6 @@ class DataOutput(DemultiplexingStage):
     def _run(self):
         write_versions_to_yaml(join(self.fastq_dir, 'program_versions.yaml'))
         return output_run_data(self.fastq_dir, self.dataset.name)
-
-
-class Cleanup(DemultiplexingStage):
-    def _run(self):
-        return cleanup(self.dataset.name)
 
 
 def build_pipeline(dataset):

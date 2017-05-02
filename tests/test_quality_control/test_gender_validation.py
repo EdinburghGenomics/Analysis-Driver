@@ -8,11 +8,13 @@ class TestGenderValidation(QCTester):
     def test_run(self, mocked_execute):
         validator = GenderValidation(dataset=self.dataset, vcf_file='path/to/test/vcf')
 
-        validator._run()
-        command = mocked_execute.call_args[0][0]
-        assert command.startswith('cat')
-        assert len(command.split(' | ')) == 5
+        with patch('analysis_driver.quality_control.gender_validation.util.find_file', new=self.fake_find_file):
+            validator._run()
 
-        validator = GenderValidation(dataset=self.dataset, vcf_file='path/to/test/vcf.gz')
-        validator._run()
-        assert mocked_execute.call_args[0][0].startswith('zcat')
+            command = mocked_execute.call_args[0][0]
+            assert command.startswith('cat')
+            assert len(command.split(' | ')) == 5
+
+            validator = GenderValidation(dataset=self.dataset, vcf_file='path/to/test/vcf.gz')
+            validator._run()
+            assert mocked_execute.call_args[0][0].startswith('zcat')

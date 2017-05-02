@@ -1,164 +1,199 @@
 bcbio:
-  - location: ['samples_{runfolder}-merged', 'final', '{sample_id}']
-    basename: '{sample_id}-gatk-haplotype.vcf.gz'
-    new_name: '{sample_id}.g.vcf.gz'
 
-  - location: ['samples_{runfolder}-merged', 'final', '{sample_id}']
-    basename: '{sample_id}-gatk-haplotype.vcf.gz.tbi'
-    new_name: '{sample_id}.g.vcf.gz.tbi'
+    gvcf:
+        location: ['samples_{sample_id}-merged', 'final', '{user_sample_id}']
+        basename: '{user_sample_id}-gatk-haplotype.vcf.gz'
+        new_name: '{user_sample_id}.g.vcf.gz'
 
-  - location: ['samples_{runfolder}-merged', 'final', '*_{sample_id}']
-    basename: '{sample_id}-joint-gatk-haplotype-joint.vcf.gz'
-    new_name: '{sample_id}.vcf.gz'
+    gvcf_tbi:
+        location: ['samples_{sample_id}-merged', 'final', '{user_sample_id}']
+        basename: '{user_sample_id}-gatk-haplotype.vcf.gz.tbi'
+        new_name: '{user_sample_id}.g.vcf.gz.tbi'
 
-  - location: ['samples_{runfolder}-merged', 'final', '*_{sample_id}']
-    basename: '{sample_id}-joint-gatk-haplotype-joint.vcf.gz.tbi'
-    new_name: '{sample_id}.vcf.gz.tbi'
+    vcf:
+        location: ['samples_{sample_id}-merged', 'final', '*_{user_sample_id}']
+        basename: '{user_sample_id}-joint-gatk-haplotype-joint.vcf.gz'
+        new_name: '{user_sample_id}.vcf.gz'
 
-  - location: ['samples_{runfolder}-merged', 'final', '{sample_id}']
-    basename: '{sample_id}-ready.bam'
-    new_name: '{sample_id}.bam'
+    vcf_tbi:
+        location: ['samples_{sample_id}-merged', 'final', '*_{user_sample_id}']
+        basename: '{user_sample_id}-joint-gatk-haplotype-joint.vcf.gz.tbi'
+        new_name: '{user_sample_id}.vcf.gz.tbi'
 
-  - location: ['samples_{runfolder}-merged', 'final', '{sample_id}']
-    basename: '{sample_id}-ready.bam.bai'
-    new_name: '{sample_id}.bam.bai'
+    bam:
+        location: ['samples_{sample_id}-merged', 'final', '{user_sample_id}']
+        basename: '{user_sample_id}-ready.bam'
+        new_name: '{user_sample_id}.bam'
 
-  - location: ['samples_{runfolder}-merged', 'final', '{sample_id}']
-    basename: '{sample_id}-ready.depth'
-    new_name: '{sample_id}.depth'
+    bam_bai:
+        location: ['samples_{sample_id}-merged', 'final', '{user_sample_id}']
+        basename: '{user_sample_id}-ready.bam.bai'
+        new_name: '{user_sample_id}.bam.bai'
 
-  - location: ['samples_{runfolder}-merged', 'final', '{sample_id}', 'qc', 'samtools']
-    basename: '{sample_id}.txt'
-    new_name: 'samtools_stats.txt'
+    depth_file:
+        location: ['samples_{sample_id}-merged', 'final', '{user_sample_id}']
+        basename: '{user_sample_id}-ready.depth'
+        new_name: '{user_sample_id}.depth'
 
-  - location: ['samples_{runfolder}-merged', 'work', 'align', '{sample_id}']
-    basename: '*{sample_id}*-sort-highdepth-stats.yaml'
-    required: False
+    samtools_stats:
+        location: ['samples_{sample_id}-merged', 'final', '{user_sample_id}', 'qc', 'samtools']
+        basename: '{user_sample_id}.txt'
+        new_name: 'samtools_stats.txt'
 
-  - location: ['samples_{runfolder}-merged', 'work', 'align', '{sample_id}']
-    basename: '*{sample_id}*-sort-callable.bed'
+    highdepth_stats:
+        location: ['samples_{sample_id}-merged', 'work', 'align', '{user_sample_id}']
+        basename: '*{user_sample_id}*-sort-highdepth-stats.yaml'
+        required: False
 
-  - location: ['samples_{runfolder}-merged', 'final', '*_{sample_id}']
-    basename: 'programs.txt'
+    sort_callable:
+        location: ['samples_{sample_id}-merged', 'work', 'align', '{user_sample_id}']
+        basename: '*{user_sample_id}*-sort-callable.bed'
 
-  - location: ['samples_{runfolder}-merged', 'final', '*_{sample_id}']
-    basename: 'project-summary.yaml'
+    programs:
+        location: ['samples_{sample_id}-merged', 'final', '*_{user_sample_id}']
+        basename: 'programs.txt'
 
-#  - location: ['merged']
-#    basename: '{sample_id}_R1.fastq.gz'
+    project_summary:
+        location: ['samples_{sample_id}-merged', 'final', '*_{user_sample_id}']
+        basename: 'project-summary.yaml'
 
-  - location: ['merged']
-    basename: '{sample_id}_R1_fastqc.html'
+    r1_fastq:
+#        location: ['merged']
+#        basename: '{user_sample_id}_R1.fastq.gz'
 
-  - location: ['merged']
-    basename: '{sample_id}_R1_fastqc.zip'
+    r1_fastqc_html:
+        location: ['merged']
+        basename: '{user_sample_id}_R1_fastqc.html'
 
-#  - location: ['merged']
-#    basename: '{sample_id}_R2.fastq.gz'
+    r1_fastqc_zip:
+        location: ['merged']
+        basename: '{user_sample_id}_R1_fastqc.zip'
 
-  - location: ['merged']
-    basename: '{sample_id}_R2_fastqc.html'
+    r2_fastq:
+#        location: ['merged']
+#        basename: '{user_sample_id}_R2.fastq.gz'
 
-  - location: ['merged']
-    basename: '{sample_id}_R2_fastqc.zip'
+    r2_fastqc_html:
+        location: ['merged']
+        basename: '{user_sample_id}_R2_fastqc.html'
 
-  - location: ['']
-    basename: '{runfolder}_genotype_validation.txt'
-    new_name: '{sample_id}_genotype_validation.txt'
-    required: False
+    r2_fastqc_zip:
+        location: ['merged']
+        basename: '{user_sample_id}_R2_fastqc.zip'
 
-  - location: ['']
-    basename: '{runfolder}_genotype_validation.vcf.gz'
-    new_name: '{sample_id}_genotype_validation.vcf.gz'
+    genoval:
+        basename: '{sample_id}_genotype_validation.txt'
+        new_name: '{user_sample_id}_genotype_validation.txt'
+        required: False
 
-  - location: ['merged']
-    basename: '{sample_id}_R1_screen.txt'
+    genoval_vcf:
+        basename: '{sample_id}_genotype_validation.vcf.gz'
+        new_name: '{user_sample_id}_genotype_validation.vcf.gz'
 
-  - location: ['']
-    basename: 'taxa_identified.json'
+    r1_fastqscreen:
+        location: ['merged']
+        basename: '{user_sample_id}_R1_screen.txt'
 
-  - location: ['']
-    basename: '{runfolder}-chr22-vbi.selfSM'
-    new_name: '{sample_id}-chr22-vbi.selfSM'
+    taxa_identified:
+        basename: 'taxa_identified.json'
 
-  - location: ['samples_{runfolder}-merged', 'final', '*_{sample_id}']
-    basename: '{sample_id}-joint-gatk-haplotype-joint.sex'
-    new_name: '{sample_id}.sex'
+    self_sm:
+        basename: '{sample_id}-chr22-vbi.selfSM'
+        new_name: '{user_sample_id}-chr22-vbi.selfSM'
 
-  - location: ['samples_{runfolder}-merged', 'final', '*_{sample_id}']
-    basename: '{sample_id}-joint-gatk-haplotype-joint.vcf.stats'
-    new_name: '{sample_id}.vcf.stats'
+    gender_call:
+        location: ['samples_{sample_id}-merged', 'final', '*_{user_sample_id}']
+        basename: '{user_sample_id}-joint-gatk-haplotype-joint.sex'
+        new_name: '{user_sample_id}.sex'
+
+    vcf_stats:
+        location: ['samples_{sample_id}-merged', 'final', '*_{user_sample_id}']
+        basename: '{user_sample_id}-joint-gatk-haplotype-joint.vcf.stats'
+        new_name: '{user_sample_id}.vcf.stats'
 
 
 non_human_qc:
 
-  - location: ['']
-    basename: 'samtools_stats.txt'
+    samtools_stats:
+        basename: 'samtools_stats.txt'
 
-  - location: ['merged']
-    basename: '{sample_id}_R1_fastqc.html'
+    r1_fastqc_html:
+        location: ['merged']
+        basename: '{user_sample_id}_R1_fastqc.html'
 
-  - location: ['merged']
-    basename: '{sample_id}_R1_fastqc.zip'
+    r1_fastqc_zip:
+        location: ['merged']
+        basename: '{user_sample_id}_R1_fastqc.zip'
 
-  - location: ['merged']
-    basename: '{sample_id}_R2_fastqc.html'
+    r2_fastqc_html:
+        location: ['merged']
+        basename: '{user_sample_id}_R2_fastqc.html'
 
-  - location: ['merged']
-    basename: '{sample_id}_R2_fastqc.zip'
+    r2_fastq_zip:
+        location: ['merged']
+        basename: '{user_sample_id}_R2_fastqc.zip'
 
-  - location: ['merged']
-    basename: '{sample_id}_R1_screen.txt'
+    r1_fastqscreen:
+        location: ['merged']
+        basename: '{user_sample_id}_R1_screen.txt'
 
-  - location: ['']
-    basename: '{runfolder}.depth'
-    new_name: '{sample_id}.depth'
+    depth_file:
+        basename: '{sample_id}.depth'
+        new_name: '{user_sample_id}.depth'
 
-  - location: ['']
-    basename: 'taxa_identified.json'
+    taxa_identified:
+        basename: 'taxa_identified.json'
 
 
 
 gatk_var_calling:
 
-  - location: ['']
-    basename: 'samtools_stats.txt'
+    samtools_stats:
+        basename: 'samtools_stats.txt'
 
-  - location: ['merged']
-    basename: '{sample_id}_R1_fastqc.html'
+    r1_fastqc_html:
+        location: ['merged']
+        basename: '{user_sample_id}_R1_fastqc.html'
+    r1_fastqc_zip:
+        location: ['merged']
+        basename: '{user_sample_id}_R1_fastqc.zip'
 
-  - location: ['merged']
-    basename: '{sample_id}_R1_fastqc.zip'
+    r2_fastqc_html:
+        location: ['merged']
+        basename: '{user_sample_id}_R2_fastqc.html'
 
-  - location: ['merged']
-    basename: '{sample_id}_R2_fastqc.html'
+    r2_fastqc_zip:
+        location: ['merged']
+        basename: '{user_sample_id}_R2_fastqc.zip'
 
-  - location: ['merged']
-    basename: '{sample_id}_R2_fastqc.zip'
+    r1_fastqscreen:
+        location: ['merged']
+        basename: '{user_sample_id}_R1_screen.txt'
 
-  - location: ['merged']
-    basename: '{sample_id}_R1_screen.txt'
+    depth_file:
+        basename: '{sample_id}.depth'
+        new_name: '{user_sample_id}.depth'
 
-  - location: ['']
-    basename: '{runfolder}.depth'
-    new_name: '{sample_id}.depth'
+    bam:
+        location: ['gatk_var_calling']
+        basename: '{user_sample_id}_indel_realigned.bam'
+        new_name: '{user_sample_id}.bam'
 
-  - location: ['gatk_var_calling']
-    basename: '{sample_id}_indel_realigned.bam'
-    new_name: '{sample_id}.bam'
+    bam_bai:
+        location: ['gatk_var_calling']
+        basename: '{user_sample_id}_indel_realigned.bai'
+        new_name: '{user_sample_id}.bam.bai'
 
-  - location: ['gatk_var_calling']
-    basename: '{sample_id}_indel_realigned.bai'
-    new_name: '{sample_id}.bam.bai'
+    gvcf:
+        location: ['gatk_var_calling']
+        basename: '{user_sample_id}.g.vcf.gz'
 
-  - location: ['gatk_var_calling']
-    basename: '{sample_id}.g.vcf.gz'
+    gvcf_tbi:
+        location: ['gatk_var_calling']
+        basename: '{user_sample_id}.g.vcf.gz.tbi'
 
-  - location: ['gatk_var_calling']
-    basename: '{sample_id}.g.vcf.gz.tbi'
-
-  - location: ['']
-    basename: 'taxa_identified.json'
+    taxa_identified:
+        basename: 'taxa_identified.json'
 
 
 project_process:

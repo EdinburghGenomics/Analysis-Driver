@@ -1,7 +1,7 @@
 import os
 from egcg_core.util import find_file
 from egcg_core import clarity
-from analysis_driver.config import output_files_config, default as cfg
+from analysis_driver.config import default as cfg, OutputFileConfiguration
 from analysis_driver.quality_control import Relatedness
 from analysis_driver.exceptions import PipelineError
 from analysis_driver.transfer_data import output_project_data
@@ -42,9 +42,9 @@ class Output(segmentation.Stage):
 
         dir_with_output_files = os.path.join(self.job_dir, 'relatedness_outfiles')
         os.makedirs(dir_with_output_files, exist_ok=True)
-        files_to_symlink = output_files_config.query('project_process')
+        output_files_cfg = OutputFileConfiguration('project_process')
 
-        for symlink_file in files_to_symlink:
+        for symlink_file in output_files_cfg.content.values():
             source = os.path.join(
                 self.job_dir,
                 os.path.join(*symlink_file['location']),

@@ -7,7 +7,6 @@ from analysis_driver.exceptions import PipelineError
 from analysis_driver.pipelines import common
 from analysis_driver.util import bash_commands
 from analysis_driver.config import default as cfg
-from analysis_driver.reader.version_reader import write_versions_to_yaml
 
 
 class BCBioStage(segmentation.Stage):
@@ -34,19 +33,6 @@ class BCBioStage(segmentation.Stage):
             self.dataset.user_sample_id,
             self.dataset.user_sample_id + '-ready.bam'
         )
-
-
-class Output(BCBioStage):
-    def _run(self):
-        # link the bcbio file into the final directory
-        dir_with_linked_files = common.link_results_files(self.dataset.name, self.job_dir, 'bcbio')
-        write_versions_to_yaml(os.path.join(dir_with_linked_files, 'program_versions.yaml'))
-        return common.output_data(self.dataset, self.job_dir, self.dataset.name, dir_with_linked_files)
-
-
-class Cleanup(BCBioStage):
-    def _run(self):
-        return common.cleanup(self.dataset.name)
 
 
 class BCBio(BCBioStage):
@@ -132,7 +118,7 @@ def build_pipeline(dataset):
     samtools_depth = stage(qc.SamtoolsDepth, bam_file=bcbio.bam_path, previous_stages=bcbio_and_qc)
     post_bcbio_qc = [gender_val, vcfstats, verify_bam_id, samtools_depth]
 
-    output = stage(Output, previous_stages=post_bcbio_qc)
-    cleanup = stage(Cleanup, previous_stages=[output])
+    output = stage(common.DataOutput, previous_stages=post_bcbio_qc, output_fileset='bcbio')
+    cleanup = stage(common.Cleanup, previous_stages=[output])
 
     return cleanup

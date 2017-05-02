@@ -1,9 +1,7 @@
 import os
 from egcg_core import executor
-from analysis_driver.pipelines.common import link_results_files, output_data, cleanup, get_dbsnp, get_known_indels
-from analysis_driver.pipelines.common import build_bam_file_production
+from analysis_driver.pipelines import common
 from analysis_driver.config import default as cfg
-from analysis_driver.reader.version_reader import write_versions_to_yaml
 from analysis_driver import segmentation
 
 
@@ -64,11 +62,11 @@ class GATKStage(segmentation.Stage):
 
     @property
     def dbsnp(self):
-        return get_dbsnp(self.dataset.genome_version)
+        return common.get_dbsnp(self.dataset.genome_version)
 
     @property
     def known_indels(self):
-        return get_known_indels(self.dataset.genome_version)
+        return common.get_known_indels(self.dataset.genome_version)
 
 
 class BaseRecal(GATKStage):
@@ -172,24 +170,12 @@ class Tabix(GATKStage):
         ).join()
 
 
-class Output(segmentation.Stage):
-    def _run(self):
-        dir_with_linked_files = link_results_files(self.dataset.name, self.job_dir, 'gatk_var_calling')
-        write_versions_to_yaml(os.path.join(dir_with_linked_files, 'program_versions.yaml'))
-        return output_data(self.dataset, self.job_dir, self.dataset.name, dir_with_linked_files)
-
-
-class Cleanup(segmentation.Stage):
-    def _run(self):
-        return cleanup(self.dataset.name)
-
-
 def build_pipeline(dataset):
 
     def stage(cls, **params):
         return cls(dataset=dataset, **params)
 
-    bam_file_production = build_bam_file_production(dataset)
+    bam_file_production = common.build_bam_file_production(dataset)
 
     base_recal = stage(BaseRecal, previous_stages=[bam_file_production])
     print_reads = stage(PrintReads, previous_stages=[base_recal])
@@ -199,6 +185,6 @@ def build_pipeline(dataset):
     bgzip = stage(BGZip, previous_stages=[haplotype])
     tabix = stage(Tabix, previous_stages=[bgzip])
 
-    output = stage(Output, previous_stages=[tabix])
-    _cleanup = stage(Cleanup, previous_stages=[output])
+    output = stage(common.DataOutput, previous_stages=[tabix], output_fileset='gatk_var_calling')
+    _cleanup = stage(common.Cleanup, previous_stages=[output])
     return _cleanup

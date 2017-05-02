@@ -17,7 +17,7 @@ class TestGenotypeValidation(QCTester):
             join('samples', self.sample_id, 'fastq_R1.fastq.gz'),
             join('samples', self.sample_id, 'fastq_R2.fastq.gz')
         ]
-        self.validator = GenotypeValidation(dataset=self.dataset, fastq_files=self.fastq_files)
+        self.validator = GenotypeValidation(dataset=self.dataset, fq_pattern=join('samples', self.sample_id, 'fastq_R?.fastq.gz'))
 
     def test_bwa_aln(self):
         observed = self.validator._bwa_aln(self.fastq_files)

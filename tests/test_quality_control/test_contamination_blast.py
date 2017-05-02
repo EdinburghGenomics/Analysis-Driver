@@ -3,6 +3,8 @@ from tests.test_quality_control.qc_tester import QCTester
 from analysis_driver.quality_control import ContaminationBlast
 from unittest.mock import patch, Mock
 
+ppath = 'analysis_driver.quality_control.contamination_blast.'
+
 tax_dict = {
     40674: 'Mammalia',
     9443: 'Primates',
@@ -64,9 +66,11 @@ class TestContaminationBlast(QCTester):
         self.blast._ncbi = Mock(get_taxid_translator=mocked_txid_transl)
 
     def test_sample_fastq_command(self):
-        assert self.blast.sample_fastq_command() == (
-            'set -o pipefail; path/to/seqtk sample fastqFile1.fastq 3000 | '
-            'path/to/seqtk seq -a > path/to/jobs/test_run/fastqFile1_sample3000.fasta')
+        with patch(ppath + 'util.find_file', new=self.fake_find_file):
+            assert self.blast.sample_fastq_command() == (
+                'set -o pipefail; path/to/seqtk sample fastqFile1.fastq 3000 | '
+                'path/to/seqtk seq -a > path/to/jobs/test_run/fastqFile1_sample3000.fasta'
+            )
 
     def test_fasta_blast_command(self):
         assert self.blast.fasta_blast_command() == (
@@ -162,7 +166,8 @@ class TestContaminationBlast(QCTester):
 
     @patch('egcg_core.executor.execute')
     def test_run_sample_fastq(self, mocked_execute):
-        self.blast.run_sample_fastq()
+        with patch(ppath + 'util.find_file', new=self.fake_find_file):
+            self.blast.run_sample_fastq()
         mocked_execute.assert_called_with(
             'set -o pipefail; path/to/seqtk sample fastqFile1.fastq 3000 | path/to/seqtk seq -a > path/to/jobs/test_run/fastqFile1_sample3000.fasta',
             working_dir='path/to/jobs/test_run',
@@ -173,7 +178,8 @@ class TestContaminationBlast(QCTester):
 
     @patch('egcg_core.executor.execute')
     def test_run_blast(self, mocked_execute):
-        self.blast.run_blast()
+        with patch(ppath + 'util.find_file', new=self.fake_find_file):
+            self.blast.run_blast()
         mocked_execute.assert_called_with(
             ('export PATH=$PATH:/path/to/db/dir; path/to/blastn '
              '-query path/to/jobs/test_run/fastqFile1_sample3000.fasta -db path/to/db/dir/nt '

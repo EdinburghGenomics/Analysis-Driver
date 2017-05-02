@@ -15,8 +15,6 @@ class NamedMock(Mock):
 
 class TestAnalysisDriver(TestCase):
     assets_path = join(dirname(__file__), 'assets')
-
-    data_output = join(assets_path, 'data_output')
     fastq_path = join(assets_path, 'fastqs')
     execs = join(assets_path, 'fake_tools')
     data_transfer = join(assets_path, 'data_transfer')
