@@ -4,6 +4,6 @@ ete3==3.0.0b35
 illuminate==0.6.4
 pip>=9.0.1
 scipy
-numpy
+numpy>=1.12.1
 -f https://github.com/Illumina/interop/releases/tag/v1.0.23
 interop
