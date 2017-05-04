@@ -70,16 +70,6 @@ def bcbio_prepare_sample(job_dir, sample_id, fastq_files):
     return sample_fastqs
 
 
-def get_genome_version(dataset_name, species):
-    genome_version = clarity.get_sample(dataset_name).udf.get('Genome Version')
-    if genome_version is None:
-        genome_version = cfg.query('species', species, 'default')
-    reference = cfg.query('genomes', genome_version, 'fasta')
-    if not reference:
-        raise PipelineError('Could not find reference for species %s in sample %s ' % (species, dataset_name))
-    return genome_version, reference
-
-
 def get_dbsnp(genome_version):
     return cfg.query('genomes', genome_version, 'dbsnp')
 
