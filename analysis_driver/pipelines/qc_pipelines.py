@@ -1,10 +1,11 @@
 import os
 from egcg_core import executor, clarity
 from analysis_driver import quality_control as qc
-from analysis_driver.pipelines.common import bcbio_prepare_sample, link_results_files, output_data, cleanup, get_genome_version
+from analysis_driver.pipelines.common import bcbio_prepare_sample, link_results_files, output_data, cleanup
 from analysis_driver.util import bash_commands
 from analysis_driver.exceptions import PipelineError
 from egcg_core.app_logging import logging_default as log_cfg
+from egcg_core.clarity import get_genome_version
 from analysis_driver.config import default as cfg
 from analysis_driver.reader.version_reader import write_versions_to_yaml
 from analysis_driver.transfer_data import prepare_sample_data
@@ -100,7 +101,10 @@ def bam_file_production(dataset, reference, species):
 def qc_pipeline(dataset, species):
     sample_id = dataset.name
     sample_dir = os.path.join(cfg['jobs_dir'], sample_id)
-    genome_version, reference = get_genome_version(sample_id, species)
+    genome_version = get_genome_version(sample_id, species=species)
+    reference = cfg.query('genomes', genome_version, 'fasta')
+    if not reference:
+        raise PipelineError('Could not find reference for species %s in sample %s ' % (species, sample_id))
     exit_status = bam_file_production(dataset, reference, species)
 
     # link the bcbio file into the final directory
