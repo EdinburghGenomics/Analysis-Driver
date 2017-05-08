@@ -58,6 +58,8 @@ class RunCrawler(Crawler):
         if run_dir:
             self._populate_barcode_info_from_seqtk_fqchk_files(run_dir)
         if run_dir:
+            self._populate_barcode_info_from_fastqc_files(run_dir)
+        if run_dir:
             welldup_files = util.find_files(run_dir, self.dataset.name + '.wellduplicate')
             if welldup_files:
                 self._populate_barcode_info_from_well_dup(welldup_files[0])
@@ -209,6 +211,29 @@ class RunCrawler(Crawler):
                 barcode_info[ELEMENT_NB_Q30_R2_CLEANED] = 0
             else:
                 raise PipelineError('%s fqchk files found in %s for %s' % (len(fq_chk_files), run_dir, run_element_id))
+
+    def _populate_barcode_info_from_fastqc_files(self, run_dir):
+        for run_element_id in self.barcodes_info:
+            barcode_info = self.barcodes_info.get(run_element_id)
+            if ELEMENT_BARCODE in barcode_info and barcode_info[ELEMENT_BARCODE] == 'unknown':
+                fqc_files = util.find_files(
+                    run_dir,
+                    'Undetermined_S0_L00%s_R*_001_fastqc.html' % barcode_info[ELEMENT_LANE]
+                )
+            else:
+                fqc_files = util.find_files(
+                    run_dir,
+                    barcode_info[ELEMENT_PROJECT_ID],
+                    barcode_info[ELEMENT_SAMPLE_INTERNAL_ID],
+                    '*_S*_L00%s_R*_001_fastqc.html' % barcode_info[ELEMENT_LANE]
+                )
+            if len(fqc_files) == 2:
+                fqc_files.sort()
+                barcode_info[ELEMENT_FASTQC_REPORT_R1] = ('file', fqc_files[0])
+                barcode_info[ELEMENT_FASTQC_REPORT_R2] = ('file', fqc_files[1])
+            else:
+                raise PipelineError('%s fastqc files found in %s for %s' % (len(fqc_files), run_dir, run_element_id))
+
 
     def _populate_barcode_info_from_well_dup(self, welldup_file):
         dup_per_lane = dm.parse_welldup_file(welldup_file)
