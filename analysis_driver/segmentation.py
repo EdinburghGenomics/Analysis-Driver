@@ -1,4 +1,5 @@
 import luigi
+import json
 from os.path import join
 from egcg_core.app_logging import AppLogger
 from analysis_driver.exceptions import PipelineError
@@ -16,11 +17,21 @@ class EGCGParameter(luigi.Parameter):
     #     return getattr(self, item, None)
 
 
+class EGCGListParameter(luigi.ListParameter):
+    def serialize(self, x):
+        return json.dumps(x, cls=EGCGEncoder)
+
+
+class EGCGEncoder(json.JSONEncoder):
+    def default(self, o):
+        return str(o)
+
+
 class BasicStage(luigi.Task, AppLogger):
     __stagename__ = None
     exit_status = None
-
-    previous_stages = EGCGParameter(default=[])
+ 
+    previous_stages = EGCGListParameter(default=[])
     dataset = EGCGParameter()
 
     def output(self):
@@ -37,6 +48,11 @@ class BasicStage(luigi.Task, AppLogger):
     @property
     def job_dir(self):
         return join(cfg['jobs_dir'], self.dataset.name)
+
+    def __str__(self):
+        return '%s(previous_stages=%s, dataset=%s)' % (
+            self.__class__.__name__, [s.__class__.__name__ for s in self.previous_stages], self.dataset
+        )
 
 
 class Stage(BasicStage):

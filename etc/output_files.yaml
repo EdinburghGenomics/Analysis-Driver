@@ -57,7 +57,7 @@ bcbio:
         location: ['samples_{sample_id}-merged', 'final', '*_{user_sample_id}']
         basename: 'project-summary.yaml'
 
-    r1_fastq:
+#    r1_fastq:
 #        location: ['merged']
 #        basename: '{user_sample_id}_R1.fastq.gz'
 
@@ -69,7 +69,7 @@ bcbio:
         location: ['merged']
         basename: '{user_sample_id}_R1_fastqc.zip'
 
-    r2_fastq:
+#    r2_fastq:
 #        location: ['merged']
 #        basename: '{user_sample_id}_R2.fastq.gz'
 

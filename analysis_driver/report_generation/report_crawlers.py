@@ -290,10 +290,12 @@ class SampleCrawler(Crawler):
         else:
             fp = self.output_cfg.job_dir_file(outfile_id)
 
-        return util.find_file(
-            self.data_dir,
-            fp.format(sample_id=self.project_id, user_sample_id=self.user_sample_id)
-        )
+        self.debug('Searching for %s in %s/%s' % (outfile_id, self.data_dir, fp))
+        if fp:
+            return util.find_file(
+                self.data_dir,
+                fp.format(sample_id=self.sample_id, user_sample_id=self.user_sample_id)
+            )
 
     def _populate_lib_info(self):
         sample = {

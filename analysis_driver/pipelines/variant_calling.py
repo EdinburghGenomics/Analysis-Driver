@@ -177,7 +177,7 @@ def build_pipeline(dataset):
 
     bam_file_production = common.build_bam_file_production(dataset)
 
-    base_recal = stage(BaseRecal, previous_stages=[bam_file_production])
+    base_recal = stage(BaseRecal, previous_stages=bam_file_production)
     print_reads = stage(PrintReads, previous_stages=[base_recal])
     realign_target = stage(RealignTarget, previous_stages=[print_reads])
     realign = stage(Realign, previous_stages=[realign_target])

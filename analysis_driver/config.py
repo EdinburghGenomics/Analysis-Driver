@@ -20,13 +20,15 @@ class OutputFileConfiguration(Configuration):
         self.content = self.content[pipeline_type]
 
     def job_dir_file(self, outfile_id):
-        outfile_record = self.content[outfile_id]
-        location = os.path.join(*outfile_record.get('location', ['']))
-        return os.path.join(location, outfile_record['basename'])
+        outfile_record = self.content.get(outfile_id)
+        if outfile_record:
+            location = os.path.join(*outfile_record.get('location', ['']))
+            return os.path.join(location, outfile_record['basename'])
 
     def output_dir_file(self, outfile_id):
-        outfile_record = self.content[outfile_id]
-        return outfile_record.get('new_name') or outfile_record['basename']
+        outfile_record = self.content.get(outfile_id)
+        if outfile_record:
+            return outfile_record.get('new_name') or outfile_record['basename']
 
 
 default = cfg  # backward compatibility
