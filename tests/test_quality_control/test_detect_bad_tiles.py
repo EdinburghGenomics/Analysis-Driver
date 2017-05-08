@@ -20,6 +20,10 @@ class TestBadTileDetector(TestAnalysisDriver):
         l = ['a', 'b', 'c', 'd', 'e', 'f', 'g']
         expected_lists = [('a', 'b', 'c'), ('b', 'c', 'd'), ('c', 'd', 'e'), ('d', 'e', 'f'), ('e', 'f', 'g')]
         assert list(self.detector.windows(l, window_size=3)) == expected_lists
+        l = ['a', 'b', 'c']
+        assert list(self.detector.windows(l, window_size=4)) == []
+
+
 
     def test_average_from_list_hist(self):
         list_hist = [
