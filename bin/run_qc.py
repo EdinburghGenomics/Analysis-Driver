@@ -223,5 +223,9 @@ def relatedness(args):
     return r.join()
 
 
+def peddy(args):
+    pass
+
+
 if __name__ == '__main__':
     sys.exit(main())

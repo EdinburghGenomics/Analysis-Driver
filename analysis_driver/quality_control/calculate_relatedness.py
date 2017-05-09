@@ -9,6 +9,7 @@ class Relatedness(QualityControl):
         self.gVCF_files = gVCF_files
         self.reference = reference
         self.project_id = project_id
+        self.use_peddy = False
 
     def get_gatk_genotype_gvcfs_command(self):
         gVCF_variants = " ". join(["--variant " + i for i in self.gVCF_files])
@@ -36,6 +37,12 @@ class Relatedness(QualityControl):
         self.dataset.end_stage('gatk_genotype_gvcfs', exit_status)
         return gatk_outfile
 
+    def tabix_index(self):
+        pass
+
+    def construct_ped_file(self):
+        pass
+
     def run_vcftools(self, vcftools_input_file):
         vcftools_relatedness_command, vcftools_outfile = self.get_vcftools_relatedness_command(vcftools_input_file)
         self.dataset.start_stage('vcftools_relatedness')
@@ -50,14 +57,26 @@ class Relatedness(QualityControl):
         self.dataset.end_stage('vcftools_relatedness', exit_status)
         return vcftools_outfile
 
-    def calculate_relatedness(self):
+    def run_peddy(self, genotyped_vcfs, ped_file):
+        pass
+
+    def relatedness(self):
         gatk_genotype_gvcfs_outfile = self.run_gatk()
         vcftools_relatedness_outfile = self.run_vcftools(gatk_genotype_gvcfs_outfile)
         return vcftools_relatedness_outfile
 
+    def peddy(self):
+        gatk_genotype_gvcfs_outfile = self.run_gatk()
+        self.tabix_index()
+        ped_file = self.construct_ped_file()
+        peddy_outfile = self.run_peddy(gatk_genotype_gvcfs_outfile, ped_file)
+
     def run(self):
         try:
-            self.vcftools_relatedness_expected_outfile = self.calculate_relatedness()
+            if self.use_peddy:
+                pass
+            else:
+                self.vcftools_relatedness_expected_outfile = self.relatedness()
         except Exception as e:
             self.exception = e
             self.exit_status = 8

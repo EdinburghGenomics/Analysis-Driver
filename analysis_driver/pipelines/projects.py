@@ -9,7 +9,7 @@ from analysis_driver.transfer_data import output_project_data
 
 def project_pipeline(dataset):
     project_id = dataset.name
-    samples_for_project = dataset.sample_processed
+    samples_for_project = dataset.samples_processed
 
     species_in_project = set()
     for sample in samples_for_project:
