@@ -1,6 +1,6 @@
 import os
 from unittest.mock import Mock, patch, call
-from tests.test_analysisdriver import TestAnalysisDriver
+from tests.test_analysisdriver import TestAnalysisDriver, NamedMock
 from analysis_driver.quality_control import BCLValidator
 
 
@@ -10,8 +10,8 @@ class TestBCLValidator(TestAnalysisDriver):
             tiles=('1_1101', '2_1101', '1_1102', '2_1102'),
             reads=Mock(reads=[Mock(attrib={'NumCycles': '3'})])
         )
-        self.job_dir = os.path.join(TestAnalysisDriver.assets_path, 'bcl_validation')
-        self.val = BCLValidator(dataset=Mock(input_dir=self.job_dir, run_info=run_info))
+        self.run_dir = os.path.join(TestAnalysisDriver.assets_path, 'bcl_validation')
+        self.val = BCLValidator(dataset=NamedMock(real_name='a_run', input_dir=self.run_dir, run_info=run_info))
         if os.path.isfile(self.val.validation_log):
             os.remove(self.val.validation_log)
 
@@ -43,7 +43,7 @@ class TestBCLValidator(TestAnalysisDriver):
         with patch('analysis_driver.quality_control.BCLValidator._all_cycles_from_interop',
                    return_value=[1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3]):
             bcls = self.val.get_bcls_to_check()
-        validation_log_tmp = os.path.join(self.val.working_dir, 'tmp_checked_bcls.csv')
+        validation_log_tmp = os.path.join(self.val.job_dir, 'tmp_checked_bcls.csv')
         self.val.run_bcl_check(bcls, slice_size=2, max_job_number=5)
 
         assert mocked_execute.call_count == 2
@@ -55,7 +55,7 @@ class TestBCLValidator(TestAnalysisDriver):
             '\n'.join('check_bcl ' + f for f in bcls[8:10]),
             prelim_cmds=[self.val.validate_expr(validation_log_tmp)],
             job_name='bcl_validation',
-            working_dir=self.job_dir,
+            working_dir=self.val.job_dir,
             log_commands=False,
             cpus=1,
             mem=6
@@ -64,7 +64,7 @@ class TestBCLValidator(TestAnalysisDriver):
             '\n'.join('check_bcl ' + f for f in bcls[10:12]),
             prelim_cmds=[self.val.validate_expr(validation_log_tmp)],
             job_name='bcl_validation',
-            working_dir=self.job_dir,
+            working_dir=self.val.job_dir,
             log_commands=False,
             cpus=1,
             mem=6
@@ -72,7 +72,7 @@ class TestBCLValidator(TestAnalysisDriver):
         mocked_execute.assert_has_calls([call_1, call().join(), call_2, call().join()])
 
     def test_cycles_from_interop(self):
-        interop_dir = os.path.join(self.job_dir, 'InterOp')
+        interop_dir = os.path.join(self.run_dir, 'InterOp')
         os.makedirs(interop_dir, exist_ok=True)
         assert self.val._all_cycles_from_interop() == []  # no ExtractionMetrics
         open(os.path.join(interop_dir, 'ExtractionMetricsOut.bin'), 'w').close()

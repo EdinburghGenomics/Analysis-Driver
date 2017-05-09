@@ -33,7 +33,7 @@ class BCLValidator(Stage):
     def call_bcl_check(self):
         bcls = self.get_bcls_to_check()
         if bcls:
-            self.run_bcl_check(bcls, self.run_dir)
+            self.run_bcl_check(bcls)
 
     def check_bcls(self):
         while self.dataset.is_sequencing():
@@ -87,7 +87,7 @@ class BCLValidator(Stage):
         array job so we don't spam the resource manager with 200,000 commands at once.
         """
         max_nb_bcl = max_job_number * slice_size
-        validation_log_tmp = join(self.working_dir, 'tmp_checked_bcls.csv')
+        validation_log_tmp = join(self.job_dir, 'tmp_checked_bcls.csv')
         if isfile(validation_log_tmp):
             os.remove(validation_log_tmp)
         for i in range(0, len(bcls), max_nb_bcl):
@@ -101,21 +101,21 @@ class BCLValidator(Stage):
                 *['\n'.join(cmd_slice) for cmd_slice in sliced_job_array],
                 prelim_cmds=[self.validate_expr(validation_log_tmp)],
                 job_name='bcl_validation',
-                working_dir=job_dir,
+                working_dir=self.job_dir,
                 log_commands=False,
                 cpus=1,
                 mem=6
             ).join()
 
-        valid_bcl = self.read_valid_files()
+        valid_bcls = self.read_valid_files()
         # Merge the valid bcls and the tested bcls
         with open(self.validation_log, 'w') as f:
-            for bcl in valid_bcl:
-                f.write('%s,0\n' % (bcl))
+            for bcl in valid_bcls:
+                f.write('%s,0\n' % bcl)
             if isfile(validation_log_tmp):
                 for bcl, exit_status in self.read_check_bcl_files(validation_log_tmp):
                     f.write('%s,%s\n' % (bcl, exit_status))
-        self.info('Finished validation. Found %s invalid file' % len(self.read_invalid_files()))
+        self.info('Finished validation. Found %s invalid files' % len(self.read_invalid_files()))
 
     def read_check_bcl_files(self, validation_log=None):
         if not validation_log:
