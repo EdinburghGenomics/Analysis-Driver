@@ -7,11 +7,22 @@ Changelog for Analysis-Driver
 - Nothing changed yet.
 
 
+0.14.3 (2017-04-28)
+-------------------
+
+- Removed need for SampleSheet to exist for a Run to be picked up
+
+
+0.14.2 (2017-04-21)
+-------------------
+
+ - Fix samplesheet generation when one sample is repeated over multiple lanes
+ - Continuously check failed bcl file to make sure they really are failed
+
 0.14.1 (2017-04-19)
 -------------------
 
-- Fix BCL validation bug in previous version
-
+ - Fix BCL validation bug in previous version
 
 0.14 (2017-04-18)
 -----------------

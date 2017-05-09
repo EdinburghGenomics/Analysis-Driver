@@ -33,14 +33,16 @@ class Setup(DemultiplexingStage):
 
         b = BCLValidator(self.job_dir, self.dataset)
         b.check_bcls()
-        invalid_bcls = b.read_invalid_files()
-        if invalid_bcls:
-            raise AnalysisDriverError('Some BCL files are corrupted; check %s for details', b.validation_log)
 
+        # make sure the run is not aborted or errored before checking the bcl files
         run_status = self.dataset.lims_run.udf.get('Run Status')
         if run_status != 'RunCompleted':
             self.error('Run status is \'%s\'. Stopping.', run_status)
             raise SequencingRunError(run_status)
+
+        invalid_bcls = b.read_invalid_files()
+        if invalid_bcls:
+            raise AnalysisDriverError('Some BCL files are corrupted; check %s for details', b.validation_log)
 
         return 0
 
@@ -61,7 +63,7 @@ class Bcl2FastqAndFilter(DemultiplexingStage):
             return bcl2fastq_exit_status
 
         # Copy the Samplesheet Runinfo.xml run_parameters.xml to the fastq dir
-        for f in ('SampleSheet.csv', 'SampleSheet_analysis_driver.csv', 'runParameters.xml',
+        for f in ('SampleSheet_analysis_driver.csv', 'runParameters.xml',
                   'RunInfo.xml', 'RTAConfiguration.xml'):
             shutil.copy2(join(self.input_dir, f), join(self.fastq_dir, f))
         if not exists(join(self.fastq_dir, 'InterOp')):
