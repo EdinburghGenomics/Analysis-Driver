@@ -2,15 +2,36 @@ import shutil
 from os import mkdir
 from os.path import join, exists, isdir
 from egcg_core import executor, util
+from egcg_core.config import cfg
+
 from analysis_driver import segmentation
-from analysis_driver.quality_control.detect_bad_cycles_tiles import BadTileDetector
-from analysis_driver.util import bash_commands
+from analysis_driver.quality_control import BadTileCycleDetector
+from analysis_driver.util import bash_commands, find_all_fastq_pairs_for_lane, convert_bad_cycle_in_trim
 from analysis_driver.pipelines.common import Cleanup
 from analysis_driver.exceptions import SequencingRunError, AnalysisDriverError
 from analysis_driver.quality_control import lane_duplicates, BCLValidator
 from analysis_driver.reader.version_reader import write_versions_to_yaml
 from analysis_driver.report_generation.report_crawlers import RunCrawler
 from analysis_driver.transfer_data import output_run_data
+
+
+
+def find_upload_run_results(stage):
+    # Find conversion xml file and adapter file, and send the results to the rest API
+    conversion_xml = join(stage.fastq_dir, 'Stats', 'ConversionStats.xml')
+    adapter_trim_file = join(stage.fastq_dir, 'Stats', 'AdapterTrimming.txt')
+
+    if exists(conversion_xml) and exists(adapter_trim_file):
+        stage.info('Found ConversionStats and AdaptorTrimming. Sending data.')
+        crawler = RunCrawler(
+            stage.dataset, adapter_trim_file=adapter_trim_file,
+            conversion_xml_file=conversion_xml, run_dir=stage.fastq_dir
+        )
+        crawler.send_data()
+        return 0
+    else:
+        stage.error('ConversionStats or AdaptorTrimming not found.')
+        return 1
 
 
 class DemultiplexingStage(segmentation.Stage):
@@ -75,16 +96,44 @@ class Bcl2Fastq(DemultiplexingStage):
 
 class FastqFilter(DemultiplexingStage):
     def _run(self):
+        find_upload_run_results(self)
 
-        detector = BadTileDetector(self.dataset)
+        # Assess if the lanes need filtering
+        lane_need_filtering = {}
+        for lane_metrics in self.dataset.lane_metrics:
+            q30_threshold = cfg.query('fastq_filterer', 'q30_threshold', ret_default=.74)
+            if lane_metrics['pc_q30'] < q30_threshold:
+                self.warning('Will apply cycle and tile filtering to lane %s: %Q30=%s' % (
+                    lane_metrics['lane_number'],
+                    lane_metrics['pc_q30']
+                ))
+                lane_need_filtering[lane_metrics['lane_number']] = True
+            else:
+                lane_need_filtering[lane_metrics['lane_number']] = False
+
+        detector = BadTileCycleDetector(self.dataset)
         bad_tiles = detector.detect_bad_tile()
+        bad_cycles = detector.detect_bad_cycle()
+
         if bad_tiles:
             self.info('Detected %s bad tiles: %s'%(len(bad_tiles), ', '.join(bad_tiles)))
-
+        cmd_list = []
+        for lane in lane_need_filtering:
+            fq_pairs = find_all_fastq_pairs_for_lane(self.fastq_dir, lane)
+            if lane_need_filtering[lane]:
+                trim_r1, trim_r2 = convert_bad_cycle_in_trim(bad_cycles.get(lane), self.dataset.run_info)
+                for fqs in fq_pairs:
+                    cmd_list.append(bash_commands.fastq_filterer_and_pigz_in_place(
+                        fastq_file_pair=fqs,
+                        tiles_to_filter=bad_tiles.get(lane),
+                        trim_r2=trim_r2
+                    ))
+            else:
+                cmd_list.extend([bash_commands.fastq_filterer_and_pigz_in_place(fqs) for fqs in fq_pairs])
 
 
         return executor.execute(
-            *[bash_commands.fastq_filterer_and_pigz_in_place(fqs) for fqs in util.find_all_fastq_pairs(self.fastq_dir)],
+            *cmd_list,
             job_name='fastq_filterer',
             working_dir=self.job_dir,
             cpus=18,
@@ -140,21 +189,7 @@ class MD5Sum(DemultiplexingStage):
 
 class QCOutput(DemultiplexingStage):
     def _run(self):
-        # Find conversion xml file and adapter file, and send the results to the rest API
-        conversion_xml = join(self.fastq_dir, 'Stats', 'ConversionStats.xml')
-        adapter_trim_file = join(self.fastq_dir, 'Stats', 'AdapterTrimming.txt')
-
-        if exists(conversion_xml) and exists(adapter_trim_file):
-            self.info('Found ConversionStats and AdaptorTrimming. Sending data.')
-            crawler = RunCrawler(
-                self.dataset, adapter_trim_file=adapter_trim_file,
-                conversion_xml_file=conversion_xml, run_dir=self.fastq_dir
-            )
-            crawler.send_data()
-            return 0
-        else:
-            self.error('ConversionStats or AdaptorTrimming not found.')
-            return 1
+        find_upload_run_results(self)
 
 
 class DataOutput(DemultiplexingStage):
@@ -169,12 +204,13 @@ def build_pipeline(dataset):
         return cls(dataset=dataset, **params)
 
     setup = stage(Setup)
-    bcl2fastq = stage(Bcl2FastqAndFilter, previous_stages=[setup])
+    bcl2fastq = stage(Bcl2Fastq, previous_stages=[setup])
+    fastq_filter = stage(FastqFilter, previous_stages=[bcl2fastq])
     welldups = stage(lane_duplicates.WellDuplicates, run_directory=bcl2fastq.input_dir, output_directory=bcl2fastq.fastq_dir, previous_stages=[setup])
-    integrity_check = stage(IntegrityCheck, previous_stages=[bcl2fastq])
-    fastqc = stage(FastQC, previous_stages=[bcl2fastq])
-    seqtk = stage(SeqtkFQChk, previous_stages=[bcl2fastq])
-    md5 = stage(MD5Sum, previous_stages=[bcl2fastq])
+    integrity_check = stage(IntegrityCheck, previous_stages=[fastq_filter])
+    fastqc = stage(FastQC, previous_stages=[fastq_filter])
+    seqtk = stage(SeqtkFQChk, previous_stages=[fastq_filter])
+    md5 = stage(MD5Sum, previous_stages=[fastq_filter])
     qc_output = stage(QCOutput, previous_stages=[welldups, integrity_check, fastqc, seqtk, md5])
     data_output = stage(DataOutput, previous_stages=[qc_output])
     _cleanup = stage(Cleanup, previous_stages=[data_output])

@@ -54,9 +54,9 @@ class TestBadTileCycleDetector(TestAnalysisDriver):
         ]
         self.detector.window_size = 2
 
-        assert self.detector.is_bad_tile_sliding_window(list_q_hist1)
+        assert self.detector.is_bad_tile_sliding_window(1, '1101', list_q_hist1)
 
-        assert not self.detector.is_bad_tile_sliding_window(list_q_hist2)
+        assert not self.detector.is_bad_tile_sliding_window(1, '1102', list_q_hist2)
 
     def test_detect_bad_tile(self):
         list_q_hist1 = [

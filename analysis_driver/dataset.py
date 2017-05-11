@@ -305,6 +305,12 @@ class RunDataset(Dataset):
         self.lims_run.get(force=True)
         return self.lims_run.udf.get('Run Status') in ['RunStarted', 'RunPaused']
 
+    def run_metrics(self):
+        return rest_communication.get_document('aggregate/all_runs', match={'run_id': self.name})
+
+    def lane_metrics(self):
+        return rest_communication.get_document('aggregate/run_elements_by_lane', match={'run_id': self.name})
+
 
 class SampleDataset(Dataset):
     type = 'sample'
