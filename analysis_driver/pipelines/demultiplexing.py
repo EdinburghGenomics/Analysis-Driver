@@ -93,15 +93,15 @@ class FastqFilter(DemultiplexingStage):
         # Assess if the lanes need filtering
         lane_need_filtering = {1: False, 2: False, 3: False, 4:False, 5: False, 6: False, 7: False, 8: False}
         lanes_metrics = self.dataset.lane_metrics
-        self.critical(lanes_metrics)
         for lane_metrics in lanes_metrics:
-            q30_threshold = cfg.query('fastq_filterer', 'q30_threshold', ret_default=74)
+            q30_threshold = float(cfg.query('fastq_filterer', 'q30_threshold', ret_default=74))
             self.debug('Lane filter if Q30 is bellow %s', q30_threshold)
             if lane_metrics['pc_q30'] < q30_threshold and lane_metrics['pc_q30'] > 0:
                 self.warning(
-                    'Will apply cycle and tile filtering to lane %s: %%Q30=%s',
+                    'Will apply cycle and tile filtering to lane %s: %%Q30=%s < %s',
                     lane_metrics['lane_number'],
-                    lane_metrics['pc_q30']
+                    lane_metrics['pc_q30'],
+                    q30_threshold
                 )
                 lane_need_filtering[lane_metrics['lane_number']] = True
 
