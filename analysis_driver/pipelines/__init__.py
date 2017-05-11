@@ -31,7 +31,11 @@ def pipeline(d):
     final_stage = _pipeline.build_pipeline(d)
     final_stage.exit_status = 9
 
-    luigi_params = {'tasks': [final_stage], 'local_scheduler': cfg.query('luigi', 'local_scheduler')}
+    luigi_params = {
+        'tasks': [final_stage],
+        'local_scheduler': cfg.query('luigi', 'local_scheduler'),
+        'workers': cfg.query('luigi', 'max_parallel_jobs', ret_default=4)
+    }
     if luigi_params['local_scheduler'] is not True:
         luigi_params['scheduler_url'] = cfg['luigi']['scheduler_url']
 

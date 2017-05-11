@@ -91,7 +91,7 @@ class RestAPITarget(luigi.Target):
 
 # example Luigi workflow
 from os.path import dirname
-from analysis_driver.dataset import NoCommunicationDataset
+from tests.test_analysisdriver import NamedMock
 
 
 class Stage1(Stage):
@@ -101,21 +101,29 @@ class Stage1(Stage):
 
 
 class Stage2(Stage1):
-    previous_stages = Stage1
+    pass
+
+
+class Stage25(Stage1):
+    __stagename__ = 'stage2'
 
 
 class Stage3(Stage1):
-    previous_stages = (Stage1, Stage2)
+    pass
 
 
 def example_pipeline(d):
-    final_stage = Stage3(dataset=d)
-    final_stage.exit_status = 9
-    luigi.build([final_stage], local_scheduler=True)
-    return final_stage.exit_status
+    stage1 = Stage1(dataset=d)
+    stage2 = Stage2(dataset=d, previous_stages=[stage1])
+    stage2_5 = Stage25(dataset=d, previous_stages=[stage1])
+    stage3 = Stage3(dataset=d, previous_stages=[stage1, stage2, stage2_5])
+
+    stage3.exit_status = 9
+    luigi.build([stage3], local_scheduler=True)
+    return stage3.exit_status
 
 
 if __name__ == '__main__':
     cfg.load_config_file(join(dirname(dirname(__file__)), 'etc', 'example_analysisdriver.yaml'))
-    dataset = NoCommunicationDataset('test_dataset', {'proc_id': 'test_dataset_15_02_2016_12:14:31'})
+    dataset = NamedMock(real_name='test_dataset')
     print(example_pipeline(dataset))
