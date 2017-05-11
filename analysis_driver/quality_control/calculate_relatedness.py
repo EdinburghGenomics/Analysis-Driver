@@ -1,89 +1,47 @@
-from .quality_control_base import QualityControl
+from egcg_core import executor, util
+from luigi import Parameter, ListParameter
 from analysis_driver.config import default as cfg
-from egcg_core import executor
+from analysis_driver.segmentation import Stage
 
 
-class Relatedness(QualityControl):
-    def __init__(self, dataset, working_dir, gVCF_files, reference, project_id):
-        super().__init__(dataset, working_dir)
-        self.gVCF_files = gVCF_files
-        self.reference = reference
-        self.project_id = project_id
-        self.use_peddy = False
+class Relatedness(Stage):
+    gvcf_files = ListParameter()
+    reference = Parameter()
+    project_id = Parameter()
 
-    def get_gatk_genotype_gvcfs_command(self):
-        gVCF_variants = " ". join(["--variant " + i for i in self.gVCF_files])
-        gatk_outfile = self.project_id + '_genotype_gvcfs.vcf'
+    @property
+    def gatk_outfile(self):
+        return self.project_id + '_genotype_gvcfs.vcf'
+
+    def gatk_genotype_gvcfs_cmd(self):
+        gvcf_variants = ' '. join(['--variant ' + util.find_file(i) for i in self.gvcf_files])
         number_threads = 12
-        cmd = 'java -jar %s -T GenotypeGVCFs -nt %s -R %s %s -o %s' % (cfg['tools']['gatk'], number_threads, self.reference, gVCF_variants, gatk_outfile)
-        return cmd, gatk_outfile
+        return 'java -jar %s -T GenotypeGVCFs -nt %s -R %s %s -o %s' % (
+            cfg['tools']['gatk'], number_threads, self.reference, gvcf_variants, self.gatk_outfile
+        )
 
-    def get_vcftools_relatedness_command(self, vcftools_input_file):
-        cmd = '%s --relatedness2 --vcf %s --out %s' % (cfg['tools']['vcftools'], vcftools_input_file, self.project_id)
-        vcftools_relatedness_outfile = self.project_id + '.relatedness2'
-        return cmd, vcftools_relatedness_outfile
+    def vcftools_relatedness_cmd(self):
+        return '%s --relatedness2 --vcf %s --out %s' % (
+            cfg['tools']['vcftools'], self.gatk_outfile, self.project_id
+        )
 
     def run_gatk(self):
-        gatk_genotype_gvcfs_command, gatk_outfile = self.get_gatk_genotype_gvcfs_command()
-        self.dataset.start_stage('gatk_genotype_gvcfs')
-        gatk_genotype_gvcfs_executor = executor.execute(
-            gatk_genotype_gvcfs_command,
+        return executor.execute(
+            self.gatk_genotype_gvcfs_cmd(),
             job_name='gatk_genotype_gvcfs',
-            working_dir=self.working_dir,
+            working_dir=self.job_dir,
             cpus=12,
             mem=30
-        )
-        exit_status = gatk_genotype_gvcfs_executor.join()
-        self.dataset.end_stage('gatk_genotype_gvcfs', exit_status)
-        return gatk_outfile
+        ).join()
 
-    def tabix_index(self):
-        pass
-
-    def construct_ped_file(self):
-        pass
-
-    def run_vcftools(self, vcftools_input_file):
-        vcftools_relatedness_command, vcftools_outfile = self.get_vcftools_relatedness_command(vcftools_input_file)
-        self.dataset.start_stage('vcftools_relatedness')
-        vcftools_relatedness_executor = executor.execute(
-            vcftools_relatedness_command,
+    def run_vcftools(self):
+        return executor.execute(
+            self.vcftools_relatedness_cmd(),
             job_name='vcftools_relatedness',
-            working_dir=self.working_dir,
+            working_dir=self.job_dir,
             cpus=1,
             mem=10
-        )
-        exit_status = vcftools_relatedness_executor.join()
-        self.dataset.end_stage('vcftools_relatedness', exit_status)
-        return vcftools_outfile
+        ).join()
 
-    def run_peddy(self, genotyped_vcfs, ped_file):
-        pass
-
-    def relatedness(self):
-        gatk_genotype_gvcfs_outfile = self.run_gatk()
-        vcftools_relatedness_outfile = self.run_vcftools(gatk_genotype_gvcfs_outfile)
-        return vcftools_relatedness_outfile
-
-    def peddy(self):
-        gatk_genotype_gvcfs_outfile = self.run_gatk()
-        self.tabix_index()
-        ped_file = self.construct_ped_file()
-        peddy_outfile = self.run_peddy(gatk_genotype_gvcfs_outfile, ped_file)
-
-    def run(self):
-        try:
-            if self.use_peddy:
-                pass
-            else:
-                self.vcftools_relatedness_expected_outfile = self.relatedness()
-        except Exception as e:
-            self.exception = e
-            self.exit_status = 8
-
-    def join(self, timeout=None):
-        super().join(timeout=timeout)
-        if self.exception:
-            raise self.exception
-        self.exit_status = 0
-        return self.vcftools_relatedness_expected_outfile, self.exit_status
+    def _run(self):
+        return self.run_gatk() + self.run_vcftools()

@@ -1,4 +1,6 @@
 import luigi
+import json
+from os.path import join
 from egcg_core.app_logging import AppLogger
 from analysis_driver.exceptions import PipelineError
 from analysis_driver.config import default as cfg
@@ -15,33 +17,42 @@ class EGCGParameter(luigi.Parameter):
     #     return getattr(self, item, None)
 
 
+class EGCGListParameter(luigi.ListParameter):
+    def serialize(self, x):
+        return json.dumps(x, cls=EGCGEncoder)
+
+
+class EGCGEncoder(json.JSONEncoder):
+    def default(self, o):
+        return str(o)
+
+
 class BasicStage(luigi.Task, AppLogger):
     __stagename__ = None
-    previous_stages = []
     exit_status = None
-
+ 
+    previous_stages = EGCGListParameter(default=[])
     dataset = EGCGParameter()
+
+    def output(self):
+        return [luigi.LocalTarget(join(self.job_dir, '.' + self.stage_name + '.stage'))]
 
     @property
     def stage_name(self):
         return self.__stagename__ or self.__class__.__name__.lower()
 
     def requires(self):
-        """
-        Generates prior Stages from self.previous_stages, which should be a list of Stage configs:
-        [
-            Stage1,
-            (Stage2, {'a_parameter': EGCGParameter()})
-        ]
-        Stage1 will have no extra params, Stage2 will be created with the params in the second tuple element.
-        All Stages will be created with dataset=self.dataset
-        """
         for s in self.previous_stages:
-            if isinstance(s, type):
-                yield s(dataset=self.dataset)
-            elif type(s) in (tuple, list):
-                cls, config = s
-                yield cls(dataset=self.dataset, **config)
+            yield s
+
+    @property
+    def job_dir(self):
+        return join(cfg['jobs_dir'], self.dataset.name)
+
+    def __str__(self):
+        return '%s(previous_stages=%s, dataset=%s)' % (
+            self.__class__.__name__, [s.__class__.__name__ for s in self.previous_stages], self.dataset
+        )
 
 
 class Stage(BasicStage):
@@ -56,10 +67,6 @@ class Stage(BasicStage):
             raise PipelineError('Exit status was %s. Stopping' % self.exit_status)
 
         self.info('Finished stage %s' % self.stage_name)
-
-    @property
-    def job_dir(self):
-        return join(cfg['jobs_dir'], self.dataset.name)
 
     @property
     def input_dir(self):
@@ -83,7 +90,7 @@ class RestAPITarget(luigi.Target):
 
 
 # example Luigi workflow
-from os.path import join, dirname
+from os.path import dirname
 from analysis_driver.dataset import NoCommunicationDataset
 
 

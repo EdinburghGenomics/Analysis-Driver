@@ -6,8 +6,8 @@ from analysis_driver.config import default as cfg, _etc_config
 from os.path import join, dirname
 import json
 
-class NamedMock(Mock):
 
+class NamedMock(Mock):
     @property
     def name(self):
         return self.real_name
@@ -15,8 +15,6 @@ class NamedMock(Mock):
 
 class TestAnalysisDriver(TestCase):
     assets_path = join(dirname(__file__), 'assets')
-
-    data_output = join(assets_path, 'data_output')
     fastq_path = join(assets_path, 'fastqs')
     execs = join(assets_path, 'fake_tools')
     data_transfer = join(assets_path, 'data_transfer')

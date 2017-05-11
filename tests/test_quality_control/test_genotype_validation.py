@@ -1,111 +1,98 @@
-from os.path import join as pjoin
+from os.path import join
 from unittest.mock import patch, mock_open, call
 from analysis_driver.util.bash_commands import export_env_vars
 from tests.test_quality_control.qc_tester import QCTester
 from analysis_driver.config import default as cfg
-from analysis_driver.quality_control import GenotypeValidation
+from analysis_driver.quality_control.genotype_validation import GenotypeValidation
 from analysis_driver.reader.mapping_stats_parsers import parse_genotype_concordance
 
-patched_rest_communication = patch('analysis_driver.dataset.rest_communication')
 patched_execute = patch('egcg_core.executor.execute')
+ppath = 'analysis_driver.quality_control.genotype_validation.'
 
 
 class TestGenotypeValidation(QCTester):
     def setUp(self):
         super().setUp()
-        self.sample_id = 'test_sample'
         self.fastq_files = [
-            pjoin('samples', self.sample_id, 'fastq_R1.fastq.gz'),
-            pjoin('samples', self.sample_id, 'fastq_R2.fastq.gz')
+            join('samples', self.sample_id, 'fastq_R1.fastq.gz'),
+            join('samples', self.sample_id, 'fastq_R2.fastq.gz')
         ]
-        self.validator = GenotypeValidation(
-            self.dataset,
-            working_dir=pjoin(cfg['jobs_dir'], self.sample_id),
-            fastq_files=self.fastq_files
-        )
+        self.validator = GenotypeValidation(dataset=self.dataset, fq_pattern=join('samples', self.sample_id, 'fastq_R?.fastq.gz'))
 
     def test_bwa_aln(self):
-        reference = cfg['genotype-validation']['reference']
-
-        observed = self.validator._bwa_aln(self.fastq_files, self.sample_id, self.sample_id + '.bam', reference)
+        observed = self.validator._bwa_aln(self.fastq_files)
         expected = (
-            "{bwa} sampe -r '@RG\\tID:1\\tSM:{sample_id}' {reference} "
-            '<({bwa} aln {reference} {fq1}) <({bwa} aln {reference} {fq2}) '
-            '{fq1} {fq2} | {samblaster} --removeDups | {samtools} view -F 4 -Sb - | '
-            '{sambamba} sort -t 16 -o {sample_id}.bam /dev/stdin'
-        ).format(
-            bwa=cfg['tools']['bwa'],
-            sample_id=self.sample_id,
-            reference=reference,
-            samblaster=cfg['tools']['samblaster'],
-            samtools=cfg['tools']['samtools'],
-            sambamba=cfg['tools']['sambamba'],
-            fq1=self.fastq_files[0],
-            fq2=self.fastq_files[1]
-        )
+            "path/to/bwa sampe -r '@RG\\tID:1\\tSM:test_sample' path/to/32_snps_600bp.fa "
+            '<(path/to/bwa aln path/to/32_snps_600bp.fa {fq1}) '
+            '<(path/to/bwa aln path/to/32_snps_600bp.fa {fq2}) '
+            '{fq1} {fq2} | path/to/samblaster --removeDups | path/to/samtools view -F 4 -Sb - | '
+            'path/to/sambamba sort -t 16 -o path/to/jobs/test_sample/test_sample_geno_val.bam /dev/stdin'
+        ).format(fq1=self.fastq_files[0], fq2=self.fastq_files[1])
         assert observed == expected
 
-    @patched_rest_communication
-    @patch('analysis_driver.quality_control.GenotypeValidation._bwa_aln', return_value='long_bwa_command')
+    @patch(ppath + 'GenotypeValidation._bwa_aln', return_value='long_bwa_command')
     @patched_execute
-    def test_bwa_alignment(self, mocked_execute, mocked_bwa_aln, mocked_rest):
-        instance = mocked_execute.return_value
-        instance.join.return_value = 0
-        expected_bam = self.validator._bwa_alignment()
-        assert expected_bam == pjoin('path/to/jobs/', self.sample_id, self.sample_id + '_geno_val.bam')
+    def test_bwa_alignment(self, mocked_execute, mocked_bwa_aln):
+
+        self.validator._bwa_alignment()
+        assert self.validator.output_bam == join('path/to/jobs/test_sample/test_sample_geno_val.bam')
         assert mocked_execute.call_count == 1
         mocked_execute.assert_called_once_with(
             'long_bwa_command',
             job_name='alignment_bwa',
             cpus=4,
-            working_dir=pjoin(cfg['jobs_dir'], self.sample_id),
+            working_dir=join(cfg['jobs_dir'], self.sample_id),
             mem=8
         )
 
-    @patched_rest_communication
     @patched_execute
-    def test_snp_calling(self, mocked_execute, mocked_rest):
-        bam_file = pjoin('path/to/bam', self.sample_id, self.sample_id + '_geno_val.bam')
-        expected_vcf = pjoin('path/to/jobs', self.sample_id, self.sample_id + '_genotype_validation.vcf.gz')
-        command = ' '.join(
-            ['java -Xmx4G -jar %s -T UnifiedGenotyper -nt 4' % cfg.query('tools', 'gatk'),
-             '-R %s' % cfg.query('genotype-validation', 'reference'),
-             ' --standard_min_confidence_threshold_for_calling 30.0',
-             '--standard_min_confidence_threshold_for_emitting 0',
-             '-out_mode EMIT_ALL_SITES -I %s -o %s' % (bam_file, expected_vcf)]
-        )
-        output_vcf = self.validator._snp_calling(bam_file)
-        assert output_vcf == expected_vcf
-        assert mocked_execute.call_count == 1
-        mocked_execute.assert_called_once_with(
+    def test_snp_calling(self, mocked_execute):
+        bam_file = join('path/to/bam', self.sample_id, self.sample_id + '_geno_val.bam')
+        expected_vcf = join('path/to/jobs', self.sample_id, self.sample_id + '_genotype_validation.vcf.gz')
+        self.validator._snp_calling(bam_file)
+        assert self.validator.seq_vcf_file == expected_vcf
+        command = (
+            'java -Xmx4G -jar path/to/GenomeAnalysisTK.jar -T UnifiedGenotyper -nt 4 '
+            '-R path/to/32_snps_600bp.fa --standard_min_confidence_threshold_for_calling 30.0 '
+            '--standard_min_confidence_threshold_for_emitting 0 -out_mode EMIT_ALL_SITES '
+            '-I {bam_file} -o {vcf_file}'
+        ).format(bam_file=bam_file, vcf_file=expected_vcf)
+
+        mocked_execute.assert_called_with(
             command,
             prelim_cmds=export_env_vars(),
             job_name='snpcall_gatk',
-            working_dir=pjoin(cfg['jobs_dir'], self.sample_id),
+            working_dir=join(cfg['jobs_dir'], self.sample_id),
             cpus=4,
             mem=4
         )
 
-    @patched_rest_communication
     @patched_execute
-    def test_vcf_validation(self, mocked_execute, mocked_rest):
-        work_dir = pjoin(cfg.query('jobs_dir'), self.sample_id)
-        vcf_file = pjoin(work_dir, self.sample_id + '_expected_genotype.vcf')
-        genotype_vcf = pjoin(work_dir, self.sample_id + '_genotype_validation.vcf.gz')
-        validation_results = pjoin(work_dir, self.sample_id + '_genotype_validation.txt')
+    def test_vcf_validation(self, mocked_execute):
+        work_dir = self.validator.job_dir
+        vcf_file = join(work_dir, 'test_sample_expected_genotype.vcf')
+        genotype_vcf = join(work_dir, 'test_sample_genotype_validation.vcf.gz')
+        validation_results = join(work_dir, 'test_sample_genotype_validation.txt')
 
         sample2genotype = {self.sample_id: vcf_file}
         with patch('os.path.isfile', side_effect=[True, False]):
-            self.validator._vcf_validation(sample2genotype)
-        command_gatk = ' '.join(
-            ['java -Xmx4G -jar %s -T GenotypeConcordance' % cfg['tools']['gatk'],
-             '-eval:VCF %s -comp:VCF %s' % (genotype_vcf, vcf_file),
-             '-R %s > %s' % (cfg['genotype-validation']['reference'], validation_results)]
-        )
-        command_index = '{tabix} -p vcf {vcf}'.format(tabix=cfg.query('tools', 'tabix'), vcf=genotype_vcf)
+            assert self.validator._vcf_validation(sample2genotype) == {
+                'test_sample': 'path/to/jobs/test_sample/test_sample_genotype_validation.txt'
+            }
+
+        command_gatk = (
+            'java -Xmx4G -jar path/to/GenomeAnalysisTK.jar -T GenotypeConcordance -eval:VCF {genovcf} '
+            '-comp:VCF {sample_vcf} -R path/to/32_snps_600bp.fa > {val_results}'
+        ).format(genovcf=genotype_vcf, sample_vcf=vcf_file, val_results=validation_results)
         # Call the index and the actual validation
         assert mocked_execute.call_count == 2
-        mocked_execute.assert_any_call(command_index, job_name='index_vcf', working_dir=work_dir, cpus=1, mem=4)
+        mocked_execute.assert_any_call(
+            'path/to/tabix -p vcf ' + genotype_vcf,
+            job_name='index_vcf',
+            working_dir=work_dir,
+            cpus=1,
+            mem=4
+        )
         mocked_execute.assert_called_with(
             command_gatk,
             prelim_cmds=export_env_vars(),
@@ -133,13 +120,13 @@ class TestGenotypeValidation(QCTester):
 
     def test_merge_validation_results(self):
         sample2genotype_validation = {
-            'T00001P001A01': pjoin(self.assets_path, 'sample_data', 'T00001P001A01-validation.txt'),
-            'T00001P001A02': pjoin(self.assets_path, 'sample_data', 'T00001P001A02-validation.txt')
+            'T00001P001A01': join(self.assets_path, 'sample_data', 'T00001P001A01-validation.txt'),
+            'T00001P001A02': join(self.assets_path, 'sample_data', 'T00001P001A02-validation.txt')
         }
-        o1 = parse_genotype_concordance(sample2genotype_validation.get('T00001P001A01'))
-        o2 = parse_genotype_concordance(sample2genotype_validation.get('T00001P001A02'))
+        o1 = parse_genotype_concordance(sample2genotype_validation['T00001P001A01'])
+        o2 = parse_genotype_concordance(sample2genotype_validation['T00001P001A02'])
 
-        with patch('analysis_driver.quality_control.genotype_validation.parse_genotype_concordance', side_effect=[o1, o2]):
+        with patch(ppath + 'parse_genotype_concordance', side_effect=[o1, o2]):
             mock_open_write = mock_open()
             with patch('builtins.open', mock_open_write):
                 self.validator._merge_validation_results(sample2genotype_validation)
@@ -172,21 +159,43 @@ class TestGenotypeValidation(QCTester):
 
     @patched_execute
     def test_rename_expected_genotype(self, mocked_execute):
-        genotype_vcf = pjoin('path/to/jobs', self.sample_id, self.sample_id + '_genotype_validation.vcf.gz')
-        sample_name = 'test_sample'
-        work_dir = pjoin(cfg['jobs_dir'], sample_name)
-        self.validator._rename_expected_genotype({sample_name: genotype_vcf})
-        command = ('{bcftools} reheader -s <(echo {sample_name}) {genotype_vcf} > '
-                   '{genotype_vcf}.tmp; mv {genotype_vcf}.tmp {genotype_vcf}').format(
-            bcftools=cfg['tools']['bcftools'], sample_name=sample_name, genotype_vcf=genotype_vcf
-        )
+        genotype_vcf = join('path/to/jobs', self.sample_id, self.sample_id + '_genotype_validation.vcf.gz')
+        self.validator._rename_expected_genotype({self.sample_id: genotype_vcf})
+        command = ('path/to/bcftools reheader -s <(echo test_sample) {genotype_vcf} > {genotype_vcf}.tmp; '
+                   'mv {genotype_vcf}.tmp {genotype_vcf}').format(genotype_vcf=genotype_vcf)
         mocked_execute.assert_called_once_with(
             command,
             job_name='genotype_rename',
-            working_dir=work_dir,
+            working_dir=self.validator.job_dir,
             cpus=4,
             mem=8,
             log_commands=False
         )
 
-    # TODO: test_genotype_validation
+    def test_run(self):
+        self.validator.check_neighbour = True
+        self.validator.check_project = True
+        self.validator.list_samples = ['another_sample']
+
+        with patch(ppath + 'GenotypeValidation._bwa_alignment') as bwa,\
+            patch(ppath + 'GenotypeValidation._snp_calling') as snp,\
+            patch(ppath + 'clarity.get_samples_arrived_with', return_value=['a_sample']),\
+            patch(ppath + 'clarity.get_samples_genotyped_with', return_value=['a_sample']),\
+            patch(ppath + 'clarity.get_samples_sequenced_with', return_value=['a_sample']),\
+            patch(ppath + 'clarity.find_project_name_from_sample'),\
+            patch(ppath + 'clarity.get_sample_names_from_project', return_value=['a_sample']),\
+            patch(ppath + 'clarity.get_sample_genotype', return_value='test.vcf'),\
+            patch(ppath + 'GenotypeValidation._rename_expected_genotype') as rename,\
+            patch(ppath + 'GenotypeValidation._vcf_validation', return_value=[None, None]) as vcf_val,\
+            patch(ppath + 'GenotypeValidation._merge_validation_results') as merge:
+                self.validator._run()
+
+        assert bwa.call_count == 1
+        snp.assert_called_with('path/to/jobs/test_sample/test_sample_geno_val.bam')
+
+        fake_sample2genotype = {k: 'test.vcf' for k in ('test_sample', 'a_sample', 'another_sample')}
+        rename.assert_called_with(fake_sample2genotype)
+        vcf_val.assert_called_with(fake_sample2genotype)
+
+        merge.assert_called_with([None, None])
+        assert self.validator.validation_results == [None, None]

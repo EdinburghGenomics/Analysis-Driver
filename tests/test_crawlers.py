@@ -1,13 +1,13 @@
 import os.path
 import json
-from unittest.mock import patch, Mock
+from unittest.mock import patch
 
 from egcg_core.constants import ELEMENT_PROJECT_ID, ELEMENT_SAMPLE_INTERNAL_ID, ELEMENT_LIBRARY_INTERNAL_ID, \
     ELEMENT_LANE, ELEMENT_BARCODE
 
 from tests.test_analysisdriver import TestAnalysisDriver
 from analysis_driver import report_generation
-from analysis_driver.reader import SampleSheet
+from analysis_driver.config import OutputFileConfiguration
 from tests.test_dataset import NamedMock
 
 ppath = 'analysis_driver.report_generation.report_crawlers.'
@@ -38,6 +38,7 @@ class TestCrawler(TestAnalysisDriver):
                 d[k] = sorted(v)
             elif type(v) is dict:
                 cls._sort_lists(v)
+
 
 class TestRunCrawler(TestCrawler):
     run_id = 'a_run_id'
@@ -130,11 +131,16 @@ class TestRunCrawler(TestCrawler):
 class TestSampleCrawler(TestCrawler):
     def setUp(self):
         self.expected_output = json.load(open(os.path.join(self.test_data, 'expected_sample_crawler_data.json')))
-        with patch(
+        patched_sample_info = patch(
             ppath + 'get_sample_information_from_lims',
             return_value={'user_sample_id': 'test_sample', 'provided_gender': 'female', 'species_name': 'Homo sapiens'}
-        ):
-            self.crawler = report_generation.SampleCrawler('test_sample', 'test_project', self.test_data)
+        )
+        patched_user_sample_id = patch(ppath + 'clarity.get_user_sample_name', return_value='test_sample')
+        output_cfg = OutputFileConfiguration('bcbio')
+        with patched_sample_info, patched_user_sample_id:
+            self.crawler = report_generation.SampleCrawler(
+                'test_sample', 'test_project', self.test_data, output_cfg, post_pipeline=True
+            )
 
     def test_sample(self):
         self.compare_jsons(self.crawler.sample, self.expected_output)

@@ -316,6 +316,34 @@ class SampleDataset(Dataset):
         self._run_elements = None
         self._non_useable_run_elements = None
         self._data_threshold = data_threshold
+        self._species = None
+        self._genome_version = None
+        self._user_sample_id = None
+
+    @property
+    def species(self):
+        if self._species is None:
+            self._species = clarity.get_species_from_sample(self.name)
+        return self._species
+
+    @property
+    def genome_version(self):
+        if self._genome_version is None:
+            g = clarity.get_sample(self.name).udf.get('Genome Version')
+            if g is None:
+                g = cfg.query('species', self.species, 'default')
+            self._genome_version = g
+        return self._genome_version
+
+    @property
+    def reference_genome(self):
+        return cfg['genomes'][self.genome_version]['fasta']
+
+    @property
+    def user_sample_id(self):
+        if self._user_sample_id is None:
+            self._user_sample_id = clarity.get_user_sample_name(self.name)
+        return self._user_sample_id
 
     @property
     def run_elements(self):
@@ -375,6 +403,8 @@ class ProjectDataset(Dataset):
         super().__init__(name, most_recent_proc)
         self._number_of_samples = None
         self._samples_processed = None
+        self._species = None
+        self._genome_version = None
 
     def _is_ready(self):
         if self.number_of_samples > 0 and self.number_of_samples > len(self.samples_processed):
@@ -402,6 +432,31 @@ class ProjectDataset(Dataset):
             else:
                 raise AnalysisDriverError('Could not find number of quoted samples in LIMS for ' + self.name)
         return self._number_of_samples
+
+    @property
+    def species(self):
+        if self._species is None:
+            s = set()
+            for sample in self.samples_processed:
+                species = sample.get('species_name', clarity.get_species_from_sample(sample['sample_id']))
+                s.add(species)
+            if len(s) != 1:
+                raise AnalysisDriverError('Unexpected number of species (%s) in this project' % ', '.join(s))
+            self._species = s.pop()
+        return self._species
+
+    @property
+    def genome_version(self):
+        if self._genome_version is None:
+            g = clarity.get_sample(self.samples_processed[0]['sample_id']).udf.get('Genome Version')
+            if not g:
+                g = cfg.query('species', self.species, 'default')
+            self._genome_version = g
+        return self._genome_version
+
+    @property
+    def reference_genome(self):
+        return cfg['genomes'][self.genome_version]['fasta']
 
     def __str__(self):
         return '%s  (%s samples / %s) ' % (super().__str__(), len(self.samples_processed), self.number_of_samples)
