@@ -3,6 +3,7 @@ from os import mkdir
 from os.path import join, exists, isdir
 from egcg_core import executor, util
 from analysis_driver import segmentation
+from analysis_driver.quality_control.detect_bad_cycles_tiles import BadTileDetector
 from analysis_driver.util import bash_commands
 from analysis_driver.pipelines.common import Cleanup
 from analysis_driver.exceptions import SequencingRunError, AnalysisDriverError
@@ -47,7 +48,7 @@ class Setup(DemultiplexingStage):
         return 0
 
 
-class Bcl2FastqAndFilter(DemultiplexingStage):
+class Bcl2Fastq(DemultiplexingStage):
     def _run(self):
         self.info('bcl2fastq mask: ' + self.dataset.mask)  # e.g: mask = 'y150n,i6,y150n'
         bcl2fastq_exit_status = executor.execute(
@@ -68,6 +69,19 @@ class Bcl2FastqAndFilter(DemultiplexingStage):
             shutil.copy2(join(self.input_dir, f), join(self.fastq_dir, f))
         if not exists(join(self.fastq_dir, 'InterOp')):
             shutil.copytree(join(self.input_dir, 'InterOp'), join(self.fastq_dir, 'InterOp'))
+
+        return  bcl2fastq_exit_status
+
+
+class FastqFilter(DemultiplexingStage):
+    def _run(self):
+
+        detector = BadTileDetector(self.dataset)
+        bad_tiles = detector.detect_bad_tile()
+        if bad_tiles:
+            self.info('Detected %s bad tiles: %s'%(len(bad_tiles), ', '.join(bad_tiles)))
+
+
 
         return executor.execute(
             *[bash_commands.fastq_filterer_and_pigz_in_place(fqs) for fqs in util.find_all_fastq_pairs(self.fastq_dir)],

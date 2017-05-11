@@ -10,7 +10,7 @@ path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from analysis_driver import quality_control as qc
 from analysis_driver.config import default as cfg, load_config
 from analysis_driver.exceptions import AnalysisDriverError
-from analysis_driver.dataset import NoCommunicationDataset
+from analysis_driver.dataset import NoCommunicationDataset, RunDataset
 from analysis_driver.util.bash_commands import rsync_from_to
 from analysis_driver.reader.demultiplexing_parsers import parse_fastqscreen_file
 
@@ -62,6 +62,13 @@ def _parse_args():
     relatedness_parser.add_argument('--gvcfs', required=True, nargs='+')
     relatedness_parser.add_argument('--reference', required=True)
     relatedness_parser.set_defaults(func=relatedness)
+
+    bad_cycle_tile_parser = subparsers.add_parser('bad_cycle_tile')
+    bad_cycle_tile_parser.add_argument('--run_id', required=True, type=str)
+    bad_cycle_tile_parser.add_argument('--window_size', type=int, default=50)
+    bad_cycle_tile_parser.add_argument('--tile_quality_threshold', type=int, default=20)
+    bad_cycle_tile_parser.add_argument('--cycle_quality_threshold', type=int, default=20)
+    bad_cycle_tile_parser.set_defaults(func=detect_bad_cycle_tile_in_run)
 
     return parser.parse_args()
 
@@ -144,6 +151,24 @@ def relatedness(dataset, args):
     r = qc.Relatedness(dataset=dataset, gvcf_files=args.gvcf_files,
                        reference=args.reference, project_id=dataset.name)
     r.run()
+
+
+def detect_bad_cycle_tile_in_run(dataset, args):
+    dataset = RunDataset(args.run_id)
+    d = qc.BadTileCycleDetector(
+        dataset=dataset,
+        window_size=args.window_size,
+        tile_quality_threshold=args.tile_quality_threshold,
+        cycle_quality_threshold=args.cycle_quality_threshold
+    )
+    bad_tiles = d.detect_bad_tile()
+    bad_cycle = d.detect_bad_cycle()
+    for lane in sorted(set(list(bad_tiles) + list(bad_cycle))):
+        print('Lane %s' % lane)
+        if lane in bad_cycle:
+            print('Bad cycles are: ' + ', '.join(bad_cycle))
+        if lane in bad_tiles:
+            print('Bad tiles are: ' + ', '.join(bad_tiles))
 
 
 if __name__ == '__main__':
