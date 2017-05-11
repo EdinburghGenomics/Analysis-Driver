@@ -15,25 +15,6 @@ from analysis_driver.report_generation.report_crawlers import RunCrawler
 from analysis_driver.transfer_data import output_run_data
 
 
-
-def find_upload_run_results(stage):
-    # Find conversion xml file and adapter file, and send the results to the rest API
-    conversion_xml = join(stage.fastq_dir, 'Stats', 'ConversionStats.xml')
-    adapter_trim_file = join(stage.fastq_dir, 'Stats', 'AdapterTrimming.txt')
-
-    if exists(conversion_xml) and exists(adapter_trim_file):
-        stage.info('Found ConversionStats and AdaptorTrimming. Sending data.')
-        crawler = RunCrawler(
-            stage.dataset, adapter_trim_file=adapter_trim_file,
-            conversion_xml_file=conversion_xml, run_dir=stage.fastq_dir
-        )
-        crawler.send_data()
-        return 0
-    else:
-        stage.error('ConversionStats or AdaptorTrimming not found.')
-        return 1
-
-
 class DemultiplexingStage(segmentation.Stage):
     @property
     def fastq_dir(self):
@@ -96,27 +77,42 @@ class Bcl2Fastq(DemultiplexingStage):
 
 class FastqFilter(DemultiplexingStage):
     def _run(self):
-        find_upload_run_results(self)
+
+        # Find conversion xml file and adapter file, and send the results to the rest API
+        conversion_xml = join(self.fastq_dir, 'Stats', 'ConversionStats.xml')
+        adapter_trim_file = join(self.fastq_dir, 'Stats', 'AdapterTrimming.txt')
+
+        if exists(conversion_xml) and exists(adapter_trim_file):
+            self.info('Found ConversionStats and AdaptorTrimming. Sending data.')
+            crawler = RunCrawler(
+                self.dataset, adapter_trim_file=adapter_trim_file,
+                conversion_xml_file=conversion_xml
+            )
+            crawler.send_data()
 
         # Assess if the lanes need filtering
-        lane_need_filtering = {}
-        for lane_metrics in self.dataset.lane_metrics:
-            q30_threshold = cfg.query('fastq_filterer', 'q30_threshold', ret_default=.74)
-            if lane_metrics['pc_q30'] < q30_threshold:
-                self.warning('Will apply cycle and tile filtering to lane %s: %Q30=%s' % (
+        lane_need_filtering = {1: False, 2: False, 3: False, 4:False, 5: False, 6: False, 7: False, 8: False}
+        lanes_metrics = self.dataset.lane_metrics
+        self.critical(lanes_metrics)
+        for lane_metrics in lanes_metrics:
+            q30_threshold = cfg.query('fastq_filterer', 'q30_threshold', ret_default=74)
+            self.debug('Lane filter if Q30 is bellow %s', q30_threshold)
+            if lane_metrics['pc_q30'] < q30_threshold and lane_metrics['pc_q30'] > 0:
+                self.warning(
+                    'Will apply cycle and tile filtering to lane %s: %%Q30=%s',
                     lane_metrics['lane_number'],
                     lane_metrics['pc_q30']
-                ))
+                )
                 lane_need_filtering[lane_metrics['lane_number']] = True
-            else:
-                lane_need_filtering[lane_metrics['lane_number']] = False
 
-        detector = BadTileCycleDetector(self.dataset)
-        bad_tiles = detector.detect_bad_tile()
-        bad_cycles = detector.detect_bad_cycle()
+        try:
+            detector = BadTileCycleDetector(self.dataset)
+            bad_tiles = detector.detect_bad_tile()
+            bad_cycles = detector.detect_bad_cycle()
+        except Exception:
+            bad_tiles = {}
+            bad_cycles = {}
 
-        if bad_tiles:
-            self.info('Detected %s bad tiles: %s'%(len(bad_tiles), ', '.join(bad_tiles)))
         cmd_list = []
         for lane in lane_need_filtering:
             fq_pairs = find_all_fastq_pairs_for_lane(self.fastq_dir, lane)
@@ -189,7 +185,21 @@ class MD5Sum(DemultiplexingStage):
 
 class QCOutput(DemultiplexingStage):
     def _run(self):
-        find_upload_run_results(self)
+        # Find conversion xml file and adapter file, and send the results to the rest API
+        conversion_xml = join(self.fastq_dir, 'Stats', 'ConversionStats.xml')
+        adapter_trim_file = join(self.fastq_dir, 'Stats', 'AdapterTrimming.txt')
+
+        if exists(conversion_xml) and exists(adapter_trim_file):
+            self.info('Found ConversionStats and AdaptorTrimming. Sending data.')
+            crawler = RunCrawler(
+                self.dataset, adapter_trim_file=adapter_trim_file,
+                conversion_xml_file=conversion_xml, run_dir=self.fastq_dir
+            )
+            crawler.send_data()
+            return 0
+        else:
+            self.error('ConversionStats or AdaptorTrimming not found.')
+            return 1
 
 
 class DataOutput(DemultiplexingStage):
