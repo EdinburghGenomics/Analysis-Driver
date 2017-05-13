@@ -71,8 +71,11 @@ class BadTileCycleDetector(AppLogger):
             q32 += tq32
             q37 += tq37
             q41 += tq41
-        d = q8 * 8 + q12 * 12 + q22 * 22 + q27 * 27 + q32 * 32 + q37 * 37 + q41 * 41
-        return d/sum((q8, q12, q22, q27, q32, q37, q41))
+        n = q8 * 8 + q12 * 12 + q22 * 22 + q27 * 27 + q32 * 32 + q37 * 37 + q41 * 41
+        d = sum((q8, q12, q22, q27, q32, q37, q41))
+        if d > 0:
+            return n / d
+        return None
 
     def is_bad_tile_sliding_window(self, lane, tile, cycles_list):
         window_count=0
