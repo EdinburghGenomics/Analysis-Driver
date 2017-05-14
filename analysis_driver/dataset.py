@@ -1,6 +1,6 @@
 import os
 import re
-import threading
+from multiprocessing import Lock
 from datetime import datetime
 from errno import ESRCH
 from os.path import join
@@ -464,7 +464,7 @@ class ProjectDataset(Dataset):
 
 class MostRecentProc:
     def __init__(self, dataset_type, dataset_name, initial_content=None):
-        self.lock = threading.Lock()
+        self.lock = Lock()
         self.dataset_type = dataset_type
         self.dataset_name = dataset_name
         self.proc_id = None

@@ -9,7 +9,7 @@ from analysis_driver.pipelines import demultiplexing, bcbio, qc, variant_calling
 
 def pipeline(d):
     luigi.interface.setup_interface_logging.has_run = True  # turn off Luigi's default logging setup
-    log_cfg.get_logger('luigi-interface', 10)  # just calling log_cfg.get_logger registers the luigi-interface
+    log_cfg.get_logger('luigi-interface', 20)  # just calling log_cfg.get_logger registers the luigi-interface
 
     if isinstance(d, RunDataset):
         _pipeline = demultiplexing
@@ -29,7 +29,6 @@ def pipeline(d):
         raise AssertionError('Unexpected dataset type: ' + str(d))
 
     final_stage = _pipeline.build_pipeline(d)
-    final_stage.exit_status = 9
 
     luigi_params = {
         'tasks': [final_stage],
@@ -39,5 +38,5 @@ def pipeline(d):
     if luigi_params['local_scheduler'] is not True:
         luigi_params['scheduler_url'] = cfg['luigi']['scheduler_url']
 
-    luigi.build(**luigi_params)
-    return final_stage.exit_status
+    success = luigi.build(**luigi_params)
+    return 0 if success is True else 9
