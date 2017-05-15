@@ -1,6 +1,5 @@
 import os
 from egcg_core.util import find_file
-from egcg_core import clarity
 from analysis_driver.config import default as cfg, OutputFileConfiguration
 from analysis_driver.quality_control import Relatedness
 from analysis_driver.exceptions import PipelineError
@@ -9,30 +8,21 @@ from analysis_driver import segmentation
 
 
 def build_pipeline(dataset):
-    project_id = dataset.name
-    samples_for_project = dataset.sample_processed
-
-    species_in_project = set()
-    for sample in samples_for_project:
-        species = sample.get('species_name')
-        if not species:
-            species = clarity.get_species_from_sample(sample.get('sample_id'))
-        species_in_project.add(species)
-    if len(species_in_project) != 1:
-        raise PipelineError('Unexpected number of species (%s) in this project' % ', '.join(species_in_project))
-    species = species_in_project.pop()
-
-    project_source = os.path.join(cfg.query('sample', 'delivery_source'), project_id)
+    project_source = os.path.join(cfg.query('sample', 'delivery_source'), dataset.name)
     gvcf_files = []
-    for sample in samples_for_project:
+    for sample in dataset.samples_processed:
         gvcf_file = find_file(project_source, sample['sample_id'], sample['user_sample_id'] + '.g.vcf.gz')
         if gvcf_file:
             gvcf_files.append(gvcf_file)
     if len(gvcf_files) < 2:
         raise PipelineError('Incorrect number of gVCF files: require at least two')
 
-    reference = cfg['references'][species]['fasta']
-    relatedness = Relatedness(dataset=dataset, gvcf_files=gvcf_files, reference=reference, project_id=project_id)
+    relatedness = Relatedness(
+        dataset=dataset,
+        gvcf_files=gvcf_files,
+        reference=cfg['references'][dataset.species]['fasta'],
+        project_id=dataset.name
+    )
     output = Output(dataset=dataset, previous_stages=[relatedness])
     return output
 
