@@ -28,7 +28,7 @@ Classes that run checks on output files generated from the main pipeline.
   containing the called gender, to be compared against the gender suppied in the Lims.
 - ContaminationCheck - Checks fastqs for contamination using [fastqscreen](http://www.bioinformatics.babraham.ac.uk/projects/download.html#fastqscreen)
 - ContaminationBlast - Checks a fastq file for contamination using NCBI Blast.
-- VerifyBamId - Checks a Bam file for contamination using [VerifyBamID](http://genome.sph.umich.edu/wiki/VerifyBamID)
+- VerifyBamID - Checks a Bam file for contamination using [VerifyBamID](http://genome.sph.umich.edu/wiki/VerifyBamID)
 - VCFStats - Extracts VCF metrics using [rtg vcfstats](https://github.com/RealTimeGenomics/rtg-tools)
 - SamtoolsDepth - Uses samtools to calculate median coverage in a Bam file.
 

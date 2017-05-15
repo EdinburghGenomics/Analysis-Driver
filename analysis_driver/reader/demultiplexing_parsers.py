@@ -201,12 +201,14 @@ def parse_fastqscreen_file(filename, focal_species):
 
     uniquely_mapped = {k: v for k, v in uniquely_mapped.items() if v != 0}
 
-    return {
+    fastqscreen_qc = {
         ELEMENT_CONTAMINANT_UNIQUE_MAP: uniquely_mapped,
         ELEMENT_TOTAL_READS_MAPPED: total_reads_mapped,
         ELEMENT_PCNT_UNMAPPED_FOCAL: focal_species_pc_unmapped,
         ELEMENT_PCNT_UNMAPPED: hit_no_genomes
     }
+    app_logger.debug('Extracted fastqscreen QC: %s', fastqscreen_qc)
+    return fastqscreen_qc
 
 
 def read_histogram_file(input_file):

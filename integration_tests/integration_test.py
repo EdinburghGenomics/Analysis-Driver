@@ -13,7 +13,7 @@ from datetime import datetime
 from contextlib import redirect_stdout, contextmanager
 from egcg_core.config import cfg, Configuration
 from egcg_core.app_logging import logging_default
-from egcg_core import rest_communication, notifications, util, executor
+from egcg_core import rest_communication, notifications, util
 from unittest import TestCase
 from unittest.mock import Mock, patch
 from analysis_driver import client
@@ -45,15 +45,12 @@ def _fake_get_plate_id_and_well(sample_name):
     return [sample_name + '_plate', 1337]
 
 
-def _fake_welldups(self):
+def _fake_welldups_cmd(self):
     output_file = os.path.join(self.output_directory, self.dataset.name + '.wellduplicate')
-    output_err = os.path.join(self.output_directory, self.dataset.name + '.wellduplicate.err')
-    coord_file = cfg.query('well_duplicate', 'coord_file')
-
-    cmd = cfg.query('tools', 'well_duplicate') + ' -f %s -r %s -t 1101 -s hiseq_x > %s 2> %s' % (
-        coord_file, self.run_directory, output_file, output_err
+    return '{welldups} -f {coords} -r {run_dir} -t 1101 -s hiseq_x > {outfile} 2> {outfile}.err'.format(
+        welldups=cfg.query('tools', 'well_duplicate'),
+        coords=cfg['well_duplicate']['coord_file'], run_dir=self.run_directory, outfile=output_file
     )
-    return executor.execute(cmd, job_name='welldup', working_dir=self.working_dir, cpus=1, mem=2, log_commands=False).join()
 
 
 @contextmanager
@@ -68,30 +65,28 @@ def patch_pipeline(species='Homo sapiens', analysis_type='Variant Calling gatk')
     def _fake_get_sample(sample_name):
         return Mock(name=sample_name, udf={'Coverage': 1337, 'Analysis Type': analysis_type})
 
-    _patch('pipelines.clarity.get_species_from_sample', return_value=species)
-    _patch('pipelines.clarity.get_sample', new=_fake_get_sample)
-    _patch('report_generation.report_crawlers.clarity.get_species_from_sample', return_value=species)
-    _patch('report_generation.report_crawlers.clarity.get_sample', new=_fake_get_sample)
-    _patch('dataset.clarity.get_expected_yield_for_sample', return_value=0.9)
-    _patch('report_generation.report_crawlers.clarity.get_expected_yield_for_sample', return_value=0.9)
-    _patch('dataset_scanner.get_list_of_samples', new=_fake_get_list_of_samples)
+    _patch('dataset.clarity.get_species_from_sample', new=species)
+    _patch('dataset.clarity.get_user_sample_name', new=_fake_get_user_sample_id)
     _patch('dataset.clarity.get_run', return_value=mocked_clarity_run)
+    _patch('dataset.clarity.get_expected_yield_for_sample', return_value=0.9)
+    _patch('dataset_scanner.get_list_of_samples', new=_fake_get_list_of_samples)
+    _patch('pipelines.clarity.get_sample', new=_fake_get_sample)
     _patch('pipelines.common.clarity.find_project_name_from_sample', return_value='10015AT')
     _patch('pipelines.common.clarity.get_sample', return_value=Mock(udf={}))
-    _patch('quality_control.genotype_validation.clarity.find_project_name_from_sample', return_value='10015AT')
-    _patch('pipelines.bcbio_pipelines.clarity.get_user_sample_name', new=_fake_get_user_sample_id)
     _patch('pipelines.common.clarity.get_user_sample_name', new=_fake_get_user_sample_id)
-    _patch('pipelines.qc_pipelines.clarity.get_user_sample_name', new=_fake_get_user_sample_id)
-    _patch('pipelines.variant_calling.clarity.get_user_sample_name', new=_fake_get_user_sample_id)
+    _patch('report_generation.report_crawlers.clarity.get_species_from_sample', return_value=species)
+    _patch('report_generation.report_crawlers.clarity.get_sample', new=_fake_get_sample)
+    _patch('report_generation.report_crawlers.clarity.get_expected_yield_for_sample', return_value=0.9)
     _patch('report_generation.report_crawlers.clarity.get_user_sample_name', new=_fake_get_user_sample_id)
     _patch('report_generation.report_crawlers.clarity.get_plate_id_and_well', new=_fake_get_plate_id_and_well)
     _patch('report_generation.report_crawlers.clarity.get_sample_gender')
+    _patch('quality_control.genotype_validation.clarity.find_project_name_from_sample', return_value='10015AT')
     _patch('quality_control.genotype_validation.clarity.get_samples_arrived_with', return_value=set())
     _patch('quality_control.genotype_validation.clarity.get_samples_genotyped_with', return_value=set())
     _patch('quality_control.genotype_validation.clarity.get_samples_sequenced_with', return_value=set())
     _patch('quality_control.genotype_validation.clarity.get_sample_names_from_project', return_value=set())
     _patch('quality_control.genotype_validation.clarity.get_sample_genotype', return_value=set())
-    _patch('quality_control.lane_duplicates.WellDuplicates._well_duplicates', new=_fake_welldups)
+    _patch('quality_control.lane_duplicates.WellDuplicates._welldups_cmd', new=_fake_welldups_cmd)
 
     yield
 
@@ -137,7 +132,7 @@ class IntegrationTest(TestCase):
 
         # clean up any previous tests
         self._try_rm_dir(os.path.join(cfg['run']['output_dir'], run_id))
-        self._try_rm_dir(os.path.join(cfg['sample']['output_dir'], '10015AT0004'))
+        self._try_rm_dir(os.path.join(cfg['sample']['output_dir'], '10015AT', '10015AT0004'))
         self._try_rm_dir(os.path.join(cfg['jobs_dir'], run_id))
         self._try_rm_dir(os.path.join(cfg['jobs_dir'], '10015AT0004'))
 

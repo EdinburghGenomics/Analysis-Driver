@@ -72,7 +72,7 @@ default:
 #            recipient_emails: [recipient@domain.com]
 
     genotype-validation:
-        reference: path/to/genotype_validation/genotype_32_SNPS_genome_600bp.fa
+        reference: path/to/32_snps_600bp.fa
         genotypes_repository: path/to/genotype_validation/genotypes
 
     contamination-check:

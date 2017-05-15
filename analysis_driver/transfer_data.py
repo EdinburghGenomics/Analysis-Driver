@@ -1,5 +1,4 @@
 import os
-import shutil
 from egcg_core import clarity, util, archive_management
 from analysis_driver.config import default as cfg
 from egcg_core.app_logging import logging_default as log_cfg
@@ -28,17 +27,18 @@ def _find_fastqs_for_sample(sample_id, run_element):
     )
 
 
-def create_links_from_bcbio(sample_id, input_dir, output_config, link_dir):
+def create_links_from_bcbio(sample_id, input_dir, output_cfg, link_dir):
     exit_status = 0
     user_sample_id = clarity.get_user_sample_name(sample_id, lenient=True)
 
     links = []
-    for output_record in output_config:
+
+    for output_record in output_cfg.content.values():
         src_pattern = os.path.join(
             input_dir,
-            os.path.join(*output_record['location']),
+            os.path.join(*output_record.get('location', [''])),
             output_record['basename']
-        ).format(runfolder=sample_id, sample_id=user_sample_id)
+        ).format(sample_id=sample_id, user_sample_id=user_sample_id)
 
         sources = util.find_files(src_pattern)
         if sources:
@@ -46,7 +46,7 @@ def create_links_from_bcbio(sample_id, input_dir, output_config, link_dir):
             link_file = os.path.join(
                 link_dir,
                 output_record.get('new_name', os.path.basename(source))
-            ).format(sample_id=user_sample_id)
+            ).format(user_sample_id=user_sample_id)
             if not os.path.islink(link_file):
                 os.symlink(source, link_file)
             links.append(link_file)
