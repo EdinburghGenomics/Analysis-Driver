@@ -63,11 +63,11 @@ def fastq_filterer_and_pigz_in_place(fastq_file_pair, pigz_threads=10, tiles_to_
     cmds = ['mkfifo ' + int1, 'mkfifo ' + int2]
     fastq_filterer_cmd = '{ff} --i1 {f1} --i2 {f2} --o1 {int1} --o2 {int2} --threshold {lent}'
     if tiles_to_filter:
-        fastq_filterer_cmd += ' --remove_tiles %s' % (','.join(tiles_to_filter))
+        fastq_filterer_cmd += ' --remove_tiles %s' % (','.join([str(t) for t in tiles_to_filter]))
     if trim_r1:
         fastq_filterer_cmd += ' --trim_r1 %s' % (trim_r1)
     if trim_r2:
-        fastq_filterer_cmd += ' --trim_r1 %s' % (trim_r2)
+        fastq_filterer_cmd += ' --trim_r2 %s' % (trim_r2)
     c = (
         'set -e; ' + fastq_filterer_cmd +' & '
         '{pz} -c -p {pzt} {int1} > {of1} & '

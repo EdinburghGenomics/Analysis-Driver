@@ -19,7 +19,7 @@ class TestFastqFilter(TestAnalysisDriver):
         ))
         dataset = NamedMock(
             real_name='test',
-            lane_metrics=[{'pc_q30':73, 'lane_number': 3}],
+            lane_metrics=[{'pc_q30':73, 'lane_number': 3}, {'pc_q30':73, 'lane_number': 4}],
             run_info=run_info
         )
         f=FastqFilter(dataset=dataset)
@@ -39,7 +39,8 @@ class TestFastqFilter(TestAnalysisDriver):
         patch_detector = patch('analysis_driver.pipelines.demultiplexing.BadTileCycleDetector')
         with patch_find, patch_executor as pexecute, patch_detector as pdetector:
             instance = pdetector.return_value
-            instance.detect_bad_tile.return_value = {3: ['1101']}
+            instance.detect_bad_tile.return_value = {3: [1101]}
+            instance.detect_bad_cycle.return_value = {4: [310, 308, 307, 309]}
             f._run()
             expected_call_L3 = """mkfifo fastq_L3_R1_filtered.fastq
 mkfifo fastq_L3_R2_filtered.fastq
@@ -49,4 +50,14 @@ rm fastq_L3_R1_filtered.fastq fastq_L3_R2_filtered.fastq
 (exit $EXIT_CODE) && mv fastq_L3_R1_filtered.fastq.gz fastq_L3_R1
 (exit $EXIT_CODE) && mv fastq_L3_R2_filtered.fastq.gz fastq_L3_R2
 (exit $EXIT_CODE)"""
+            expected_call_L4 = """mkfifo fastq_L4_R1_filtered.fastq
+mkfifo fastq_L4_R2_filtered.fastq
+set -e; path/to/fastq-filterer --i1 fastq_L4_R1 --i2 fastq_L4_R2 --o1 fastq_L4_R1_filtered.fastq --o2 fastq_L4_R2_filtered.fastq --threshold 36 --trim_r2 147 & pigz -c -p 10 fastq_L4_R1_filtered.fastq > fastq_L4_R1_filtered.fastq.gz & pigz -c -p 10 fastq_L4_R2_filtered.fastq > fastq_L4_R2_filtered.fastq.gz
+EXIT_CODE=$?
+rm fastq_L4_R1_filtered.fastq fastq_L4_R2_filtered.fastq
+(exit $EXIT_CODE) && mv fastq_L4_R1_filtered.fastq.gz fastq_L4_R1
+(exit $EXIT_CODE) && mv fastq_L4_R2_filtered.fastq.gz fastq_L4_R2
+(exit $EXIT_CODE)"""
             assert expected_call_L3 == pexecute.call_args[0][2]
+            print(pexecute.call_args[0][3])
+            assert expected_call_L4 == pexecute.call_args[0][3]
