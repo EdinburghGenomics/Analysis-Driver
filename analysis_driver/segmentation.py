@@ -54,6 +54,10 @@ class BasicStage(luigi.Task, AppLogger):
             self.__class__.__name__, [s.__class__.__name__ for s in self.previous_stages], self.dataset
         )
 
+    def on_failure(self, exception):
+        self.dataset.register_exception(self, exception)
+        return super().on_failure(exception)
+
 
 class Stage(BasicStage):
     def output(self):

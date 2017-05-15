@@ -39,4 +39,8 @@ def pipeline(d):
         luigi_params['scheduler_url'] = cfg['luigi']['scheduler_url']
 
     success = luigi.build(**luigi_params)
+
+    # If any exception occured during the pipeline raise them here again
+    d.raise_exceptions()
+
     return 0 if success is True else 9

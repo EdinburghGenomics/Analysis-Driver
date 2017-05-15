@@ -1,4 +1,4 @@
-import os
+import os, signal
 import pytest
 from sys import modules
 from shutil import rmtree
@@ -9,7 +9,7 @@ from egcg_core.constants import ELEMENT_PROJECT_ID, ELEMENT_SAMPLE_INTERNAL_ID, 
 from integration_tests.mocked_data import MockedSamples, MockedRunProcess
 from tests.test_analysisdriver import TestAnalysisDriver, NamedMock
 from egcg_core import constants as c
-from analysis_driver.exceptions import AnalysisDriverError
+from analysis_driver.exceptions import AnalysisDriverError, SequencingRunError
 from analysis_driver.dataset import Dataset, RunDataset, SampleDataset, MostRecentProc
 
 
@@ -138,14 +138,14 @@ class TestDataset(TestAnalysisDriver):
     def test_terminate(self, mocked_running, mocked_kill, mocked_sleep):
         self.dataset.most_recent_proc._entity['pid'] = 1337
         with patch(ppath('Dataset._pid_valid'), return_value=False) as mocked_valid:
-            self.dataset.terminate()
+            self.dataset._terminate(signal.SIGUSR2)
             mocked_valid.assert_called_with(1337)
             assert all(m.call_count == 0 for m in (mocked_kill, mocked_running, mocked_sleep))
 
         with patch(ppath('Dataset._pid_valid'), return_value=True) as mocked_valid:
             self.dataset.terminate()
             mocked_valid.assert_called_with(1337)
-            mocked_kill.assert_called_with(1337, 10)
+            mocked_kill.assert_called_with(1337, signal.SIGUSR2)
             assert mocked_running.call_count == 2
             assert mocked_sleep.call_count == 1
 
@@ -184,6 +184,11 @@ class TestDataset(TestAnalysisDriver):
                 'test_dataset',
                 {'proc_id': 'a_proc_id', 'date_started': 'now', 'dataset_name': 'None', 'dataset_type': 'None'}
             )
+
+    def test_raise_exceptions(self):
+        self.dataset.register_exception(Mock(stage_name='task1'), SequencingRunError('RunErrored'))
+        with pytest.raises(SequencingRunError):
+            self.dataset.raise_exceptions()
 
 
 class _TestDataset(Dataset):
