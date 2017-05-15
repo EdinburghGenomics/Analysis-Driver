@@ -91,19 +91,20 @@ class FastqFilter(DemultiplexingStage):
             crawler.send_data()
 
         # Assess if the lanes need filtering
-        lane_need_filtering = {1: False, 2: False, 3: False, 4:False, 5: False, 6: False, 7: False, 8: False}
+        lane_need_filtering = {1: False, 2: False, 3: False, 4:False,
+                               5: False, 6: False, 7: False, 8: False}
         lanes_metrics = self.dataset.lane_metrics
         for lane_metrics in lanes_metrics:
             q30_threshold = float(cfg.query('fastq_filterer', 'q30_threshold', ret_default=74))
             self.debug('Lane filter if Q30 is bellow %s', q30_threshold)
-            if lane_metrics['pc_q30'] < q30_threshold and lane_metrics['pc_q30'] > 0:
+            if float(lane_metrics['pc_q30']) < q30_threshold and float(lane_metrics['pc_q30']) > 0:
                 self.warning(
                     'Will apply cycle and tile filtering to lane %s: %%Q30=%s < %s',
                     lane_metrics['lane_number'],
                     lane_metrics['pc_q30'],
                     q30_threshold
                 )
-                lane_need_filtering[lane_metrics['lane_number']] = True
+                lane_need_filtering[int(lane_metrics['lane_number'])] = True
 
         try:
             detector = BadTileCycleDetector(self.dataset)
@@ -117,16 +118,15 @@ class FastqFilter(DemultiplexingStage):
         for lane in lane_need_filtering:
             fq_pairs = find_all_fastq_pairs_for_lane(self.fastq_dir, lane)
             if lane_need_filtering[lane]:
-                trim_r1, trim_r2 = convert_bad_cycle_in_trim(bad_cycles.get(lane), self.dataset.run_info)
+                trim_r1, trim_r2 = convert_bad_cycle_in_trim(bad_cycles.get(int(lane)), self.dataset.run_info)
                 for fqs in fq_pairs:
                     cmd_list.append(bash_commands.fastq_filterer_and_pigz_in_place(
                         fastq_file_pair=fqs,
-                        tiles_to_filter=bad_tiles.get(lane),
+                        tiles_to_filter=bad_tiles.get(int(lane)),
                         trim_r2=trim_r2
                     ))
             else:
                 cmd_list.extend([bash_commands.fastq_filterer_and_pigz_in_place(fqs) for fqs in fq_pairs])
-
 
         return executor.execute(
             *cmd_list,
