@@ -373,3 +373,13 @@ def parse_adapter_trim_file(adapter_trim_file, run_id):
                 adapters_trimmed_by_id[run_element_info] = {}
             adapters_trimmed_by_id[run_element_info]['read_%s_trimmed_bases' % read] = int(trimmed_bases)
     return adapters_trimmed_by_id
+
+def parse_fastqFilterer_stats(filterer_stats):
+    '''parse the key value pairs stats file produced by fastq filterer'''
+    content = {}
+    with open(filterer_stats) as open_file:
+        for line in open_file:
+                sp_line = line.strip().split()
+                if sp_line and len(sp_line) > 1:
+                    content[sp_line[0]] = sp_line[1]
+    return content

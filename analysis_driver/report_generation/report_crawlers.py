@@ -210,6 +210,30 @@ class RunCrawler(Crawler):
             else:
                 raise PipelineError('%s fqchk files found in %s for %s' % (len(fq_chk_files), run_dir, run_element_id))
 
+    def _populate_barcode_info_from_fastq_filterer_files(self, run_dir):
+        for run_element_id in self.barcodes_info:
+            barcode_info = self.barcodes_info.get(run_element_id)
+            if ELEMENT_BARCODE in barcode_info and barcode_info[ELEMENT_BARCODE] == 'unknown':
+                fastqfilter_stats_file = util.find_file(
+                    run_dir,
+                    'Undetermined_S0_L00%s_fastqfilterer.stats' % barcode_info[ELEMENT_LANE]
+                )
+            else:
+                fastqfilter_stats_file = util.find_file(
+                    run_dir,
+                    barcode_info[ELEMENT_PROJECT_ID],
+                    barcode_info[ELEMENT_SAMPLE_INTERNAL_ID],
+                    '*_S*_L00%s_fastqfilterer.stats' % barcode_info[ELEMENT_LANE]
+                )
+            if fastqfilter_stats_file == 1:
+                stats = dm.parse_fastqFilterer_stats(fastqfilter_stats_file)
+                if 'remove_tiles' in stats: barcode_info[ELEMENT_TILE_FILTERED] = stats['remove_tiles']
+                if 'trim_r1' in stats: barcode_info[ELEMENT_TRIM_R1_LENGTH] = stats['trim_r1']
+                if 'trim_r2' in stats: barcode_info[ELEMENT_TRIM_R2_LENGTH] = stats['trim_r2']
+            else:
+                raise PipelineError('Cannot find fastqfilter file in %s for %s' % (run_dir, run_element_id))
+
+
     def _populate_barcode_info_from_well_dup(self, welldup_file):
         dup_per_lane = dm.parse_welldup_file(welldup_file)
         for run_element_id in self.barcodes_info:

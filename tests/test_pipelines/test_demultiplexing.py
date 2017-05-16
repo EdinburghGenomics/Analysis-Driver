@@ -59,5 +59,4 @@ rm fastq_L4_R1_001_filtered.fastq fastq_L4_R2_001_filtered.fastq
 (exit $EXIT_CODE) && mv fastq_L4_R2_001_filtered.fastq.gz fastq_L4_R2_001.fastq.gz
 (exit $EXIT_CODE)"""
             assert expected_call_L3 == pexecute.call_args[0][2]
-            print(pexecute.call_args[0][3])
             assert expected_call_L4 == pexecute.call_args[0][3]
