@@ -8,13 +8,11 @@ from os.path import join
 from sys import modules
 from time import sleep
 from collections import OrderedDict
-
 from egcg_core import rest_communication, clarity
 from egcg_core.app_logging import AppLogger
 from egcg_core.config import cfg
 from egcg_core.constants import *  # pylint: disable=unused-import
 from egcg_core.exceptions import RestCommunicationError
-
 from analysis_driver import reader
 from analysis_driver.exceptions import AnalysisDriverError
 from analysis_driver.notification import NotificationCentre
@@ -357,10 +355,7 @@ class SampleDataset(Dataset):
     @property
     def genome_version(self):
         if self._genome_version is None:
-            g = clarity.get_sample(self.name).udf.get('Genome Version')
-            if g is None:
-                g = cfg.query('species', self.species, 'default')
-            self._genome_version = g
+            self._genome_version = clarity.get_genome_version()
         return self._genome_version
 
     @property
