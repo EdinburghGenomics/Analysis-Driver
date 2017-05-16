@@ -156,3 +156,18 @@ class TestDemultiplexingStats(TestAnalysisDriver):
             ('test_run_id', '10015AT0002', '1'): {'read_1_trimmed_bases': 1088149481, 'read_2_trimmed_bases': 1034179505},
             ('test_run_id', 'unknown', '1'): {'read_1_trimmed_bases': 184380158, 'read_2_trimmed_bases': 172552099}
         }
+
+    def test_parse_fastqFilterer_stats(self):
+        fastqfilterer_stats = os.path.join(self.assets_path, 'RE_fastqfilterer.stats')
+        expected_dict = {
+            'r1i': 'RE_R1.fastq.gz',
+            'r2i': 'RE_R2.fastq.gz',
+            'r1o': 'RE_R1_filtered.fastq',
+            'r2o': 'RE_R2_filtered.fastq',
+            'read_pairs_checked': '20',
+            'read_pairs_removed': '13',
+            'read_pairs_remaining': '7',
+            'remove_tiles': '1102,2202',
+            'trim_r1': '14', 'trim_r2': '16'
+        }
+        assert dm.parse_fastqFilterer_stats(fastqfilterer_stats) == expected_dict

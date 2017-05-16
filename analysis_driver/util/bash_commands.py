@@ -44,7 +44,7 @@ def seqtk_fqchk(fastq_file):
     return cmd
 
 
-def fastq_filterer_and_pigz_in_place(fastq_file_pair, pigz_threads=10):
+def fastq_filterer_and_pigz_in_place(fastq_file_pair, pigz_threads=10, tiles_to_filter=None, trim_r1=None, trim_r2=None):
     """
     :param tuple[str,str] fastq_file_pair: Paired-end fastqs to filter
     :param int pigz_threads: nthreads to assign pigz (note that two pigzs run, so this is will be doubled)
@@ -60,15 +60,23 @@ def fastq_filterer_and_pigz_in_place(fastq_file_pair, pigz_threads=10):
     f2_base = f2.replace('.fastq.gz', '')
     int2 = f2_base + '_filtered.fastq'
     of2 = f2_base + '_filtered.fastq.gz'
+    stats_file = f1_base.replace('_R1_001', '') + '_fastqfilterer.stats'
     cmds = ['mkfifo ' + int1, 'mkfifo ' + int2]
+    fastq_filterer_cmd = '{ff} --stats_file {stats} --i1 {f1} --i2 {f2} --o1 {int1} --o2 {int2} --threshold {lent}'
+    if tiles_to_filter:
+        fastq_filterer_cmd += ' --remove_tiles %s' % (','.join([str(t) for t in tiles_to_filter]))
+    if trim_r1:
+        fastq_filterer_cmd += ' --trim_r1 %s' % (trim_r1)
+    if trim_r2:
+        fastq_filterer_cmd += ' --trim_r2 %s' % (trim_r2)
     c = (
-        'set -e; {ff} --i1 {f1} --i2 {f2} --o1 {int1} --o2 {int2} --threshold {lent} & '
+        'set -e; ' + fastq_filterer_cmd +' & '
         '{pz} -c -p {pzt} {int1} > {of1} & '
         '{pz} -c -p {pzt} {int2} > {of2}'
     )
     cmds.append(
         c.format(ff=cfg.query('tools', 'fastq-filterer'), pz=cfg.query('tools', 'pigz', ret_default='pigz'),
-                 pzt=pigz_threads, f1=f1, f2=f2, of1=of1, of2=of2, int1=int1, int2=int2,
+                 pzt=pigz_threads, f1=f1, f2=f2, of1=of1, of2=of2, int1=int1, int2=int2, stats=stats_file,
                  lent=cfg.query('fastq_filterer', 'min_length', ret_default='36'))
     )
     cmds.extend(['EXIT_CODE=$?', 'rm ' + int1 + ' ' + int2])

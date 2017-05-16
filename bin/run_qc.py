@@ -10,7 +10,7 @@ path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from analysis_driver import quality_control as qc
 from analysis_driver.config import default as cfg, load_config
 from analysis_driver.exceptions import AnalysisDriverError
-from analysis_driver.dataset import NoCommunicationDataset
+from analysis_driver.dataset import NoCommunicationDataset, RunDataset
 from analysis_driver.util.bash_commands import rsync_from_to
 from analysis_driver.reader.demultiplexing_parsers import parse_fastqscreen_file
 
@@ -22,7 +22,6 @@ def main():
     log_cfg.add_stdout_handler(logging.DEBUG)
 
     dataset = NoCommunicationDataset(args.dataset_name)
-    os.makedirs(os.path.join(cfg['jobs_dir'], args.dataset_name), exist_ok=True)
     args.func(dataset, args)
 
 
@@ -63,12 +62,19 @@ def _parse_args():
     relatedness_parser.add_argument('--reference', required=True)
     relatedness_parser.set_defaults(func=relatedness)
 
+    bad_cycle_tile_parser = subparsers.add_parser('bad_cycle_tile')
+    bad_cycle_tile_parser.add_argument('--window_size', type=int, default=50)
+    bad_cycle_tile_parser.add_argument('--tile_quality_threshold', type=int, default=20)
+    bad_cycle_tile_parser.add_argument('--cycle_quality_threshold', type=int, default=20)
+    bad_cycle_tile_parser.set_defaults(func=detect_bad_cycle_tile_in_run)
+
     return parser.parse_args()
 
 
 def run_genotype_validation(dataset, args):
     # Get the sample specific config
     cfg.merge(cfg['sample'])
+    os.makedirs(os.path.join(cfg['jobs_dir'], dataset.name), exist_ok=True)
 
     sample_output_dir = os.path.join(cfg['output_dir'], args.project_id, dataset.name)
     genotype_vcfs = util.find_files(sample_output_dir, '*_genotype_validation.vcf.gz')
@@ -112,6 +118,7 @@ def run_genotype_validation(dataset, args):
 
 
 def run_species_contamination_check(dataset, args):
+    os.makedirs(os.path.join(cfg['jobs_dir'], dataset.name), exist_ok=True)
     species_contamination_check = qc.ContaminationCheck(dataset=dataset, fastq_files=sorted(args.fastq_files))
     species_contamination_check.run()
 
@@ -121,29 +128,53 @@ def run_species_contamination_check(dataset, args):
 
 
 def run_sample_contamination_check(dataset, args):
+    os.makedirs(os.path.join(cfg['jobs_dir'], dataset.name), exist_ok=True)
     v = qc.VerifyBamID(dataset=dataset, bam_file=args.bam_file)
     v.run()
 
 
 def run_gender_validation(dataset, args):
+    os.makedirs(os.path.join(cfg['jobs_dir'], dataset.name), exist_ok=True)
     g = qc.GenderValidation(dataset=dataset, vcf_file=args.vcf_file)
     g.run()
 
 
 def median_coverage(dataset, args):
+    os.makedirs(os.path.join(cfg['jobs_dir'], dataset.name), exist_ok=True)
     s = qc.SamtoolsDepth(dataset=dataset, bam_file=args.bam_file)
     s.run()
 
 
 def contamination_blast(dataset, args):
+    os.makedirs(os.path.join(cfg['jobs_dir'], dataset.name), exist_ok=True)
     b = qc.ContaminationBlast(dataset=dataset, fastq_file=args.fastq_file)
     b.run()
 
 
 def relatedness(dataset, args):
+    os.makedirs(os.path.join(cfg['jobs_dir'], dataset.name), exist_ok=True)
     r = qc.Relatedness(dataset=dataset, gvcf_files=args.gvcf_files,
                        reference=args.reference, project_id=dataset.name)
     r.run()
+
+
+def detect_bad_cycle_tile_in_run(dataset, args):
+    cfg.merge(cfg['run'])
+    dataset = RunDataset(args.dataset_name)
+    d = qc.BadTileCycleDetector(
+        dataset=dataset,
+        window_size=args.window_size,
+        tile_quality_threshold=args.tile_quality_threshold,
+        cycle_quality_threshold=args.cycle_quality_threshold
+    )
+    bad_tiles = d.detect_bad_tile()
+    bad_cycle = d.detect_bad_cycle()
+    for lane in sorted(set(list(bad_tiles) + list(bad_cycle))):
+        print('Lane %s' % lane)
+        if lane in bad_cycle:
+            print('Bad cycles are: ' + ', '.join([str(c) for c in bad_cycle[lane]]))
+        if lane in bad_tiles:
+            print('Bad tiles are: ' + ', '.join([str(c) for c in bad_tiles[lane]]))
 
 
 if __name__ == '__main__':

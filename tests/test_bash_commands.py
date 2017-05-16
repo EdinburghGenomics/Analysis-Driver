@@ -127,18 +127,18 @@ def test_seqtk_fqchk():
 
 
 def test_fastq_filterer_and_pigz_in_place():
-    fastq_file_pair = ('r1.fastq.gz', 'r2.fastq.gz')
+    fastq_file_pair = ('RE_R1_001.fastq.gz', 'RE_R2_001.fastq.gz')
     expected_command = (
-        'mkfifo r1_filtered.fastq\n'
-        'mkfifo r2_filtered.fastq\n'
-        'set -e; path/to/fastq-filterer --i1 r1.fastq.gz --i2 r2.fastq.gz --o1 r1_filtered.fastq '
-        '--o2 r2_filtered.fastq --threshold 36 & '
-        'pigz -c -p 10 r1_filtered.fastq > r1_filtered.fastq.gz & '
-        'pigz -c -p 10 r2_filtered.fastq > r2_filtered.fastq.gz\n'
+        'mkfifo RE_R1_001_filtered.fastq\n'
+        'mkfifo RE_R2_001_filtered.fastq\n'
+        'set -e; path/to/fastq-filterer --stats_file RE_fastqfilterer.stats --i1 RE_R1_001.fastq.gz --i2 RE_R2_001.fastq.gz --o1 RE_R1_001_filtered.fastq '
+        '--o2 RE_R2_001_filtered.fastq --threshold 36 & '
+        'pigz -c -p 10 RE_R1_001_filtered.fastq > RE_R1_001_filtered.fastq.gz & '
+        'pigz -c -p 10 RE_R2_001_filtered.fastq > RE_R2_001_filtered.fastq.gz\n'
         'EXIT_CODE=$?\n'
-        'rm r1_filtered.fastq r2_filtered.fastq\n'
-        '(exit $EXIT_CODE) && mv r1_filtered.fastq.gz r1.fastq.gz\n'
-        '(exit $EXIT_CODE) && mv r2_filtered.fastq.gz r2.fastq.gz\n'
+        'rm RE_R1_001_filtered.fastq RE_R2_001_filtered.fastq\n'
+        '(exit $EXIT_CODE) && mv RE_R1_001_filtered.fastq.gz RE_R1_001.fastq.gz\n'
+        '(exit $EXIT_CODE) && mv RE_R2_001_filtered.fastq.gz RE_R2_001.fastq.gz\n'
         '(exit $EXIT_CODE)'
     )
     command = bash_commands.fastq_filterer_and_pigz_in_place(fastq_file_pair)
