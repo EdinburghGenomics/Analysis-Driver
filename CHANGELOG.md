@@ -1,16 +1,17 @@
 Changelog for Analysis-Driver
 =============================
 
-0.15 (unreleased)
+0.15 (2017-05-18)
 -----------------
 
-- Nothing changed yet.
-
+ - All sample and project processes are now segmented using Luigi
+ - Allow filtering/Trimming of bad quality runs in demultiplexing 
+ - Fix analysis driver --stop and Error handling
 
 0.14.3 (2017-04-28)
 -------------------
 
-- Removed need for SampleSheet to exist for a Run to be picked up
+ - Removed need for SampleSheet to exist for a Run to be picked up
 
 
 0.14.2 (2017-04-21)
