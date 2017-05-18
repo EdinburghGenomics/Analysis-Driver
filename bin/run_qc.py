@@ -162,9 +162,11 @@ def get_all_project_gvcfs(project_folder):
 
 def peddy(dataset, args):
     all_gvcfs = []
+    sample_ids = []
     if args.samples:
         cfg.merge(cfg['sample'])
         for sample_id in args.samples:
+            sample_ids.append(sample_id)
             s = get_documents(sample_id)[0]
             project_id = s.get('project_id')
             gvcf_file = s.get('user_sample_id') + '.g.vcf.gz'
@@ -173,10 +175,12 @@ def peddy(dataset, args):
     elif args.projects:
         cfg.merge(cfg['project'])
         for project_id in args.projects:
+            samples_for_project = clarity.get_sample_names_from_project(project_id)
+            sample_ids.extend(samples_for_project)
             project_folder = util.find_file(cfg['input_dir'], project_id)
             all_gvcfs.extend(get_all_project_gvcfs(project_folder))
 
-    p = qc.Peddy(dataset=dataset, gvcf_files=all_gvcfs, reference=args.reference)
+    p = qc.Peddy(dataset=dataset, gvcf_files=all_gvcfs, reference=args.reference, ids=sample_ids)
     p.run()
 
 if __name__ == '__main__':

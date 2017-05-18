@@ -50,6 +50,7 @@ class Relatedness(Stage):
 class Peddy(Relatedness):
     gvcf_files = ListParameter()
     reference = Parameter()
+    ids = Parameter()
 
     @property
     def tabix_command(self):
@@ -65,55 +66,86 @@ class Peddy(Relatedness):
             mem=30
         ).join()
 
-    @property
-    def ped_file(self):
+    def write_ped_file(self):
         ped_file = 'ped.fam'
-        sex_codes = {'Male': 1, 'Female': 2}
+        with open(ped_file) as openfile:
+            openfile.write(self.ped_file_content)
+        return ped_file
+
+    def family_id(self, sample_id):
+        family_id = clarity.get_sample(sample_id).udf.get('Family ID')
+        if not family_id:
+            return 'No_ID'
+        return family_id
+
+    def relationship(self, member):
+        relationship = clarity.get_sample(member).udf.get('Relationship')
+        if not relationship:
+            return 'No_Relationship'
+        return relationship
+
+    def sex(self, member):
+        sex = clarity.get_sample(member).udf.get('Sex')
+        if not sex:
+            return 'No_Sex'
+        return sex
+
+    @property
+    def ped_file_content(self):
+        sex_codes = {'Male': '1', 'Female': '2', 'No_Sex': '0'}
         all_families = {}
         for i in self.ids:
-            family_id = clarity.get_sample(id).udf.get('Family ID')
-
-            if not all_families[family_id]:
+            family_id = self.family_id(i)
+            if not all_families.get(family_id):
                 all_families[family_id] = []
             all_families[family_id].append(i)
 
-        with open(ped_file, 'w') as openfile:
-            for family in all_families:
-                relationship_codes = {'Proband': {'mother':None, 'father':None},
-                                      'Mother':{'mother':0, 'father':0},
-                                      'Father':{'mother':0, 'father':0},
-                                      'Sister':{'mother':None, 'father':None},
-                                      'Brother': {'mother':None, 'father':None},
-                                      'Other':{'mother':0, 'father':0}}
+        ped_file_content = []
+        for family in all_families:
+            relationship_codes = {'Proband': {'mother':'0', 'father':'0'},
+                                  'Mother':{'mother':'0', 'father':'0'},
+                                  'Father':{'mother':'0', 'father':'0'},
+                                  'Sister':{'mother':'0', 'father':'0'},
+                                  'Brother': {'mother':'0', 'father':'0'},
+                                  'Other':{'mother':'0', 'father':'0'}}
 
-                for member in all_families[family]:
-                    relationship = clarity.get_sample(member).udf.get('Relationship')
-                    if relationship == 'Father':
-                        relationship_codes['Proband']['father'] = (member)
-                        relationship_codes['Sister']['father'] = (member)
-                        relationship_codes['Brother']['father'] = (member)
-                    elif relationship == 'Mother':
-                        relationship_codes['Proband']['mother'] = (member)
-                        relationship_codes['Sister']['mother'] = (member)
-                        relationship_codes['Brother']['mother'] = (member)
+            for member in all_families[family]:
+                relationship = self.relationship(member)
+                if relationship == 'Father':
+                    relationship_codes['Proband']['father'] = member
+                    relationship_codes['Sister']['father'] = member
+                    relationship_codes['Brother']['father'] = member
+                elif relationship == 'Mother':
+                    relationship_codes['Proband']['mother'] = member
+                    relationship_codes['Sister']['mother'] = member
+                    relationship_codes['Brother']['mother'] = member
 
-                    family_id = family
-                    member_id = member
-                    mother = relationship_codes[relationship]['mother']
-                    father = relationship_codes[relationship]['father']
-                    sex = sex_codes[clarity.get_sample(member).udf.get('Sex')]
-                    phenotype = 0
+                family_id = family
+                member_id = member
+                mother = relationship_codes[relationship]['mother']
+                father = relationship_codes[relationship]['father']
+                sex = sex_codes[self.sex(member)]
+                phenotype = '0'
+                line = [family_id, member_id, father, mother, sex, phenotype]
+                ped_file_content.append(line)
+        return ped_file_content
 
-                    line = '\t'.join([family_id, member_id, father, mother, sex, phenotype])
-                    openfile.write(line)
+    @property
+    def peddy_command(self):
+        ped_file = self.write_ped_file()
+        peddy_cmd = 'peddy --plot --prefix %s %s %s' % (self.dataset.name, self.gatk_outfile, ped_file)
+        return peddy_cmd
 
-        return ped_file
-
-    def run_peddy(self, ped_file):
-        cmd = 'peddy --plot --prefix %s %s %s' % (self.dataset, self.gatk_outfile, ped_file)
+    def run_peddy(self):
+        return executor.execute(
+            self.peddy_command,
+            job_name='peddy',
+            working_dir=self.job_dir,
+            cpus=10,
+            mem=10
+        ).join()
 
     def _run(self):
         self.run_gatk(self.gvcf_files)
         self.tabix_index()
-        return self.run_gatk(self.gvcf_files) + self.tabix_index() + self.run_peddy(self.ped_file)
-
+        return self.run_gatk(self.gvcf_files) + self.tabix_index() + self.run_peddy()

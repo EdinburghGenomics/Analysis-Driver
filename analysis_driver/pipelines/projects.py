@@ -2,7 +2,7 @@ import os
 from egcg_core.util import find_file
 from egcg_core import clarity
 from analysis_driver.config import default as cfg, OutputFileConfiguration
-from analysis_driver.quality_control import Relatedness
+from analysis_driver.quality_control import Relatedness, Peddy
 from analysis_driver.exceptions import PipelineError
 from analysis_driver.transfer_data import output_project_data
 from analysis_driver import segmentation
@@ -33,7 +33,8 @@ def build_pipeline(dataset):
 
     reference = cfg['references'][species]['fasta']
     relatedness = Relatedness(dataset=dataset, gvcf_files=gvcf_files, reference=reference, project_id=project_id)
-    output = Output(dataset=dataset, previous_stages=[relatedness])
+    peddy = Peddy(dataset=dataset, gvcf_files=gvcf_files, reference=reference, ids=samples_for_project)
+    output = Output(dataset=dataset, previous_stages=[relatedness, peddy])
     return output
 
 

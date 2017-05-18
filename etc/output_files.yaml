@@ -203,3 +203,6 @@ project_process:
   - location: ['']
     basename: '{project_id}.relatedness2'
 
+  - location: ['']
+    basename: '{project_id}.ped_check.csv'
+
