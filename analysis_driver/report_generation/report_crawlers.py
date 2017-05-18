@@ -231,6 +231,8 @@ class RunCrawler(Crawler):
                 if 'remove_tiles' in stats: barcode_info[ELEMENT_TILES_FILTERED] = stats['remove_tiles']
                 if 'trim_r1' in stats: barcode_info[ELEMENT_TRIM_R1_LENGTH] = stats['trim_r1']
                 if 'trim_r2' in stats: barcode_info[ELEMENT_TRIM_R2_LENGTH] = stats['trim_r2']
+            elif barcode_info[ELEMENT_NB_READS_PASS_FILTER] == 0:
+                self.info('No reads for %s, Not expecting fastqfilter file', run_element_id)
             else:
                 raise PipelineError('Cannot find fastqfilter file in %s for %s' % (run_dir, run_element_id))
 
