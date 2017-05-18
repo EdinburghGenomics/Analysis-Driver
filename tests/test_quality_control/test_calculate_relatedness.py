@@ -1,37 +1,31 @@
 from unittest.mock import patch, Mock
 from tests.test_quality_control.qc_tester import QCTester
-from analysis_driver.quality_control.calculate_relatedness import Relatedness, Peddy
+from analysis_driver.quality_control.calculate_relatedness import Relatedness, Peddy, Genotype_gVCFs
 
 ppath = 'analysis_driver.quality_control.calculate_relatedness.'
 
 
-class TestRelatedness(QCTester):
+class TestGenotype_gVCFs(QCTester):
     def setUp(self):
         super().setUp()
-        self.gvcf_files=['test_sample1.g.vcf.gz', 'test_sample2.g.vcf.gz', 'test_sample3.g.vcf.gz']
-        self.r = Relatedness(
+        self.g = Genotype_gVCFs(
             dataset=self.project_dataset,
-            gvcf_files=self.gvcf_files,
-            reference='/path/to/reference.fa',
-            project_id='test_project_id'
+            gVCFs=['test_sample1.g.vcf.gz', 'test_sample2.g.vcf.gz', 'test_sample3.g.vcf.gz'],
+            reference='/path/to/reference.fa'
         )
 
     def test_gatk_genotype_gvcfs_cmd(self):
         with patch(ppath + 'util.find_file', new=self.fake_find_file):
-            assert self.r.gatk_genotype_gvcfs_cmd(self.gvcf_files) == (
+            assert self.g.gatk_genotype_gvcfs_cmd() == (
                 'java -jar path/to/GenomeAnalysisTK.jar -T GenotypeGVCFs -nt 12 -R /path/to/reference.fa '
                 '--variant test_sample1.g.vcf.gz --variant test_sample2.g.vcf.gz '
                 '--variant test_sample3.g.vcf.gz -o test_project_id_genotype_gvcfs.vcf'
             )
 
-    def test_vcftools_relatedness_cmd(self):
-        exp = 'path/to/vcftools --relatedness2 --vcf test_project_id_genotype_gvcfs.vcf --out test_project_id'
-        assert self.r.vcftools_relatedness_cmd() == exp
-
     @patch('egcg_core.executor.execute')
     def test_run_gatk(self, mocked_execute):
-        with patch(ppath + 'Relatedness.gatk_genotype_gvcfs_cmd', return_value='test_command'):
-            self.r.run_gatk(self.gvcf_files)
+        with patch(ppath + 'Genotype_gVCFs.gatk_genotype_gvcfs_cmd', return_value='test_command'):
+            self.g.run_gatk()
             mocked_execute.assert_called_with(
                 'test_command',
                 job_name='gatk_genotype_gvcfs',
@@ -39,6 +33,20 @@ class TestRelatedness(QCTester):
                 working_dir='path/to/jobs/test_project_id',
                 mem=30
             )
+
+
+class TestRelatedness(QCTester):
+    def setUp(self):
+        super().setUp()
+        self.r = Relatedness(
+            dataset=self.project_dataset,
+            genotyped_gvcfs='test_project_id_genotype_gvcfs.vcf',
+            project_id='test_project_id'
+        )
+
+    def test_vcftools_relatedness_cmd(self):
+        exp = 'path/to/vcftools --relatedness2 --vcf test_project_id_genotype_gvcfs.vcf --out test_project_id'
+        assert self.r.vcftools_relatedness_cmd() == exp
 
     @patch('egcg_core.executor.execute')
     def test_run_vcftools(self, mocked_execute):
@@ -57,10 +65,8 @@ class TestPeddy(QCTester):
     def setUp(self):
         super().setUp()
         self.p = Peddy(dataset=self.project_dataset,
-                       gvcf_files=['test_sample1.g.vcf.gz', 'test_sample2.g.vcf.gz', 'test_sample3.g.vcf.gz'],
-                       reference='/path/to/reference.fa',
+                       genotyped_gvcfs='test_project_id_genotype_gvcfs.vcf',
                        ids=['test_sample1', 'test_sample2', 'test_sample3'],
-                       project_id='test_project_id'
                        )
 
     @patch('egcg_core.executor.execute')
@@ -78,7 +84,6 @@ class TestPeddy(QCTester):
     @patch(ppath + 'Peddy.write_ped_file', return_value='ped.fam')
     def test_peddy_command(self, mocked_ped_file):
         assert self.p.peddy_command == 'peddy --plot --prefix test_project_id test_project_id_genotype_gvcfs.vcf ped.fam'
-
 
     @patch(ppath + 'Peddy.family_id', side_effect=['FAM1', 'FAM1', 'FAM1'])
     @patch(ppath + 'Peddy.relationship', side_effect=['Mother', 'Father', 'Proband'])

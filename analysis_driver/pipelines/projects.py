@@ -2,11 +2,10 @@ import os
 from egcg_core.util import find_file
 from egcg_core import clarity
 from analysis_driver.config import default as cfg, OutputFileConfiguration
-from analysis_driver.quality_control import Relatedness, Peddy
+from analysis_driver.quality_control import Relatedness, Peddy, Genotype_gVCFs
 from analysis_driver.exceptions import PipelineError
 from analysis_driver.transfer_data import output_project_data
 from analysis_driver import segmentation
-
 
 def build_pipeline(dataset):
     project_id = dataset.name
@@ -32,8 +31,9 @@ def build_pipeline(dataset):
         raise PipelineError('Incorrect number of gVCF files: require at least two')
 
     reference = cfg['references'][species]['fasta']
-    relatedness = Relatedness(dataset=dataset, gvcf_files=gvcf_files, reference=reference, project_id=project_id)
-    peddy = Peddy(dataset=dataset, gvcf_files=gvcf_files, reference=reference, ids=samples_for_project)
+    genotyped_gvcfs, gatk_outfile = Genotype_gVCFs(gvcf_files=gvcf_files, reference=reference)
+    relatedness = Relatedness(dataset=dataset, genotyped_gvcfs=gatk_outfile, project_id=project_id, previous_stages=[genotyped_gvcfs])
+    peddy = Peddy(dataset=dataset, genotyped_gvcfs=gatk_outfile, ids=samples_for_project, previous_stages=[genotyped_gvcfs])
     output = Output(dataset=dataset, previous_stages=[relatedness, peddy])
     return output
 
