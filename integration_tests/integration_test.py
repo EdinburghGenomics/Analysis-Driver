@@ -175,7 +175,7 @@ class IntegrationTest(TestCase):
 
     def test_demultiplexing(self):
         with patch_pipeline():
-            sys.argv = [entry_point, '--run']
+            sys.argv = [entry_point, '--run', '--debug']
             exit_status = client.main()
             self.expect_equal(exit_status, 0)
 
@@ -201,7 +201,7 @@ class IntegrationTest(TestCase):
 
     def test_bcbio(self):
         with patch_pipeline():
-            sys.argv = [entry_point, '--sample']
+            sys.argv = [entry_point, '--sample', '--debug']
             exit_status = client.main()
             self.expect_equal(exit_status, 0)
 
@@ -223,7 +223,7 @@ class IntegrationTest(TestCase):
 
     def test_var_calling(self):
         with patch_pipeline(species='Canis lupus familiaris', analysis_type='Variant Calling'):
-            sys.argv = [entry_point, '--sample']
+            sys.argv = [entry_point, '--sample', '--debug']
             exit_status = client.main()
             self.expect_equal(exit_status, 0)
             obs_sample = rest_communication.get_document('samples', where={'sample_id': '10015AT0004'})
@@ -244,7 +244,7 @@ class IntegrationTest(TestCase):
 
     def test_qc(self):
         with patch_pipeline(species='Canis lupus familiaris', analysis_type='Not Variant Calling'):
-            sys.argv = [entry_point, '--sample']
+            sys.argv = [entry_point, '--sample', '--debug']
             exit_status = client.main()
             self.expect_equal(exit_status, 0)
             obs_sample = rest_communication.get_document('samples', where={'sample_id': '10015AT0004'})
