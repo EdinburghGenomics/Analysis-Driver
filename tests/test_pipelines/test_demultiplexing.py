@@ -31,13 +31,15 @@ class TestFastqFilter(TestAnalysisDriver):
             [('fastq_L5_R1_001.fastq.gz', 'fastq_L5_R2_001.fastq.gz')],
             [('fastq_L6_R1_001.fastq.gz', 'fastq_L6_R2_001.fastq.gz')],
             [('fastq_L7_R1_001.fastq.gz', 'fastq_L7_R2_001.fastq.gz')],
-            [('fastq_L8_R1_001.fastq.gz', 'fastq_L8_R2_001.fastq.gz')]
+            [('fastq_L8_R1_001.fastq.gz', 'fastq_L8_R2_001.fastq.gz')],
+
         ]
         patch_find = patch('analysis_driver.pipelines.demultiplexing.find_all_fastq_pairs_for_lane',
-                           side_effect=results_fastq)
+                           side_effect=results_fastq + results_fastq)
         patch_executor = patch('analysis_driver.pipelines.demultiplexing.executor.execute')
         patch_detector = patch('analysis_driver.pipelines.demultiplexing.BadTileCycleDetector')
-        with patch_find, patch_executor as pexecute, patch_detector as pdetector:
+        patch_sleep = patch('analysis_driver.pipelines.demultiplexing.sleep')
+        with patch_find, patch_executor as pexecute, patch_detector as pdetector, patch_sleep:
             instance = pdetector.return_value
             instance.detect_bad_tile.return_value = {3: [1101]}
             instance.detect_bad_cycle.return_value = {4: [310, 308, 307, 309]}
