@@ -1,10 +1,10 @@
 Changelog for Analysis-Driver
 =============================
 
-0.16 (unreleased)
------------------
+0.15.1 (2017-05-24)
+-------------------
 
-- Nothing changed yet.
+- Temporary fix to make sure the fastq_filterer stats file is present to be parsed by RunCrawler.
 
 
 0.15 (2017-05-18)

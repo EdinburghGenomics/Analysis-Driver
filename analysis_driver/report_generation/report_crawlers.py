@@ -228,9 +228,10 @@ class RunCrawler(Crawler):
                 )
             if fastqfilter_stats_file:
                 stats = dm.parse_fastqFilterer_stats(fastqfilter_stats_file)
-                if 'remove_tiles' in stats: barcode_info[ELEMENT_TILES_FILTERED] = stats['remove_tiles']
-                if 'trim_r1' in stats: barcode_info[ELEMENT_TRIM_R1_LENGTH] = stats['trim_r1']
-                if 'trim_r2' in stats: barcode_info[ELEMENT_TRIM_R2_LENGTH] = stats['trim_r2']
+                # make sure the stats can be nullable if rerun without filtering
+                barcode_info[ELEMENT_TILES_FILTERED] = stats.get('remove_tiles')
+                barcode_info[ELEMENT_TRIM_R1_LENGTH] = stats.get('trim_r1')
+                barcode_info[ELEMENT_TRIM_R2_LENGTH] = stats.get('trim_r2')
             elif barcode_info[ELEMENT_NB_READS_PASS_FILTER] == 0:
                 self.info('No reads for %s, Not expecting fastqfilter file', run_element_id)
             else:
