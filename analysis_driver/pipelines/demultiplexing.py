@@ -1,6 +1,8 @@
 import shutil
 from os import mkdir
 from os.path import join, exists, isdir
+from time import sleep
+
 from egcg_core import executor, util
 from egcg_core.config import cfg
 
@@ -128,13 +130,33 @@ class FastqFilter(DemultiplexingStage):
             else:
                 cmd_list.extend([bash_commands.fastq_filterer_and_pigz_in_place(fqs) for fqs in fq_pairs])
 
-        return executor.execute(
+        return_value = executor.execute(
             *cmd_list,
             job_name='fastq_filterer',
             working_dir=self.job_dir,
             cpus=18,
             mem=10
         ).join()
+
+        # FIXME: Remove this piece of code when fastq filterer consistently create the stats file
+        sleep(10)
+        for lane in lane_need_filtering:
+            for fastq_file_pair in find_all_fastq_pairs_for_lane(self.fastq_dir, lane):
+                f1, f2 = sorted(fastq_file_pair)
+                stats_file = f1.replace('_R1_001.fastq.gz', '') + '_fastqfilterer.stats'
+                if not exists(stats_file):
+                    self.warning('Missing %s, will create with information I have', stats_file)
+                    if lane_need_filtering[lane]:
+                        trim_r1, trim_r2 = convert_bad_cycle_in_trim(bad_cycles.get(int(lane)), self.dataset.run_info)
+                        bt = bad_tiles.get(int(lane))
+                        with open(stats_file, 'w') as open_file:
+                            if trim_r2:
+                                open_file.write('trim_r2 %s' % trim_r2)
+                            if bt:
+                                open_file.write('remove_tiles %s' % bt)
+                    else:
+                        open(stats_file, 'w').close()
+        return return_value
 
 
 class IntegrityCheck(DemultiplexingStage):
