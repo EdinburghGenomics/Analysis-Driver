@@ -1,3 +1,4 @@
+import os
 from egcg_core import executor, util
 from luigi import Parameter, ListParameter
 from analysis_driver.config import default as cfg
@@ -10,11 +11,11 @@ class Genotype_gVCFs(Stage):
 
     @property
     def gatk_outfile(self):
-        return self.dataset.name + '_genotype_gvcfs.vcf'
+        return os.path.join(self.job_dir, self.dataset.name + '_genotype_gvcfs.vcf')
 
     def gatk_genotype_gvcfs_cmd(self):
         gvcf_variants = ' '. join(['--variant ' + util.find_file(i) for i in self.gVCFs])
-        number_threads = 12
+        number_threads = 30
         return 'java -jar %s -T GenotypeGVCFs -nt %s -R %s %s -o %s' % (
             cfg['tools']['gatk'], number_threads, self.reference, gvcf_variants, self.gatk_outfile
         )
@@ -24,21 +25,25 @@ class Genotype_gVCFs(Stage):
             self.gatk_genotype_gvcfs_cmd(),
             job_name='gatk_genotype_gvcfs',
             working_dir=self.job_dir,
-            cpus=12,
-            mem=30
+            cpus=30,
+            mem=50
         ).join()
 
     def _run(self):
-        return self.run_gatk(), self.gatk_outfile
+        return self.run_gatk()
 
 
 class Relatedness(Stage):
-    genotyped_gvcfs = Parameter()
+
+    @property
+    def gatk_outfile(self):
+        return os.path.join(self.job_dir, self.dataset.name + '_genotype_gvcfs.vcf')
+
     project_id = Parameter()
 
     def vcftools_relatedness_cmd(self):
         return '%s --relatedness2 --vcf %s --out %s' % (
-            cfg['tools']['vcftools'], self.genotyped_gvcfs, self.project_id
+            cfg['tools']['vcftools'], self.gatk_outfile, self.project_id
         )
 
     def run_vcftools(self):
@@ -55,12 +60,15 @@ class Relatedness(Stage):
 
 
 class Peddy(Stage):
-    genotyped_gvcfs = Parameter()
     ids = Parameter()
 
     @property
+    def gatk_outfile(self):
+        return os.path.join(self.job_dir, self.dataset.name + '_genotype_gvcfs.vcf')
+
+    @property
     def tabix_command(self):
-         return "tabix -f -p vcf %s" % (self.genotyped_gvcfs)
+         return "tabix -f -p vcf %s" % (self.gatk_outfile)
 
 
     def tabix_index(self):
@@ -152,6 +160,4 @@ class Peddy(Stage):
         ).join()
 
     def _run(self):
-        self.run_gatk(self.gvcf_files)
-        self.tabix_index()
-        return self.run_gatk(self.gvcf_files) + self.tabix_index() + self.run_peddy()
+        return self.tabix_index() + self.run_peddy()

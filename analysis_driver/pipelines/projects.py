@@ -31,9 +31,9 @@ def build_pipeline(dataset):
         raise PipelineError('Incorrect number of gVCF files: require at least two')
 
     reference = cfg['references'][species]['fasta']
-    genotyped_gvcfs, gatk_outfile = Genotype_gVCFs(gvcf_files=gvcf_files, reference=reference)
-    relatedness = Relatedness(dataset=dataset, genotyped_gvcfs=gatk_outfile, project_id=project_id, previous_stages=[genotyped_gvcfs])
-    peddy = Peddy(dataset=dataset, genotyped_gvcfs=gatk_outfile, ids=samples_for_project, previous_stages=[genotyped_gvcfs])
+    genotype_gvcfs = Genotype_gVCFs(dataset=dataset, gVCFs=gvcf_files, reference=reference)
+    relatedness = Relatedness(dataset=dataset, project_id=project_id, previous_stages=[genotype_gvcfs])
+    peddy = Peddy(dataset=dataset, ids=samples_for_project, previous_stages=[genotype_gvcfs])
     output = Output(dataset=dataset, previous_stages=[relatedness, peddy])
     return output
 
