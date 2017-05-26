@@ -333,6 +333,14 @@ class RunDataset(Dataset):
         self.lims_run.get(force=True)
         return self.lims_run.udf.get('Run Status') in ['RunStarted', 'RunPaused']
 
+    @property
+    def run_metrics(self):
+        return rest_communication.get_document('aggregate/all_runs', match={'run_id': self.name})
+
+    @property
+    def lane_metrics(self):
+        return rest_communication.get_documents('aggregate/run_elements_by_lane', match={'run_id': self.name})
+
 
 class SampleDataset(Dataset):
     type = 'sample'

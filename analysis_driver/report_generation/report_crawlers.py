@@ -57,10 +57,11 @@ class RunCrawler(Crawler):
             self._populate_barcode_info_from_conversion_file(conversion_xml_file)
         if run_dir:
             self._populate_barcode_info_from_seqtk_fqchk_files(run_dir)
-        if run_dir:
             welldup_files = util.find_files(run_dir, self.dataset.name + '.wellduplicate')
             if welldup_files:
                 self._populate_barcode_info_from_well_dup(welldup_files[0])
+
+            self._populate_barcode_info_from_fastq_filterer_files(run_dir)
 
     @staticmethod
     def _update_doc_list(d, k, v):
@@ -86,49 +87,49 @@ class RunCrawler(Crawler):
         self.projects = defaultdict(dict)
 
         for run_element in dataset.run_elements:
-                run_element_id = '%s_%s' % (dataset.name, run_element[ELEMENT_LANE])
-                barcode_info = copy.copy(run_element)
-                if dataset.has_barcodes:
-                    run_element_id += '_' + run_element[ELEMENT_BARCODE]
+            run_element_id = '%s_%s' % (dataset.name, run_element[ELEMENT_LANE])
+            barcode_info = copy.copy(run_element)
+            if dataset.has_barcodes:
+                run_element_id += '_' + run_element[ELEMENT_BARCODE]
 
-                barcode_info[ELEMENT_RUN_NAME] = dataset.name
-                barcode_info[ELEMENT_RUN_ELEMENT_ID] = run_element_id
-                self.barcodes_info[run_element_id] = barcode_info
+            barcode_info[ELEMENT_RUN_NAME] = dataset.name
+            barcode_info[ELEMENT_RUN_ELEMENT_ID] = run_element_id
+            self.barcodes_info[run_element_id] = barcode_info
 
-                # Populate the libraries
-                lib = self.libraries[barcode_info[ELEMENT_LIBRARY_INTERNAL_ID]]
-                lib[ELEMENT_SAMPLE_INTERNAL_ID] = barcode_info[ELEMENT_SAMPLE_INTERNAL_ID]
-                lib[ELEMENT_PROJECT_ID] = barcode_info[ELEMENT_PROJECT_ID]
-                lib[ELEMENT_LIBRARY_INTERNAL_ID] = barcode_info[ELEMENT_LIBRARY_INTERNAL_ID]
-                self._update_doc_list(lib, k=ELEMENT_RUN_ELEMENTS, v=run_element_id)
+            # Populate the libraries
+            lib = self.libraries[barcode_info[ELEMENT_LIBRARY_INTERNAL_ID]]
+            lib[ELEMENT_SAMPLE_INTERNAL_ID] = barcode_info[ELEMENT_SAMPLE_INTERNAL_ID]
+            lib[ELEMENT_PROJECT_ID] = barcode_info[ELEMENT_PROJECT_ID]
+            lib[ELEMENT_LIBRARY_INTERNAL_ID] = barcode_info[ELEMENT_LIBRARY_INTERNAL_ID]
+            self._update_doc_list(lib, k=ELEMENT_RUN_ELEMENTS, v=run_element_id)
 
-                # Populate the projects
-                proj = self.projects[barcode_info[ELEMENT_PROJECT_ID]]
-                proj[ELEMENT_PROJECT_ID] = barcode_info[ELEMENT_PROJECT_ID]
-                self._update_doc_set(proj, k=ELEMENT_SAMPLES, v=barcode_info[ELEMENT_SAMPLE_INTERNAL_ID])
+            # Populate the projects
+            proj = self.projects[barcode_info[ELEMENT_PROJECT_ID]]
+            proj[ELEMENT_PROJECT_ID] = barcode_info[ELEMENT_PROJECT_ID]
+            self._update_doc_set(proj, k=ELEMENT_SAMPLES, v=barcode_info[ELEMENT_SAMPLE_INTERNAL_ID])
 
-                # Populate the lanes
-                lane_id = '%s_%s' % (barcode_info[ELEMENT_RUN_NAME], run_element[ELEMENT_LANE])
-                ln = self.lanes[lane_id]
-                ln[ELEMENT_RUN_NAME] = barcode_info[ELEMENT_RUN_NAME]
-                ln[ELEMENT_LANE_ID] = lane_id
-                ln[ELEMENT_LANE_NUMBER] = run_element[ELEMENT_LANE]
-                self._update_doc_list(ln, k=ELEMENT_RUN_ELEMENTS, v=run_element_id)
+            # Populate the lanes
+            lane_id = '%s_%s' % (barcode_info[ELEMENT_RUN_NAME], run_element[ELEMENT_LANE])
+            ln = self.lanes[lane_id]
+            ln[ELEMENT_RUN_NAME] = barcode_info[ELEMENT_RUN_NAME]
+            ln[ELEMENT_LANE_ID] = lane_id
+            ln[ELEMENT_LANE_NUMBER] = run_element[ELEMENT_LANE]
+            self._update_doc_list(ln, k=ELEMENT_RUN_ELEMENTS, v=run_element_id)
 
-                # Populate the run
-                self.run[ELEMENT_RUN_ELEMENTS].append(run_element_id)
+            # Populate the run
+            self.run[ELEMENT_RUN_ELEMENTS].append(run_element_id)
 
-                if dataset.has_barcodes:
-                    unknown_element_id = '%s_%s_%s' % (self.dataset.name, run_element[ELEMENT_LANE], 'unknown')
-                    self.barcodes_info[unknown_element_id] = {
-                        ELEMENT_BARCODE: 'unknown',
-                        ELEMENT_RUN_ELEMENT_ID: unknown_element_id,
-                        ELEMENT_RUN_NAME: self.dataset.name,
-                        ELEMENT_PROJECT_ID: 'default',
-                        ELEMENT_SAMPLE_INTERNAL_ID: 'Undetermined',
-                        ELEMENT_LIBRARY_INTERNAL_ID: 'Undetermined',
-                        ELEMENT_LANE: run_element[ELEMENT_LANE]
-                    }
+            if dataset.has_barcodes:
+                unknown_element_id = '%s_%s_%s' % (self.dataset.name, run_element[ELEMENT_LANE], 'unknown')
+                self.barcodes_info[unknown_element_id] = {
+                    ELEMENT_BARCODE: 'unknown',
+                    ELEMENT_RUN_ELEMENT_ID: unknown_element_id,
+                    ELEMENT_RUN_NAME: self.dataset.name,
+                    ELEMENT_PROJECT_ID: 'default',
+                    ELEMENT_SAMPLE_INTERNAL_ID: 'Undetermined',
+                    ELEMENT_LIBRARY_INTERNAL_ID: 'Undetermined',
+                    ELEMENT_LANE: run_element[ELEMENT_LANE]
+                }
         for project_id in self.projects:
             self.projects[project_id][ELEMENT_SAMPLES] = list(self.projects[project_id][ELEMENT_SAMPLES])
 
@@ -209,6 +210,33 @@ class RunCrawler(Crawler):
                 barcode_info[ELEMENT_NB_Q30_R2_CLEANED] = 0
             else:
                 raise PipelineError('%s fqchk files found in %s for %s' % (len(fq_chk_files), run_dir, run_element_id))
+
+    def _populate_barcode_info_from_fastq_filterer_files(self, run_dir):
+        for run_element_id in self.barcodes_info:
+            barcode_info = self.barcodes_info.get(run_element_id)
+            if ELEMENT_BARCODE in barcode_info and barcode_info[ELEMENT_BARCODE] == 'unknown':
+                fastqfilter_stats_file = util.find_file(
+                    run_dir,
+                    'Undetermined_S0_L00%s_fastqfilterer.stats' % barcode_info[ELEMENT_LANE]
+                )
+            else:
+                fastqfilter_stats_file = util.find_file(
+                    run_dir,
+                    barcode_info[ELEMENT_PROJECT_ID],
+                    barcode_info[ELEMENT_SAMPLE_INTERNAL_ID],
+                    '*_S*_L00%s_fastqfilterer.stats' % barcode_info[ELEMENT_LANE]
+                )
+            if fastqfilter_stats_file:
+                stats = dm.parse_fastqFilterer_stats(fastqfilter_stats_file)
+                # make sure the stats can be nullable if rerun without filtering
+                barcode_info[ELEMENT_TILES_FILTERED] = stats.get('remove_tiles')
+                barcode_info[ELEMENT_TRIM_R1_LENGTH] = stats.get('trim_r1')
+                barcode_info[ELEMENT_TRIM_R2_LENGTH] = stats.get('trim_r2')
+            elif barcode_info[ELEMENT_NB_READS_PASS_FILTER] == 0:
+                self.info('No reads for %s, Not expecting fastqfilter file', run_element_id)
+            else:
+                raise PipelineError('Cannot find fastqfilter file in %s for %s' % (run_dir, run_element_id))
+
 
     def _populate_barcode_info_from_well_dup(self, welldup_file):
         dup_per_lane = dm.parse_welldup_file(welldup_file)
