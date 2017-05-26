@@ -101,7 +101,8 @@ class TestRunCrawler(TestCrawler):
             self.crawler = report_generation.RunCrawler(
                 dataset,
                 os.path.join(self.test_data, 'AdapterTrimming.txt'),
-                os.path.join(self.test_data, 'ConversionStats.xml')
+                os.path.join(self.test_data, 'ConversionStats.xml'),
+                os.path.join(self.test_data, 'test_run_dir')
             )
 
     def test_barcodes_info(self):
