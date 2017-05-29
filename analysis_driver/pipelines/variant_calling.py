@@ -3,6 +3,7 @@ from egcg_core import executor
 from analysis_driver.pipelines import common
 from analysis_driver.config import default as cfg
 from analysis_driver import segmentation
+from analysis_driver.util.bash_commands import java_command
 
 
 class GATKStage(segmentation.Stage):
@@ -13,8 +14,9 @@ class GATKStage(segmentation.Stage):
         return d
 
     def gatk_cmd(self, run_cls, input_bam, output, xmx=16, nct=16, ext=None):
-        base_cmd = ('java -Xmx{xmx}m -XX:+UseSerialGC -Djava.io.tmpdir={tmpdir} -jar {gatk} -R {ref} '
-                    '-I {input_bam} -T {run_cls} --read_filter BadCigar --read_filter NotPrimaryAlignment '
+
+        base_cmd = (java_command(memory=xmx, tmp_dir=self.gatk_run_dir, jar=cfg['tools']['gatk']) +
+                    '-R {ref} -I {input_bam} -T {run_cls} --read_filter BadCigar --read_filter NotPrimaryAlignment '
                     '-o {output} -l INFO -U LENIENT_VCF_PROCESSING ')
 
         if ext:
@@ -23,9 +25,6 @@ class GATKStage(segmentation.Stage):
             base_cmd += ' -nct %s' % nct
 
         return base_cmd.format(
-            xmx=str(xmx * 1000),
-            tmpdir=self.gatk_run_dir,
-            gatk=cfg['tools']['gatk'],
             ref=self.dataset.reference_genome,
             run_cls=run_cls,
             input_bam=input_bam,

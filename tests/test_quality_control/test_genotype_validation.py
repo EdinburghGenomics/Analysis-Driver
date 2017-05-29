@@ -52,11 +52,12 @@ class TestGenotypeValidation(QCTester):
         self.validator._snp_calling(bam_file)
         assert self.validator.seq_vcf_file == expected_vcf
         command = (
-            'java -Xmx4G -jar path/to/GenomeAnalysisTK.jar -T UnifiedGenotyper -nt 4 '
-            '-R path/to/32_snps_600bp.fa --standard_min_confidence_threshold_for_calling 30.0 '
+            'java -Djava.io.tmpdir={work_dir} -XX:+UseSerialGC -Xmx4G -jar path/to/GenomeAnalysisTK.jar '
+            '-T UnifiedGenotyper -nt 4 -R path/to/32_snps_600bp.fa '
+            '--standard_min_confidence_threshold_for_calling 30.0 '
             '--standard_min_confidence_threshold_for_emitting 0 -out_mode EMIT_ALL_SITES '
             '-I {bam_file} -o {vcf_file}'
-        ).format(bam_file=bam_file, vcf_file=expected_vcf)
+        ).format(work_dir=join(cfg['jobs_dir'], self.sample_id), bam_file=bam_file, vcf_file=expected_vcf)
 
         mocked_execute.assert_called_with(
             command,
@@ -81,9 +82,10 @@ class TestGenotypeValidation(QCTester):
             }
 
         command_gatk = (
-            'java -Xmx4G -jar path/to/GenomeAnalysisTK.jar -T GenotypeConcordance -eval:VCF {genovcf} '
-            '-comp:VCF {sample_vcf} -R path/to/32_snps_600bp.fa > {val_results}'
-        ).format(genovcf=genotype_vcf, sample_vcf=vcf_file, val_results=validation_results)
+            'java -Djava.io.tmpdir={work_dir} -XX:+UseSerialGC -Xmx4G -jar path/to/GenomeAnalysisTK.jar '
+            '-T GenotypeConcordance -eval:VCF {genovcf} -comp:VCF {sample_vcf} '
+            '-R path/to/32_snps_600bp.fa > {val_results}'
+        ).format(work_dir=work_dir, genovcf=genotype_vcf, sample_vcf=vcf_file, val_results=validation_results)
         # Call the index and the actual validation
         assert mocked_execute.call_count == 2
         mocked_execute.assert_any_call(
