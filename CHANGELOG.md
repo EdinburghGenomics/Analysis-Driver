@@ -1,10 +1,10 @@
 Changelog for Analysis-Driver
 =============================
 
-0.16 (unreleased)
------------------
+0.15.2 (2017-05-29)
+-------------------
 
-- Nothing changed yet.
+- Change tools writting to /tmp in Samtools depth and Genotype Validation.
 
 
 0.15.1 (2017-05-24)
