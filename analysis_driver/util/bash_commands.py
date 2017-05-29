@@ -186,3 +186,11 @@ def rsync_from_to(source, dest, exclude=None, size_only=False):
 
     command += '%s %s' % (source, dest)
     return command
+
+
+def java_command(memory, tmp_dir, jar):
+    return 'java -Djava.io.tmpdir={tmp_dir} -XX:+UseSerialGC -Xmx{memory}G -jar {jar}'.format(
+        memory=memory,
+        tmp_dir=tmp_dir,
+        jar=jar
+    )

@@ -6,6 +6,7 @@ from analysis_driver.util import bash_commands
 from analysis_driver.config import default as cfg
 from analysis_driver.reader.mapping_stats_parsers import parse_genotype_concordance
 from analysis_driver.segmentation import Stage
+from analysis_driver.util.bash_commands import java_command
 
 
 class GenotypeValidation(Stage):
@@ -24,6 +25,9 @@ class GenotypeValidation(Stage):
     def output_bam(self):
         """The Bam file that will be generated from BWA alignment"""
         return os.path.join(self.job_dir, self.dataset.name + '_geno_val.bam')
+
+    def _gatk_command(self, memory):
+        return java_command(memory=memory, tmp_dir=self.job_dir, jar=cfg.query('tools', 'gatk'))
 
     def _bwa_aln(self, fastq_files):
         """
@@ -70,11 +74,13 @@ class GenotypeValidation(Stage):
         Call SNPs using GATK as defined in the config file.
         :param str bam_file: The file containing all reads aligned to the synthetic genome.
         """
-        gatk_command = ('java -Xmx4G -jar {gatk} -T UnifiedGenotyper -nt 4 -R {reference} '
+
+        gatk_command = (self._gatk_command(memory=4) +
+                        ' -T UnifiedGenotyper -nt 4 -R {reference} '
                         '--standard_min_confidence_threshold_for_calling 30.0 '
                         '--standard_min_confidence_threshold_for_emitting 0 -out_mode EMIT_ALL_SITES '
                         '-I {bam_file} -o {vcf_file}').format(
-            gatk=cfg['tools']['gatk'], reference=cfg.query('genotype-validation', 'reference'),
+            reference=cfg.query('genotype-validation', 'reference'),
             bam_file=bam_file, vcf_file=self.seq_vcf_file
         )
 
@@ -103,7 +109,7 @@ class GenotypeValidation(Stage):
         for sample_name in sample2genotype:
             validation_results = os.path.join(self.job_dir, sample_name + '_genotype_validation.txt')
             sample2genotype_validation[sample_name] = validation_results
-            gatk_command = ['java -Xmx4G -jar %s' % cfg.query('tools', 'gatk'),
+            gatk_command = [self._gatk_command(memory=4),
                             '-T GenotypeConcordance',
                             '-eval:VCF %s' % self.seq_vcf_file,
                             '-comp:VCF %s' % sample2genotype.get(sample_name),
