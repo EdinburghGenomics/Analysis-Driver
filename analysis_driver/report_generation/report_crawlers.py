@@ -211,6 +211,17 @@ class RunCrawler(Crawler):
             else:
                 raise PipelineError('%s fqchk files found in %s for %s' % (len(fq_chk_files), run_dir, run_element_id))
 
+
+
+
+
+
+
+
+
+
+
+
     def _populate_barcode_info_from_fastq_filterer_files(self, run_dir):
         for run_element_id in self.barcodes_info:
             barcode_info = self.barcodes_info.get(run_element_id)
@@ -236,6 +247,20 @@ class RunCrawler(Crawler):
                 self.info('No reads for %s, Not expecting fastqfilter file', run_element_id)
             else:
                 raise PipelineError('Cannot find fastqfilter file in %s for %s' % (run_dir, run_element_id))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
     def _populate_barcode_info_from_well_dup(self, welldup_file):
