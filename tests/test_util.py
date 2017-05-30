@@ -1,6 +1,8 @@
 import os
 import shutil
-from unittest.mock import patch
+from unittest.mock import patch, Mock
+
+from analysis_driver.util import get_ranges, convert_bad_cycle_in_trim
 from tests.test_analysisdriver import TestAnalysisDriver
 from analysis_driver import transfer_data, util
 from analysis_driver.config import OutputFileConfiguration
@@ -100,3 +102,41 @@ class TestTransferData(TestAnalysisDriver):
             bcbio_csv
         )
         assert expected in cmd
+
+
+class TestUtils(TestAnalysisDriver):
+
+    def test_get_range(self):
+
+        list_int = [1, 2, 3, 4, 6, 7]
+        assert list(get_ranges(list_int)) == [(1, 4), (6, 7)]
+
+
+    def test_convert_bad_cycle_in_trim(self):
+        run_info = Mock(reads=Mock(
+            upstream_read=Mock(attrib={'NumCycles': '151'}),
+            downstream_read=Mock(attrib={'NumCycles': '151'}),
+            index_lengths=[8]
+        ))
+        bad_cycle_list = [310, 308, 307, 309, 101]
+        assert convert_bad_cycle_in_trim(bad_cycle_list, run_info) == (None, 147)
+
+        bad_cycle_list = [308, 307, 309, 151, 150]
+        assert convert_bad_cycle_in_trim(bad_cycle_list, run_info) == (149, None)
+
+        bad_cycle_list = [310, 309]
+        assert convert_bad_cycle_in_trim(bad_cycle_list, run_info) == (None, 149)
+
+        bad_cycle_list = None
+        assert convert_bad_cycle_in_trim(bad_cycle_list, run_info) == (None, None)
+
+        run_info = Mock(reads=Mock(
+            upstream_read=Mock(attrib={'NumCycles': '151'}),
+            downstream_read=Mock(attrib={'NumCycles': '151'}),
+            index_lengths=[]
+        ))
+
+        bad_cycle_list = [302, 301]
+        assert convert_bad_cycle_in_trim(bad_cycle_list, run_info) == (None, 149)
+
+

@@ -1,9 +1,9 @@
 import os
-from egcg_core import executor, util
+from egcg_core import executor, util, clarity
 from luigi import Parameter, ListParameter
 from analysis_driver.config import default as cfg
 from analysis_driver.segmentation import Stage
-from egcg_core import clarity
+from analysis_driver.util.bash_commands import java_command
 
 class Genotype_gVCFs(Stage):
     gVCFs = ListParameter()
@@ -14,10 +14,11 @@ class Genotype_gVCFs(Stage):
         return os.path.join(self.job_dir, self.dataset.name + '_genotype_gvcfs.vcf')
 
     def gatk_genotype_gvcfs_cmd(self):
-        gvcf_variants = ' '. join(['--variant ' + util.find_file(i) for i in self.gVCFs])
-        number_threads = 30
-        return 'java -jar %s -T GenotypeGVCFs -nt %s -R %s %s -o %s' % (
-            cfg['tools']['gatk'], number_threads, self.reference, gvcf_variants, self.gatk_outfile
+        gvcf_variants = ' '. join(['--variant ' + util.find_file(i) for i in self.gvcf_files])
+        number_threads = 12
+        return java_command(memory=20, tmp_dir=self.job_dir, jar=cfg['tools']['gatk']) + \
+               ' -T GenotypeGVCFs -nt %s -R %s %s -o %s' % (
+            number_threads, self.reference, gvcf_variants, self.gatk_outfile
         )
 
     def run_gatk(self):

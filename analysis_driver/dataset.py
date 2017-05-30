@@ -1,11 +1,13 @@
 import os
 import re
-import threading
+from multiprocessing import Lock
+import signal
 from datetime import datetime
 from errno import ESRCH
 from os.path import join
 from sys import modules
 from time import sleep
+from collections import OrderedDict
 
 from egcg_core import rest_communication, clarity
 from egcg_core.app_logging import AppLogger
@@ -23,6 +25,7 @@ class Dataset(AppLogger):
     type = None
     endpoint = None
     id_field = None
+    exceptions = OrderedDict()
 
     def __init__(self, name, most_recent_proc=None):
         self.name = name
@@ -93,16 +96,24 @@ class Dataset(AppLogger):
         self.most_recent_proc.change_status(DATASET_FORCE_READY)
 
     def terminate(self):
+        self._terminate(signal.SIGUSR2)
+
+    def soft_terminate(self):
+        '''send SIGUSR1 to analysis driver and rely on luigi picking it up.
+        Luigi will stop submitting new job but finish the currently running jobs'''
+        self._terminate(signal.SIGUSR1)
+
+    def _terminate(self, signal_id):
         pid = self.most_recent_proc.get('pid')
-        self.debug('Attempting to terminate pid %s for %s %s', pid, self.type, self.name)
+        self.debug('Attempting to terminate pid %s for %s %s with signal %s', pid, self.type, self.name, signal_id)
         if not pid or not self._pid_valid(pid):
-            self.debug('Attempted to terminate invalid pid %s', pid)
+            self.debug('Attempted to terminate invalid pid %s with signal %s', pid, signal_id)
             return
 
-        os.kill(pid, 10)
+        os.kill(pid, signal_id)
         while self._pid_running(pid):
             sleep(1)
-        self.info('Terminated pid %s for %s %s', pid, self.type, self.name)
+        self.info('Terminated pid %s for %s %s with signal %s', pid, self.type, self.name, signal_id)
 
     def start_stage(self, stage_name):
         self.ntf.start_stage(stage_name)
@@ -138,6 +149,23 @@ class Dataset(AppLogger):
     @property
     def _is_ready(self):
         raise NotImplementedError
+
+    def register_exception(self, luigi_task, exception):
+        self.exceptions[luigi_task.stage_name] = exception
+
+    def raise_exceptions(self):
+        if self.exceptions:
+            self.critical('%s exceptions registered with dataset %s', len(self.exceptions), self.name)
+            for name in self.exceptions:
+                self.critical(
+                    'exception: %s%s raised in %s',
+                    self.exceptions[name].__class__.__name__,
+                    self.exceptions[name].args,
+                    name
+                )
+            # Only raise the first exception raised by tasks
+            task_name = list(self.exceptions.keys())[0]
+            raise self.exceptions[task_name]
 
     def __str__(self):
         s = self.name
@@ -305,6 +333,14 @@ class RunDataset(Dataset):
         self.lims_run.get(force=True)
         return self.lims_run.udf.get('Run Status') in ['RunStarted', 'RunPaused']
 
+    @property
+    def run_metrics(self):
+        return rest_communication.get_document('aggregate/all_runs', match={'run_id': self.name})
+
+    @property
+    def lane_metrics(self):
+        return rest_communication.get_documents('aggregate/run_elements_by_lane', match={'run_id': self.name})
+
 
 class SampleDataset(Dataset):
     type = 'sample'
@@ -464,7 +500,7 @@ class ProjectDataset(Dataset):
 
 class MostRecentProc:
     def __init__(self, dataset_type, dataset_name, initial_content=None):
-        self.lock = threading.Lock()
+        self.lock = Lock()
         self.dataset_type = dataset_type
         self.dataset_name = dataset_name
         self.proc_id = None

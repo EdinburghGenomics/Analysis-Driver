@@ -52,6 +52,8 @@ def main():
             scanner.get_dataset(d).force()
         for d in args.stop:
             scanner.get_dataset(d).terminate()
+        for d in args.soft_stop:
+            scanner.get_dataset(d).soft_terminate()
 
         if args.report:
             scanner.report()
@@ -118,9 +120,13 @@ def _process_dataset(d):
         stop_running_jobs()
         d.fail(sig)
         sys.exit(sig)
-
-    signal.signal(10, _sigterm_handler)
-    signal.signal(15, _sigterm_handler)
+    # SIGUSR1 is used by luigi to stop submitting new jobs.
+    # make sure here that SIGUSR1 is caught even if luigi is not running.
+    signal.signal(signal.SIGUSR1, _sigterm_handler)
+    # SIGUSR2 is used by analysis driver to know that another analysis driver process has asked it to be terminated.
+    signal.signal(signal.SIGUSR2, _sigterm_handler)
+    # SIGTERM is used by analysis driver to know that a manual process has asked it to be terminated.
+    signal.signal(signal.SIGTERM, _sigterm_handler)
     exit_status = 9
     try:
         from analysis_driver import pipelines
@@ -162,5 +168,6 @@ def _parse_args():
     p.add_argument('--abort', nargs='+', default=[], help='mark a dataset as aborted')
     p.add_argument('--force', nargs='+', default=[], help='mark a sample for processing, even if below the data threshold')
     p.add_argument('--stop', nargs='+', default=[], help='stop a currently processing run/sample')
+    p.add_argument('--soft-stop', nargs='+', default=[], help='prevent any new luigi task from starting for a run/sample')
 
     return p.parse_args()

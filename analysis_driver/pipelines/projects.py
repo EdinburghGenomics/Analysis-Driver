@@ -7,6 +7,7 @@ from analysis_driver.exceptions import PipelineError
 from analysis_driver.transfer_data import output_project_data
 from analysis_driver import segmentation
 
+
 def build_pipeline(dataset):
     project_id = dataset.name
     samples_for_project = dataset.samples_processed
