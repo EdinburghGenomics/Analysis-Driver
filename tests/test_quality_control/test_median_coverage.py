@@ -6,7 +6,7 @@ from unittest.mock import patch
 class TestSamtoolsDepth(QCTester):
     exp_cmd = ('path/to/samtools depth -a -a -q 0 -Q 0 testfile.bam | '
                'awk -F "\t" \'{array[$1"\t"$3]+=1} END{for (val in array){print val"\t"array[val]}}\' | '
-               'sort -k 1,1 -nk 2,2 > testfile.depth')
+               'sort -T path/to/jobs/test_sample -k 1,1 -nk 2,2 > testfile.depth')
 
     def test_get_samtools_depth_command(self):
         g = SamtoolsDepth(dataset=self.dataset, bam_file='testfile.bam')
