@@ -14,7 +14,7 @@ class Genotype_gVCFs(Stage):
         return os.path.join(self.job_dir, self.dataset.name + '_genotype_gvcfs.vcf')
 
     def gatk_genotype_gvcfs_cmd(self):
-        gvcf_variants = ' '. join(['--variant ' + util.find_file(i) for i in self.gvcf_files])
+        gvcf_variants = ' '. join(['--variant ' + util.find_file(i) for i in self.gVCFs])
         number_threads = 12
         return java_command(memory=20, tmp_dir=self.job_dir, jar=cfg['tools']['gatk']) + \
                ' -T GenotypeGVCFs -nt %s -R %s %s -o %s' % (
@@ -148,7 +148,7 @@ class Peddy(Stage):
     @property
     def peddy_command(self):
         ped_file = self.write_ped_file()
-        peddy_cmd = 'peddy --plot --prefix %s %s %s' % (self.dataset.name, self.genotyped_gvcfs, ped_file)
+        peddy_cmd = 'peddy --plot --prefix %s %s %s' % (self.dataset.name, self.gatk_outfile, ped_file)
         return peddy_cmd
 
     def run_peddy(self):
