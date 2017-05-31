@@ -69,8 +69,7 @@ class Peddy(Stage):
 
     @property
     def tabix_command(self):
-         return "tabix -f -p vcf %s" % (self.gatk_outfile)
-
+         return "%s -f -p vcf %s" % (cfg['tools']['tabix'], self.gatk_outfile)
 
     def tabix_index(self):
         return executor.execute(
@@ -96,7 +95,7 @@ class Peddy(Stage):
     def relationship(self, member):
         relationship = clarity.get_sample(member).udf.get('Relationship')
         if not relationship:
-            return 'No_Relationship'
+            return 'Other'
         return relationship
 
     def sex(self, member):
@@ -135,13 +134,11 @@ class Peddy(Stage):
                     relationship_codes['Sister']['mother'] = member
                     relationship_codes['Brother']['mother'] = member
 
-                family_id = family
-                member_id = member
                 mother = relationship_codes[relationship]['mother']
                 father = relationship_codes[relationship]['father']
                 sex = sex_codes[self.sex(member)]
                 phenotype = '0'
-                line = [family_id, member_id, father, mother, sex, phenotype]
+                line = [family, member, father, mother, sex, phenotype]
                 ped_file_content.append(line)
         return ped_file_content
 
