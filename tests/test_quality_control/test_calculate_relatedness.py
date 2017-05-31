@@ -95,11 +95,11 @@ class TestPeddy(QCTester):
     @patch('egcg_core.executor.execute')
     def test_tabix_index(self, mocked_execute):
         self.p.tabix_index()
-        mocked_execute.assert_called_with('tabix -f -p vcf path/to/jobs/test_project_id/test_project_id_genotype_gvcfs.vcf',
+        mocked_execute.assert_called_with('path/to/tabix -f -p vcf path/to/jobs/test_project_id/test_project_id_genotype_gvcfs.vcf',
                                           job_name='tabix',
                                           cpus=12,
                                           mem=30,
                                           working_dir='path/to/jobs/test_project_id')
 
     def test_tabix_command(self):
-        assert self.p.tabix_command == 'tabix -f -p vcf path/to/jobs/test_project_id/test_project_id_genotype_gvcfs.vcf'
+        assert self.p.tabix_command == 'path/to/tabix -f -p vcf path/to/jobs/test_project_id/test_project_id_genotype_gvcfs.vcf'
