@@ -82,8 +82,8 @@ class Peddy(Stage):
         ).join()
 
     def write_ped_file(self):
-        ped_file = 'ped.fam'
-        with open(ped_file) as openfile:
+        ped_file = os.path.join(self.job_dir, 'ped.fam')
+        with open(ped_file, 'w') as openfile:
             openfile.write(self.ped_file_content)
         return ped_file
 

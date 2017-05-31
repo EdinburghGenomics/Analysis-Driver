@@ -10,10 +10,10 @@ from analysis_driver import segmentation
 
 def build_pipeline(dataset):
     project_id = dataset.name
-    samples_for_project = dataset.samples_processed
+    sample_ids = [sample['sample_id'] for sample in dataset.samples_processed]
 
     species_in_project = set()
-    for sample in samples_for_project:
+    for sample in dataset.samples_processed:
         species = sample.get('species_name')
         if not species:
             species = clarity.get_species_from_sample(sample.get('sample_id'))
@@ -24,7 +24,7 @@ def build_pipeline(dataset):
 
     project_source = os.path.join(cfg.query('sample', 'delivery_source'), project_id)
     gvcf_files = []
-    for sample in samples_for_project:
+    for sample in dataset.samples_processed:
         gvcf_file = find_file(project_source, sample['sample_id'], sample['user_sample_id'] + '.g.vcf.gz')
         if gvcf_file:
             gvcf_files.append(gvcf_file)
@@ -34,7 +34,7 @@ def build_pipeline(dataset):
     reference = cfg['references'][species]['fasta']
     genotype_gvcfs = Genotype_gVCFs(dataset=dataset, gVCFs=gvcf_files, reference=reference)
     relatedness = Relatedness(dataset=dataset, project_id=project_id, previous_stages=[genotype_gvcfs])
-    peddy = Peddy(dataset=dataset, ids=samples_for_project, previous_stages=[genotype_gvcfs])
+    peddy = Peddy(dataset=dataset, ids=sample_ids, previous_stages=[genotype_gvcfs])
     output = Output(dataset=dataset, previous_stages=[relatedness, peddy])
     return output
 
