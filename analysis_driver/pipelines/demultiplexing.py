@@ -151,9 +151,9 @@ class FastqFilter(DemultiplexingStage):
                         bt = bad_tiles.get(int(lane))
                         with open(stats_file, 'w') as open_file:
                             if trim_r2:
-                                open_file.write('trim_r2 %s' % trim_r2)
+                                open_file.write('trim_r2 %s\n' % trim_r2)
                             if bt:
-                                open_file.write('remove_tiles %s' % bt)
+                                open_file.write('remove_tiles %s\n' % ','.join([str(t) for t in bt]))
                     else:
                         open(stats_file, 'w').close()
         return return_value
