@@ -84,13 +84,84 @@ class TestPeddy(QCTester):
     def test_peddy_command(self, mocked_ped_file):
         assert self.p.peddy_command == 'peddy --plot --prefix test_project_id path/to/jobs/test_project_id/test_project_id_genotype_gvcfs.vcf ped.fam'
 
-    @patch(ppath + 'Peddy.family_id', side_effect=['FAM1', 'FAM1', 'FAM1'])
-    @patch(ppath + 'Peddy.relationship', side_effect=['Mother', 'Father', 'Proband'])
-    @patch(ppath + 'Peddy.sex', side_effect=['Female', 'Male', 'Male'])
-    def test_ped_file_content(self, mocked_sex, mocked_relationships, mocked_families):
-        assert self.p.ped_file_content == [['FAM1', 'test_sample1', '0', '0', '2', '0'],
-                                           ['FAM1', 'test_sample2', '0', '0', '1', '0'],
-                                           ['FAM1', 'test_sample3', 'test_sample2', 'test_sample1', '1', '0']]
+    def test_relationships(self):
+        family = ['test_sample1', 'test_sample2', 'test_sample3']
+
+        with patch(ppath + 'Peddy.relationship', side_effect=['Father', 'Mother', 'Proband']):
+            assert self.p.relationships(family) == {'Proband': {'Mother':'test_sample2', 'Father':'test_sample1'},
+                                                      'Mother':{'Mother':'0', 'Father':'0'},
+                                                      'Father':{'Mother':'0', 'Father':'0'},
+                                                      'Sister':{'Mother':'test_sample2', 'Father':'test_sample1'},
+                                                      'Brother': {'Mother':'test_sample2', 'Father':'test_sample1'},
+                                                      'Other':{'Mother':'0', 'Father':'0'}}
+
+        with patch(ppath + 'Peddy.relationship', side_effect=['Proband', 'Father', 'Mother']):
+            assert self.p.relationships(family) == {'Proband': {'Mother':'test_sample3', 'Father':'test_sample2'},
+                                                      'Mother':{'Mother':'0', 'Father':'0'},
+                                                      'Father':{'Mother':'0', 'Father':'0'},
+                                                      'Sister':{'Mother':'test_sample3', 'Father':'test_sample2'},
+                                                      'Brother': {'Mother':'test_sample3', 'Father':'test_sample2'},
+                                                      'Other':{'Mother':'0', 'Father':'0'}}
+
+        with patch(ppath + 'Peddy.relationship', side_effect=['Proband', 'Other', 'Other']):
+            assert self.p.relationships(family) == {'Proband': {'Mother':'0', 'Father':'0'},
+                                                      'Mother':{'Mother':'0', 'Father':'0'},
+                                                      'Father':{'Mother':'0', 'Father':'0'},
+                                                      'Sister':{'Mother':'0', 'Father':'0'},
+                                                      'Brother': {'Mother':'0', 'Father':'0'},
+                                                      'Other':{'Mother':'0', 'Father':'0'}}
+
+        family = ['test_sample1', 'test_sample2']
+        with patch(ppath + 'Peddy.relationship', side_effect=['Mother', 'Proband']):
+            assert self.p.relationships(family) == {'Proband': {'Mother':'test_sample1', 'Father':'0'},
+                                                      'Mother':{'Mother':'0', 'Father':'0'},
+                                                      'Father':{'Mother':'0', 'Father':'0'},
+                                                      'Sister':{'Mother':'test_sample1', 'Father':'0'},
+                                                      'Brother': {'Mother':'test_sample1', 'Father':'0'},
+                                                      'Other':{'Mother':'0', 'Father':'0'}}
+
+    def test_ped_file_content2(self):
+        with patch(ppath + 'Peddy.family_id', side_effect=['FAM1', 'FAM1', 'FAM2']):
+            with patch(ppath + 'Peddy.get_member_details', side_effect=[[['FAM1', '0', '0', '2', '0'], ['FAM1', 'test_sample1', '0', '1', '0']], [['FAM2', '0', '0', '1', '0']]]):
+                assert self.p.ped_file_content == [['FAM1', '0', '0', '2', '0'], ['FAM1', 'test_sample1', '0', '1', '0'], ['FAM2', '0', '0', '1', '0']]
+
+        with patch(ppath + 'Peddy.family_id', side_effect=['FAM1', 'FAM1', 'FAM1']):
+            with patch(ppath + 'Peddy.get_member_details', side_effect=[[['FAM1', '0', '0', '2', '0'], ['FAM1', '0', '0', '1', '0'], ['FAM1', 'test_sample1', 'test_sample2', '1', '0']]]):
+                assert self.p.ped_file_content == [['FAM1', '0', '0', '2', '0'], ['FAM1', '0', '0', '1', '0'], ['FAM1', 'test_sample1', 'test_sample2', '1', '0']]
+
+        with patch(ppath + 'Peddy.family_id', side_effect=['FAM1', 'FAM1', 'No_ID']):
+            with patch(ppath + 'Peddy.get_member_details', side_effect=[[['FAM1', '0', '0', '2', '0'], ['FAM1', '0', 'test_sample1', '1', '0']], [['No_ID', '0', '0', '1', '0']]]):
+                assert self.p.ped_file_content == [['FAM1', '0', '0', '2', '0'],
+                                                   ['FAM1', '0', 'test_sample1', '1', '0'],
+                                                   ['No_ID', '0', '0', '1', '0']]
+
+    def test_get_member_details(self):
+        with patch(ppath + 'Peddy.relationships', return_value={'Proband': {'Mother':'test_sample1', 'Father':'0'},
+                                                          'Mother':{'Mother':'0', 'Father':'0'},
+                                                          'Father':{'Mother':'0', 'Father':'0'},
+                                                          'Sister':{'Mother':'test_sample1', 'Father':'0'},
+                                                          'Brother': {'Mother':'test_sample1', 'Father':'0'},
+                                                          'Other':{'Mother':'0', 'Father':'0'}}):
+            with patch(ppath + 'Peddy.relationship', side_effect=['Mother', 'Proband']):
+                with patch(ppath + 'Peddy.sex', side_effect=['Female', 'Male']):
+                    all_families = {'FAM1': ['test_sample1', 'test_sample2'], 'FAM2': ['test_sample3']}
+                    assert self.p.get_member_details('FAM1', all_families) == [['FAM1', 'test_sample1', '0', '0', '2', '0'],
+                                                                               ['FAM1', 'test_sample2', '0', 'test_sample1', '1', '0']]
+
+
+        with patch(ppath + 'Peddy.relationships', return_value={'Proband': {'Mother':'0', 'Father':'0'},
+                                                          'Mother':{'Mother':'0', 'Father':'0'},
+                                                          'Father':{'Mother':'0', 'Father':'0'},
+                                                          'Sister':{'Mother':'0', 'Father':'0'},
+                                                          'Brother': {'Mother':'0', 'Father':'0'},
+                                                          'Other':{'Mother':'0', 'Father':'0'}}):
+
+            with patch(ppath + 'Peddy.relationship', side_effect=['Other', 'Other', 'Proband']):
+                with patch(ppath + 'Peddy.sex', side_effect=['No_Sex', 'No_Sex', 'Male']):
+                    all_families = {'FAM1': ['test_sample1', 'test_sample2', 'test_sample3']}
+                    assert self.p.get_member_details('FAM1', all_families) == [['FAM1', 'test_sample1', '0', '0', '0', '0'],
+                                                                               ['FAM1', 'test_sample2', '0', '0', '0', '0'],
+                                                                               ['FAM1', 'test_sample3', '0', '0', '1', '0']]
 
     @patch('egcg_core.executor.execute')
     def test_tabix_index(self, mocked_execute):

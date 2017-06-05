@@ -83,7 +83,8 @@ class Peddy(Stage):
     def write_ped_file(self):
         ped_file = os.path.join(self.job_dir, 'ped.fam')
         with open(ped_file, 'w') as openfile:
-            openfile.write(self.ped_file_content)
+            for line in self.ped_file_content:
+                openfile.write('\t'.join(line))
         return ped_file
 
     def family_id(self, sample_id):
@@ -104,9 +105,38 @@ class Peddy(Stage):
             return 'No_Sex'
         return sex
 
+    def relationships(self, family):
+        relationship_codes = {'Proband': {'Mother':'0', 'Father':'0'},
+                              'Mother':{'Mother':'0', 'Father':'0'},
+                              'Father':{'Mother':'0', 'Father':'0'},
+                              'Sister':{'Mother':'0', 'Father':'0'},
+                              'Brother': {'Mother':'0', 'Father':'0'},
+                              'Other':{'Mother':'0', 'Father':'0'}}
+
+        for member in family:
+            relationship = self.relationship(member)
+            if relationship in ['Father', 'Mother']:
+                    for i in ['Proband', 'Sister', 'Brother']:
+                        relationship_codes[i][relationship] = member
+        return relationship_codes
+
+    def get_member_details(self, family, all_families):
+        family_lines = []
+        family_info = self.relationships(all_families[family])
+        for member in all_families[family]:
+            sex_codes = {'Male': '1', 'Female': '2', 'No_Sex': '0'}
+            relationship = self.relationship(member)
+            line = [family,
+                    member,
+                   family_info[relationship]['Father'],
+                   family_info[relationship]['Mother'],
+                   sex_codes[self.sex(member)],
+                   '0']
+            family_lines.append(line)
+        return family_lines
+
     @property
     def ped_file_content(self):
-        sex_codes = {'Male': '1', 'Female': '2', 'No_Sex': '0'}
         all_families = {}
         for i in self.ids:
             family_id = self.family_id(i)
@@ -116,29 +146,8 @@ class Peddy(Stage):
 
         ped_file_content = []
         for family in all_families:
-            relationship_codes = {'Proband': {'mother':'0', 'father':'0'},
-                                  'Mother':{'mother':'0', 'father':'0'},
-                                  'Father':{'mother':'0', 'father':'0'},
-                                  'Sister':{'mother':'0', 'father':'0'},
-                                  'Brother': {'mother':'0', 'father':'0'},
-                                  'Other':{'mother':'0', 'father':'0'}}
-
-            for member in all_families[family]:
-                relationship = self.relationship(member)
-                if relationship == 'Father':
-                    relationship_codes['Proband']['father'] = member
-                    relationship_codes['Sister']['father'] = member
-                    relationship_codes['Brother']['father'] = member
-                elif relationship == 'Mother':
-                    relationship_codes['Proband']['mother'] = member
-                    relationship_codes['Sister']['mother'] = member
-                    relationship_codes['Brother']['mother'] = member
-
-                mother = relationship_codes[relationship]['mother']
-                father = relationship_codes[relationship]['father']
-                sex = sex_codes[self.sex(member)]
-                phenotype = '0'
-                line = [family, member, father, mother, sex, phenotype]
+            family_lines = self.get_member_details(family, all_families)
+            for line in family_lines:
                 ped_file_content.append(line)
         return ped_file_content
 
