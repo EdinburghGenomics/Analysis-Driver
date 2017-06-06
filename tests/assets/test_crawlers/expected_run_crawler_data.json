@@ -77,9 +77,9 @@
             "clean_q30_bases_r1": 75199379,
             "clean_reads": 561151,
             "lane_pc_optical_dups": 6.716,
-            "tiles_filtered": null,
-            "trim_r1": null,
-            "trim_r2": null
+            "tiles_filtered": "1102,2202",
+            "trim_r1": "14",
+            "trim_r2": "16"
         },
         "a_run_id_2_unknown": {
             "sample_id": "Undetermined",
@@ -104,9 +104,9 @@
             "clean_q30_bases_r1": 75199379,
             "clean_reads": 561151,
             "lane_pc_optical_dups": 4.492,
-            "tiles_filtered": null,
-            "trim_r1": null,
-            "trim_r2": null
+            "tiles_filtered": "1102,2202",
+            "trim_r1": "14",
+            "trim_r2": "16"
         },
         "a_run_id_2_ATTACTCG": {
             "sample_id": "10015AT0001",
@@ -131,9 +131,9 @@
             "clean_q30_bases_r1": 75199379,
             "clean_reads": 561151,
             "lane_pc_optical_dups": 4.492,
-            "tiles_filtered": null,
-            "trim_r1": null,
-            "trim_r2": null
+            "tiles_filtered": "1102,2202",
+            "trim_r1": "14",
+            "trim_r2": "16"
         },
         "a_run_id_1_TCCGGAGA": {
             "sample_id": "10015AT0002",
@@ -158,9 +158,9 @@
             "clean_q30_bases_r1": 75199379,
             "clean_reads": 561151,
             "lane_pc_optical_dups": 6.716,
-            "tiles_filtered": null,
-            "trim_r1": null,
-            "trim_r2": null
+            "tiles_filtered": "1102,2202",
+            "trim_r1": "14",
+            "trim_r2": "16"
         },
         "a_run_id_2_TCCGGAGA": {
             "sample_id": "10015AT0002",
@@ -185,9 +185,9 @@
             "clean_q30_bases_r1": 75199379,
             "clean_reads": 561151,
             "lane_pc_optical_dups": 4.492,
-            "tiles_filtered": null,
-            "trim_r1": null,
-            "trim_r2": null
+            "tiles_filtered": "1102,2202",
+            "trim_r1": "14",
+            "trim_r2": "16"
         },
         "a_run_id_1_ATTACTCG": {
             "sample_id": "10015AT0001",
@@ -212,9 +212,9 @@
             "clean_q30_bases_r1": 75199379,
             "clean_reads": 561151,
             "lane_pc_optical_dups": 6.716,
-            "tiles_filtered": null,
-            "trim_r1": null,
-            "trim_r2": null
+            "tiles_filtered": "1102,2202",
+            "trim_r1": "14",
+            "trim_r2": "16"
         }
     },
     "projects": {
