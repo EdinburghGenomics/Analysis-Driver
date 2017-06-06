@@ -40,11 +40,9 @@ class Relatedness(Stage):
     def gatk_outfile(self):
         return os.path.join(self.job_dir, self.dataset.name + '_genotype_gvcfs.vcf')
 
-    project_id = Parameter()
-
     def vcftools_relatedness_cmd(self):
         return '%s --relatedness2 --vcf %s --out %s' % (
-            cfg['tools']['vcftools'], self.gatk_outfile, self.project_id
+            cfg['tools']['vcftools'], self.gatk_outfile, self.dataset.name
         )
 
     def run_vcftools(self):
@@ -61,7 +59,7 @@ class Relatedness(Stage):
 
 
 class Peddy(Stage):
-    ids = Parameter()
+    ids = ListParameter()
 
     @property
     def gatk_outfile(self):

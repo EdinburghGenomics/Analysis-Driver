@@ -20,7 +20,6 @@ def build_pipeline(dataset):
         species_in_project.add(species)
     if len(species_in_project) != 1:
         raise PipelineError('Unexpected number of species (%s) in this project' % ', '.join(species_in_project))
-    species = species_in_project.pop()
 
     project_source = os.path.join(cfg.query('sample', 'delivery_source'), project_id)
     gvcf_files = []
@@ -31,7 +30,7 @@ def build_pipeline(dataset):
     if len(gvcf_files) < 2:
         raise PipelineError('Incorrect number of gVCF files: require at least two')
 
-    reference = cfg['references'][species]['fasta']
+    reference = cfg['references'][dataset.species]['fasta']
     genotype_gvcfs = Genotype_gVCFs(dataset=dataset, gVCFs=gvcf_files, reference=reference)
     relatedness = Relatedness(dataset=dataset, project_id=project_id, previous_stages=[genotype_gvcfs])
     peddy = Peddy(dataset=dataset, ids=sample_ids, previous_stages=[genotype_gvcfs])
