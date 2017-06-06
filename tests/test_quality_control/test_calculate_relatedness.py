@@ -41,7 +41,6 @@ class TestRelatedness(QCTester):
         super().setUp()
         self.r = Relatedness(
             dataset=self.project_dataset,
-            project_id='test_project_id'
         )
 
     def test_vcftools_relatedness_cmd(self):
