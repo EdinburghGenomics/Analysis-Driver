@@ -14,7 +14,7 @@ def build_pipeline(dataset):
 
     species_in_project = set()
     for sample in dataset.samples_processed:
-        species = sample.get('species_name')
+        species = dataset.species
         if not species:
             species = clarity.get_species_from_sample(sample.get('sample_id'))
         species_in_project.add(species)
@@ -32,7 +32,7 @@ def build_pipeline(dataset):
 
     reference = cfg['references'][dataset.species]['fasta']
     genotype_gvcfs = Genotype_gVCFs(dataset=dataset, gVCFs=gvcf_files, reference=reference)
-    relatedness = Relatedness(dataset=dataset, project_id=project_id, previous_stages=[genotype_gvcfs])
+    relatedness = Relatedness(dataset=dataset, previous_stages=[genotype_gvcfs])
     peddy = Peddy(dataset=dataset, ids=sample_ids, previous_stages=[genotype_gvcfs])
     output = Output(dataset=dataset, previous_stages=[relatedness, peddy])
     return output

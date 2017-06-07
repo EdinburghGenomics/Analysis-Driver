@@ -81,7 +81,7 @@ class TestPeddy(QCTester):
 
     @patch(ppath + 'Peddy.write_ped_file', return_value='ped.fam')
     def test_peddy_command(self, mocked_ped_file):
-        assert self.p.peddy_command == 'peddy --plot --prefix test_project_id path/to/jobs/test_project_id/test_project_id_genotype_gvcfs.vcf ped.fam'
+        assert self.p.peddy_command == 'peddy --plot --prefix test_project_id path/to/jobs/test_project_id/test_project_id_genotype_gvcfs.vcf.gz ped.fam'
 
     def test_relationships(self):
         family = ['test_sample1', 'test_sample2', 'test_sample3']
@@ -165,11 +165,11 @@ class TestPeddy(QCTester):
     @patch('egcg_core.executor.execute')
     def test_tabix_index(self, mocked_execute):
         self.p.tabix_index()
-        mocked_execute.assert_called_with('path/to/tabix -f -p vcf path/to/jobs/test_project_id/test_project_id_genotype_gvcfs.vcf',
+        mocked_execute.assert_called_with('path/to/tabix -f -p vcf path/to/jobs/test_project_id/test_project_id_genotype_gvcfs.vcf.gz',
                                           job_name='tabix',
                                           cpus=12,
                                           mem=30,
                                           working_dir='path/to/jobs/test_project_id')
 
     def test_tabix_command(self):
-        assert self.p.tabix_command == 'path/to/tabix -f -p vcf path/to/jobs/test_project_id/test_project_id_genotype_gvcfs.vcf'
+        assert self.p.tabix_command == 'path/to/tabix -f -p vcf path/to/jobs/test_project_id/test_project_id_genotype_gvcfs.vcf.gz'

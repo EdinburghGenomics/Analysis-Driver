@@ -67,7 +67,19 @@ class Peddy(Stage):
 
     @property
     def tabix_command(self):
-         return "%s -f -p vcf %s" % (cfg['tools']['tabix'], self.gatk_outfile)
+         return "%s -f -p vcf %s" % (cfg['tools']['tabix'], self.gatk_outfile + '.gz')
+
+    def bgzip(self):
+       return executor.execute(
+            self.bgzip_command(),
+            job_name='bgzip',
+            working_dir=self.job_dir,
+            cpus=12,
+            mem=30
+        ).join()
+
+    def bgzip_command(self):
+        return "%s %s" % (cfg['tools']['bgzip'], self.gatk_outfile)
 
     def tabix_index(self):
         return executor.execute(
@@ -152,7 +164,7 @@ class Peddy(Stage):
     @property
     def peddy_command(self):
         ped_file = self.write_ped_file()
-        peddy_cmd = 'peddy --plot --prefix %s %s %s' % (self.dataset.name, self.gatk_outfile, ped_file)
+        peddy_cmd = 'peddy --plot --prefix %s %s %s' % (self.dataset.name, self.gatk_outfile + '.gz', ped_file)
         return peddy_cmd
 
     def run_peddy(self):
