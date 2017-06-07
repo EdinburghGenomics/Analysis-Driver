@@ -81,7 +81,7 @@ class TestPeddy(QCTester):
 
     @patch(ppath + 'Peddy.write_ped_file', return_value='ped.fam')
     def test_peddy_command(self, mocked_ped_file):
-        assert self.p.peddy_command == 'peddy --plot --prefix test_project_id path/to/jobs/test_project_id/test_project_id_genotype_gvcfs.vcf.gz ped.fam'
+        assert self.p.peddy_command == 'path/to/peddy --plot --prefix test_project_id path/to/jobs/test_project_id/test_project_id_genotype_gvcfs.vcf.gz ped.fam'
 
     def test_relationships(self):
         family = ['test_sample1', 'test_sample2', 'test_sample3']

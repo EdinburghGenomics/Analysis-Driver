@@ -164,7 +164,7 @@ class Peddy(Stage):
     @property
     def peddy_command(self):
         ped_file = self.write_ped_file()
-        peddy_cmd = 'peddy --plot --prefix %s %s %s' % (self.dataset.name, self.gatk_outfile + '.gz', ped_file)
+        peddy_cmd = '%s --plot --prefix %s %s %s' % (cfg['tools']['peddy'], self.dataset.name, self.gatk_outfile + '.gz', ped_file)
         return peddy_cmd
 
     def run_peddy(self):
