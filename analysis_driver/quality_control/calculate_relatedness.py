@@ -152,7 +152,7 @@ class Peddy(Stage):
             family_id = self.family_id(i)
             if not all_families.get(family_id):
                 all_families[family_id] = []
-            all_families[family_id].append(i)
+            all_families[family_id].append(clarity.get_user_sample_name(i))
 
         ped_file_content = []
         for family in all_families:
@@ -177,4 +177,4 @@ class Peddy(Stage):
         ).join()
 
     def _run(self):
-        return self.tabix_index() + self.run_peddy()
+        return self.bgzip(), self.tabix_index() + self.run_peddy()
