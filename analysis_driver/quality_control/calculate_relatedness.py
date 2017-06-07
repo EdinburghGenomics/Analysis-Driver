@@ -26,7 +26,7 @@ class Genotype_gVCFs(Stage):
             self.gatk_genotype_gvcfs_cmd(),
             job_name='gatk_genotype_gvcfs',
             working_dir=self.job_dir,
-            cpus=30,
+            cpus=12,
             mem=50
         ).join()
 
@@ -74,8 +74,8 @@ class Peddy(Stage):
             self.bgzip_command(),
             job_name='bgzip',
             working_dir=self.job_dir,
-            cpus=12,
-            mem=30
+            cpus=1,
+            mem=10
         ).join()
 
     def bgzip_command(self):
@@ -86,15 +86,15 @@ class Peddy(Stage):
             self.tabix_command,
             job_name='tabix',
             working_dir=self.job_dir,
-            cpus=12,
-            mem=30
+            cpus=1,
+            mem=10
         ).join()
 
     def write_ped_file(self):
         ped_file = os.path.join(self.job_dir, 'ped.fam')
         with open(ped_file, 'w') as openfile:
             for line in self.ped_file_content:
-                openfile.write('\t'.join(line))
+                openfile.write('\t'.join(line) + '\n')
         return ped_file
 
     def family_id(self, sample_id):
@@ -148,12 +148,14 @@ class Peddy(Stage):
     @property
     def ped_file_content(self):
         all_families = {}
+        seen_user_samples = []
         for i in self.ids:
-            family_id = self.family_id(i)
-            if not all_families.get(family_id):
-                all_families[family_id] = []
-            all_families[family_id].append(i)
-
+            if not clarity.get_user_sample_name(i) in seen_user_samples:
+                seen_user_samples.append(clarity.get_user_sample_name(i))
+                family_id = self.family_id(i)
+                if not all_families.get(family_id):
+                    all_families[family_id] = []
+                all_families[family_id].append(i)
         ped_file_content = []
         for family in all_families:
             family_lines = self.get_member_details(family, all_families)
@@ -172,7 +174,7 @@ class Peddy(Stage):
             self.peddy_command,
             job_name='peddy',
             working_dir=self.job_dir,
-            cpus=10,
+            cpus=1,
             mem=10
         ).join()
 

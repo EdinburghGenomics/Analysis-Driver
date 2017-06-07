@@ -12,21 +12,13 @@ def build_pipeline(dataset):
     project_id = dataset.name
     sample_ids = [sample['sample_id'] for sample in dataset.samples_processed]
 
-    species_in_project = set()
-    for sample in dataset.samples_processed:
-        species = dataset.species
-        if not species:
-            species = clarity.get_species_from_sample(sample.get('sample_id'))
-        species_in_project.add(species)
-    if len(species_in_project) != 1:
-        raise PipelineError('Unexpected number of species (%s) in this project' % ', '.join(species_in_project))
-
     project_source = os.path.join(cfg.query('sample', 'delivery_source'), project_id)
     gvcf_files = []
     for sample in dataset.samples_processed:
         gvcf_file = find_file(project_source, sample['sample_id'], sample['user_sample_id'] + '.g.vcf.gz')
-        if gvcf_file:
-            gvcf_files.append(gvcf_file)
+        if not gvcf_file:
+            raise PipelineError('Unable to find gVCF file for sample %s' % (sample))
+        gvcf_files.append(gvcf_file)
     if len(gvcf_files) < 2:
         raise PipelineError('Incorrect number of gVCF files: require at least two')
 

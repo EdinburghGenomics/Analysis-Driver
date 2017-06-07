@@ -5,7 +5,7 @@ from sys import path
 from egcg_core import executor, clarity, util
 from egcg_core.clarity import get_user_sample_name
 from egcg_core.app_logging import logging_default as log_cfg
-from egcg_core.rest_communication import get_documents
+from egcg_core.rest_communication import get_document
 path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from analysis_driver import quality_control as qc
 from analysis_driver.config import default as cfg, load_config
@@ -198,7 +198,7 @@ def peddy(dataset, args):
         cfg.merge(cfg['sample'])
         for sample_id in args.samples:
             sample_ids.append(sample_id)
-            s = get_documents(sample_id)[0]
+            s = get_document(sample_id)
             project_id = s.get('project_id')
             gvcf_file = s.get('user_sample_id') + '.g.vcf.gz'
             gvcf = util.find_file(cfg['input_dir'], project_id, sample_id, gvcf_file)
