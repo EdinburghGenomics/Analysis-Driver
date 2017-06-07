@@ -137,7 +137,7 @@ class Peddy(Stage):
             sex_codes = {'Male': '1', 'Female': '2', 'No_Sex': '0'}
             relationship = self.relationship(member)
             line = [family,
-                    member,
+                    clarity.get_user_sample_name(member),
                    family_info[relationship]['Father'],
                    family_info[relationship]['Mother'],
                    sex_codes[self.sex(member)],
@@ -152,7 +152,7 @@ class Peddy(Stage):
             family_id = self.family_id(i)
             if not all_families.get(family_id):
                 all_families[family_id] = []
-            all_families[family_id].append(clarity.get_user_sample_name(i))
+            all_families[family_id].append(i)
 
         ped_file_content = []
         for family in all_families:
