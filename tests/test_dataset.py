@@ -174,9 +174,9 @@ class TestDataset(TestAnalysisDriver):
         mocked_end_stage.assert_called_with('a_stage', 0)
         self.dataset.ntf.end_stage.assert_called_with('a_stage', 0)
 
-    def test_str(self):
+    def test_report(self):
         with patched_stages:
-            assert str(self.dataset) == 'test_dataset -- this, that, other'
+            assert self.dataset.report() == 'test_dataset -- this, that, other'
 
     def setup_dataset(self):
         with patched_get_docs():
@@ -335,13 +335,11 @@ class TestSampleDataset(TestDataset):
         assert self.dataset._is_ready()
         assert mocked_instance.call_count == 1  # even after 2 calls to data_threshold
 
-    def test_str(self):
+    def test_report(self):
         expected_str = 'test_dataset -- this, that, other  (480 / 1000000000  from a_run_id, another_run_id) (non useable run elements in a_run_id, another_run_id)'
         self.dataset._data_threshold = None
         with patched_get_docs(self.dataset.run_elements), patched_expected_yield(), patched_stages:
-            print(expected_str)
-            print(str(self.dataset))
-            assert str(self.dataset) == expected_str
+            assert self.dataset.report() == expected_str
 
     def setup_dataset(self):
         with patched_get_docs():

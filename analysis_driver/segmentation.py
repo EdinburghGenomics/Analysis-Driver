@@ -30,6 +30,7 @@ class EGCGEncoder(json.JSONEncoder):
 class BasicStage(luigi.Task, AppLogger):
     __stagename__ = None
     exit_status = None
+    retry_count = 1  # turn off automatic retrying upon task failure
  
     previous_stages = EGCGListParameter(default=[])
     dataset = EGCGParameter()

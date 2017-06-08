@@ -4,7 +4,7 @@ from unittest.mock import Mock, patch
 from egcg_core.constants import DATASET_READY, DATASET_NEW, DATASET_ABORTED
 from analysis_driver.dataset import RunDataset, SampleDataset
 from analysis_driver.dataset_scanner import DatasetScanner, RunScanner, SampleScanner
-from tests.test_analysisdriver import TestAnalysisDriver
+from tests.test_analysisdriver import TestAnalysisDriver, NamedMock
 from tests.test_dataset import patched_expected_yield, fake_proc, seed_directories
 
 
@@ -45,7 +45,14 @@ class TestScanner(TestAnalysisDriver):
         rmtree(self.base_dir)
 
     def test_report(self):
-        dsets = {'new': ['this'], 'ready': ['that', 'other'], 'failed': ['another']}
+        def fake_dataset(name):
+            return NamedMock(real_name=name, entity={'pid': 1}, report=Mock(return_value=name))
+
+        dsets = {
+            'new': [fake_dataset('this')],
+            'ready': [fake_dataset('that'), fake_dataset('other')],
+            'failed': [fake_dataset('another')]
+        }
         captured_stdout = []
         patched_scan = patch(ppath('DatasetScanner.scan_datasets'), return_value=dsets)
         with patched_scan, patch('builtins.print', new=captured_stdout.append):
@@ -64,8 +71,6 @@ class TestScanner(TestAnalysisDriver):
             '__________________________________________'
         ]
         observed = captured_stdout[0].split('\n')
-        print(observed)
-        print(expected)
         assert observed == expected
 
     def test_triggerignore(self):
@@ -121,9 +126,8 @@ class TestRunScanner(TestScanner):
         with patch(ppath('DatasetScanner._get_datasets_for_statuses'), return_value=fake_datasets) as p:
             obs = self.scanner.scan_datasets(DATASET_NEW)
             p.assert_any_call((DATASET_NEW, ))
-            exp = {DATASET_READY: '[other, that, this]'}
-            print(exp)
-            assert str(obs[DATASET_READY]) == exp[DATASET_READY]
+            exp = {DATASET_READY: [FakeRunDataset(n) for n in ['other', 'that', 'this']]}
+            assert [d.name for d in obs[DATASET_READY]] == [d.name for d in exp[DATASET_READY]]
 
     def _setup_scanner(self):
         self.scanner = RunScanner({'input_dir': self.base_dir})
