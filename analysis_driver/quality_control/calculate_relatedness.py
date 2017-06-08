@@ -2,16 +2,18 @@ import os
 from egcg_core import executor, util, clarity
 from luigi import Parameter, ListParameter
 from analysis_driver.config import default as cfg
-from analysis_driver.segmentation import Stage
+from analysis_driver import segmentation
 from analysis_driver.util.bash_commands import java_command
 
-class Genotype_gVCFs(Stage):
-    gVCFs = ListParameter()
-    reference = Parameter()
 
+class RelatednessStage(segmentation.Stage):
     @property
     def gatk_outfile(self):
         return os.path.join(self.job_dir, self.dataset.name + '_genotype_gvcfs.vcf')
+
+class Genotype_gVCFs(RelatednessStage):
+    gVCFs = ListParameter()
+    reference = Parameter()
 
     def gatk_genotype_gvcfs_cmd(self):
         gvcf_variants = ' '. join(['--variant ' + util.find_file(i) for i in self.gVCFs])
@@ -34,7 +36,7 @@ class Genotype_gVCFs(Stage):
         return self.run_gatk()
 
 
-class Relatedness(Stage):
+class Relatedness(RelatednessStage):
 
     @property
     def gatk_outfile(self):
@@ -58,7 +60,7 @@ class Relatedness(Stage):
         return self.run_vcftools()
 
 
-class Peddy(Stage):
+class Peddy(RelatednessStage):
     ids = ListParameter()
 
     @property
@@ -179,4 +181,4 @@ class Peddy(Stage):
         ).join()
 
     def _run(self):
-        return self.bgzip(), self.tabix_index() + self.run_peddy()
+        return self.bgzip() + self.tabix_index() + self.run_peddy()
