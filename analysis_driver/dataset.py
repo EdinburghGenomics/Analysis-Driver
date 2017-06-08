@@ -588,6 +588,7 @@ class MostRecentProc:
                     {'stage_id': self._stage_id(stage_name), 'date_started': self._now(),
                      'stage_name': stage_name, 'analysis_driver_proc': self.proc_id}
                 )
+                self.retrieve_entity()
                 stages = self.entity.get('stages', [])
                 stages.append(self._stage_id(stage_name))
                 self.update_entity(stages=stages)
