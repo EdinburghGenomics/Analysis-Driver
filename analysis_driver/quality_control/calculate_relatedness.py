@@ -38,10 +38,6 @@ class Genotype_gVCFs(RelatednessStage):
 
 class Relatedness(RelatednessStage):
 
-    @property
-    def gatk_outfile(self):
-        return os.path.join(self.job_dir, self.dataset.name + '_genotype_gvcfs.vcf')
-
     def vcftools_relatedness_cmd(self):
         return '%s --relatedness2 --vcf %s --out %s' % (
             cfg['tools']['vcftools'], self.gatk_outfile, self.dataset.name
@@ -69,13 +65,14 @@ class Peddy(RelatednessStage):
 
     def bgzip(self):
        return executor.execute(
-            self.bgzip_command(),
+            self.bgzip_command,
             job_name='bgzip',
             working_dir=self.job_dir,
             cpus=1,
             mem=10
         ).join()
 
+    @property
     def bgzip_command(self):
         return "%s %s" % (cfg['tools']['bgzip'], self.gatk_outfile)
 
