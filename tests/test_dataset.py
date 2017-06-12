@@ -483,10 +483,10 @@ class TestMostRecentProc(TestAnalysisDriver):
     @patched_update
     @patched_post
     @patched_patch
+    @patch(ppath('MostRecentProc.retrieve_entity'))
     @patch('analysis_driver.dataset.rest_communication.get_document')
-    def test_start_stage(self, mocked_get_doc, mocked_patch, mocked_post, mocked_update):
+    def test_start_stage(self, mocked_get_doc, mocked_retrieve, mocked_patch, mocked_post, mocked_update):
         with patched_datetime('then'):
-
             mocked_get_doc.return_value = True
             self.proc.start_stage('stage_1')
             assert mocked_update.call_count == 0
