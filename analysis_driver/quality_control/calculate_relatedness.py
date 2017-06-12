@@ -64,10 +64,6 @@ class Peddy(RelatednessStage):
     ids = ListParameter()
 
     @property
-    def gatk_outfile(self):
-        return os.path.join(self.job_dir, self.dataset.name + '_genotype_gvcfs.vcf')
-
-    @property
     def tabix_command(self):
          return "%s -f -p vcf %s" % (cfg['tools']['tabix'], self.gatk_outfile + '.gz')
 
@@ -138,17 +134,26 @@ class Peddy(RelatednessStage):
         for member in all_families[family]:
             sex_codes = {'Male': '1', 'Female': '2', 'No_Sex': '0'}
             relationship = self.relationship(member)
+            member_id = clarity.get_user_sample_name(member)
+            if not family_info[relationship]['Father'] == '0':
+                father_id = clarity.get_user_sample_name(family_info[relationship]['Father'])
+            else:
+                father_id = family_info[relationship]['Father']
+            if not family_info[relationship]['Mother'] == '0':
+                mother_id = clarity.get_user_sample_name(family_info[relationship]['Mother'])
+            else:
+                mother_id = family_info[relationship]['Mother']
+
             line = [family,
-                    clarity.get_user_sample_name(member),
-                   family_info[relationship]['Father'],
-                   family_info[relationship]['Mother'],
+                    member_id,
+                   father_id,
+                   mother_id,
                    sex_codes[self.sex(member)],
                    '0']
             family_lines.append(line)
         return family_lines
 
-    @property
-    def ped_file_content(self):
+    def all_families(self):
         all_families = {}
         seen_user_samples = []
         for i in self.ids:
@@ -158,9 +163,13 @@ class Peddy(RelatednessStage):
                 if not all_families.get(family_id):
                     all_families[family_id] = []
                 all_families[family_id].append(i)
+        return all_families
+
+    @property
+    def ped_file_content(self):
         ped_file_content = []
-        for family in all_families:
-            family_lines = self.get_member_details(family, all_families)
+        for family in self.all_families():
+            family_lines = self.get_member_details(family, self.all_families())
             for line in family_lines:
                 ped_file_content.append(line)
         return ped_file_content

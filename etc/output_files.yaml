@@ -199,7 +199,7 @@ gatk_var_calling:
 project_process:
     genotype_gvcfs:
         location: ['']
-        basename: '{project_id}_genotype_gvcfs.vcf'
+        basename: '{project_id}_genotype_gvcfs.vcf.gz'
 
     relatedness:
         location: ['']

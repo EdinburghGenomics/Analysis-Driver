@@ -30,7 +30,7 @@ class TestGenotype_gVCFs(QCTester):
             mocked_execute.assert_called_with(
                 'test_command',
                 job_name='gatk_genotype_gvcfs',
-                cpus=30,
+                cpus=12,
                 working_dir='path/to/jobs/test_project_id',
                 mem=50
             )
@@ -74,7 +74,7 @@ class TestPeddy(QCTester):
         mocked_execute.assert_called_with(
                 mocked_peddy_command,
                 job_name='peddy',
-                cpus=10,
+                cpus=1,
                 working_dir='path/to/jobs/test_project_id',
                 mem=10
             )
@@ -119,20 +119,23 @@ class TestPeddy(QCTester):
                                                       'Brother': {'Mother':'test_sample1', 'Father':'0'},
                                                       'Other':{'Mother':'0', 'Father':'0'}}
 
-    def test_ped_file_content2(self):
+    def test_ped_file_content(self):
         with patch(ppath + 'Peddy.family_id', side_effect=['FAM1', 'FAM1', 'FAM2']):
             with patch(ppath + 'Peddy.get_member_details', side_effect=[[['FAM1', '0', '0', '2', '0'], ['FAM1', 'test_sample1', '0', '1', '0']], [['FAM2', '0', '0', '1', '0']]]):
-                assert self.p.ped_file_content == [['FAM1', '0', '0', '2', '0'], ['FAM1', 'test_sample1', '0', '1', '0'], ['FAM2', '0', '0', '1', '0']]
+                with patch(ppath + 'Peddy.all_families', return_value={'FAM1': ['test_sample1', 'test_sample2'], 'FAM2': ['test_sample3']}):
+                    assert self.p.ped_file_content == [['FAM1', '0', '0', '2', '0'], ['FAM1', 'test_sample1', '0', '1', '0'], ['FAM2', '0', '0', '1', '0']]
 
         with patch(ppath + 'Peddy.family_id', side_effect=['FAM1', 'FAM1', 'FAM1']):
             with patch(ppath + 'Peddy.get_member_details', side_effect=[[['FAM1', '0', '0', '2', '0'], ['FAM1', '0', '0', '1', '0'], ['FAM1', 'test_sample1', 'test_sample2', '1', '0']]]):
-                assert self.p.ped_file_content == [['FAM1', '0', '0', '2', '0'], ['FAM1', '0', '0', '1', '0'], ['FAM1', 'test_sample1', 'test_sample2', '1', '0']]
+                with patch(ppath + 'Peddy.all_families', return_value={'FAM1': ['test_sample1', 'test_sample2', 'test_sample3']}):
+                    assert self.p.ped_file_content == [['FAM1', '0', '0', '2', '0'], ['FAM1', '0', '0', '1', '0'], ['FAM1', 'test_sample1', 'test_sample2', '1', '0']]
 
         with patch(ppath + 'Peddy.family_id', side_effect=['FAM1', 'FAM1', 'No_ID']):
             with patch(ppath + 'Peddy.get_member_details', side_effect=[[['FAM1', '0', '0', '2', '0'], ['FAM1', '0', 'test_sample1', '1', '0']], [['No_ID', '0', '0', '1', '0']]]):
-                assert self.p.ped_file_content == [['FAM1', '0', '0', '2', '0'],
-                                                   ['FAM1', '0', 'test_sample1', '1', '0'],
-                                                   ['No_ID', '0', '0', '1', '0']]
+                with patch(ppath + 'Peddy.all_families', return_value={'FAM1': ['test_sample1', 'test_sample2'], 'No_ID': ['test_sample3']}):
+                    assert self.p.ped_file_content == [['FAM1', '0', '0', '2', '0'],
+                                                       ['FAM1', '0', 'test_sample1', '1', '0'],
+                                                       ['No_ID', '0', '0', '1', '0']]
 
     def test_get_member_details(self):
         with patch(ppath + 'Peddy.relationships', return_value={'Proband': {'Mother':'test_sample1', 'Father':'0'},
@@ -143,9 +146,11 @@ class TestPeddy(QCTester):
                                                           'Other':{'Mother':'0', 'Father':'0'}}):
             with patch(ppath + 'Peddy.relationship', side_effect=['Mother', 'Proband']):
                 with patch(ppath + 'Peddy.sex', side_effect=['Female', 'Male']):
-                    all_families = {'FAM1': ['test_sample1', 'test_sample2'], 'FAM2': ['test_sample3']}
-                    assert self.p.get_member_details('FAM1', all_families) == [['FAM1', 'test_sample1', '0', '0', '2', '0'],
-                                                                               ['FAM1', 'test_sample2', '0', 'test_sample1', '1', '0']]
+                    with patch(ppath + 'clarity.get_user_sample_name', side_effect=['usersample1', 'usersample2', 'usersample1']):
+                        all_families = {'FAM1': ['test_sample1', 'test_sample2'], 'FAM2': ['test_sample3']}
+                        assert self.p.get_member_details('FAM1', all_families) == [['FAM1', 'usersample1', '0', '0', '2', '0'],
+                                                                                   ['FAM1', 'usersample2', '0', 'usersample1', '1', '0']]
+
 
 
         with patch(ppath + 'Peddy.relationships', return_value={'Proband': {'Mother':'0', 'Father':'0'},
@@ -157,18 +162,19 @@ class TestPeddy(QCTester):
 
             with patch(ppath + 'Peddy.relationship', side_effect=['Other', 'Other', 'Proband']):
                 with patch(ppath + 'Peddy.sex', side_effect=['No_Sex', 'No_Sex', 'Male']):
-                    all_families = {'FAM1': ['test_sample1', 'test_sample2', 'test_sample3']}
-                    assert self.p.get_member_details('FAM1', all_families) == [['FAM1', 'test_sample1', '0', '0', '0', '0'],
-                                                                               ['FAM1', 'test_sample2', '0', '0', '0', '0'],
-                                                                               ['FAM1', 'test_sample3', '0', '0', '1', '0']]
+                    with patch(ppath + 'clarity.get_user_sample_name', side_effect=['usersample1', 'usersample2', 'usersample3']):
+                        all_families = {'FAM1': ['test_sample1', 'test_sample2', 'test_sample3']}
+                        assert self.p.get_member_details('FAM1', all_families) == [['FAM1', 'usersample1', '0', '0', '0', '0'],
+                                                                                   ['FAM1', 'usersample2', '0', '0', '0', '0'],
+                                                                                   ['FAM1', 'usersample3', '0', '0', '1', '0']]
 
     @patch('egcg_core.executor.execute')
     def test_tabix_index(self, mocked_execute):
         self.p.tabix_index()
         mocked_execute.assert_called_with('path/to/tabix -f -p vcf path/to/jobs/test_project_id/test_project_id_genotype_gvcfs.vcf.gz',
                                           job_name='tabix',
-                                          cpus=12,
-                                          mem=30,
+                                          cpus=1,
+                                          mem=10,
                                           working_dir='path/to/jobs/test_project_id')
 
     def test_tabix_command(self):
