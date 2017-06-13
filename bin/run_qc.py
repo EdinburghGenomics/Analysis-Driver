@@ -211,7 +211,9 @@ def peddy(dataset, args):
             project_folder = util.find_file(cfg['input_dir'], project_id)
             all_gvcfs.extend(get_all_project_gvcfs(project_folder))
 
-    qc.Genotype_gVCFs(all_gvcfs)
+
+    g = qc.Genotype_gVCFs(dataset=dataset, GVCFs=all_gvcfs, reference=args.reference)
+    g.run()
     p = qc.Peddy(dataset=dataset, ids=sample_ids)
     p.run()
 

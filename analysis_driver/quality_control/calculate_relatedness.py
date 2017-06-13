@@ -18,7 +18,7 @@ class Genotype_gVCFs(RelatednessStage):
     def gatk_genotype_gvcfs_cmd(self):
         gvcf_variants = ' '. join(['--variant ' + util.find_file(i) for i in self.gVCFs])
         number_threads = 12
-        return java_command(memory=20, tmp_dir=self.job_dir, jar=cfg['tools']['gatk']) + \
+        return java_command(memory=50, tmp_dir=self.job_dir, jar=cfg['tools']['gatk']) + \
                ' -T GenotypeGVCFs -nt %s -R %s %s -o %s' % (
             number_threads, self.reference, gvcf_variants, self.gatk_outfile
         )
@@ -165,8 +165,9 @@ class Peddy(RelatednessStage):
     @property
     def ped_file_content(self):
         ped_file_content = []
-        for family in self.all_families():
-            family_lines = self.get_member_details(family, self.all_families())
+        all_families = self.all_families()
+        for family in all_families:
+            family_lines = self.get_member_details(family, all_families)
             for line in family_lines:
                 ped_file_content.append(line)
         return ped_file_content
