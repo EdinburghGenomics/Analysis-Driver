@@ -237,7 +237,6 @@ class RunCrawler(Crawler):
             else:
                 raise PipelineError('Cannot find fastqfilter file in %s for %s' % (run_dir, run_element_id))
 
-
     def _populate_barcode_info_from_well_dup(self, welldup_file):
         dup_per_lane = dm.parse_welldup_file(welldup_file)
         for run_element_id in self.barcodes_info:
