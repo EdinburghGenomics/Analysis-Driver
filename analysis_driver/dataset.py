@@ -355,7 +355,7 @@ class SampleDataset(Dataset):
     @property
     def genome_version(self):
         if self._genome_version is None:
-            self._genome_version = clarity.get_genome_version()
+            self._genome_version = clarity.get_genome_version(self.name, species=self.species)
         return self._genome_version
 
     @property
