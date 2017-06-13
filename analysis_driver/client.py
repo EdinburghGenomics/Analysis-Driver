@@ -120,12 +120,12 @@ def _process_dataset(d):
         stop_running_jobs()
         d.fail(sig)
         sys.exit(sig)
-    # SIGUSR1 is used by luigi to stop submitting new jobs.
+    # SIGUSR1 is used by Luigi to stop submitting new jobs.
     # make sure here that SIGUSR1 is caught even if luigi is not running.
     signal.signal(signal.SIGUSR1, _sigterm_handler)
-    # SIGUSR2 is used by analysis driver to know that another analysis driver process has asked it to be terminated.
+    # SIGUSR2 is used by Analysis Driver to know that another driver process has asked it to terminate.
     signal.signal(signal.SIGUSR2, _sigterm_handler)
-    # SIGTERM is used by analysis driver to know that a manual process has asked it to be terminated.
+    # SIGTERM is used by Analysis Driver to know that a manual process has asked it to be terminated.
     signal.signal(signal.SIGTERM, _sigterm_handler)
     exit_status = 9
     try:

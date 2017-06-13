@@ -97,8 +97,7 @@ class Dataset(AppLogger):
         self._terminate(signal.SIGUSR2)
 
     def soft_terminate(self):
-        '''send SIGUSR1 to analysis driver and rely on luigi picking it up.
-        Luigi will stop submitting new job but finish the currently running jobs'''
+        """Send SIGUSR1 to analysis driver, causing Luigi to stop submitting any new jobs."""
         self._terminate(signal.SIGUSR1)
 
     def _terminate(self, signal_id):
@@ -166,6 +165,9 @@ class Dataset(AppLogger):
             raise self.exceptions[task_name]
 
     def __str__(self):
+        return '%s(name=%s)' % (self.__class__.__name__, self.name)
+
+    def report(self):
         s = self.name
         pid = self.most_recent_proc.get('pid')
         if pid:
@@ -174,8 +176,6 @@ class Dataset(AppLogger):
         if stages:
             s += ' -- ' + ', '.join(stages)
         return s
-
-    __repr__ = __str__
 
     def __lt__(self, other):
         return self.name < other.name
@@ -196,11 +196,6 @@ class NoCommunicationDataset(Dataset):
 
     def _is_ready(self):
         pass
-
-    def __str__(self):
-        return self.name
-
-    __repr__ = __str__
 
 
 class RunDataset(Dataset):
@@ -331,6 +326,14 @@ class RunDataset(Dataset):
         self.lims_run.get(force=True)
         return self.lims_run.udf.get('Run Status') in ['RunStarted', 'RunPaused']
 
+    @property
+    def run_metrics(self):
+        return rest_communication.get_document('aggregate/all_runs', match={'run_id': self.name})
+
+    @property
+    def lane_metrics(self):
+        return rest_communication.get_documents('aggregate/run_elements_by_lane', match={'run_id': self.name})
+
 
 class SampleDataset(Dataset):
     type = 'sample'
@@ -403,12 +406,12 @@ class SampleDataset(Dataset):
     def _is_ready(self):
         return self.data_threshold and int(self._amount_data()) > int(self.data_threshold)
 
-    def __str__(self):
+    def report(self):
         runs = sorted(set(r.get(ELEMENT_RUN_NAME) for r in self.run_elements))
         non_useable_runs = sorted(set(r.get(ELEMENT_RUN_NAME) for r in self.non_useable_run_elements))
 
         s = '%s  (%s / %s  from %s) ' % (
-            super().__str__(), self._amount_data(), self.data_threshold, ', '.join(runs)
+            super().report(), self._amount_data(), self.data_threshold, ', '.join(runs)
         )
         if non_useable_runs:
             s += '(non useable run elements in %s)' % ', '.join(non_useable_runs)
@@ -544,42 +547,46 @@ class MostRecentProc:
             raise RestCommunicationError('Sync failed: ' + str(patch_content))
 
     def update_entity(self, **kwargs):
-        with self.lock:
-            if not self.entity:  # initialise self._entity with database content, or {} if none available
-                self.initialise_entity()  # if self._entity == {}, then initialise and push to database
+        if not self.entity:  # initialise self._entity with database content, or {} if none available
+            self.initialise_entity()  # if self._entity == {}, then initialise and push to database
 
-            self.entity.update(kwargs)
-            self.sync()
+        self.entity.update(kwargs)
+        self.sync()
 
     def change_status(self, status):
-        self.update_entity(status=status)
+        with self.lock:
+            self.update_entity(status=status)
 
     def start(self):
-        self.update_entity(status=DATASET_PROCESSING, pid=os.getpid())
+        with self.lock:
+            self.update_entity(status=DATASET_PROCESSING, pid=os.getpid())
 
     def finish(self, status):
-        self.update_entity(status=status, pid=None, end_date=self._now())
+        with self.lock:
+            self.update_entity(status=status, pid=None, end_date=self._now())
 
     def start_stage(self, stage_name):
-        doc = rest_communication.get_document(
-            'analysis_driver_stages',
-            where={'stage_id': self._stage_id(stage_name)}
-        )
-        if doc:
-            rest_communication.patch_entry(
+        with self.lock:
+            doc = rest_communication.get_document(
                 'analysis_driver_stages',
-                {'date_started': self._now(), 'date_finished': None, 'exit_status': None},
-                'stage_id', self._stage_id(stage_name)
+                where={'stage_id': self._stage_id(stage_name)}
             )
-        else:
-            rest_communication.post_entry(
-                'analysis_driver_stages',
-                {'stage_id': self._stage_id(stage_name), 'date_started': self._now(),
-                 'stage_name': stage_name, 'analysis_driver_proc': self.proc_id}
-            )
-            stages = self.entity.get('stages', [])
-            stages.append(self._stage_id(stage_name))
-            self.update_entity(stages=stages)
+            if doc:
+                rest_communication.patch_entry(
+                    'analysis_driver_stages',
+                    {'date_started': self._now(), 'date_finished': None, 'exit_status': None},
+                    'stage_id', self._stage_id(stage_name)
+                )
+            else:
+                rest_communication.post_entry(
+                    'analysis_driver_stages',
+                    {'stage_id': self._stage_id(stage_name), 'date_started': self._now(),
+                     'stage_name': stage_name, 'analysis_driver_proc': self.proc_id}
+                )
+                self.retrieve_entity()
+                stages = self.entity.get('stages', [])
+                stages.append(self._stage_id(stage_name))
+                self.update_entity(stages=stages)
 
     def end_stage(self, stage_name, exit_status=0):
         rest_communication.patch_entry(

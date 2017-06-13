@@ -17,8 +17,8 @@ class SamtoolsDepth(Stage):
         return (
             '%s depth -a -a -q 0 -Q 0 %s | '
             'awk -F "\t" \'{array[$1"\t"$3]+=1} END{for (val in array){print val"\t"array[val]}}\' | '
-            'sort -k 1,1 -nk 2,2 > %s'
-        ) % (cfg['tools']['samtools'], find_file(self.bam_file), self.samtools_depth_out_file)
+            'sort -T %s -k 1,1 -nk 2,2 > %s'
+        ) % (cfg['tools']['samtools'], find_file(self.bam_file), self.job_dir, self.samtools_depth_out_file)
 
     def _run(self):
         self.info('Generating depth file: %s', self.samtools_depth_out_file)

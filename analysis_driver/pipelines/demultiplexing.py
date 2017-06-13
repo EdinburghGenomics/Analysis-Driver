@@ -1,9 +1,14 @@
 import shutil
 from os import mkdir
 from os.path import join, exists, isdir
+from time import sleep
+
 from egcg_core import executor, util
+from egcg_core.config import cfg
+
 from analysis_driver import segmentation
-from analysis_driver.util import bash_commands
+from analysis_driver.quality_control import BadTileCycleDetector
+from analysis_driver.util import bash_commands, find_all_fastq_pairs_for_lane, convert_bad_cycle_in_trim
 from analysis_driver.pipelines.common import Cleanup
 from analysis_driver.exceptions import SequencingRunError, AnalysisDriverError
 from analysis_driver.quality_control import lane_duplicates, BCLValidator
@@ -47,7 +52,7 @@ class Setup(DemultiplexingStage):
         return 0
 
 
-class Bcl2FastqAndFilter(DemultiplexingStage):
+class Bcl2Fastq(DemultiplexingStage):
     def _run(self):
         self.info('bcl2fastq mask: ' + self.dataset.mask)  # e.g: mask = 'y150n,i6,y150n'
         bcl2fastq_exit_status = executor.execute(
@@ -69,13 +74,89 @@ class Bcl2FastqAndFilter(DemultiplexingStage):
         if not exists(join(self.fastq_dir, 'InterOp')):
             shutil.copytree(join(self.input_dir, 'InterOp'), join(self.fastq_dir, 'InterOp'))
 
-        return executor.execute(
-            *[bash_commands.fastq_filterer_and_pigz_in_place(fqs) for fqs in util.find_all_fastq_pairs(self.fastq_dir)],
+        return  bcl2fastq_exit_status
+
+
+class FastqFilter(DemultiplexingStage):
+    def _run(self):
+
+        # Find conversion xml file and adapter file, and send the results to the rest API
+        conversion_xml = join(self.fastq_dir, 'Stats', 'ConversionStats.xml')
+        adapter_trim_file = join(self.fastq_dir, 'Stats', 'AdapterTrimming.txt')
+
+        if exists(conversion_xml) and exists(adapter_trim_file):
+            self.info('Found ConversionStats and AdaptorTrimming. Sending data.')
+            crawler = RunCrawler(
+                self.dataset, adapter_trim_file=adapter_trim_file,
+                conversion_xml_file=conversion_xml
+            )
+            crawler.send_data()
+
+        # Assess if the lanes need filtering
+        lane_need_filtering = {1: False, 2: False, 3: False, 4:False,
+                               5: False, 6: False, 7: False, 8: False}
+        lanes_metrics = self.dataset.lane_metrics
+        for lane_metrics in lanes_metrics:
+            q30_threshold = float(cfg.query('fastq_filterer', 'q30_threshold', ret_default=74))
+            self.debug('Lane filter if Q30 is bellow %s', q30_threshold)
+            if float(lane_metrics['pc_q30']) < q30_threshold and float(lane_metrics['pc_q30']) > 0:
+                self.warning(
+                    'Will apply cycle and tile filtering to lane %s: %%Q30=%s < %s',
+                    lane_metrics['lane_number'],
+                    lane_metrics['pc_q30'],
+                    q30_threshold
+                )
+                lane_need_filtering[int(lane_metrics['lane_number'])] = True
+
+        try:
+            detector = BadTileCycleDetector(self.dataset)
+            bad_tiles = detector.detect_bad_tile()
+            bad_cycles = detector.detect_bad_cycle()
+        except Exception:
+            bad_tiles = {}
+            bad_cycles = {}
+
+        cmd_list = []
+        for lane in lane_need_filtering:
+            fq_pairs = find_all_fastq_pairs_for_lane(self.fastq_dir, lane)
+            if lane_need_filtering[lane]:
+                trim_r1, trim_r2 = convert_bad_cycle_in_trim(bad_cycles.get(int(lane)), self.dataset.run_info)
+                for fqs in fq_pairs:
+                    cmd_list.append(bash_commands.fastq_filterer_and_pigz_in_place(
+                        fastq_file_pair=fqs,
+                        tiles_to_filter=bad_tiles.get(int(lane)),
+                        trim_r2=trim_r2
+                    ))
+            else:
+                cmd_list.extend([bash_commands.fastq_filterer_and_pigz_in_place(fqs) for fqs in fq_pairs])
+
+        return_value = executor.execute(
+            *cmd_list,
             job_name='fastq_filterer',
             working_dir=self.job_dir,
             cpus=18,
             mem=10
         ).join()
+
+        # FIXME: Remove this piece of code when fastq filterer consistently create the stats file
+        sleep(10)
+        for lane in lane_need_filtering:
+            for fastq_file_pair in find_all_fastq_pairs_for_lane(self.fastq_dir, lane):
+                f1, f2 = sorted(fastq_file_pair)
+                stats_file = f1.replace('_R1_001.fastq.gz', '') + '_fastqfilterer.stats'
+                if not exists(stats_file):
+                    self.warning('Missing %s, will create with information I have', stats_file)
+                    if lane_need_filtering[lane]:
+                        trim_r1, trim_r2 = convert_bad_cycle_in_trim(bad_cycles.get(int(lane)), self.dataset.run_info)
+                        bt = bad_tiles.get(int(lane))
+                        with open(stats_file, 'w') as open_file:
+                            if trim_r2:
+                                open_file.write('trim_r2 %s\n' % trim_r2)
+                            if bt:
+                                open_file.write('remove_tiles %s\n' % ','.join([str(t) for t in bt]))
+                    else:
+                        open(stats_file, 'w').close()
+        return return_value
 
 
 class IntegrityCheck(DemultiplexingStage):
@@ -155,12 +236,13 @@ def build_pipeline(dataset):
         return cls(dataset=dataset, **params)
 
     setup = stage(Setup)
-    bcl2fastq = stage(Bcl2FastqAndFilter, previous_stages=[setup])
+    bcl2fastq = stage(Bcl2Fastq, previous_stages=[setup])
+    fastq_filter = stage(FastqFilter, previous_stages=[bcl2fastq])
     welldups = stage(lane_duplicates.WellDuplicates, run_directory=bcl2fastq.input_dir, output_directory=bcl2fastq.fastq_dir, previous_stages=[setup])
-    integrity_check = stage(IntegrityCheck, previous_stages=[bcl2fastq])
-    fastqc = stage(FastQC, previous_stages=[bcl2fastq])
-    seqtk = stage(SeqtkFQChk, previous_stages=[bcl2fastq])
-    md5 = stage(MD5Sum, previous_stages=[bcl2fastq])
+    integrity_check = stage(IntegrityCheck, previous_stages=[fastq_filter])
+    fastqc = stage(FastQC, previous_stages=[fastq_filter])
+    seqtk = stage(SeqtkFQChk, previous_stages=[fastq_filter])
+    md5 = stage(MD5Sum, previous_stages=[fastq_filter])
     qc_output = stage(QCOutput, previous_stages=[welldups, integrity_check, fastqc, seqtk, md5])
     data_output = stage(DataOutput, previous_stages=[qc_output])
     _cleanup = stage(Cleanup, previous_stages=[data_output])
