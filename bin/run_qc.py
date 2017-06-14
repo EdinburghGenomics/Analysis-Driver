@@ -5,7 +5,7 @@ from sys import path
 from egcg_core import executor, clarity, util
 from egcg_core.clarity import get_user_sample_name
 from egcg_core.app_logging import logging_default as log_cfg
-
+from egcg_core.rest_communication import get_document
 path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from analysis_driver import quality_control as qc
 from analysis_driver.config import default as cfg, load_config
@@ -67,6 +67,12 @@ def _parse_args():
     bad_cycle_tile_parser.add_argument('--tile_quality_threshold', type=int, default=20)
     bad_cycle_tile_parser.add_argument('--cycle_quality_threshold', type=int, default=20)
     bad_cycle_tile_parser.set_defaults(func=detect_bad_cycle_tile_in_run)
+
+    peddy_parser = subparsers.add_parser('peddy')
+    peddy_parser.add_mutually_exclusive_group('--samples')
+    peddy_parser.add_mutually_exclusive_group('--projects')
+    peddy_parser.add_argument('--reference')
+    peddy_parser.set_defaults(func=peddy)
 
     return parser.parse_args()
 
@@ -176,6 +182,40 @@ def detect_bad_cycle_tile_in_run(dataset, args):
         if lane in bad_tiles:
             print('Bad tiles are: ' + ', '.join([str(c) for c in bad_tiles[lane]]))
 
+
+def get_all_project_gvcfs(project_folder):
+        gvcfs = []
+        for path in os.walk(project_folder):
+            gvcf = [i for i in path[2] if i.endswith('.g.vcf.gz')]
+            if gvcf:
+                gvcfs.append(os.path.join(path[0], ''.join(gvcf)))
+        return gvcfs
+
+def peddy(dataset, args):
+    all_gvcfs = []
+    sample_ids = []
+    if args.samples:
+        cfg.merge(cfg['sample'])
+        for sample_id in args.samples:
+            sample_ids.append(sample_id)
+            s = get_document(sample_id)
+            project_id = s.get('project_id')
+            gvcf_file = s.get('user_sample_id') + '.g.vcf.gz'
+            gvcf = util.find_file(cfg['input_dir'], project_id, sample_id, gvcf_file)
+            all_gvcfs.append(gvcf)
+    elif args.projects:
+        cfg.merge(cfg['project'])
+        for project_id in args.projects:
+            samples_for_project = clarity.get_sample_names_from_project(project_id)
+            sample_ids.extend(samples_for_project)
+            project_folder = util.find_file(cfg['input_dir'], project_id)
+            all_gvcfs.extend(get_all_project_gvcfs(project_folder))
+
+
+    g = qc.Genotype_gVCFs(dataset=dataset, GVCFs=all_gvcfs, reference=args.reference)
+    g.run()
+    p = qc.Peddy(dataset=dataset, ids=sample_ids)
+    p.run()
 
 if __name__ == '__main__':
     main()

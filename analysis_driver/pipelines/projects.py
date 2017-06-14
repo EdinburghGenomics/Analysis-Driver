@@ -1,30 +1,34 @@
 import os
 from egcg_core.util import find_file
+from analysis_driver.pipelines.common import Cleanup
 from analysis_driver.config import default as cfg, OutputFileConfiguration
-from analysis_driver.quality_control import Relatedness
+from analysis_driver.quality_control import Relatedness, Peddy, Genotype_gVCFs
 from analysis_driver.exceptions import PipelineError
 from analysis_driver.transfer_data import output_project_data
 from analysis_driver import segmentation
 
 
 def build_pipeline(dataset):
-    project_source = os.path.join(cfg.query('sample', 'delivery_source'), dataset.name)
+    project_id = dataset.name
+    sample_ids = [sample['sample_id'] for sample in dataset.samples_processed]
+
+    project_source = os.path.join(cfg.query('sample', 'delivery_source'), project_id)
     gvcf_files = []
     for sample in dataset.samples_processed:
         gvcf_file = find_file(project_source, sample['sample_id'], sample['user_sample_id'] + '.g.vcf.gz')
-        if gvcf_file:
-            gvcf_files.append(gvcf_file)
+        if not gvcf_file:
+            raise PipelineError('Unable to find gVCF file for sample %s' % (sample))
+        gvcf_files.append(gvcf_file)
     if len(gvcf_files) < 2:
         raise PipelineError('Incorrect number of gVCF files: require at least two')
 
-    relatedness = Relatedness(
-        dataset=dataset,
-        gvcf_files=gvcf_files,
-        reference=cfg['references'][dataset.species]['fasta'],
-        project_id=dataset.name
-    )
-    output = Output(dataset=dataset, previous_stages=[relatedness])
-    return output
+    reference = cfg['references'][dataset.species]['fasta']
+    genotype_gvcfs = Genotype_gVCFs(dataset=dataset, gVCFs=gvcf_files, reference=reference)
+    relatedness = Relatedness(dataset=dataset, previous_stages=[genotype_gvcfs])
+    peddy = Peddy(dataset=dataset, ids=sample_ids, previous_stages=[genotype_gvcfs])
+    output = Output(dataset=dataset, previous_stages=[relatedness, peddy])
+    cleanup = Cleanup(previous_stages=[output])
+    return cleanup
 
 
 class Output(segmentation.Stage):
