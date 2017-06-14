@@ -1,6 +1,6 @@
 import os
 from egcg_core.util import find_file
-from egcg_core import clarity
+from analysis_driver.pipelines.common import Cleanup
 from analysis_driver.config import default as cfg, OutputFileConfiguration
 from analysis_driver.quality_control import Relatedness, Peddy, Genotype_gVCFs
 from analysis_driver.exceptions import PipelineError
@@ -27,7 +27,8 @@ def build_pipeline(dataset):
     relatedness = Relatedness(dataset=dataset, previous_stages=[genotype_gvcfs])
     peddy = Peddy(dataset=dataset, ids=sample_ids, previous_stages=[genotype_gvcfs])
     output = Output(dataset=dataset, previous_stages=[relatedness, peddy])
-    return output
+    cleanup = Cleanup(previous_stages=[output])
+    return cleanup
 
 
 class Output(segmentation.Stage):
