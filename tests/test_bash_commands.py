@@ -130,6 +130,6 @@ def test_fastq_filterer_and_pigz_in_place():
     exp = (
         'run_filterer RE_R1_001.fastq.gz RE_R2_001.fastq.gz RE_R1_001_filtered.fastq.gz '
         'RE_R2_001_filtered.fastq.gz RE_R1_001_filtered.fastq RE_R2_001_filtered.fastq '
-        'RE.log --stats_file RE_fastqfilterer.stats'
+        '--stats_file RE_fastqfilterer.stats'
     )
     assert bash_commands.fastq_filterer_and_pigz_in_place(('RE_R1_001.fastq.gz', 'RE_R2_001.fastq.gz')) == exp

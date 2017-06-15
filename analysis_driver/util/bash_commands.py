@@ -47,10 +47,10 @@ def seqtk_fqchk(fastq_file):
 def fq_filt_prelim_cmd():
     cmd = (
         'function run_filterer {{',  # double up { and } to escape them for str.format()
-        'i1=$1', 'i2=$2', 'o1=$3', 'o2=$4', 'fifo_1=$5', 'fifo_2=$6', 'log_file=$7',
+        'i1=$1', 'i2=$2', 'o1=$3', 'o2=$4', 'fifo_1=$5', 'fifo_2=$6',
 
         'mkfifo $fifo_1', 'mkfifo $fifo_2',
-        '{ff} --i1 $i1 --i2 $i2 --o1 $fifo_1 --o2 $fifo_2 --threshold {threshold} $* > $log_file 2>&1 &',
+        '{ff} --i1 $i1 --i2 $i2 --o1 $fifo_1 --o2 $fifo_2 --threshold {threshold} $* &',
         'fq_filt_pid=$!',
         '{pigz} -c -p {pzt} $fifo_1 > $o1 &',
         'pigz_r1_pid=$!',
@@ -99,10 +99,9 @@ def fastq_filterer_and_pigz_in_place(fastq_file_pair, tiles_to_filter=None, trim
     o2 = fifo_2 + '.gz'
 
     stats_file = base_1.replace('_R1_001', '') + '_fastqfilterer.stats'
-    log_file = base_1.replace('_R1_001', '') + '.log'
 
-    fastq_filterer_cmd = 'run_filterer {0} {1} {2} {3} {4} {5} {6} --stats_file {7}'.format(
-        i1, i2, o1, o2, fifo_1, fifo_2, log_file, stats_file
+    fastq_filterer_cmd = 'run_filterer {0} {1} {2} {3} {4} {5} --stats_file {6}'.format(
+        i1, i2, o1, o2, fifo_1, fifo_2, stats_file
     )
 
     if tiles_to_filter:

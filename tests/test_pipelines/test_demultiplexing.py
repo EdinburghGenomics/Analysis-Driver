@@ -42,13 +42,13 @@ class TestFastqFilter(TestAnalysisDriver):
                 'run_filterer fastq_L3_R1_001.fastq.gz fastq_L3_R2_001.fastq.gz '
                 'fastq_L3_R1_001_filtered.fastq.gz fastq_L3_R2_001_filtered.fastq.gz '
                 'fastq_L3_R1_001_filtered.fastq fastq_L3_R2_001_filtered.fastq '
-                'fastq_L3.log --stats_file fastq_L3_fastqfilterer.stats --remove_tiles 1101'
+                '--stats_file fastq_L3_fastqfilterer.stats --remove_tiles 1101'
             )
             expected_call_l4 = (
                 'run_filterer fastq_L4_R1_001.fastq.gz fastq_L4_R2_001.fastq.gz '
                 'fastq_L4_R1_001_filtered.fastq.gz fastq_L4_R2_001_filtered.fastq.gz '
                 'fastq_L4_R1_001_filtered.fastq fastq_L4_R2_001_filtered.fastq '
-                'fastq_L4.log --stats_file fastq_L4_fastqfilterer.stats --trim_r2 147'
+                '--stats_file fastq_L4_fastqfilterer.stats --trim_r2 147'
             )
             assert expected_call_l3 == pexecute.call_args[0][2]
             assert expected_call_l4 == pexecute.call_args[0][3]
