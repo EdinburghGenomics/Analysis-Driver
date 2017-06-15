@@ -75,7 +75,7 @@ class TestBadTileCycleDetector(TestAnalysisDriver):
         ]
         self.detector.window_size = 2
         self.detector.all_lanes = {1: ({'1101': list_q_hist1, '1102': list_q_hist2}, {})}
-        assert dict(self.detector.detect_bad_tile()) == {1: ['1101']}
+        assert dict(self.detector.detect_bad_tiles()) == {1: ['1101']}
 
     def test_detect_bad_cycles(self):
         list_q_hist1 = [
@@ -93,4 +93,4 @@ class TestBadTileCycleDetector(TestAnalysisDriver):
             (0, 1, 1, 1, 1, 1, 10)
         ]
         self.detector.all_lanes = {1: ({}, {'1': list_q_hist1, '2': list_q_hist2})}
-        assert dict(self.detector.detect_bad_cycle()) == {1: ['1']}
+        assert dict(self.detector.detect_bad_cycles()) == {1: ['1']}

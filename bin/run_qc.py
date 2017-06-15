@@ -66,7 +66,7 @@ def _parse_args():
     bad_cycle_tile_parser.add_argument('--window_size', type=int, default=50)
     bad_cycle_tile_parser.add_argument('--tile_quality_threshold', type=int, default=20)
     bad_cycle_tile_parser.add_argument('--cycle_quality_threshold', type=int, default=20)
-    bad_cycle_tile_parser.set_defaults(func=detect_bad_cycle_tile_in_run)
+    bad_cycle_tile_parser.set_defaults(func=detect_bad_cycles_and_tiles)
 
     return parser.parse_args()
 
@@ -158,7 +158,7 @@ def relatedness(dataset, args):
     r.run()
 
 
-def detect_bad_cycle_tile_in_run(dataset, args):
+def detect_bad_cycles_and_tiles(dataset, args):
     cfg.merge(cfg['run'])
     dataset = RunDataset(args.dataset_name)
     d = qc.BadTileCycleDetector(
@@ -167,8 +167,8 @@ def detect_bad_cycle_tile_in_run(dataset, args):
         tile_quality_threshold=args.tile_quality_threshold,
         cycle_quality_threshold=args.cycle_quality_threshold
     )
-    bad_tiles = d.detect_bad_tile()
-    bad_cycle = d.detect_bad_cycle()
+    bad_tiles = d.detect_bad_tiles()
+    bad_cycle = d.detect_bad_cycles()
     for lane in sorted(set(list(bad_tiles) + list(bad_cycle))):
         print('Lane %s' % lane)
         if lane in bad_cycle:
