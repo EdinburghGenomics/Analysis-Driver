@@ -70,7 +70,16 @@
             "passing_filter_reads": 80740,
             "bases_r2": 12111000,
             "adaptor_bases_removed_r1": 184380158,
-            "adaptor_bases_removed_r2": 172552099
+            "adaptor_bases_removed_r2": 172552099,
+            "clean_q30_bases_r2": 75199379,
+            "clean_bases_r1": 83750569,
+            "clean_bases_r2": 83750569,
+            "clean_q30_bases_r1": 75199379,
+            "clean_reads": 561151,
+            "lane_pc_optical_dups": 6.716,
+            "tiles_filtered": "1102,2202",
+            "trim_r1": "14",
+            "trim_r2": "16"
         },
         "a_run_id_2_unknown": {
             "sample_id": "Undetermined",
@@ -88,7 +97,16 @@
             "passing_filter_reads": 122074,
             "bases_r2": 18311100,
             "adaptor_bases_removed_r1": 48149799,
-            "adaptor_bases_removed_r2": 48818739
+            "adaptor_bases_removed_r2": 48818739,
+            "clean_q30_bases_r2": 75199379,
+            "clean_bases_r1": 83750569,
+            "clean_bases_r2": 83750569,
+            "clean_q30_bases_r1": 75199379,
+            "clean_reads": 561151,
+            "lane_pc_optical_dups": 4.492,
+            "tiles_filtered": "1102,2202",
+            "trim_r1": "14",
+            "trim_r2": "16"
         },
         "a_run_id_2_ATTACTCG": {
             "sample_id": "10015AT0001",
@@ -106,7 +124,16 @@
             "passing_filter_reads": 466412,
             "bases_r2": 69961800,
             "adaptor_bases_removed_r1": 284712861,
-            "adaptor_bases_removed_r2": 282625840
+            "adaptor_bases_removed_r2": 282625840,
+            "clean_q30_bases_r2": 75199379,
+            "clean_bases_r1": 83750569,
+            "clean_bases_r2": 83750569,
+            "clean_q30_bases_r1": 75199379,
+            "clean_reads": 561151,
+            "lane_pc_optical_dups": 4.492,
+            "tiles_filtered": "1102,2202",
+            "trim_r1": "14",
+            "trim_r2": "16"
         },
         "a_run_id_1_TCCGGAGA": {
             "sample_id": "10015AT0002",
@@ -124,7 +151,16 @@
             "passing_filter_reads": 539999,
             "bases_r2": 80999850,
             "adaptor_bases_removed_r1": 1088149481,
-            "adaptor_bases_removed_r2": 1034179505
+            "adaptor_bases_removed_r2": 1034179505,
+            "clean_q30_bases_r2": 75199379,
+            "clean_bases_r1": 83750569,
+            "clean_bases_r2": 83750569,
+            "clean_q30_bases_r1": 75199379,
+            "clean_reads": 561151,
+            "lane_pc_optical_dups": 6.716,
+            "tiles_filtered": "1102,2202",
+            "trim_r1": "14",
+            "trim_r2": "16"
         },
         "a_run_id_2_TCCGGAGA": {
             "sample_id": "10015AT0002",
@@ -142,7 +178,16 @@
             "passing_filter_reads": 469731,
             "bases_r2": 70459650,
             "adaptor_bases_removed_r1": 398993728,
-            "adaptor_bases_removed_r2": 391621660
+            "adaptor_bases_removed_r2": 391621660,
+            "clean_q30_bases_r2": 75199379,
+            "clean_bases_r1": 83750569,
+            "clean_bases_r2": 83750569,
+            "clean_q30_bases_r1": 75199379,
+            "clean_reads": 561151,
+            "lane_pc_optical_dups": 4.492,
+            "tiles_filtered": "1102,2202",
+            "trim_r1": "14",
+            "trim_r2": "16"
         },
         "a_run_id_1_ATTACTCG": {
             "sample_id": "10015AT0001",
@@ -160,7 +205,16 @@
             "passing_filter_reads": 537099,
             "bases_r2": 80564850,
             "adaptor_bases_removed_r1": 714309214,
-            "adaptor_bases_removed_r2": 684692293
+            "adaptor_bases_removed_r2": 684692293,
+            "clean_q30_bases_r2": 75199379,
+            "clean_bases_r1": 83750569,
+            "clean_bases_r2": 83750569,
+            "clean_q30_bases_r1": 75199379,
+            "clean_reads": 561151,
+            "lane_pc_optical_dups": 6.716,
+            "tiles_filtered": "1102,2202",
+            "trim_r1": "14",
+            "trim_r2": "16"
         }
     },
     "projects": {
