@@ -159,10 +159,10 @@ def contamination_blast(dataset, args):
 
 def relatedness(dataset, args):
     os.makedirs(os.path.join(cfg['jobs_dir'], dataset.name), exist_ok=True)
-    r = qc.Relatedness(dataset=dataset, gvcf_files=args.gvcf_files,
-                       reference=args.reference, project_id=dataset.name)
+    r = qc.Relatedness(dataset=dataset)
     r.run()
-
+    o = qc.ParseRelatedness(dataset=dataset, parse_method='parse_relatedness')
+    o.run()
 
 def detect_bad_cycle_tile_in_run(dataset, args):
     cfg.merge(cfg['run'])
@@ -182,7 +182,6 @@ def detect_bad_cycle_tile_in_run(dataset, args):
         if lane in bad_tiles:
             print('Bad tiles are: ' + ', '.join([str(c) for c in bad_tiles[lane]]))
 
-
 def get_all_project_gvcfs(project_folder):
         gvcfs = []
         for path in os.walk(project_folder):
@@ -192,6 +191,7 @@ def get_all_project_gvcfs(project_folder):
         return gvcfs
 
 def peddy(dataset, args):
+    os.makedirs(os.path.join(cfg['jobs_dir'], dataset.name), exist_ok=True)
     all_gvcfs = []
     sample_ids = []
     if args.samples:
@@ -216,6 +216,8 @@ def peddy(dataset, args):
     g.run()
     p = qc.Peddy(dataset=dataset, ids=sample_ids)
     p.run()
+    o = qc.ParseRelatedness(dataset=dataset, parse_method='parse_peddy')
+    o.run()
 
 if __name__ == '__main__':
     main()

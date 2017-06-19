@@ -1,4 +1,7 @@
 import os
+from collections import Counter
+import re
+import csv
 from egcg_core import executor, util, clarity
 from luigi import Parameter, ListParameter
 from analysis_driver.config import default as cfg
@@ -10,6 +13,90 @@ class RelatednessStage(segmentation.Stage):
     @property
     def gatk_outfile(self):
         return os.path.join(self.job_dir, self.dataset.name + '_genotype_gvcfs.vcf')
+
+
+class ParseRelatedness(RelatednessStage):
+    parse_method = Parameter()
+
+    def parse_all(self):
+        exit_status = 0
+        try:
+            peddy_relatedness = []
+            peddy_vcftools_relatedness = []
+            with open(os.path.join(self.job_dir, self.dataset.name + '.relatedness2')) as openfile:
+                csvfile = csv.DictReader(openfile)
+                for line in csvfile:
+                    peddy_relatedness.append([line['sample_a'], line['sample_b'], line['rel']])
+
+            with open(os.path.join(self.job_dir, self.dataset.name + '.ped_check.csv')) as openfile:
+                readfile = openfile.read()
+                readfile_csv = re.sub(' +', ',', readfile)
+                with open(os.path.join(self.job_dir, self.dataset.name + '.ped_check_reformat.csv'), 'w') as outfile:
+                    outfile.write(readfile_csv)
+
+            with open(os.path.join(self.job_dir, self.dataset.name + '.ped_check_reformat.csv')) as openfile:
+                csvfile = csv.DictReader(openfile)
+                for line in csvfile:
+                    comparison = (Counter([line['INDV1'], line['INDV2']]))
+                    [peddy_vcftools_relatedness.append([i[0], i[1], i[2], line['RELATEDNESS_PHI']]) for i in peddy_relatedness if Counter([i[0], i[1]]) == comparison]
+
+            with open(os.path.join(self.job_dir, self.dataset.name + '.all_relatedness_results'), 'w') as outfile:
+                for r in peddy_vcftools_relatedness:
+                    outfile.write('\t'.join(r) + '\n')
+        except (OSError, FileNotFoundError, NotADirectoryError) as e:
+            self.error(str(e))
+            exit_status += 1
+        return exit_status
+
+    def parse_relatedness(self):
+        exit_status = 0
+        try:
+            vcftools_relatedness = []
+            with open(os.path.join(self.job_dir, self.dataset.name + '.ped_check.csv')) as openfile:
+                readfile = openfile.read()
+                readfile_csv = re.sub(' +', ',', readfile)
+                with open(os.path.join(self.job_dir, self.dataset.name + '.ped_check_reformat.csv'), 'w') as outfile:
+                    outfile.write(readfile_csv)
+
+            with open(os.path.join(self.job_dir, self.dataset.name + '.ped_check_reformat.csv')) as openfile:
+                csvfile = csv.DictReader(openfile)
+                for line in csvfile:
+                    vcftools_relatedness.append([line['INDV1'], line['INDV2'], line['RELATEDNESS_PHI']])
+
+            with open(os.path.join(self.job_dir, self.dataset.name + '.vcftools_relatedness_results'), 'w') as outfile:
+                for r in vcftools_relatedness:
+                    outfile.write('\t'.join(r) + '\n')
+        except (OSError, FileNotFoundError, NotADirectoryError) as e:
+            self.error(str(e))
+            exit_status += 1
+        return exit_status
+
+    def parse_peddy(self):
+        exit_status = 0
+        try:
+            peddy_relatedness = []
+            with open(os.path.join(self.job_dir, self.dataset.name + '.relatedness2')) as openfile:
+                csvfile = csv.DictReader(openfile)
+                for line in csvfile:
+                    peddy_relatedness.append([line['sample_a'], line['sample_b'], line['rel']])
+
+            with open(os.path.join(self.job_dir, self.dataset.name + '.peddy_relatedness_results'), 'w') as outfile:
+                for r in peddy_relatedness:
+                    outfile.write('\t'.join(r) + '\n')
+        except (OSError, FileNotFoundError, NotADirectoryError) as e:
+            self.error(str(e))
+            exit_status += 1
+        return exit_status
+
+    def _run(self):
+        exit_status = 0
+        parsers = {'parse_both': self.parse_all(),
+                   'parse_relatedness': self.parse_relatedness(),
+                   'parse_peddy': self.parse_peddy()}
+
+        exit_status+=parsers[self.parse_method]
+        return exit_status
+
 
 class Genotype_gVCFs(RelatednessStage):
     gVCFs = ListParameter()
