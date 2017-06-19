@@ -23,18 +23,20 @@ class ParseRelatedness(RelatednessStage):
         try:
             peddy_relatedness = []
             peddy_vcftools_relatedness = []
-            with open(os.path.join(self.job_dir, self.dataset.name + '.relatedness2')) as openfile:
+            with open(os.path.join(self.job_dir, self.dataset.name + '.ped_check.csv')) as openfile:
                 csvfile = csv.DictReader(openfile)
                 for line in csvfile:
                     peddy_relatedness.append([line['sample_a'], line['sample_b'], line['rel']])
 
-            with open(os.path.join(self.job_dir, self.dataset.name + '.ped_check.csv')) as openfile:
+
+
+            with open(os.path.join(self.job_dir, self.dataset.name + '.relatedness2')) as openfile:
                 readfile = openfile.read()
                 readfile_csv = re.sub(' +', ',', readfile)
-                with open(os.path.join(self.job_dir, self.dataset.name + '.ped_check_reformat.csv'), 'w') as outfile:
+                with open(os.path.join(self.job_dir, self.dataset.name + '.relatedness2_reformat'), 'w') as outfile:
                     outfile.write(readfile_csv)
 
-            with open(os.path.join(self.job_dir, self.dataset.name + '.ped_check_reformat.csv')) as openfile:
+            with open(os.path.join(self.job_dir, self.dataset.name + '.relatedness2_reformat')) as openfile:
                 csvfile = csv.DictReader(openfile)
                 for line in csvfile:
                     comparison = (Counter([line['INDV1'], line['INDV2']]))
@@ -52,13 +54,13 @@ class ParseRelatedness(RelatednessStage):
         exit_status = 0
         try:
             vcftools_relatedness = []
-            with open(os.path.join(self.job_dir, self.dataset.name + '.ped_check.csv')) as openfile:
+            with open(os.path.join(self.job_dir, self.dataset.name + '.relatedness2')) as openfile:
                 readfile = openfile.read()
                 readfile_csv = re.sub(' +', ',', readfile)
-                with open(os.path.join(self.job_dir, self.dataset.name + '.ped_check_reformat.csv'), 'w') as outfile:
+                with open(os.path.join(self.job_dir, self.dataset.name + '.relatedness2_reformat'), 'w') as outfile:
                     outfile.write(readfile_csv)
 
-            with open(os.path.join(self.job_dir, self.dataset.name + '.ped_check_reformat.csv')) as openfile:
+            with open(os.path.join(self.job_dir, self.dataset.name + '.relatedness2_reformat')) as openfile:
                 csvfile = csv.DictReader(openfile)
                 for line in csvfile:
                     vcftools_relatedness.append([line['INDV1'], line['INDV2'], line['RELATEDNESS_PHI']])
@@ -75,7 +77,7 @@ class ParseRelatedness(RelatednessStage):
         exit_status = 0
         try:
             peddy_relatedness = []
-            with open(os.path.join(self.job_dir, self.dataset.name + '.relatedness2')) as openfile:
+            with open(os.path.join(self.job_dir, self.dataset.name + '.ped_check.csv')) as openfile:
                 csvfile = csv.DictReader(openfile)
                 for line in csvfile:
                     peddy_relatedness.append([line['sample_a'], line['sample_b'], line['rel']])
