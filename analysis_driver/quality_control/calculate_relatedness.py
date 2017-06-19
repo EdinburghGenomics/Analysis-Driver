@@ -28,8 +28,6 @@ class ParseRelatedness(RelatednessStage):
                 for line in csvfile:
                     peddy_relatedness.append([line['sample_a'], line['sample_b'], line['rel']])
 
-
-
             with open(os.path.join(self.job_dir, self.dataset.name + '.relatedness2')) as openfile:
                 readfile = openfile.read()
                 readfile_csv = re.sub(' +', ',', readfile)
