@@ -28,7 +28,7 @@ def build_pipeline(dataset):
     peddy = Peddy(dataset=dataset, ids=sample_ids, previous_stages=[genotype_gvcfs])
     parse = ParseRelatedness(dataset=dataset, parse_method='parse_both', previous_stages=[relatedness, peddy])
     output = Output(dataset=dataset, previous_stages=[relatedness, peddy, parse])
-    cleanup = Cleanup(previous_stages=[output])
+    cleanup = Cleanup(dataset=dataset, previous_stages=[output])
     return cleanup
 
 
