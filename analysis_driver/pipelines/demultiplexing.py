@@ -6,13 +6,13 @@ from egcg_core import executor, util
 
 from analysis_driver import segmentation
 from analysis_driver.quality_control import BadTileCycleDetector
-from analysis_driver.util import bash_commands, find_all_fastq_pairs_for_lane, convert_bad_cycle_in_trim
+from analysis_driver.util import bash_commands, find_all_fastq_pairs_for_lane, get_trim_values_for_bad_cycles
 from analysis_driver.pipelines.common import Cleanup
 from analysis_driver.exceptions import SequencingRunError, AnalysisDriverError
 from analysis_driver.quality_control import lane_duplicates, BCLValidator
 from analysis_driver.reader.version_reader import write_versions_to_yaml
-from analysis_driver.report_generation.report_crawlers import RunCrawler
-from analysis_driver.transfer_data import output_run_data
+from analysis_driver.report_generation import RunCrawler
+from analysis_driver.transfer_data import output_data_and_archive
 
 
 class DemultiplexingStage(segmentation.Stage):
@@ -117,7 +117,7 @@ class FastqFilter(DemultiplexingStage):
         for lane in lane_need_filtering:
             fq_pairs = find_all_fastq_pairs_for_lane(self.fastq_dir, lane)
             if lane_need_filtering[lane]:
-                trim_r1, trim_r2 = convert_bad_cycle_in_trim(bad_cycles.get(int(lane)), self.dataset.run_info)
+                trim_r1, trim_r2 = get_trim_values_for_bad_cycles(bad_cycles.get(int(lane)), self.dataset.run_info)
                 for fqs in fq_pairs:
                     cmd_list.append(bash_commands.fastq_filterer_and_pigz_in_place(
                         fastq_file_pair=fqs,
@@ -205,7 +205,7 @@ class QCOutput(DemultiplexingStage):
 class DataOutput(DemultiplexingStage):
     def _run(self):
         write_versions_to_yaml(join(self.fastq_dir, 'program_versions.yaml'))
-        return output_run_data(self.fastq_dir, self.dataset.name)
+        return output_data_and_archive(self.fastq_dir, join(cfg['output_dir'], self.dataset.name))
 
 
 def build_pipeline(dataset):

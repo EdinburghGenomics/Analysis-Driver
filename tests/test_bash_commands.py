@@ -4,24 +4,16 @@ from analysis_driver.util import bash_commands
 from analysis_driver.reader import RunInfo
 from analysis_driver.config import default as cfg
 
-sample_sheet_csv = join(helper.assets_path, 'SampleSheet_analysis_driver.csv')
-run_info = RunInfo(helper.assets_path)
-
 
 def test_bcl2fastq():
-    mask = run_info.reads.generate_mask(samples_barcode_len=8)
-    helper.compare_lists(
-        observed=bash_commands.bcl2fastq(helper.assets_path, helper.fastq_path, sample_sheet_csv, mask),
-        expected=(
-            cfg['tools']['bcl2fastq'] +
-            ' -l INFO'
-            ' --runfolder-dir ' + helper.assets_path +
-            ' --output-dir ' + helper.fastq_path +
-            ' -r 8 -d 8 -p 8 -w 8' +
-            ' --sample-sheet ' + sample_sheet_csv +
-            ' --use-bases-mask ' + mask
-        )
+    run_info = RunInfo(helper.assets_path)
+    mask = run_info.reads.generate_mask(barcode_len=8)
+    sample_sheet_csv = join(helper.assets_path, 'SampleSheet_analysis_driver.csv')
+    obs = bash_commands.bcl2fastq(helper.assets_path, helper.fastq_path, sample_sheet_csv, mask)
+    exp = '%s -l INFO --runfolder-dir %s --output-dir %s -r 8 -d 8 -p 8 -w 8 --sample-sheet %s --use-bases-mask %s' % (
+        cfg['tools']['bcl2fastq'], helper.assets_path, helper.fastq_path, sample_sheet_csv, mask
     )
+    assert obs == exp
 
 
 def test_fastqc():
@@ -33,6 +25,12 @@ def test_fastqc():
 def test_bcbio():
     cmd = bash_commands.bcbio('run.yaml', helper.assets_path)
     assert cmd == 'path/to/bcbio/bin/bcbio_nextgen.py run.yaml -n 10 --workdir ' + helper.assets_path
+
+
+def test_prepare_samples():
+    obs = bash_commands.bcbio_prepare_samples('a_job_dir', 'samples.csv')
+    exp = 'path/to/bcbio/bin/bcbio_prepare_samples.py --out a_job_dir/merged --csv samples.csv'
+    assert obs == exp
 
 
 def test_rsync_from_to():
@@ -99,8 +97,7 @@ def test_md5sum():
 def test_export_env_vars():
     cmds = bash_commands.export_env_vars()
     assert cmds == (
-        'export PATH=path/to/bcbio/bin:$PATH',
-        'export PATH=path/to/jdk/bin:$PATH',
+        'export PATH=path/to/bcbio/bin:path/to/jdk/bin:$PATH',
         'export LD_LIBRARY_PATH=path/to/bcbio/lib:$LD_LIBRARY_PATH',
         'export PERL5LIB=path/to/bcbio/lib/perl5:$PERL5LIB',
         'export JAVA_HOME=path/to/jdk',
@@ -108,11 +105,6 @@ def test_export_env_vars():
         'export JAVA_ROOT=path/to/jdk',
         ''
     )
-
-
-def test_export():
-    assert bash_commands._export('THIS', 'that') == 'export THIS=that'
-    assert bash_commands._export('THIS', 'that', prepend=True) == 'export THIS=that:$THIS'
 
 
 def test_is_remote_path():

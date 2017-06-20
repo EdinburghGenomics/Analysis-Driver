@@ -1,8 +1,7 @@
 import os
 import yaml
 from egcg_core import executor, clarity, util
-from analysis_driver import segmentation
-from analysis_driver import quality_control as qc
+from analysis_driver import segmentation, quality_control as qc
 from analysis_driver.exceptions import PipelineError
 from analysis_driver.pipelines import common
 from analysis_driver.util import bash_commands
@@ -118,7 +117,7 @@ def build_pipeline(dataset):
     samtools_depth = stage(qc.SamtoolsDepth, bam_file=bcbio.bam_path, previous_stages=bcbio_and_qc)
     post_bcbio_qc = [gender_val, vcfstats, verify_bam_id, samtools_depth]
 
-    output = stage(common.DataOutput, previous_stages=post_bcbio_qc, output_fileset='bcbio')
+    output = stage(common.SampleDataOutput, previous_stages=post_bcbio_qc, output_fileset='bcbio')
     cleanup = stage(common.Cleanup, previous_stages=[output])
 
     return cleanup

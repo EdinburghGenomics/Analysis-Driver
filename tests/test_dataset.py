@@ -1,27 +1,15 @@
-import os, signal
+import os
+import signal
 import pytest
 from sys import modules
-from shutil import rmtree
 from unittest.mock import patch, Mock, PropertyMock
-
 from egcg_core.constants import ELEMENT_PROJECT_ID, ELEMENT_SAMPLE_INTERNAL_ID, ELEMENT_BARCODE
+from egcg_core import constants as c
 
 from integration_tests.mocked_data import MockedSamples, MockedRunProcess
 from tests.test_analysisdriver import TestAnalysisDriver, NamedMock
-from egcg_core import constants as c
 from analysis_driver.exceptions import AnalysisDriverError, SequencingRunError
 from analysis_driver.dataset import Dataset, RunDataset, SampleDataset, MostRecentProc
-
-
-def seed_directories(base_dir):
-    for d in ('dataset_ready', 'dataset_not_ready', 'ignored_dataset', 'test_dataset'):
-        os.makedirs(os.path.join(base_dir, d), exist_ok=True)
-        if d in ('dataset_ready',):
-            touch(os.path.join(base_dir, d, 'RTAComplete.txt'))
-
-
-def touch(path):
-    open(path, 'w').close()
 
 
 def ppath(target):
@@ -51,7 +39,7 @@ def patched_get_docs(content=None):
 
 
 def patched_datetime(time='now'):
-    return patch(ppath('MostRecentProc._now'), return_value=time)
+    return patch(ppath('now'), return_value=time)
 
 
 def patched_expected_yield(y=1000000000):
@@ -59,14 +47,11 @@ def patched_expected_yield(y=1000000000):
 
 
 class TestDataset(TestAnalysisDriver):
+    base_dir = os.path.join(TestAnalysisDriver.assets_path, 'dataset_scanner')
+
     def setUp(self):
-        self.base_dir = os.path.join(self.assets_path, 'dataset_scanner')
-        seed_directories(self.base_dir)
         self.setup_dataset()
         self.dataset._ntf = Mock()
-
-    def tearDown(self):
-        rmtree(self.base_dir)
 
     def test_dataset_status(self):
         assert self.dataset.most_recent_proc.entity.get('status') is None
@@ -271,9 +256,9 @@ class TestRunDataset(TestDataset):
         with patch('analysis_driver.dataset.clarity.get_run', return_value=MockedRunProcess(container=mocked_flowcell_non_pooling)), \
              patch.object(RunDataset, 'has_barcodes', new_callable=PropertyMock(return_value=False)):
             run_elements = d._run_elements_from_lims()
-            assert len(set([r[ELEMENT_PROJECT_ID] for r in run_elements])) == 1
-            assert len(set([r[ELEMENT_SAMPLE_INTERNAL_ID] for r in run_elements])) == 2
-            barcodes_len = set([len(r[ELEMENT_BARCODE]) for r in run_elements])
+            assert len(set(r[ELEMENT_PROJECT_ID] for r in run_elements)) == 1
+            assert len(set(r[ELEMENT_SAMPLE_INTERNAL_ID] for r in run_elements)) == 2
+            barcodes_len = set(len(r[ELEMENT_BARCODE]) for r in run_elements)
             assert len(barcodes_len) == 1
             assert barcodes_len.pop() == 0
 
@@ -282,11 +267,30 @@ class TestRunDataset(TestDataset):
         with patch('egcg_core.clarity.get_run', return_value=MockedRunProcess(container=mocked_flowcell_pooling)), \
              patch.object(RunDataset, 'has_barcodes', new_callable=PropertyMock(return_value=True)):
             run_elements = d._run_elements_from_lims()
-            assert len(set([r[ELEMENT_PROJECT_ID] for r in run_elements])) == 1
-            assert len(set([r[ELEMENT_SAMPLE_INTERNAL_ID] for r in run_elements])) == 4
-            barcodes_len = set([len(r[ELEMENT_BARCODE]) for r in run_elements])
+            assert len(set(r[ELEMENT_PROJECT_ID] for r in run_elements)) == 1
+            assert len(set(r[ELEMENT_SAMPLE_INTERNAL_ID] for r in run_elements)) == 4
+            barcodes_len = set(len(r[ELEMENT_BARCODE]) for r in run_elements)
             assert len(barcodes_len) == 1
             assert barcodes_len.pop() == 8
+
+    @patch('builtins.open')
+    def test_generate_samplesheet(self, mocked_open):
+        fake_run_elements = [
+            {'lane': '1', 'sample_id': 'sample_1', 'library_id': 'lib_1', 'project_id': 'p', 'barcode': 'ATGC'},
+            {'lane': '2', 'sample_id': 'sample_2', 'library_id': 'lib_2', 'project_id': 'p', 'barcode': 'CTGA'}
+        ]
+        exp = [
+            '[Header]', 'Date, now', 'Workflow, Generate FASTQ Only', '',
+            '[Settings]', 'Adapter, AGATCGGAAGAGCACACGTCTGAACTCCAGTCA',
+            'AdapterRead2, AGATCGGAAGAGCGTCGTGTAGGGAAAGAGTGT', '', '[Data]',
+            'Lane,Sample_ID,Sample_Name,Sample_Project,index',
+            '1,sample_1,lib_1,p,ATGC', '2,sample_2,lib_2,p,CTGA', ''
+        ]
+
+        self.dataset._run_elements = fake_run_elements
+        with patched_datetime():
+            self.dataset._generate_samplesheet('a_samplesheet')
+            mocked_open.return_value.__enter__.return_value.write.assert_called_with('\n'.join(exp))
 
 
 class TestSampleDataset(TestDataset):
@@ -323,14 +327,8 @@ class TestSampleDataset(TestDataset):
         self.dataset._data_threshold = None
         assert not self.dataset._is_ready()
         self.dataset._run_elements = [
-            {
-                'clean_q30_bases_r1': 1200000000,
-                'clean_q30_bases_r2': 1150000000
-            },
-            {
-                'clean_q30_bases_r1': 1100000000,
-                'clean_q30_bases_r2': 1350000000
-            }
+            {'clean_q30_bases_r1': 1200000000, 'clean_q30_bases_r2': 1150000000},
+            {'clean_q30_bases_r1': 1100000000, 'clean_q30_bases_r2': 1350000000}
         ]
         assert self.dataset._is_ready()
         assert mocked_instance.call_count == 1  # even after 2 calls to data_threshold
@@ -349,16 +347,8 @@ class TestSampleDataset(TestDataset):
                                   'dataset_name': 'None', 'dataset_type': 'None'}
             )
         self.dataset._run_elements = [
-            {
-                'run_id': 'a_run_id',
-                'clean_q30_bases_r1': 120,
-                'clean_q30_bases_r2': 115
-            },
-            {
-                'run_id': 'another_run_id',
-                'clean_q30_bases_r1': 110,
-                'clean_q30_bases_r2': 135
-            }
+            {'run_id': 'a_run_id', 'clean_q30_bases_r1': 120, 'clean_q30_bases_r2': 115},
+            {'run_id': 'another_run_id', 'clean_q30_bases_r1': 110, 'clean_q30_bases_r2': 135}
         ]
         self.dataset._data_threshold = 1000000000
 
@@ -432,21 +422,13 @@ class TestMostRecentProc(TestAnalysisDriver):
     @patched_patch
     def test_sync(self, mocked_patch):
         self.proc.sync()
-        assert self.proc._entity == {
-            'proc_id': 'a_proc_id',
-            'dataset_type': 'test',
-            'dataset_name': 'test'
-        }
+        assert self.proc._entity == {'proc_id': 'a_proc_id', 'dataset_type': 'test', 'dataset_name': 'test'}
 
         self.proc.entity.update({'this': 'that'})
         self.proc.sync()
         mocked_patch.assert_called_with(
             'analysis_driver_procs',
-            {
-                'this': 'that',
-                'dataset_type': 'test',
-                'dataset_name': 'test'
-            },
+            {'this': 'that', 'dataset_type': 'test', 'dataset_name': 'test'},
             id_field='proc_id',
             element_id='a_proc_id'
         )
@@ -460,12 +442,8 @@ class TestMostRecentProc(TestAnalysisDriver):
     @patch(ppath('MostRecentProc.sync'))
     def test_update_entity(self, mocked_sync):
         self.proc.update_entity(other='another')
-        assert self.proc.entity == {
-            'proc_id': 'a_proc_id',
-            'dataset_type': 'test',
-            'dataset_name': 'test',
-            'other': 'another'
-        }
+        assert self.proc.entity == {'proc_id': 'a_proc_id', 'dataset_type': 'test',
+                                    'dataset_name': 'test', 'other': 'another'}
         mocked_sync.assert_called()
 
     @patched_update

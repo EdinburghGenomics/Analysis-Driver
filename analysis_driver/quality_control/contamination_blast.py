@@ -1,7 +1,7 @@
 import json
 import os.path
-from ete3 import NCBITaxa
 from collections import Counter
+from ete3 import NCBITaxa
 from luigi import Parameter, IntParameter
 from egcg_core import executor, util
 from analysis_driver.config import default as cfg

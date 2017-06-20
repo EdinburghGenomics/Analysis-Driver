@@ -5,52 +5,36 @@ from unittest.mock import patch, Mock
 
 ppath = 'analysis_driver.quality_control.contamination_blast.'
 
-tax_dict = {
-    40674: 'Mammalia',
-    9443: 'Primates',
-    9604: 'Hominidae',
-    9605: 'Homo',
-    9606: 'Homo sapiens',
-    33208: 'Metazoa',
-    7711: 'Chordata',
-    2759: 'Eukaryota',
-    99802: 'Spirometra erinaceieuropaei',
-    33154: 'Opisthokonta',
-    28843: 'Diphyllobothriidae',
-    6157: 'Platyhelminthes',
-    131567: 'cellular organisms',
-    6072: 'Eumetazoa',
-    46580: 'Spirometra',
-    6199: 'Cestoda',
-    6200: 'Eucestoda',
-    33213: 'Bilateria',
-    1224679: 'Diphyllobothriidea'
-}
+tax_dict = {40674: 'Mammalia', 9443: 'Primates', 9604: 'Hominidae', 9605: 'Homo', 9606: 'Homo sapiens',
+            33208: 'Metazoa', 7711: 'Chordata', 2759: 'Eukaryota', 99802: 'Spirometra erinaceieuropaei',
+            33154: 'Opisthokonta', 28843: 'Diphyllobothriidae', 6157: 'Platyhelminthes',
+            131567: 'cellular organisms', 6072: 'Eumetazoa', 46580: 'Spirometra', 6199: 'Cestoda',
+            6200: 'Eucestoda', 33213: 'Bilateria', 1224679: 'Diphyllobothriidea'}
 
 homo_sapiens_tree = {
     'Eukaryota': {
+        'reads': 197,
         'Metazoa': {
+            'reads': 197,
             'Chordata': {
                 'reads': 197,
                 'Mammalia': {
+                    'reads': 197,
                     'Primates': {
                         'reads': 197,
                         'Hominidae': {
                             'reads': 197,
                             'Homo': {
+                                'reads': 197,
                                 'Homo sapiens': {
                                     'reads': 197
-                                },
-                                'reads': 197
+                                }
                             }
                         }
-                    },
-                    'reads': 197
+                    }
                 }
-            },
-            'reads': 197
-        },
-        'reads': 197
+            }
+        }
     }
 }
 
@@ -100,20 +84,9 @@ class TestContaminationBlast(QCTester):
     @patch('analysis_driver.quality_control.ContaminationBlast.get_ranks')
     def test_get_all_taxa_identified1(self, mocked_rank):
         mocked_rank.return_value = {
-            9604: 'family',
-            9605: 'genus',
-            9606: 'species',
-            2759: 'superkingdom',
-            376913: 'suborder',
-            314146: 'superorder',
-            7711: 'phylum',
-            40674: 'class',
-            9443: 'order',
-            207598: 'subfamily',
-            314293: 'infraorder',
-            9526: 'parvorder',
-            314295: 'superfamily',
-            33208: 'kingdom',
+            9604: 'family', 9605: 'genus', 9606: 'species', 2759: 'superkingdom', 376913: 'suborder',
+            314146: 'superorder', 7711: 'phylum', 40674: 'class', 9443: 'order', 207598: 'subfamily',
+            314293: 'infraorder', 9526: 'parvorder', 314295: 'superfamily', 33208: 'kingdom',
             89593: 'subphylum'
         }
         observed = self.blast.get_all_taxa_identified(taxon_dict={}, taxon='9606', taxids={'9606': 197})
@@ -122,20 +95,9 @@ class TestContaminationBlast(QCTester):
     @patch('analysis_driver.quality_control.ContaminationBlast.get_ranks')
     def test_get_all_taxa_identified2(self, mocked_rank):
         mocked_rank.return_value = {
-            99802: 'species',
-            1: 'no rank',
-            33154: 'no rank',
-            2759: 'superkingdom',
-            28843: 'family',
-            6157: 'phylum',
-            131567: 'no rank',
-            6072: 'no rank',
-            46580: 'genus',
-            6199: 'class',
-            33208: 'kingdom',
-            6200: 'subclass',
-            33213: 'no rank',
-            1224679: 'order'
+            99802: 'species', 1: 'no rank', 33154: 'no rank', 2759: 'superkingdom', 28843: 'family',
+            6157: 'phylum', 131567: 'no rank', 6072: 'no rank', 46580: 'genus', 6199: 'class',
+            33208: 'kingdom', 6200: 'subclass', 33213: 'no rank', 1224679: 'order'
         }
 
         test_spirometra_and_human = self.blast.get_all_taxa_identified(

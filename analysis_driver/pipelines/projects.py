@@ -1,10 +1,10 @@
 import os
 from egcg_core.util import find_file
+from analysis_driver import segmentation
 from analysis_driver.config import default as cfg, OutputFileConfiguration
 from analysis_driver.quality_control import Relatedness
 from analysis_driver.exceptions import PipelineError
-from analysis_driver.transfer_data import output_project_data
-from analysis_driver import segmentation
+from analysis_driver.transfer_data import output_data_and_archive
 
 
 def build_pipeline(dataset):
@@ -49,4 +49,7 @@ class Output(segmentation.Stage):
             else:
                 raise PipelineError('Could not find the file ' + source + ', unable to create link')
 
-        return output_project_data(dir_with_output_files, self.dataset.name)
+        return output_data_and_archive(
+            dir_with_output_files,
+            os.path.join(cfg['project']['input_dir'], self.dataset.name)
+        )

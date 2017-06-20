@@ -51,28 +51,23 @@ class TestDemultiplexingStats(TestAnalysisDriver):
             ELEMENT_PCNT_UNMAPPED_FOCAL: 1.09,
             ELEMENT_TOTAL_READS_MAPPED: 100000,
             ELEMENT_CONTAMINANT_UNIQUE_MAP: {
-                'Gallus gallus': 1,
-                'Felis catus': 4,
-                'Bos taurus': 1,
-                'Ovis aries': 2,
-                'Mus musculus': 4,
-                'Homo sapiens': 74144
+                'Gallus gallus': 1, 'Felis catus': 4, 'Bos taurus': 1,
+                'Ovis aries': 2, 'Mus musculus': 4, 'Homo sapiens': 74144
             }
         }
 
     def test_parse_fastqscreen_file2(self):
         screen_file = os.path.join(self.assets_path, 'test_sample_R1_screen.txt')
         result = dm.parse_fastqscreen_file(screen_file, 'Mellivora capensis')
-        assert result == {'contaminant_unique_mapped':
-                              {'Bos taurus': 1,
-                               'Felis catus': 4,
-                               'Gallus gallus': 1,
-                               'Homo sapiens': 74144,
-                               'Ovis aries': 2,
-                               'Mus musculus': 4},
-                          'percent_unmapped': 1.06,
-                          'percent_unmapped_focal': 100.0,
-                          'total_reads_mapped': 100000}
+        assert result == {
+            'percent_unmapped': 1.06,
+            'percent_unmapped_focal': 100.0,
+            'total_reads_mapped': 100000,
+            'contaminant_unique_mapped': {
+                'Bos taurus': 1, 'Felis catus': 4, 'Gallus gallus': 1,
+                'Homo sapiens': 74144, 'Ovis aries': 2, 'Mus musculus': 4
+            }
+        }
 
     def test_calculate_mean(self):
         hist_file = os.path.join(self.assets_path, 'test_sample.depth')
@@ -170,4 +165,4 @@ class TestDemultiplexingStats(TestAnalysisDriver):
             'remove_tiles': '1102,2202',
             'trim_r1': '14', 'trim_r2': '16'
         }
-        assert dm.parse_fastqFilterer_stats(fastqfilterer_stats) == expected_dict
+        assert dm.parse_fastq_filterer_stats(fastqfilterer_stats) == expected_dict

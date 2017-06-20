@@ -173,12 +173,8 @@ This contains the various logic workflows that Analysis-Driver is capable of.
 
 ### transfer_data
 
-- prepare_sample_data - Finds all fastq files for all run elements in a dataset object.
-- create_links_from_bcbio - Uses etc/output_files.yaml to find output files to be picked up and symbolically
+- create_output_links - Uses etc/output_files.yaml to find output files to be picked up and symbolically
   links them to a 'to be outputted' directory in the jobs folder.
-- output_run_data - rsyncs the data across.
-- output_sample_data - rsyncs the data across, using the user's supplied sample ID (from the LIMS) as the
-  output dirname.
 
 
 ## Howto

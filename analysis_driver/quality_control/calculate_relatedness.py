@@ -1,8 +1,8 @@
-from egcg_core import executor, util
 from luigi import Parameter, ListParameter
+from egcg_core import executor, util
 from analysis_driver.config import default as cfg
-from analysis_driver.segmentation import Stage
 from analysis_driver.util.bash_commands import java_command
+from analysis_driver.segmentation import Stage
 
 
 class Relatedness(Stage):
@@ -18,9 +18,9 @@ class Relatedness(Stage):
         gvcf_variants = ' '. join(['--variant ' + util.find_file(i) for i in self.gvcf_files])
         number_threads = 12
         return java_command(memory=20, tmp_dir=self.job_dir, jar=cfg['tools']['gatk']) + \
-               ' -T GenotypeGVCFs -nt %s -R %s %s -o %s' % (
-            number_threads, self.reference, gvcf_variants, self.gatk_outfile
-        )
+            ' -T GenotypeGVCFs -nt %s -R %s %s -o %s' % (
+                number_threads, self.reference, gvcf_variants, self.gatk_outfile
+            )
 
     def vcftools_relatedness_cmd(self):
         return '%s --relatedness2 --vcf %s --out %s' % (

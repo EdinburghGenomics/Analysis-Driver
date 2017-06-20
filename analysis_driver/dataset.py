@@ -1,7 +1,7 @@
 import os
 import re
-from multiprocessing import Lock
 import signal
+from multiprocessing import Lock
 from datetime import datetime
 from errno import ESRCH
 from os.path import join
@@ -16,7 +16,10 @@ from egcg_core.exceptions import RestCommunicationError
 from analysis_driver import reader
 from analysis_driver.exceptions import AnalysisDriverError
 from analysis_driver.notification import NotificationCentre
-from analysis_driver.util import generate_samplesheet
+
+
+def now(datefmt='%d_%m_%Y_%H:%M:%S'):
+    return datetime.now().strftime(datefmt)
 
 
 class Dataset(AppLogger):
@@ -222,11 +225,26 @@ class RunDataset(Dataset):
     def sample_sheet_file(self):
         if self._sample_sheet_file is None:
             self._sample_sheet_file = join(self.input_dir, 'SampleSheet_analysis_driver.csv')
-            generate_samplesheet(
-                self,
-                self._sample_sheet_file,
-            )
+            self._generate_samplesheet(self._sample_sheet_file)
         return self._sample_sheet_file
+
+    def _generate_samplesheet(self, filename):
+        all_lines = [
+            '[Header]', 'Date, ' + now('%d/%m/%Y'), 'Workflow, Generate FASTQ Only', '',
+            '[Settings]', 'Adapter, AGATCGGAAGAGCACACGTCTGAACTCCAGTCA',
+            'AdapterRead2, AGATCGGAAGAGCGTCGTGTAGGGAAAGAGTGT', '', '[Data]',
+            'Lane,Sample_ID,Sample_Name,Sample_Project,index'
+        ]
+        for run_element in self.run_elements:
+            all_lines.append(','.join([
+                run_element[ELEMENT_LANE],
+                run_element[ELEMENT_SAMPLE_INTERNAL_ID],
+                run_element[ELEMENT_LIBRARY_INTERNAL_ID],
+                run_element[ELEMENT_PROJECT_ID],
+                run_element[ELEMENT_BARCODE]
+            ]))
+        with open(filename, 'w') as f:
+            f.write('\n'.join(all_lines) + '\n')
 
     @property
     def mask(self):
@@ -308,8 +326,8 @@ class RunDataset(Dataset):
                 )
             previous_r = r
 
-        self.debug('Barcode check done. Barcode len: %s', len(r[ELEMENT_BARCODE]))
-        return len(r[ELEMENT_BARCODE])
+        self.debug('Barcode check done. Barcode len: %s', len(previous_r[ELEMENT_BARCODE]))
+        return len(previous_r[ELEMENT_BARCODE])
 
     @property
     def lims_run(self):
@@ -518,7 +536,7 @@ class MostRecentProc:
         return self._entity
 
     def initialise_entity(self):
-        self.proc_id = '_'.join((self.dataset_type, self.dataset_name, self._now()))
+        self.proc_id = '_'.join((self.dataset_type, self.dataset_name, now()))
         entity = {
             'proc_id': self.proc_id,
             'dataset_type': self.dataset_type,
@@ -563,7 +581,7 @@ class MostRecentProc:
 
     def finish(self, status):
         with self.lock:
-            self.update_entity(status=status, pid=None, end_date=self._now())
+            self.update_entity(status=status, pid=None, end_date=now())
 
     def start_stage(self, stage_name):
         with self.lock:
@@ -574,13 +592,13 @@ class MostRecentProc:
             if doc:
                 rest_communication.patch_entry(
                     'analysis_driver_stages',
-                    {'date_started': self._now(), 'date_finished': None, 'exit_status': None},
+                    {'date_started': now(), 'date_finished': None, 'exit_status': None},
                     'stage_id', self._stage_id(stage_name)
                 )
             else:
                 rest_communication.post_entry(
                     'analysis_driver_stages',
-                    {'stage_id': self._stage_id(stage_name), 'date_started': self._now(),
+                    {'stage_id': self._stage_id(stage_name), 'date_started': now(),
                      'stage_name': stage_name, 'analysis_driver_proc': self.proc_id}
                 )
                 self.retrieve_entity()
@@ -591,7 +609,7 @@ class MostRecentProc:
     def end_stage(self, stage_name, exit_status=0):
         rest_communication.patch_entry(
             'analysis_driver_stages',
-            {'date_finished': self._now(), 'exit_status': exit_status}, 'stage_id', self._stage_id(stage_name)
+            {'date_finished': now(), 'exit_status': exit_status}, 'stage_id', self._stage_id(stage_name)
         )
 
     def get(self, key, ret_default=None):
@@ -599,7 +617,3 @@ class MostRecentProc:
 
     def _stage_id(self, stage_name):
         return self.proc_id + '_' + stage_name
-
-    @staticmethod
-    def _now():
-        return datetime.utcnow().strftime('%d_%m_%Y_%H:%M:%S')

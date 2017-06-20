@@ -1,8 +1,8 @@
 import os
 from egcg_core import executor
+from analysis_driver import segmentation
 from analysis_driver.pipelines import common
 from analysis_driver.config import default as cfg
-from analysis_driver import segmentation
 from analysis_driver.util.bash_commands import java_command
 
 
@@ -184,6 +184,6 @@ def build_pipeline(dataset):
     bgzip = stage(BGZip, previous_stages=[haplotype])
     tabix = stage(Tabix, previous_stages=[bgzip])
 
-    output = stage(common.DataOutput, previous_stages=[tabix], output_fileset='gatk_var_calling')
+    output = stage(common.SampleDataOutput, previous_stages=[tabix], output_fileset='gatk_var_calling')
     _cleanup = stage(common.Cleanup, previous_stages=[output])
     return _cleanup

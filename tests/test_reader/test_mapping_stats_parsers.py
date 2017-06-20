@@ -1,7 +1,7 @@
 from os.path import join
 from tests.test_analysisdriver import TestAnalysisDriver
 from analysis_driver.reader.mapping_stats_parsers import parse_genotype_concordance,\
-    aggregate_genotype_concordance, parse_vbi_selfSM, parse_samtools_stats, parse_vcf_stats
+    aggregate_genotype_concordance, parse_vbi_self_sm, parse_samtools_stats, parse_vcf_stats
 
 
 class TestMappingStats(TestAnalysisDriver):
@@ -47,7 +47,7 @@ class TestMappingStats(TestAnalysisDriver):
         }
 
     def test_parse_vbi_selfSM(self):
-        freemix = parse_vbi_selfSM(self.vbi_selfSM_file)
+        freemix = parse_vbi_self_sm(self.vbi_selfSM_file)
         assert freemix == 0.00605
 
     def test_samtools_stats_parser(self):

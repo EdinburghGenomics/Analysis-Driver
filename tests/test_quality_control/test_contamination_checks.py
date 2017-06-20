@@ -30,7 +30,7 @@ class TestContaminationCheck(QCTester):
         )
 
 
-class TestVerifyBamId(QCTester):
+class TestVerifyBamID(QCTester):
     def setUp(self):
         super().setUp()
         self.vbi = VerifyBamID(dataset=self.dataset, bam_file='test_bam_file.bam')

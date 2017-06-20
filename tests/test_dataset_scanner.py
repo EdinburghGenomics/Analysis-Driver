@@ -1,11 +1,10 @@
 import os
-from shutil import rmtree
 from unittest.mock import Mock, patch
 from egcg_core.constants import DATASET_READY, DATASET_NEW, DATASET_ABORTED
 from analysis_driver.dataset import RunDataset, SampleDataset
 from analysis_driver.dataset_scanner import DatasetScanner, RunScanner, SampleScanner
 from tests.test_analysisdriver import TestAnalysisDriver, NamedMock
-from tests.test_dataset import patched_expected_yield, fake_proc, seed_directories
+from tests.test_dataset import patched_expected_yield, fake_proc
 
 
 class FakeEntity(Mock):
@@ -33,16 +32,9 @@ def patched_get(content=None):
 class TestScanner(TestAnalysisDriver):
     def setUp(self):
         self.base_dir = os.path.join(self.assets_path, 'dataset_scanner')
-        seed_directories(self.base_dir)
+        os.makedirs(self.base_dir, exist_ok=True)
         self._setup_scanner()
         assert self.scanner.input_dir == self.base_dir
-
-        self.triggerignore = os.path.join(self.scanner.input_dir, '.triggerignore')
-        with open(self.triggerignore, 'w') as f:
-            f.write('ignored_dataset\n')
-
-    def tearDown(self):
-        rmtree(self.base_dir)
 
     def test_report(self):
         def fake_dataset(name):
@@ -74,9 +66,12 @@ class TestScanner(TestAnalysisDriver):
         assert observed == expected
 
     def test_triggerignore(self):
-        with open(self.triggerignore, 'r') as f:
-            assert f.readlines() == ['ignored_dataset\n']
-            assert os.path.isdir(os.path.join(self.base_dir, 'ignored_dataset'))
+        triggerignore = os.path.join(self.scanner.input_dir, '.triggerignore')
+        with open(triggerignore, 'w') as f:
+            f.write('# a comment\nignored_dataset\n')
+
+        with open(triggerignore, 'r') as f:
+            assert f.readlines() == ['# a comment\n', 'ignored_dataset\n']
             assert self.scanner._triggerignore == ['ignored_dataset']
 
     def _setup_scanner(self):
@@ -94,7 +89,7 @@ class TestRunScanner(TestScanner):
 
     def test_get_dataset_records_for_statuses(self):
         for d in self.scanner.expected_bcl_subdirs:
-            os.makedirs(os.path.join(self.base_dir, 'test_dataset', d))
+            os.makedirs(os.path.join(self.base_dir, 'test_dataset', d), exist_ok=True)
         with patched_get([{'run_id': 'test_dataset'}]):
             obs = self.scanner._get_dataset_records_for_statuses([DATASET_NEW])
         assert obs[0]['run_id'] == 'test_dataset'
@@ -111,7 +106,7 @@ class TestRunScanner(TestScanner):
 
     def test_datasets_on_disk(self):
         for d in self.scanner.expected_bcl_subdirs:
-            os.makedirs(os.path.join(self.base_dir, 'test_dataset', d))
+            os.makedirs(os.path.join(self.base_dir, 'test_dataset', d), exist_ok=True)
         obs = self.scanner._datasets_on_disk()
         exp = ['test_dataset']
         assert obs == exp
