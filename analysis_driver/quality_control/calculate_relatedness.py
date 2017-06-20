@@ -30,7 +30,7 @@ class ParseRelatedness(RelatednessStage):
 
             with open(os.path.join(self.job_dir, self.dataset.name + '.relatedness2')) as openfile:
                 readfile = openfile.read()
-                readfile_csv = re.sub(' +', ',', readfile)
+                readfile_csv = re.sub('\t', ',', readfile)
                 with open(os.path.join(self.job_dir, self.dataset.name + '.relatedness2_reformat'), 'w') as outfile:
                     outfile.write(readfile_csv)
 
