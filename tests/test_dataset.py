@@ -12,38 +12,37 @@ from analysis_driver.exceptions import AnalysisDriverError, SequencingRunError
 from analysis_driver.dataset import Dataset, RunDataset, SampleDataset, MostRecentProc
 
 
-def ppath(target):
-    return 'analysis_driver.dataset.' + target
+ppath = 'analysis_driver.dataset.'
 
 
 fake_proc = {'proc_id': 'a_proc_id', 'dataset_type': 'test', 'dataset_name': 'test'}
 
-patched_patch = patch(ppath('rest_communication.patch_entry'))
-patched_post = patch(ppath('rest_communication.post_entry'))
-patched_pid = patch(ppath('os.getpid'), return_value=1)
-patched_update = patch(ppath('MostRecentProc.update_entity'))
-patched_initialise = patch(ppath('MostRecentProc.initialise_entity'))
-patched_finish = patch(ppath('MostRecentProc.finish'))
+patched_patch = patch(ppath + 'rest_communication.patch_entry')
+patched_post = patch(ppath + 'rest_communication.post_entry')
+patched_pid = patch(ppath + 'os.getpid', return_value=1)
+patched_update = patch(ppath + 'MostRecentProc.update_entity')
+patched_initialise = patch(ppath + 'MostRecentProc.initialise_entity')
+patched_finish = patch(ppath + 'MostRecentProc.finish')
 patched_stages = patch(
-    ppath('Dataset.running_stages'),
+    ppath + 'Dataset.running_stages',
     new_callable=PropertyMock(return_value=['this', 'that', 'other'])
 )
 patched_get_run = patch(
-    'analysis_driver.dataset.clarity.get_run',
+    ppath + 'clarity.get_run',
     return_value=Mock(udf={'Run Status': 'RunStarted'})
 )
 
 
 def patched_get_docs(content=None):
-    return patch(ppath('rest_communication.get_documents'), return_value=content or [fake_proc])
+    return patch(ppath + 'rest_communication.get_documents', return_value=content or [fake_proc])
 
 
 def patched_datetime(time='now'):
-    return patch(ppath('now'), return_value=time)
+    return patch(ppath + 'now', return_value=time)
 
 
 def patched_expected_yield(y=1000000000):
-    return patch(ppath('clarity.get_expected_yield_for_sample'), return_value=y)
+    return patch(ppath + 'clarity.get_expected_yield_for_sample', return_value=y)
 
 
 class TestDataset(TestAnalysisDriver):
@@ -69,8 +68,8 @@ class TestDataset(TestAnalysisDriver):
         )
 
     @patched_initialise
-    @patch(ppath('MostRecentProc.start'))
-    @patch(ppath('MostRecentProc.retrieve_entity'))
+    @patch(ppath + 'MostRecentProc.start')
+    @patch(ppath + 'MostRecentProc.retrieve_entity')
     def test_start(self, mocked_retrieve_entity, mocked_start, mocked_update):
         self.dataset.most_recent_proc.entity['status'] = c.DATASET_PROCESSING
         with patched_get_run:
@@ -82,7 +81,7 @@ class TestDataset(TestAnalysisDriver):
             assert m.call_count == 1
 
     @patched_finish
-    @patch(ppath('MostRecentProc.retrieve_entity'))
+    @patch(ppath + 'MostRecentProc.retrieve_entity')
     def test_succeed(self, mocked_retrieve_entity, mocked_finish):
         with patched_get_run:
             with pytest.raises(AssertionError):
@@ -93,7 +92,7 @@ class TestDataset(TestAnalysisDriver):
         mocked_finish.assert_called_with(c.DATASET_PROCESSED_SUCCESS)
 
     @patched_finish
-    @patch(ppath('MostRecentProc.retrieve_entity'))
+    @patch(ppath + 'MostRecentProc.retrieve_entity')
     def test_fail(self, mocked_retrieve_entity, mocked_finish):
         with patched_get_run:
             with pytest.raises(AssertionError):
@@ -105,29 +104,29 @@ class TestDataset(TestAnalysisDriver):
         mocked_finish.assert_called_with(c.DATASET_PROCESSED_FAIL)
 
     @patched_finish
-    @patch(ppath('MostRecentProc.retrieve_entity'))
+    @patch(ppath + 'MostRecentProc.retrieve_entity')
     def test_abort(self, mocked_retrieve_entity, mocked_finish):
         self.dataset.abort()
         mocked_finish.assert_called_with(c.DATASET_ABORTED)
 
-    @patch(ppath('MostRecentProc.change_status'))
-    @patch(ppath('MostRecentProc.retrieve_entity'))
+    @patch(ppath + 'MostRecentProc.change_status')
+    @patch(ppath + 'MostRecentProc.retrieve_entity')
     def test_reset(self, mocked_retrieve_entity, mocked_change_status):
-        with patch(ppath('Dataset.terminate')):
+        with patch(ppath + 'Dataset.terminate'):
             self.dataset.reset()
         mocked_change_status.assert_called_with(c.DATASET_REPROCESS)
 
-    @patch(ppath('sleep'))
-    @patch(ppath('os.kill'))
-    @patch(ppath('Dataset._pid_running'), side_effect=[True, False])
+    @patch(ppath + 'sleep')
+    @patch(ppath + 'os.kill')
+    @patch(ppath + 'Dataset._pid_running', side_effect=[True, False])
     def test_terminate(self, mocked_running, mocked_kill, mocked_sleep):
         self.dataset.most_recent_proc._entity['pid'] = 1337
-        with patch(ppath('Dataset._pid_valid'), return_value=False) as mocked_valid:
+        with patch(ppath + 'Dataset._pid_valid', return_value=False) as mocked_valid:
             self.dataset._terminate(signal.SIGUSR2)
             mocked_valid.assert_called_with(1337)
             assert all(m.call_count == 0 for m in (mocked_kill, mocked_running, mocked_sleep))
 
-        with patch(ppath('Dataset._pid_valid'), return_value=True) as mocked_valid:
+        with patch(ppath + 'Dataset._pid_valid', return_value=True) as mocked_valid:
             self.dataset.terminate()
             mocked_valid.assert_called_with(1337)
             mocked_kill.assert_called_with(1337, signal.SIGUSR2)
@@ -139,7 +138,7 @@ class TestDataset(TestAnalysisDriver):
         if os.path.isfile(cmdlinefile):
             os.remove(cmdlinefile)
 
-        with patch(ppath('os.path.join'), return_value=cmdlinefile):
+        with patch(ppath + 'os.path.join', return_value=cmdlinefile):
             assert self.dataset._pid_valid(1337) is False
 
             with open(cmdlinefile, 'w') as f:
@@ -147,13 +146,13 @@ class TestDataset(TestAnalysisDriver):
 
             assert self.dataset._pid_valid(1337) is True
 
-    @patch(ppath('MostRecentProc.start_stage'))
+    @patch(ppath + 'MostRecentProc.start_stage')
     def test_start_stage(self, mocked_start_stage):
         self.dataset.start_stage('a_stage')
         mocked_start_stage.assert_called_with('a_stage')
         self.dataset.ntf.start_stage.assert_called_with('a_stage')
 
-    @patch(ppath('MostRecentProc.end_stage'))
+    @patch(ppath + 'MostRecentProc.end_stage')
     def test_end_stage(self, mocked_end_stage):
         self.dataset.end_stage('a_stage')
         mocked_end_stage.assert_called_with('a_stage', 0)
@@ -300,7 +299,7 @@ class TestSampleDataset(TestDataset):
             del self.dataset.most_recent_proc.entity['status']
             assert self.dataset.dataset_status == c.DATASET_NEW
 
-    @patch(ppath('MostRecentProc.change_status'))
+    @patch(ppath + 'MostRecentProc.change_status')
     def test_force(self, mocked_change_status):
         self.dataset.force()
         mocked_change_status.assert_called_with(c.DATASET_FORCE_READY)
@@ -439,7 +438,7 @@ class TestMostRecentProc(TestAnalysisDriver):
             'this': 'that'
         }
 
-    @patch(ppath('MostRecentProc.sync'))
+    @patch(ppath + 'MostRecentProc.sync')
     def test_update_entity(self, mocked_sync):
         self.proc.update_entity(other='another')
         assert self.proc.entity == {'proc_id': 'a_proc_id', 'dataset_type': 'test',
@@ -461,7 +460,7 @@ class TestMostRecentProc(TestAnalysisDriver):
     @patched_update
     @patched_post
     @patched_patch
-    @patch(ppath('MostRecentProc.retrieve_entity'))
+    @patch(ppath + 'MostRecentProc.retrieve_entity')
     @patch('analysis_driver.dataset.rest_communication.get_document')
     def test_start_stage(self, mocked_get_doc, mocked_retrieve, mocked_patch, mocked_post, mocked_update):
         with patched_datetime('then'):

@@ -2,7 +2,7 @@ import os
 import logging
 import argparse
 from sys import path
-from egcg_core import executor, clarity, util
+from egcg_core import executor, util
 from egcg_core.clarity import get_user_sample_name
 from egcg_core.app_logging import logging_default as log_cfg
 
@@ -119,11 +119,10 @@ def run_genotype_validation(dataset, args):
 
 def run_species_contamination_check(dataset, args):
     os.makedirs(os.path.join(cfg['jobs_dir'], dataset.name), exist_ok=True)
-    species_contamination_check = qc.ContaminationCheck(dataset=dataset, fastq_files=sorted(args.fastq_files))
-    species_contamination_check.run()
+    f = qc.FastqScreen(dataset=dataset, fastq_files=sorted(args.fastq_files))
+    f.run()
 
-    species_name = clarity.get_species_from_sample(dataset.name)
-    fastqscreen_result = parse_fastqscreen_file(species_contamination_check.fastqscreen_expected_outfiles, species_name)
+    fastqscreen_result = parse_fastqscreen_file(f.fastqscreen_expected_outfiles, dataset.species)
     print(fastqscreen_result)
 
 
@@ -147,7 +146,7 @@ def median_coverage(dataset, args):
 
 def contamination_blast(dataset, args):
     os.makedirs(os.path.join(cfg['jobs_dir'], dataset.name), exist_ok=True)
-    b = qc.ContaminationBlast(dataset=dataset, fastq_file=args.fastq_file)
+    b = qc.Blast(dataset=dataset, fastq_file=args.fastq_file)
     b.run()
 
 

@@ -18,6 +18,7 @@ class TestSamtoolsDepth(QCTester):
         g = SamtoolsDepth(dataset=self.dataset, bam_file='testfile.bam')
         with patch('analysis_driver.quality_control.median_coverage.find_file', new=self.fake_find_file):
             g._run()
+
         mocked_execute.assert_called_once_with(
             self.exp_cmd, job_name='samtoolsdepth', working_dir='path/to/jobs/test_sample', cpus=1, mem=6
         )

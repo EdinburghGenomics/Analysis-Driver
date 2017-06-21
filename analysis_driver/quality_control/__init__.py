@@ -1,8 +1,7 @@
 from .genotype_validation import GenotypeValidation
-from .contamination_checks import ContaminationCheck, VerifyBamID, VCFStats
+from .contamination_checks import FastqScreen, VerifyBamID, VCFStats, Blast
 from .gender_validation import GenderValidation
 from .median_coverage import SamtoolsDepth
-from .contamination_blast import ContaminationBlast
-from .calculate_relatedness import Relatedness
+from .relatedness import Relatedness
 from .bcl_validation import BCLValidator
-from .detect_bad_cycles_tiles import BadTileCycleDetector
+from .interop_metrics import BadTileCycleDetector

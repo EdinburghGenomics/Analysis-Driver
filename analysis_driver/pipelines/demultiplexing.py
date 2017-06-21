@@ -9,7 +9,7 @@ from analysis_driver.quality_control import BadTileCycleDetector
 from analysis_driver.util import bash_commands, find_all_fastq_pairs_for_lane, get_trim_values_for_bad_cycles
 from analysis_driver.pipelines.common import Cleanup
 from analysis_driver.exceptions import SequencingRunError, AnalysisDriverError
-from analysis_driver.quality_control import lane_duplicates, BCLValidator
+from analysis_driver.quality_control import well_duplicates, BCLValidator
 from analysis_driver.reader.version_reader import write_versions_to_yaml
 from analysis_driver.report_generation import RunCrawler
 from analysis_driver.transfer_data import output_data_and_archive
@@ -216,7 +216,7 @@ def build_pipeline(dataset):
     setup = stage(Setup)
     bcl2fastq = stage(Bcl2Fastq, previous_stages=[setup])
     fastq_filter = stage(FastqFilter, previous_stages=[bcl2fastq])
-    welldups = stage(lane_duplicates.WellDuplicates, run_directory=bcl2fastq.input_dir, output_directory=bcl2fastq.fastq_dir, previous_stages=[setup])
+    welldups = stage(well_duplicates.WellDuplicates, run_directory=bcl2fastq.input_dir, output_directory=bcl2fastq.fastq_dir, previous_stages=[setup])
     integrity_check = stage(IntegrityCheck, previous_stages=[fastq_filter])
     fastqc = stage(FastQC, previous_stages=[fastq_filter])
     seqtk = stage(SeqtkFQChk, previous_stages=[fastq_filter])

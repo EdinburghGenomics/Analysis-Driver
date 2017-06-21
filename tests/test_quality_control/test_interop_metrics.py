@@ -1,7 +1,7 @@
 import os
 from unittest.mock import Mock
 
-from analysis_driver.quality_control.detect_bad_cycles_tiles import BadTileCycleDetector
+from analysis_driver.quality_control.interop_metrics import BadTileCycleDetector
 from tests.test_analysisdriver import TestAnalysisDriver
 
 

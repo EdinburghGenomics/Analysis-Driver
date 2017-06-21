@@ -61,11 +61,11 @@ class GATKStage(segmentation.Stage):
 
     @property
     def dbsnp(self):
-        return common.get_dbsnp(self.dataset.genome_version)
+        return cfg.query('genomes', self.dataset.genome_version, 'dbsnp')
 
     @property
     def known_indels(self):
-        return common.get_known_indels(self.dataset.genome_version)
+        return cfg.query('genomes', self.dataset.genome_version, 'known_indels')
 
 
 class BaseRecal(GATKStage):

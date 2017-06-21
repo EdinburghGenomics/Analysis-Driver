@@ -1,30 +1,33 @@
 from os.path import join
-from tests.test_analysisdriver import helper
+from tests.test_analysisdriver import TestAnalysisDriver
 from analysis_driver.util import bash_commands
 from analysis_driver.reader import RunInfo
 from analysis_driver.config import default as cfg
 
+assets = TestAnalysisDriver.assets_path
+fastq_path = TestAnalysisDriver.fastq_path
+
 
 def test_bcl2fastq():
-    run_info = RunInfo(helper.assets_path)
+    run_info = RunInfo(TestAnalysisDriver.assets_path)
     mask = run_info.reads.generate_mask(barcode_len=8)
-    sample_sheet_csv = join(helper.assets_path, 'SampleSheet_analysis_driver.csv')
-    obs = bash_commands.bcl2fastq(helper.assets_path, helper.fastq_path, sample_sheet_csv, mask)
+    sample_sheet_csv = join(assets, 'SampleSheet_analysis_driver.csv')
+    obs = bash_commands.bcl2fastq(assets, fastq_path, sample_sheet_csv, mask)
     exp = '%s -l INFO --runfolder-dir %s --output-dir %s -r 8 -d 8 -p 8 -w 8 --sample-sheet %s --use-bases-mask %s' % (
-        cfg['tools']['bcl2fastq'], helper.assets_path, helper.fastq_path, sample_sheet_csv, mask
+        cfg['tools']['bcl2fastq'], assets, fastq_path, sample_sheet_csv, mask
     )
     assert obs == exp
 
 
 def test_fastqc():
-    test_fastq = join(helper.fastq_path, '10015AT', '10015ATA0001L05', 'this.fastq.gz')
+    test_fastq = join(fastq_path, '10015AT', '10015ATA0001L05', 'this.fastq.gz')
     expected = '--nogroup -t 1 -q ' + test_fastq
     assert bash_commands.fastqc(test_fastq).endswith(expected)
 
 
 def test_bcbio():
-    cmd = bash_commands.bcbio('run.yaml', helper.assets_path)
-    assert cmd == 'path/to/bcbio/bin/bcbio_nextgen.py run.yaml -n 10 --workdir ' + helper.assets_path
+    cmd = bash_commands.bcbio('run.yaml', assets)
+    assert cmd == 'path/to/bcbio/bin/bcbio_nextgen.py run.yaml -n 10 --workdir ' + assets
 
 
 def test_prepare_samples():

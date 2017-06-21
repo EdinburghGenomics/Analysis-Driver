@@ -75,8 +75,8 @@ def build_bam_file_production(dataset):
     merge_fastqs = stage(MergeFastqs)
     fastqc = stage(FastQC, previous_stages=[merge_fastqs])
     bwa = stage(BWAMem, previous_stages=[merge_fastqs])
-    contam = stage(qc.ContaminationCheck, previous_stages=[bwa], fq_pattern=bwa.fq_pattern)
-    blast = stage(qc.ContaminationBlast, previous_stages=[bwa], fastq_file=bwa.fq_pattern.replace('?', '1'))
+    contam = stage(qc.FastqScreen, previous_stages=[bwa], fq_pattern=bwa.fq_pattern)
+    blast = stage(qc.Blast, previous_stages=[bwa], fastq_file=bwa.fq_pattern.replace('?', '1'))
     samtools_stat = stage(SamtoolsStats, previous_stages=[fastqc, bwa, contam, blast])
     samtools_depth = stage(qc.SamtoolsDepth, bam_file=bwa.exp_bam_path, previous_stages=[bwa])
 
@@ -180,24 +180,6 @@ class MergeFastqs(VarCallingStage):
             sample_fastqs
         )
         return 0
-
-
-def get_genome_version(dataset_name, species):
-    genome_version = clarity.get_sample(dataset_name).udf.get('Genome Version')
-    if genome_version is None:
-        genome_version = cfg.query('species', species, 'default')
-    reference = cfg.query('genomes', genome_version, 'fasta')
-    if not reference:
-        raise PipelineError('Could not find reference for species %s in sample %s ' % (species, dataset_name))
-    return genome_version, reference
-
-
-def get_dbsnp(genome_version):
-    return cfg.query('genomes', genome_version, 'dbsnp')
-
-
-def get_known_indels(genome_version):
-    return cfg.query('genomes', genome_version, 'known_indels')
 
 
 class Cleanup(segmentation.Stage):

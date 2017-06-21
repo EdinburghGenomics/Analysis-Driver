@@ -1,8 +1,8 @@
 from unittest.mock import patch
 from tests.test_quality_control.qc_tester import QCTester
-from analysis_driver.quality_control.calculate_relatedness import Relatedness
+from analysis_driver.quality_control.relatedness import Relatedness
 
-ppath = 'analysis_driver.quality_control.calculate_relatedness.'
+ppath = 'analysis_driver.quality_control.relatedness.'
 
 
 class TestRelatedness(QCTester):

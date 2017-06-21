@@ -7,12 +7,6 @@ from tests.test_analysisdriver import TestAnalysisDriver, NamedMock
 from tests.test_dataset import patched_expected_yield, fake_proc
 
 
-class FakeEntity(Mock):
-    def __init__(self, name, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.name = name
-
-
 class FakeRunDataset(RunDataset):
     @property
     def running_stages(self):
@@ -156,7 +150,7 @@ class TestSampleScanner(TestScanner):
     def test_get_datasets_for_statuses(self, mocked_get):
         patched_list_samples = patch(
             ppath('get_list_of_samples'),
-            return_value=[FakeEntity('a_sample_id', udf={'Yield for Quoted Coverage (Gb)': 1})]
+            return_value=[NamedMock(real_name='a_sample_id', udf={'Yield for Quoted Coverage (Gb)': 1})]
         )
         with patched_list_samples:
             d = self.scanner._get_datasets_for_statuses([DATASET_NEW])[0]

@@ -7,10 +7,6 @@ from analysis_driver.pipelines import common
 from analysis_driver.config import cfg
 
 
-def patched_find_project_from_sample(sample_id):
-    return patch('egcg_core.clarity.find_project_name_from_sample', return_value='proj_' + sample_id)
-
-
 class TestCommon(TestAnalysisDriver):
     def setUp(self):
         self.sample_id = 'test_dataset'
@@ -45,8 +41,9 @@ class TestSampleDataOutput(TestCommon):
         patched_crawler = patch('analysis_driver.pipelines.common.SampleCrawler')
         patched_execute = patch('egcg_core.executor.execute', return_value=Mock(join=Mock(return_value=0)))
         patched_cfg = patch('analysis_driver.pipelines.common.cfg', new={'output_dir': self.to_dir})
+        patched_find_project = patch('egcg_core.clarity.find_project_name_from_sample', return_value='proj_' + self.sample_id)
 
-        with patched_find_project_from_sample(self.sample_id), patched_archive, patched_crawler, patched_execute, patched_cfg:
+        with patched_find_project, patched_archive, patched_crawler, patched_execute, patched_cfg:
             stage = common.SampleDataOutput(dataset=self.dataset, output_fileset='non_human_qc')
             exit_status = stage.output_data(self.pseudo_links)
 

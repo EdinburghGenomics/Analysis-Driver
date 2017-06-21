@@ -106,8 +106,8 @@ def build_pipeline(dataset):
     fastqc = stage(common.FastQC, previous_stages=[merge_fastqs])
     bcbio = stage(BCBio, previous_stages=[fastqc])
 
-    contam_check = stage(qc.ContaminationCheck, fq_pattern=bcbio.fastq_pair, previous_stages=[fastqc])
-    blast = stage(qc.ContaminationBlast, fastq_file=bcbio.fastq_pair.replace('?', '1'), previous_stages=[fastqc])
+    contam_check = stage(qc.FastqScreen, fq_pattern=bcbio.fastq_pair, previous_stages=[fastqc])
+    blast = stage(qc.Blast, fastq_file=bcbio.fastq_pair.replace('?', '1'), previous_stages=[fastqc])
     geno_val = stage(qc.GenotypeValidation, fq_pattern=bcbio.fastq_pair, previous_stages=[fastqc])
     bcbio_and_qc = [bcbio, fastqc, contam_check, blast, geno_val]
 
