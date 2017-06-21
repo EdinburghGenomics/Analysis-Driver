@@ -1,6 +1,6 @@
-from unittest.mock import patch, Mock
+from unittest.mock import patch
 from tests.test_quality_control.qc_tester import QCTester
-from analysis_driver.quality_control.relatedness import Relatedness
+from analysis_driver.quality_control.relatedness import Relatedness, Genotype_gVCFs, Peddy
 
 ppath = 'analysis_driver.quality_control.relatedness.'
 
