@@ -73,11 +73,12 @@ class ParseRelatedness(RelatednessStage):
 
     def _run(self):
         exit_status = 0
-        parsers = {'parse_both': self.parse_all(),
-                   'parse_relatedness': self.parse_single(['INDV1', 'INDV2', 'RELATEDNESS_PHI'], self.reformat_relatedness_file),
-                   'parse_peddy': self.parse_single(['sample_a', 'sample_b', 'rel'], self.peddy_file)}
-
-        exit_status+=parsers[self.parse_method]
+        if self.parse_method == 'parse_both':
+            exit_status+=self.parse_all()
+        elif self.parse_method == 'parse_relatedness':
+            exit_status+=self.parse_single(['INDV1', 'INDV2', 'RELATEDNESS_PHI'], self.reformat_relatedness_file)
+        elif self.parse_method == 'parse_peddy':
+            exit_status+=self.parse_single(['sample_a', 'sample_b', 'rel'], self.peddy_file)
         return exit_status
 
 
