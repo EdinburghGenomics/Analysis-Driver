@@ -1,10 +1,8 @@
 import shutil
 from os import mkdir
 from os.path import join, exists, isdir
-from time import sleep
-
-from egcg_core import executor, util
 from egcg_core.config import cfg
+from egcg_core import executor, util
 
 from analysis_driver import segmentation
 from analysis_driver.quality_control import BadTileCycleDetector
@@ -74,7 +72,7 @@ class Bcl2Fastq(DemultiplexingStage):
         if not exists(join(self.fastq_dir, 'InterOp')):
             shutil.copytree(join(self.input_dir, 'InterOp'), join(self.fastq_dir, 'InterOp'))
 
-        return  bcl2fastq_exit_status
+        return bcl2fastq_exit_status
 
 
 class FastqFilter(DemultiplexingStage):
@@ -93,13 +91,11 @@ class FastqFilter(DemultiplexingStage):
             crawler.send_data()
 
         # Assess if the lanes need filtering
-        lane_need_filtering = {1: False, 2: False, 3: False, 4:False,
-                               5: False, 6: False, 7: False, 8: False}
-        lanes_metrics = self.dataset.lane_metrics
-        for lane_metrics in lanes_metrics:
-            q30_threshold = float(cfg.query('fastq_filterer', 'q30_threshold', ret_default=74))
-            self.debug('Lane filter if Q30 is bellow %s', q30_threshold)
-            if float(lane_metrics['pc_q30']) < q30_threshold and float(lane_metrics['pc_q30']) > 0:
+        lane_need_filtering = {1: False, 2: False, 3: False, 4: False, 5: False, 6: False, 7: False, 8: False}
+        q30_threshold = float(cfg.query('fastq_filterer', 'q30_threshold', ret_default=74))
+        self.debug('Q30 threshold: %s', q30_threshold)
+        for lane_metrics in self.dataset.lane_metrics:
+            if q30_threshold > float(lane_metrics['pc_q30']) > 0:
                 self.warning(
                     'Will apply cycle and tile filtering to lane %s: %%Q30=%s < %s',
                     lane_metrics['lane_number'],
@@ -110,9 +106,10 @@ class FastqFilter(DemultiplexingStage):
 
         try:
             detector = BadTileCycleDetector(self.dataset)
-            bad_tiles = detector.detect_bad_tile()
-            bad_cycles = detector.detect_bad_cycle()
-        except Exception:
+            bad_tiles = detector.detect_bad_tiles()
+            bad_cycles = detector.detect_bad_cycles()
+        except Exception as e:
+            self.error(e)
             bad_tiles = {}
             bad_cycles = {}
 
@@ -130,33 +127,14 @@ class FastqFilter(DemultiplexingStage):
             else:
                 cmd_list.extend([bash_commands.fastq_filterer_and_pigz_in_place(fqs) for fqs in fq_pairs])
 
-        return_value = executor.execute(
+        return executor.execute(
             *cmd_list,
+            prelim_cmds=[bash_commands.fq_filt_prelim_cmd()],
             job_name='fastq_filterer',
             working_dir=self.job_dir,
             cpus=18,
             mem=10
         ).join()
-
-        # FIXME: Remove this piece of code when fastq filterer consistently create the stats file
-        sleep(10)
-        for lane in lane_need_filtering:
-            for fastq_file_pair in find_all_fastq_pairs_for_lane(self.fastq_dir, lane):
-                f1, f2 = sorted(fastq_file_pair)
-                stats_file = f1.replace('_R1_001.fastq.gz', '') + '_fastqfilterer.stats'
-                if not exists(stats_file):
-                    self.warning('Missing %s, will create with information I have', stats_file)
-                    if lane_need_filtering[lane]:
-                        trim_r1, trim_r2 = convert_bad_cycle_in_trim(bad_cycles.get(int(lane)), self.dataset.run_info)
-                        bt = bad_tiles.get(int(lane))
-                        with open(stats_file, 'w') as open_file:
-                            if trim_r2:
-                                open_file.write('trim_r2 %s\n' % trim_r2)
-                            if bt:
-                                open_file.write('remove_tiles %s\n' % ','.join([str(t) for t in bt]))
-                    else:
-                        open(stats_file, 'w').close()
-        return return_value
 
 
 class IntegrityCheck(DemultiplexingStage):

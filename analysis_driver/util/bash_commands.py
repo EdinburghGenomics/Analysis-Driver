@@ -44,50 +44,74 @@ def seqtk_fqchk(fastq_file):
     return cmd
 
 
-def fastq_filterer_and_pigz_in_place(fastq_file_pair, pigz_threads=10, tiles_to_filter=None, trim_r1=None, trim_r2=None):
+def fq_filt_prelim_cmd():
+    cmd = (
+        'function run_filterer {{',  # double up { and } to escape them for str.format()
+        'i1=$1', 'i2=$2', 'o1=$3', 'o2=$4', 'fifo_1=$5', 'fifo_2=$6',
+
+        'mkfifo $fifo_1', 'mkfifo $fifo_2',
+        '{ff} --i1 $i1 --i2 $i2 --o1 $fifo_1 --o2 $fifo_2 --threshold {threshold} $* &',
+        'fq_filt_pid=$!',
+        '{pigz} -c -p {pzt} $fifo_1 > $o1 &',
+        'pigz_r1_pid=$!',
+        '{pigz} -c -p {pzt} $fifo_2 > $o2 &',
+        'pigz_r2_pid=$!',
+
+        'exit_status=0',
+        'wait $fq_filt_pid',
+        'exit_status=$[$exit_status + $?]',
+        'wait $pigz_r1_pid',
+        'exit_status=$[$exit_status + $?]',
+        'wait $pigz_r2_pid',
+        'exit_status=$[$exit_status + $?]',
+        'rm $fifo_1 $fifo_2',
+        'if [ $exit_status == 0 ]; then mv $o1 $i1; mv $o2 $i2; fi',
+        '(exit $exit_status)',
+        '}}'
+    )
+    return '\n'.join(cmd).format(
+        ff=cfg['tools']['fastq-filterer'],
+        threshold=cfg.query('fastq_filterer', 'min_length', ret_default='36'),
+        pigz=cfg.query('tools', 'pigz', ret_default='pigz'),
+        pzt=10  # two pigz processes run, so pigz threads here will be doubled
+    )
+
+
+def fastq_filterer_and_pigz_in_place(fastq_file_pair, tiles_to_filter=None, trim_r1=None, trim_r2=None):
     """
     :param tuple[str,str] fastq_file_pair: Paired-end fastqs to filter
-    :param int pigz_threads: nthreads to assign pigz (note that two pigzs run, so this is will be doubled)
+    :param list tiles_to_filter: Tile IDs for reads to remove regardless of length
+    :param trim_r1: Maximum length to trim R1 to
+    :param trim_r2: As trim_r1, but for R2
     Run fastq filterer on a pair of fastqs, removing pairs where one is shorter than 36 bases
     """
     if len(fastq_file_pair) != 2:
         raise AnalysisDriverError('fastq-filterer only supports paired fastq files')
 
-    f1, f2 = sorted(fastq_file_pair)
-    f1_base = f1.replace('.fastq.gz', '')
-    int1 = f1_base + '_filtered.fastq'
-    of1 = f1_base + '_filtered.fastq.gz'
-    f2_base = f2.replace('.fastq.gz', '')
-    int2 = f2_base + '_filtered.fastq'
-    of2 = f2_base + '_filtered.fastq.gz'
-    stats_file = f1_base.replace('_R1_001', '') + '_fastqfilterer.stats'
-    cmds = ['mkfifo ' + int1, 'mkfifo ' + int2]
-    fastq_filterer_cmd = '{ff} --stats_file {stats} --i1 {f1} --i2 {f2} --o1 {int1} --o2 {int2} --threshold {lent}'
+    i1, i2 = sorted(fastq_file_pair)
+
+    base_1 = i1.replace('.fastq.gz', '')
+    fifo_1 = base_1 + '_filtered.fastq'
+    o1 = fifo_1 + '.gz'
+
+    base_2 = i2.replace('.fastq.gz', '')
+    fifo_2 = base_2 + '_filtered.fastq'
+    o2 = fifo_2 + '.gz'
+
+    stats_file = base_1.replace('_R1_001', '') + '_fastqfilterer.stats'
+
+    fastq_filterer_cmd = 'run_filterer {0} {1} {2} {3} {4} {5} --stats_file {6}'.format(
+        i1, i2, o1, o2, fifo_1, fifo_2, stats_file
+    )
+
     if tiles_to_filter:
         fastq_filterer_cmd += ' --remove_tiles %s' % (','.join([str(t) for t in tiles_to_filter]))
     if trim_r1:
-        fastq_filterer_cmd += ' --trim_r1 %s' % (trim_r1)
+        fastq_filterer_cmd += ' --trim_r1 %s' % trim_r1
     if trim_r2:
-        fastq_filterer_cmd += ' --trim_r2 %s' % (trim_r2)
-    c = (
-        'set -e; ' + fastq_filterer_cmd +' & '
-        '{pz} -c -p {pzt} {int1} > {of1} & '
-        '{pz} -c -p {pzt} {int2} > {of2}'
-    )
-    cmds.append(
-        c.format(ff=cfg.query('tools', 'fastq-filterer'), pz=cfg.query('tools', 'pigz', ret_default='pigz'),
-                 pzt=pigz_threads, f1=f1, f2=f2, of1=of1, of2=of2, int1=int1, int2=int2, stats=stats_file,
-                 lent=cfg.query('fastq_filterer', 'min_length', ret_default='36'))
-    )
-    cmds.extend(['EXIT_CODE=$?', 'rm ' + int1 + ' ' + int2])
+        fastq_filterer_cmd += ' --trim_r2 %s' % trim_r2
 
-    # replace the original files with the new files to keep things clean
-    cmds.append('(exit $EXIT_CODE) && mv %s %s' % (of1, f1))
-    cmds.append('(exit $EXIT_CODE) && mv %s %s' % (of2, f2))
-    cmds.append('(exit $EXIT_CODE)')
-    for c in cmds:
-        app_logger.debug('Writing: ' + c)
-    return '\n'.join(cmds)
+    return fastq_filterer_cmd
 
 
 def bwa_mem_samblaster(fastq_pair, reference, expected_output_bam, read_group=None, thread=16):
