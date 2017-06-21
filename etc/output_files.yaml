@@ -197,9 +197,14 @@ gatk_var_calling:
 
 
 project_process:
-  - location: ['']
-    basename: '{project_id}_genotype_gvcfs.vcf'
+    genotype_gvcfs:
+        location: ['']
+        basename: '{project_id}_genotype_gvcfs.vcf.gz'
 
-  - location: ['']
-    basename: '{project_id}.relatedness2'
+    relatedness:
+        location: ['']
+        basename: '{project_id}.relatedness2'
 
+    ped_check:
+        location: ['']
+        basename: '{project_id}.ped_check.csv'
