@@ -21,66 +21,51 @@ class ParseRelatedness(RelatednessStage):
     @property
     def reformat_relatedness_file(self):
         relatedness_reformat = (os.path.join(self.job_dir, self.dataset.name + '.relatedness2_reformat'))
-        with open(util.find_file(self.job_dir, self.dataset.name + '.relatedness2')) as openfile:
+        with open(os.path.join(self.job_dir, self.dataset.name + '.relatedness2')) as openfile:
             readfile = openfile.read()
             readfile_csv = re.sub('\t', ',', readfile)
             with open(relatedness_reformat, 'w') as outfile:
                 outfile.write(readfile_csv)
         return relatedness_reformat
 
+    @property
+    def peddy_file(self):
+        return os.path.join(self.job_dir, self.dataset.name + '.ped_check.csv')
+
+    def write_output(self, values):
+        with open(os.path.join(self.job_dir, self.dataset.name + '.relatedness_output'), 'w') as outfile:
+            for r in values:
+                outfile.write('\t'.join(r) + '\n')
+
+    def get_columns(self, filename, column_headers):
+        columns_to_return = []
+        with open(filename) as openfile:
+            csvfile = csv.DictReader(openfile)
+            for line in csvfile:
+                columns_to_return.append([line[i] for i in column_headers])
+        return columns_to_return
+
     def parse_all(self):
         exit_status = 0
         try:
-            peddy_relatedness = []
+            peddy_relatedness = self.get_columns(self.peddy_file, ['sample_a', 'sample_b', 'rel'])
             peddy_vcftools_relatedness = []
-            with open(util.find_file(self.job_dir, self.dataset.name + '.ped_check.csv')) as openfile:
-                csvfile = csv.DictReader(openfile)
-                for line in csvfile:
-                    peddy_relatedness.append([line['sample_a'], line['sample_b'], line['rel']])
-
             with open(self.reformat_relatedness_file) as openfile:
                 csvfile = csv.DictReader(openfile)
                 for line in csvfile:
                     comparison = (Counter([line['INDV1'], line['INDV2']]))
                     [peddy_vcftools_relatedness.append([i[0], i[1], i[2], line['RELATEDNESS_PHI']]) for i in peddy_relatedness if Counter([i[0], i[1]]) == comparison]
-
-            with open(os.path.join(self.job_dir, self.dataset.name + '.relatedness_output'), 'w') as outfile:
-                for r in peddy_vcftools_relatedness:
-                    outfile.write('\t'.join(r) + '\n')
+            self.write_output(peddy_vcftools_relatedness)
         except (OSError, FileNotFoundError, NotADirectoryError) as e:
             self.error(str(e))
             exit_status += 1
         return exit_status
 
-    def parse_relatedness(self):
+    def parse_single(self, fields, relatedness_file):
         exit_status = 0
         try:
-            vcftools_relatedness = []
-            with open(self.reformat_relatedness_file) as openfile:
-                csvfile = csv.DictReader(openfile)
-                for line in csvfile:
-                    vcftools_relatedness.append([line['INDV1'], line['INDV2'], line['RELATEDNESS_PHI']])
-
-            with open(os.path.join(self.job_dir, self.dataset.name + '.relatedness_output'), 'w') as outfile:
-                for r in vcftools_relatedness:
-                    outfile.write('\t'.join(r) + '\n')
-        except (OSError, FileNotFoundError, NotADirectoryError) as e:
-            self.error(str(e))
-            exit_status += 1
-        return exit_status
-
-    def parse_peddy(self):
-        exit_status = 0
-        try:
-            peddy_relatedness = []
-            with open(os.path.join(self.job_dir, self.dataset.name + '.ped_check.csv')) as openfile:
-                csvfile = csv.DictReader(openfile)
-                for line in csvfile:
-                    peddy_relatedness.append([line['sample_a'], line['sample_b'], line['rel']])
-
-            with open(os.path.join(self.job_dir, self.dataset.name + '.relatedness_output'), 'w') as outfile:
-                for r in peddy_relatedness:
-                    outfile.write('\t'.join(r) + '\n')
+            relatedness = self.get_columns(relatedness_file, fields)
+            self.write_output(relatedness)
         except (OSError, FileNotFoundError, NotADirectoryError) as e:
             self.error(str(e))
             exit_status += 1
@@ -89,8 +74,8 @@ class ParseRelatedness(RelatednessStage):
     def _run(self):
         exit_status = 0
         parsers = {'parse_both': self.parse_all(),
-                   'parse_relatedness': self.parse_relatedness(),
-                   'parse_peddy': self.parse_peddy()}
+                   'parse_relatedness': self.parse_single(['INDV1', 'INDV2', 'RELATEDNESS_PHI'], self.reformat_relatedness_file),
+                   'parse_peddy': self.parse_single(['sample_a', 'sample_b', 'rel'], self.peddy_file)}
 
         exit_status+=parsers[self.parse_method]
         return exit_status
