@@ -69,9 +69,10 @@ def _parse_args():
     bad_cycle_tile_parser.set_defaults(func=detect_bad_cycle_tile_in_run)
 
     peddy_parser = subparsers.add_parser('peddy')
-    peddy_parser.add_mutually_exclusive_group('--samples')
-    peddy_parser.add_mutually_exclusive_group('--projects')
-    peddy_parser.add_argument('--reference')
+    data_type = peddy_parser.add_mutually_exclusive_group()
+    data_type.add_argument('--samples', nargs='+')
+    data_type.add_argument('--projects', nargs='+')
+    peddy_parser.add_argument('--reference', required=True)
     peddy_parser.set_defaults(func=peddy)
 
     return parser.parse_args()
@@ -191,6 +192,8 @@ def get_all_project_gvcfs(project_folder):
         return gvcfs
 
 def peddy(dataset, args):
+    if not (args.samples or args.projects):
+        raise AnalysisDriverError('Require either --samples or --projects parameter to be set')
     os.makedirs(os.path.join(cfg['jobs_dir'], dataset.name), exist_ok=True)
     all_gvcfs = []
     sample_ids = []
@@ -212,7 +215,7 @@ def peddy(dataset, args):
             all_gvcfs.extend(get_all_project_gvcfs(project_folder))
 
 
-    g = qc.Genotype_gVCFs(dataset=dataset, GVCFs=all_gvcfs, reference=args.reference)
+    g = qc.Genotype_gVCFs(dataset=dataset, gVCFs=all_gvcfs, reference=args.reference)
     g.run()
     p = qc.Peddy(dataset=dataset, ids=sample_ids)
     p.run()
