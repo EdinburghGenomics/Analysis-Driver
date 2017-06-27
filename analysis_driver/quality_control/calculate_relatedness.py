@@ -14,6 +14,24 @@ class RelatednessStage(segmentation.Stage):
     def gatk_outfile(self):
         return os.path.join(self.job_dir, self.dataset.name + '_genotype_gvcfs.vcf')
 
+    def family_id(self, sample_id):
+        family_id = clarity.get_sample(sample_id).udf.get('Family ID')
+        if not family_id:
+            return 'No_ID'
+        return family_id
+
+    def relationship(self, member):
+        relationship = clarity.get_sample(member).udf.get('Relationship')
+        if not relationship:
+            return 'Other'
+        return relationship
+
+    def sex(self, member):
+        sex = clarity.get_sample(member).udf.get('Sex')
+        if not sex:
+            return 'No_Sex'
+        return sex
+
 
 class ParseRelatedness(RelatednessStage):
     parse_method = Parameter()
@@ -181,24 +199,6 @@ class Peddy(RelatednessStage):
             for line in self.ped_file_content:
                 openfile.write('\t'.join(line) + '\n')
         return ped_file
-
-    def family_id(self, sample_id):
-        family_id = clarity.get_sample(sample_id).udf.get('Family ID')
-        if not family_id:
-            return 'No_ID'
-        return family_id
-
-    def relationship(self, member):
-        relationship = clarity.get_sample(member).udf.get('Relationship')
-        if not relationship:
-            return 'Other'
-        return relationship
-
-    def sex(self, member):
-        sex = clarity.get_sample(member).udf.get('Sex')
-        if not sex:
-            return 'No_Sex'
-        return sex
 
     def relationships(self, family):
         relationship_codes = {'Proband': {'Mother':'0', 'Father':'0'},
