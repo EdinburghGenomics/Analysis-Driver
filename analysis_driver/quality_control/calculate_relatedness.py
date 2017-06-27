@@ -39,11 +39,11 @@ class ParseRelatedness(RelatednessStage):
                 sample2 = r[1]
                 relatedness_values = r[2:]
                 line = [sample1,
-                        clarity.get_sample(sample1).udf.get('Family ID', 'None'),
-                        clarity.get_sample(sample1).udf.get('Relationship', 'None'),
+                        self.family_id(sample1),
+                        self.relationship(sample1),
                         sample2,
-                        clarity.get_sample(sample2).udf.get('Family ID', 'None'),
-                        clarity.get_sample(sample2).udf.get('Relationship', 'None')]
+                        self.family_id(sample2),
+                        self.relationship(sample2)]
                 line.extend(relatedness_values)
                 outfile.write('\t'.join(line) + '\n')
 
