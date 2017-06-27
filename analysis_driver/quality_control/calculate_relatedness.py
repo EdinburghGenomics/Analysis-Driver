@@ -32,10 +32,20 @@ class ParseRelatedness(RelatednessStage):
     def peddy_file(self):
         return os.path.join(self.job_dir, self.dataset.name + '.ped_check.csv')
 
-    def write_output(self, values):
+    def write_all_fields(self, values):
         with open(os.path.join(self.job_dir, self.dataset.name + '.relatedness_output'), 'w') as outfile:
             for r in values:
-                outfile.write('\t'.join(r) + '\n')
+                sample1 = r[0]
+                sample2 = r[1]
+                relatedness_values = r[2:]
+                line = [sample1,
+                        clarity.get_sample(sample1).udf.get('Family ID', 'None'),
+                        clarity.get_sample(sample1).udf.get('Relationship', 'None'),
+                        sample2,
+                        clarity.get_sample(sample2).udf.get('Family ID', 'None'),
+                        clarity.get_sample(sample2).udf.get('Relationship', 'None')]
+                line.extend(relatedness_values)
+                outfile.write('\t'.join(line) + '\n')
 
     def get_columns(self, filename, column_headers):
         columns_to_return = []
@@ -53,19 +63,22 @@ class ParseRelatedness(RelatednessStage):
             with open(self.reformat_relatedness_file) as openfile:
                 csvfile = csv.DictReader(openfile)
                 for line in csvfile:
-                    comparison = (Counter([line['INDV1'], line['INDV2']]))
-                    [peddy_vcftools_relatedness.append([i[0], i[1], i[2], line['RELATEDNESS_PHI']]) for i in peddy_relatedness if Counter([i[0], i[1]]) == comparison]
-            self.write_output(peddy_vcftools_relatedness)
+                    relatedness_samples = (Counter([line['INDV1'], line['INDV2']]))
+                    [peddy_vcftools_relatedness.append([i[0],
+                                                        i[1],
+                                                        i[2],
+                                                        line['RELATEDNESS_PHI']]) for i in peddy_relatedness if Counter([i[0], i[1]]) == relatedness_samples]
+            self.write_all_fields(peddy_vcftools_relatedness)
         except (OSError, FileNotFoundError, NotADirectoryError) as e:
             self.error(str(e))
             exit_status += 1
         return exit_status
 
-    def parse_single(self, fields, relatedness_file):
+    def parse_single(self, sample1, sample2, relatedness, relatedness_file):
         exit_status = 0
         try:
-            relatedness = self.get_columns(relatedness_file, fields)
-            self.write_output(relatedness)
+            columns = self.get_columns(relatedness_file, [sample1, sample2, relatedness])
+            self.write_all_fields(columns)
         except (OSError, FileNotFoundError, NotADirectoryError) as e:
             self.error(str(e))
             exit_status += 1
@@ -76,9 +89,15 @@ class ParseRelatedness(RelatednessStage):
         if self.parse_method == 'parse_both':
             exit_status+=self.parse_all()
         elif self.parse_method == 'parse_relatedness':
-            exit_status+=self.parse_single(['INDV1', 'INDV2', 'RELATEDNESS_PHI'], self.reformat_relatedness_file)
+            sample1 = 'INDV1'
+            sample2 = 'INDV2'
+            relatedness = 'RELATEDNESS_PHI'
+            exit_status+=self.parse_single(sample1, sample2, relatedness, self.reformat_relatedness_file)
         elif self.parse_method == 'parse_peddy':
-            exit_status+=self.parse_single(['sample_a', 'sample_b', 'rel'], self.peddy_file)
+            sample1 = 'sample_a'
+            sample2 = 'sample_b'
+            relatedness = 'rel'
+            exit_status+=self.parse_single(sample1, sample2, relatedness, self.peddy_file)
         return exit_status
 
 
