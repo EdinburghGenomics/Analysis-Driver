@@ -7,6 +7,7 @@ from luigi import Parameter, ListParameter
 from analysis_driver.config import default as cfg
 from analysis_driver import segmentation
 from analysis_driver.util.bash_commands import java_command
+from analysis_driver.exceptions import PipelineError
 
 
 class RelatednessStage(segmentation.Stage):
@@ -35,6 +36,17 @@ class RelatednessStage(segmentation.Stage):
 
 class ParseRelatedness(RelatednessStage):
     parse_method = Parameter()
+    ids = Parameter()
+
+    @property
+    def user_sample_ids(self):
+        user_to_internal_ids = {}
+        for sample_id in self.ids:
+            user_id = clarity.get_user_sample_name(sample_id)
+            if user_id in user_to_internal_ids.keys():
+                raise PipelineError('User ID %s appears more than once in sample list' % (user_id))
+            user_to_internal_ids[user_id] = sample_id
+        return user_to_internal_ids
 
     @property
     def reformat_relatedness_file(self):
@@ -57,11 +69,11 @@ class ParseRelatedness(RelatednessStage):
                 sample2 = r[1]
                 relatedness_values = r[2:]
                 line = [sample1,
-                        self.family_id(sample1),
-                        self.relationship(sample1),
+                        self.family_id(self.user_sample_ids[sample1]),
+                        self.relationship(self.user_sample_ids[sample1]),
                         sample2,
-                        self.family_id(sample2),
-                        self.relationship(sample2)]
+                        self.family_id(self.user_sample_ids[sample2]),
+                        self.relationship(self.user_sample_ids[sample1])]
                 line.extend(relatedness_values)
                 outfile.write('\t'.join(line) + '\n')
 

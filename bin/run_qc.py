@@ -219,7 +219,7 @@ def peddy(dataset, args):
     g.run()
     p = qc.Peddy(dataset=dataset, ids=sample_ids)
     p.run()
-    o = qc.ParseRelatedness(dataset=dataset, parse_method='parse_peddy')
+    o = qc.ParseRelatedness(dataset=dataset, parse_method='parse_peddy', ids=sample_ids)
     o.run()
 
 if __name__ == '__main__':
