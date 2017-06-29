@@ -17,7 +17,7 @@ def build_pipeline(dataset):
     for sample in dataset.samples_processed:
         gvcf_file = find_file(project_source, sample['sample_id'], sample['user_sample_id'] + '.g.vcf.gz')
         if not gvcf_file:
-            raise PipelineError('Unable to find gVCF file for sample %s' % (sample))
+            raise PipelineError('Unable to find gVCF file for sample %s' % sample)
         gvcf_files.append(gvcf_file)
     if len(gvcf_files) < 2:
         raise PipelineError('Incorrect number of gVCF files: require at least two')

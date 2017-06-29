@@ -90,9 +90,9 @@ def patch_pipeline(species='Homo sapiens', analysis_type='Variant Calling gatk')
     patches = []
 
     def _patch(ppath, **kwargs):
-        p = patch('analysis_driver.' + ppath, **kwargs)
-        p.start()
-        patches.append(p)
+        _p = patch('analysis_driver.' + ppath, **kwargs)
+        _p.start()
+        patches.append(_p)
 
     def _fake_get_sample(sample_name):
         return Mock(name=sample_name, udf={'Coverage': 1337, 'Analysis Type': analysis_type})

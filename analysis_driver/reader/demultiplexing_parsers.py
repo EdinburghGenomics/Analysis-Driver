@@ -336,16 +336,18 @@ def get_coverage_y_chrom(histogram_file, chr_name='chrY'):
 
 
 def parse_welldup_file(welldup_file):
-    dup_per_lane = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0}
+    dup_per_lane = {}
     in_summary = False
-    with open(welldup_file) as open_file:
-        for line in open_file:
+    lane = None
+
+    with open(welldup_file) as f:
+        for line in f:
             if line.startswith('LaneSummary:'):
                 lane = int(line.split()[1])
                 in_summary = True
-            elif in_summary == 1 and line.startswith('Level: 3'):
-                pc_dup = line.split()[12].strip('(').rstrip(')')
-                dup_per_lane[lane] = round(float(pc_dup)*100, 3)
+            elif in_summary and line.startswith('Level: 3'):
+                pc_dup = line.split()[12].lstrip('(').rstrip(')')
+                dup_per_lane[lane] = round(float(pc_dup) * 100, 3)
                 in_summary = False
             elif line.startswith('Lane: '):
                 in_summary = False
@@ -367,7 +369,7 @@ def parse_adapter_trim_file(adapter_trim_file, run_id):
 
 
 def parse_fastq_filterer_stats(filterer_stats):
-    """parse the key value pairs stats file produced by fastq filterer"""
+    """Parse the key value pairs stats file produced by fastq filterer"""
     content = {}
     with open(filterer_stats) as open_file:
         for line in open_file:

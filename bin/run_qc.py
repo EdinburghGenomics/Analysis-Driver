@@ -2,8 +2,7 @@ import os
 import logging
 import argparse
 from sys import path
-from egcg_core import executor, util
-from egcg_core.clarity import get_user_sample_name
+from egcg_core import executor, util, clarity
 from egcg_core.app_logging import logging_default as log_cfg
 from egcg_core.rest_communication import get_document
 path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -101,7 +100,7 @@ def run_genotype_validation(dataset, args):
     )
     geno_val.run()
 
-    user_sample_id = get_user_sample_name(dataset.name)
+    user_sample_id = clarity.get_user_sample_name(dataset.name)
     output_commands = []
     for f in [geno_val.seq_vcf_file, geno_val.validation_results.get(dataset.name)]:
         if f and os.path.exists(f):
@@ -184,11 +183,10 @@ def detect_bad_cycles_and_tiles(dataset, args):
 
 def get_all_project_gvcfs(project_folder):
         gvcfs = []
-        for path in os.walk(project_folder):
-            gvcf = [i for i in path[2] if i.endswith('.g.vcf.gz')]
-            if gvcf:
-                gvcfs.append(os.path.join(path[0], ''.join(gvcf)))
+        for dirname, dirs, filenames in os.walk(project_folder):
+            gvcfs.extend([os.path.join(dirname, f) for f in filenames if f.endswith('.g.vcf.gz')])
         return gvcfs
+
 
 def peddy(dataset, args):
     all_gvcfs = []
@@ -209,7 +207,6 @@ def peddy(dataset, args):
             sample_ids.extend(samples_for_project)
             project_folder = util.find_file(cfg['input_dir'], project_id)
             all_gvcfs.extend(get_all_project_gvcfs(project_folder))
-
 
     g = qc.Genotype_gVCFs(dataset=dataset, GVCFs=all_gvcfs, reference=args.reference)
     g.run()

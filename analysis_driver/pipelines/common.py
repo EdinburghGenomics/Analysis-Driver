@@ -11,7 +11,6 @@ from analysis_driver.config import default as cfg, OutputFileConfiguration
 from analysis_driver.reader.version_reader import write_versions_to_yaml
 from analysis_driver.report_generation import SampleCrawler
 from analysis_driver.transfer_data import output_data_and_archive, create_output_links
-from analysis_driver.exceptions import PipelineError
 
 
 class VarCallingStage(segmentation.Stage):

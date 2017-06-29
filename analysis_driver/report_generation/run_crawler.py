@@ -204,9 +204,9 @@ class RunCrawler(Crawler):
         dup_per_lane = dm.parse_welldup_file(welldup_file)
         for run_element_id in self.barcodes_info:
             barcode_info = self.barcodes_info.get(run_element_id)
-            lane = barcode_info.get(ELEMENT_LANE)
-            if int(lane) in dup_per_lane:
-                barcode_info[ELEMENT_LANE_PC_OPT_DUP] = dup_per_lane.get(int(lane))
+            lane = int(barcode_info.get(ELEMENT_LANE))
+            if lane in dup_per_lane:
+                barcode_info[ELEMENT_LANE_PC_OPT_DUP] = dup_per_lane[lane]
 
     def _populate_barcode_info_from_conversion_file(self, conversion_xml):
         all_barcodes, top_unknown_barcodes, all_barcodeless = dm.parse_conversion_stats(conversion_xml, self.dataset.has_barcodes)
