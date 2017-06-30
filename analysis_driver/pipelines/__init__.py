@@ -19,7 +19,7 @@ def pipeline(d):
             raise PipelineError('No species information found in the LIMS for ' + d.name)
         elif d.species == 'Homo sapiens':
             _pipeline = bcbio
-        elif analysis_type == 'Variant Calling':
+        elif analysis_type in ['Variant Calling', 'Variant Calling gatk']:
             _pipeline = variant_calling
         else:
             _pipeline = qc

@@ -1,12 +1,9 @@
 from collections import defaultdict
 from itertools import islice
-
-from egcg_core.app_logging import AppLogger
 from egcg_core.config import cfg
-
-from analysis_driver.reader.run_info import Reads
+from egcg_core.app_logging import AppLogger
 from interop.py_interop_run_metrics import run_metrics as RunMetrics
-
+from analysis_driver.reader.run_info import Reads
 
 
 class BadTileCycleDetector(AppLogger):
@@ -16,12 +13,13 @@ class BadTileCycleDetector(AppLogger):
         self.tile_ids = dataset.run_info.tiles
         self.ncycles = sum(Reads.num_cycles(r) for r in dataset.run_info.reads.reads)
         self.window_size = window_size
-        self.tile_quality_threshold = tile_quality_threshold
-        if not self.tile_quality_threshold:
-            self.tile_quality_threshold = cfg.query('fastq_filterer', 'tile_quality_threshold', ret_default=20)
-        self.cycle_quality_threshold = cycle_quality_threshold
-        if not self.cycle_quality_threshold:
-            self.cycle_quality_threshold = cfg.query('fastq_filterer', 'cycle_quality_threshold', ret_default=18)
+        self.all_lanes = None
+        self.tile_quality_threshold = tile_quality_threshold or cfg.query(
+            'fastq_filterer', 'tile_quality_threshold', ret_default=20
+        )
+        self.cycle_quality_threshold = cycle_quality_threshold or cfg.query(
+            'fastq_filterer', 'cycle_quality_threshold', ret_default=18
+        )
 
         self.read_interop_metrics()
 
@@ -44,7 +42,6 @@ class BadTileCycleDetector(AppLogger):
 
             tile_dict[metrics[i].tile()][metrics[i].cycle()-1] = metrics[i].qscore_hist()
             cycle_dict[metrics[i].cycle()].append(metrics[i].qscore_hist())
-
 
     @staticmethod
     def windows(l, window_size):
@@ -78,21 +75,20 @@ class BadTileCycleDetector(AppLogger):
         return None
 
     def is_bad_tile_sliding_window(self, lane, tile, cycles_list):
-        window_count=0
+        window_count = 0
         for window in self.windows(cycles_list, self.window_size):
-            window_count+=1
+            window_count += 1
             avg = self.average_from_list_hist(window)
             if avg is not None and avg < self.tile_quality_threshold:
                 self.info(
                     'lane %s tile %s window %s-%s: average quality %s < %s',
-                    lane, tile, window_count,
-                    window_count+self.window_size, avg,
+                    lane, tile, window_count, window_count + self.window_size, avg,
                     self.tile_quality_threshold
                 )
                 return True
         return False
 
-    def detect_bad_tile(self, ignore_tiles=None):
+    def detect_bad_tiles(self):
         bad_tiles_per_lanes = defaultdict(list)
         for lane in self.all_lanes:
             tile_dict, cycle_dict = self.all_lanes[lane]
@@ -101,7 +97,7 @@ class BadTileCycleDetector(AppLogger):
                     bad_tiles_per_lanes[lane].append(tile)
         return bad_tiles_per_lanes
 
-    def detect_bad_cycle(self, ignore_cycles=None):
+    def detect_bad_cycles(self):
         bad_cycle_per_lanes = defaultdict(list)
         for lane in self.all_lanes:
             tile_dict, cycle_dict = self.all_lanes[lane]

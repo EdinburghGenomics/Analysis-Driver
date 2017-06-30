@@ -1,16 +1,25 @@
 Changelog for Analysis-Driver
 =============================
 
-0.16 (unreleased)
+0.17 (unreleased)
 -----------------
 
 - Nothing changed yet.
 
 
+0.16 (2017-06-22)
+-----------------
+
+- Fixed fastq_filterer stats file bug and removed workaround from 0.15.1
+- Bug fixes in pipeline stage reporting
+- Samples to be passed through variant calling can now be marked `Variant Calling` or `Variant Calling gatk`
+- Added genotype relatedness check with [Peddy](https://github.com/brentp/peddy)
+
+
 0.15.2 (2017-05-29)
 -------------------
 
-- Change tools writting to /tmp in Samtools depth and Genotype Validation.
+- Change tools writing to /tmp in Samtools depth and Genotype Validation.
 
 
 0.15.1 (2017-05-24)
@@ -23,7 +32,7 @@ Changelog for Analysis-Driver
 -----------------
 
  - All sample and project processes are now segmented using Luigi
- - Allow filtering/Trimming of bad quality runs in demultiplexing 
+ - Allow filtering/trimming of bad quality runs in demultiplexing 
  - Fix analysis driver --stop and Error handling
 
 0.14.3 (2017-04-28)
