@@ -18,7 +18,7 @@ class TestGenotype_gVCFs(QCTester):
         with patch(ppath + 'util.find_file', new=self.fake_find_file):
             assert self.g.gatk_genotype_gvcfs_cmd() == (
                 'java -Djava.io.tmpdir=path/to/jobs/test_project_id -XX:+UseSerialGC -Xmx50G '
-                '-jar path/to/GenomeAnalysisTK.jar -T GenotypeGVCFs -nt 12 -R /path/to/reference.fa '
+                '-jar path/to/GenomeAnalysisTK.jar_4 -T GenotypeGVCFs -nt 12 -R /path/to/reference.fa '
                 '--variant test_sample1.g.vcf.gz --variant test_sample2.g.vcf.gz '
                 '--variant test_sample3.g.vcf.gz -o path/to/jobs/test_project_id/test_project_id_genotype_gvcfs.vcf'
             )

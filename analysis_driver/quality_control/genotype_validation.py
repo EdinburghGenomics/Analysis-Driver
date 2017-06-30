@@ -7,6 +7,7 @@ from analysis_driver.config import default as cfg
 from analysis_driver.reader.mapping_stats_parsers import parse_genotype_concordance
 from analysis_driver.segmentation import Stage
 from analysis_driver.util.bash_commands import java_command
+from analysis_driver.tool_versioning import toolset
 
 
 class GenotypeValidation(Stage):
@@ -27,7 +28,7 @@ class GenotypeValidation(Stage):
         return os.path.join(self.job_dir, self.dataset.name + '_geno_val.bam')
 
     def _gatk_command(self, memory):
-        return java_command(memory=memory, tmp_dir=self.job_dir, jar=cfg.query('tools', 'gatk'))
+        return java_command(memory=memory, tmp_dir=self.job_dir, jar=toolset['gatk'])
 
     def _bwa_aln(self, fastq_files):
         """
@@ -37,17 +38,18 @@ class GenotypeValidation(Stage):
         """
         header = '@RG\\tID:1\\tSM:' + self.dataset.name
         reference = cfg.query('genotype-validation', 'reference')
-        bwa_bin = cfg.query('tools', 'bwa', ret_default='bwa')
 
         if len(fastq_files) == 2:
-            aln1 = '%s aln %s %s' % (bwa_bin, reference, fastq_files[0])
-            aln2 = '%s aln %s %s' % (bwa_bin, reference, fastq_files[1])
+            aln1 = '%s aln %s %s' % (toolset['bwa'], reference, fastq_files[0])
+            aln2 = '%s aln %s %s' % (toolset['bwa'], reference, fastq_files[1])
             command_bwa = "%s sampe -r '%s' %s <(%s) <(%s) %s %s" % (
-                bwa_bin, header, reference, aln1, aln2, fastq_files[0], fastq_files[1]
+                toolset['bwa'], header, reference, aln1, aln2, fastq_files[0], fastq_files[1]
             )
         elif len(fastq_files) == 1:
-            aln1 = '%s aln %s %s' % (bwa_bin, reference, fastq_files[0])
-            command_bwa = "%s samse -r '%s' %s <(%s) %s" % (bwa_bin, header, reference, aln1, fastq_files[0])
+            aln1 = '%s aln %s %s' % (toolset['bwa'], reference, fastq_files[0])
+            command_bwa = "%s samse -r '%s' %s <(%s) %s" % (
+                toolset['bwa'], header, reference, aln1, fastq_files[0]
+            )
 
         else:
             raise PipelineError('Bad number of fastqs: ' + str(fastq_files))

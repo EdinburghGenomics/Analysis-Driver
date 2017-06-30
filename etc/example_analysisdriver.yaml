@@ -26,19 +26,19 @@ default:
     pre_job_source: bashrc
 
     tools:
-        qsub:      /bin/sh
-        bcl2fastq:
-            1.0.4: path/to/bcl2fastq
-        fastqc:    path/to/fastqc
-        bcbio:     path/to/bcbio
-        seqtk:     path/to/seqtk
-        jdk:       path/to/jdk
+        bcl2fastq: path/to/bcl2fastq_1.0.4
         bwa:
-            1.0: path/to/bwa
-            1.1: path/to/bwa
+            - path/to/bwa_1.0
+            - path/to/bwa_1.1
         gatk:
-            3: path/to/GenomeAnalysisTK3.jar
-            4: path/to/GenomeAnalysisTK4.jar
+            - path/to/GenomeAnalysisTK.jar_3
+            - path/to/GenomeAnalysisTK.jar_4
+
+        qsub: /bin/sh
+        fastqc: path/to/fastqc
+        bcbio: path/to/bcbio
+        seqtk: path/to/seqtk
+        jdk: path/to/jdk
         samblaster: path/to/samblaster
         biobambam_sortmapdup: path/to/bamsormadup
         samtools: path/to/samtools
@@ -51,7 +51,7 @@ default:
         well_duplicate: path/to/well_duplicate
         fastq-filterer: path/to/fastq-filterer
         echo: echo
-        vcftools:    path/to/vcftools
+        vcftools: path/to/vcftools
         blastn: path/to/blastn
         peddy: path/to/peddy
     versions:

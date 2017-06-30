@@ -25,4 +25,3 @@ toolsets:
             version_cmd: 'java -jar {executable} -v 2>&1 | grep "GATK" | cut -d " " -f 2'
         bwa:  # inherit version_cmd from previous version
             version: 1.1
-
