@@ -27,13 +27,18 @@ default:
 
     tools:
         qsub:      /bin/sh
-        bcl2fastq: path/to/bcl2fastq
+        bcl2fastq:
+            1.0.4: path/to/bcl2fastq
         fastqc:    path/to/fastqc
         bcbio:     path/to/bcbio
         seqtk:     path/to/seqtk
         jdk:       path/to/jdk
-        bwa: path/to/bwa
-        gatk: path/to/GenomeAnalysisTK.jar
+        bwa:
+            1.0: path/to/bwa
+            1.1: path/to/bwa
+        gatk:
+            3: path/to/GenomeAnalysisTK3.jar
+            4: path/to/GenomeAnalysisTK4.jar
         samblaster: path/to/samblaster
         biobambam_sortmapdup: path/to/bamsormadup
         samtools: path/to/samtools

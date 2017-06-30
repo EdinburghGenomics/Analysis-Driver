@@ -33,3 +33,4 @@ class OutputFileConfiguration(Configuration):
 
 default = cfg  # backward compatibility
 sample_sheet_config = Configuration(_etc_config('sample_sheet_cfg.yaml'))
+tool_versioning_cfg = Configuration(_etc_config('tool_versioning.yaml'))
