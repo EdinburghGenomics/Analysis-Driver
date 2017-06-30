@@ -36,7 +36,7 @@ class RelatednessStage(segmentation.Stage):
 
 class ParseRelatedness(RelatednessStage):
     parse_method = Parameter()
-    ids = Parameter()
+    ids = ListParameter()
 
     @property
     def user_sample_ids(self):
@@ -63,17 +63,18 @@ class ParseRelatedness(RelatednessStage):
         return os.path.join(self.job_dir, self.dataset.name + '.ped_check.csv')
 
     def write_all_fields(self, values):
+        user_ids = self.user_sample_ids
         with open(os.path.join(self.job_dir, self.dataset.name + '.relatedness_output'), 'w') as outfile:
             for r in values:
                 sample1 = r[0]
                 sample2 = r[1]
                 relatedness_values = r[2:]
                 line = [sample1,
-                        self.family_id(self.user_sample_ids[sample1]),
-                        self.relationship(self.user_sample_ids[sample1]),
+                        self.family_id(user_ids[sample1]),
+                        self.relationship(user_ids[sample1]),
                         sample2,
-                        self.family_id(self.user_sample_ids[sample2]),
-                        self.relationship(self.user_sample_ids[sample1])]
+                        self.family_id(user_ids[sample2]),
+                        self.relationship(user_ids[sample1])]
                 line.extend(relatedness_values)
                 outfile.write('\t'.join(line) + '\n')
 
