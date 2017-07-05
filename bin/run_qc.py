@@ -57,23 +57,19 @@ def _parse_args():
     contam_blast.add_argument('--fastq_file', required=True, nargs='+', help='fastq file to check for contamination')
     contam_blast.set_defaults(func=contamination_blast)
 
-    relatedness_parser = subparsers.add_parser('relatedness')
-    relatedness_parser.add_argument('--gvcfs', required=True, nargs='+')
-    relatedness_parser.add_argument('--reference', required=True)
-    relatedness_parser.set_defaults(func=relatedness)
-
     bad_cycle_tile_parser = subparsers.add_parser('bad_cycle_tile')
     bad_cycle_tile_parser.add_argument('--window_size', type=int, default=50)
     bad_cycle_tile_parser.add_argument('--tile_quality_threshold', type=int, default=20)
     bad_cycle_tile_parser.add_argument('--cycle_quality_threshold', type=int, default=20)
     bad_cycle_tile_parser.set_defaults(func=detect_bad_cycles_and_tiles)
 
-    peddy_parser = subparsers.add_parser('peddy')
-    data_type = peddy_parser.add_mutually_exclusive_group()
+    relatedness_parser = subparsers.add_parser('calculate_relatedness')
+    data_type = relatedness_parser.add_mutually_exclusive_group()
     data_type.add_argument('--samples', nargs='+')
     data_type.add_argument('--projects', nargs='+')
-    peddy_parser.add_argument('--reference', required=True)
-    peddy_parser.set_defaults(func=peddy)
+    relatedness_parser.add_argument('--reference', required=True)
+    relatedness_parser.add_argument('--method', required=True)
+    relatedness_parser.set_defaults(func=calculate_relatedness)
 
     return parser.parse_args()
 
@@ -151,19 +147,10 @@ def median_coverage(dataset, args):
     s = qc.SamtoolsDepth(dataset=dataset, bam_file=args.bam_file)
     s.run()
 
-
 def contamination_blast(dataset, args):
     os.makedirs(os.path.join(cfg['jobs_dir'], dataset.name), exist_ok=True)
     b = qc.ContaminationBlast(dataset=dataset, fastq_file=args.fastq_file)
     b.run()
-
-
-def relatedness(dataset, args):
-    os.makedirs(os.path.join(cfg['jobs_dir'], dataset.name), exist_ok=True)
-    r = qc.Relatedness(dataset=dataset)
-    r.run()
-    o = qc.ParseRelatedness(dataset=dataset, parse_method='parse_relatedness')
-    o.run()
 
 def detect_bad_cycles_and_tiles(dataset, args):
     cfg.merge(cfg['run'])
@@ -191,7 +178,7 @@ def get_all_project_gvcfs(project_folder):
                 gvcfs.append(os.path.join(path[0], ''.join(gvcf)))
         return gvcfs
 
-def peddy(dataset, args):
+def calculate_relatedness(dataset, args):
     if not (args.samples or args.projects):
         raise AnalysisDriverError('Require either --samples or --projects parameter to be set')
     os.makedirs(os.path.join(cfg['jobs_dir'], dataset.name), exist_ok=True)
@@ -214,13 +201,20 @@ def peddy(dataset, args):
             project_folder = util.find_file(cfg['input_dir'], project_id)
             all_gvcfs.extend(get_all_project_gvcfs(project_folder))
 
-
     g = qc.Genotype_gVCFs(dataset=dataset, gVCFs=all_gvcfs, reference=args.reference)
     g.run()
-    p = qc.Peddy(dataset=dataset, ids=sample_ids)
-    p.run()
-    o = qc.ParseRelatedness(dataset=dataset, parse_method='parse_peddy', ids=sample_ids)
-    o.run()
+    if not args.method in ['peddy', 'relatedness']:
+        raise AnalysisDriverError('Choose either "peddy" or "relatedness" as method')
+    if args.method == 'peddy':
+        p = qc.Peddy(dataset=dataset, ids=sample_ids)
+        p.run()
+        o = qc.ParseRelatedness(dataset=dataset, parse_method='parse_peddy', ids=sample_ids)
+        o.run()
+    elif args.method == 'relatedness':
+        r = qc.Relatedness(dataset=dataset)
+        r.run()
+        o = qc.ParseRelatedness(dataset=dataset, parse_method='parse_relatedness', ids=sample_ids)
+        o.run()
 
 if __name__ == '__main__':
     main()

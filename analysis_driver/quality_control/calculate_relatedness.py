@@ -38,7 +38,6 @@ class ParseRelatedness(RelatednessStage):
     parse_method = Parameter()
     ids = ListParameter()
 
-    @property
     def user_sample_ids(self):
         user_to_internal_ids = {}
         for sample_id in self.ids:
@@ -62,28 +61,82 @@ class ParseRelatedness(RelatednessStage):
     def peddy_file(self):
         return os.path.join(self.job_dir, self.dataset.name + '.ped_check.csv')
 
-    def write_all_fields(self, values):
-        user_ids = self.user_sample_ids
-        with open(os.path.join(self.job_dir, self.dataset.name + '.relatedness_output'), 'w') as outfile:
-            for r in values:
-                sample1 = r[0]
-                sample2 = r[1]
-                relatedness_values = r[2:]
-                line = [sample1,
-                        self.family_id(user_ids[sample1]),
-                        self.relationship(user_ids[sample1]),
-                        sample2,
-                        self.family_id(user_ids[sample2]),
-                        self.relationship(user_ids[sample1])]
-                line.extend(relatedness_values)
-                outfile.write('\t'.join(line) + '\n')
+    def write_results(self, gel_lines, egc_lines):
+        header = '\t'.join(['S1',
+                                 'S1 Family ID',
+                                 'S1 Relationship',
+                                 'S2',
+                                 'S2 Family ID',
+                                 'S2 Relationship'])
+
+        with open(os.path.join(self.job_dir, self.dataset.name + '.relatedness_output.gel'), 'w') as gel_outfile:
+            gel_lines.sort(key=lambda x: x[1])
+            gel_outfile.write(header + '\n')
+            for g in gel_lines:
+                gel_outfile.write('\t'.join(g) + '\n')
+
+        with open(os.path.join(self.job_dir, self.dataset.name + '.relatedness_output.egc'), 'w') as egc_outfile:
+            egc_outfile.write(header + '\n')
+            for e in egc_lines:
+                egc_outfile.write('\t'.join(e) + '\n')
+
+
+    def get_outfile_content(self, values):
+        gel_lines = []
+        egc_lines = []
+        user_ids = self.user_sample_ids()
+        for r in values:
+            if r['sample1'] != r['sample2']:
+                comparison = {'samples': [], 'family_ids': set(), 'proband': [], 'other': []}
+
+                for sample in [r['sample1'], r['sample2']]:
+                    internal_id = user_ids[sample]
+                    comparison['samples'].append(internal_id)
+                    comparison['family_ids'].add(self.family_id(internal_id))
+                    relationship = self.relationship(internal_id)
+                    if relationship == 'Proband':
+                        comparison['proband'].append(internal_id)
+                    elif relationship != 'Proband':
+                        comparison['other'].append(internal_id)
+
+                if not len(comparison['proband'] + comparison['other']) == 2:
+                    raise PipelineError('Incorrect number of samples in this comparison')
+
+                if len(list(comparison['family_ids'])) == 1:
+                    if len(comparison['proband']) == 1:
+                        gel_line = [''.join(list(comparison['family_ids'])),
+                                comparison['proband'][0],
+                                'Proband',
+                                comparison['other'][0],
+                                self.relationship(comparison['other'])
+                                    ]
+                        gel_line.extend(r['relatedness'])
+                        gel_lines.append(gel_line)
+
+                egc_sample_pair = comparison['proband'] + comparison['other']
+                egc_line = [self.family_id(egc_sample_pair[0]),
+                            egc_sample_pair[0],
+                            self.relationship(egc_sample_pair[0]),
+                            self.family_id(egc_sample_pair[1]),
+                            egc_sample_pair[1],
+                            self.relationship(egc_sample_pair[1])
+                            ]
+
+                egc_line.extend(r['relatedness'])
+                egc_lines.append(egc_line)
+
+        return gel_lines, egc_lines
+
 
     def get_columns(self, filename, column_headers):
         columns_to_return = []
-        with open(filename) as openfile:
-            csvfile = csv.DictReader(openfile)
-            for line in csvfile:
-                columns_to_return.append([line[i] for i in column_headers])
+        try:
+            with open(filename) as openfile:
+                csvfile = csv.DictReader(openfile)
+                for line in csvfile:
+                    columns_to_return.append([line[i] for i in column_headers])
+        except FileNotFoundError:
+            raise PipelineError('Could not find file: %s' % filename)
         return columns_to_return
 
     def parse_all(self):
@@ -95,11 +148,14 @@ class ParseRelatedness(RelatednessStage):
                 csvfile = csv.DictReader(openfile)
                 for line in csvfile:
                     relatedness_samples = (Counter([line['INDV1'], line['INDV2']]))
-                    [peddy_vcftools_relatedness.append([i[0],
-                                                        i[1],
-                                                        i[2],
-                                                        line['RELATEDNESS_PHI']]) for i in peddy_relatedness if Counter([i[0], i[1]]) == relatedness_samples]
-            self.write_all_fields(peddy_vcftools_relatedness)
+                    for i in peddy_relatedness:
+                        if Counter([i[0], i[1]]) == relatedness_samples:
+                            peddy_vcftools_relatedness.append({'sample1': i[0],
+                                                               'sample2': i[1],
+                                                               'relatedness': [i[2], line['RELATEDNESS_PHI']]
+                                                                 })
+            gel_lines, egc_lines = self.get_outfile_content(peddy_vcftools_relatedness)
+            self.write_results(gel_lines, egc_lines)
         except (OSError, FileNotFoundError, NotADirectoryError) as e:
             self.error(str(e))
             exit_status += 1
@@ -109,7 +165,8 @@ class ParseRelatedness(RelatednessStage):
         exit_status = 0
         try:
             columns = self.get_columns(relatedness_file, [sample1, sample2, relatedness])
-            self.write_all_fields(columns)
+            gel_lines, egc_lines = self.get_outfile_content(columns)
+            self.write_results(gel_lines, egc_lines)
         except (OSError, FileNotFoundError, NotADirectoryError) as e:
             self.error(str(e))
             exit_status += 1
