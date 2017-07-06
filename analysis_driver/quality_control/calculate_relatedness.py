@@ -130,13 +130,10 @@ class ParseRelatedness(RelatednessStage):
 
     def get_columns(self, filename, column_headers):
         columns_to_return = []
-        try:
-            with open(filename) as openfile:
-                csvfile = csv.DictReader(openfile)
-                for line in csvfile:
-                    columns_to_return.append([line[i] for i in column_headers])
-        except FileNotFoundError:
-            raise PipelineError('Could not find file: %s' % filename)
+        with open(filename) as openfile:
+            csvfile = csv.DictReader(openfile)
+            for line in csvfile:
+                columns_to_return.append([line[i] for i in column_headers])
         return columns_to_return
 
     def parse_all(self):

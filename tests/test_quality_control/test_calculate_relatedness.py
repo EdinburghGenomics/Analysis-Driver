@@ -233,11 +233,26 @@ class TestParseRelatedness(QCTester):
             assert egc == ([['FAM1', 'test_sample1', 'Proband', 'FAM1',  'test_sample2', 'Other', 1, 0.9],
                           ['FAM1', 'test_sample3', 'Other', 'FAM1', 'test_sample4', 'Other', 0.9, 0.7]])
 
+        with patch(ppath + 'ParseRelatedness.user_sample_ids', return_value={'user_sample1': 'test_sample1',
+                                                                 'user_sample2': 'test_sample2',
+                                                                 'user_sample3': 'test_sample3',
+                                                                 'user_sample4': 'test_sample4'}), \
+             patch(ppath + 'ParseRelatedness.family_id', side_effect=['FAM1', 'FAM1', 'FAM1', 'FAM1', 'FAM1', 'FAM1', 'FAM1', 'FAM1']), \
+             patch(ppath + 'ParseRelatedness.relationship', side_effect=['Proband', 'Other', 'Other', 'Proband', 'Other', 'Other', 'Other', 'Other', 'Other']):
+
+            gel, egc = self.p.get_outfile_content([
+                    {'sample1': 'user_sample1','sample2': 'user_sample1','relatedness': [1, 0.9]},
+                    {'sample1': 'user_sample2','sample2': 'user_sample2','relatedness': [0.9, 0.7]}])
+
+            assert gel == ([])
+            assert egc == ([])
+
+
     def test_get_columns(self):
         peddy_file = os.path.join(self.assets_path, self.project_id + '.ped_check.csv')
         assert self.p.get_columns(peddy_file, ['sample_a', 'sample_b', 'rel']) == [['NA12777', 'NA12777NA12877', '1'],
                                                                                    ['NA12777', 'NA12877', '1'],
                                                                                    ['NA12777', 'NA12878', '0']]
         peddy_file = os.path.join('/path/to/nonexistent/file')
-        with pytest.raises(PipelineError):
+        with pytest.raises(FileNotFoundError):
             self.p.get_columns(peddy_file, ['sample_a', 'sample_b', 'rel'])
