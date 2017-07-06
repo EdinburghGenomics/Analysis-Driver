@@ -52,7 +52,7 @@ class TestGenotypeValidation(QCTester):
         assert self.validator.seq_vcf_file == expected_vcf
         command = (
             'java -Djava.io.tmpdir={work_dir} -XX:+UseSerialGC -Xmx4G -jar path/to/GenomeAnalysisTK.jar '
-            '-T UnifiedGenotyper -nt 4 -R path/to/32_snps_600bp.fa '
+            ' -T UnifiedGenotyper -nt 4 -R path/to/32_snps_600bp.fa '
             '--standard_min_confidence_threshold_for_calling 30.0 '
             '--standard_min_confidence_threshold_for_emitting 0 -out_mode EMIT_ALL_SITES '
             '-I {bam_file} -o {vcf_file}'
@@ -81,7 +81,7 @@ class TestGenotypeValidation(QCTester):
             }
 
         command_gatk = (
-            'java -Djava.io.tmpdir={work_dir} -XX:+UseSerialGC -Xmx4G -jar path/to/GenomeAnalysisTK.jar '
+            'java -Djava.io.tmpdir={work_dir} -XX:+UseSerialGC -Xmx4G -jar path/to/GenomeAnalysisTK.jar  '
             '-T GenotypeConcordance -eval:VCF {genovcf} -comp:VCF {sample_vcf} '
             '-R path/to/32_snps_600bp.fa > {val_results}'
         ).format(work_dir=work_dir, genovcf=genotype_vcf, sample_vcf=vcf_file, val_results=validation_results)

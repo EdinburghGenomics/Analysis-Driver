@@ -1,15 +1,184 @@
 import os
+from collections import Counter
+import re
+import csv
 from egcg_core import executor, util, clarity
 from luigi import Parameter, ListParameter
 from analysis_driver.config import default as cfg
 from analysis_driver import segmentation
 from analysis_driver.util.bash_commands import java_command
+from analysis_driver.exceptions import PipelineError
 
 
 class RelatednessStage(segmentation.Stage):
     @property
     def gatk_outfile(self):
         return os.path.join(self.job_dir, self.dataset.name + '_genotype_gvcfs.vcf')
+
+    def family_id(self, sample_id):
+        family_id = clarity.get_sample(sample_id).udf.get('Family ID')
+        if not family_id:
+            return 'No_ID'
+        return family_id
+
+    def relationship(self, member):
+        relationship = clarity.get_sample(member).udf.get('Relationship')
+        if not relationship:
+            return 'Other'
+        return relationship
+
+    def sex(self, member):
+        sex = clarity.get_sample(member).udf.get('Sex')
+        if not sex:
+            return 'No_Sex'
+        return sex
+
+
+class ParseRelatedness(RelatednessStage):
+    parse_method = Parameter()
+    ids = ListParameter()
+
+    def user_sample_ids(self):
+        user_to_internal_ids = {}
+        for sample_id in self.ids:
+            user_id = clarity.get_user_sample_name(sample_id)
+            if user_id in user_to_internal_ids.keys():
+                raise PipelineError('User ID %s appears more than once in sample list' % (user_id))
+            user_to_internal_ids[user_id] = sample_id
+        return user_to_internal_ids
+
+    @property
+    def peddy_file(self):
+        return os.path.join(self.job_dir, self.dataset.name + '.ped_check.csv')
+
+    @property
+    def relatedness_file(self):
+        return os.path.join(self.job_dir, self.dataset.name + '.relatedness2')
+
+    def write_results(self, gel_lines, egc_lines):
+        header = '\t'.join(['S1',
+                                 'S1 Family ID',
+                                 'S1 Relationship',
+                                 'S2',
+                                 'S2 Family ID',
+                                 'S2 Relationship'])
+
+        with open(os.path.join(self.job_dir, self.dataset.name + '.relatedness_output.gel'), 'w') as gel_outfile:
+            gel_lines.sort(key=lambda x: x[1])
+            gel_outfile.write(header + '\n')
+            for g in gel_lines:
+                gel_outfile.write('\t'.join(g) + '\n')
+
+        with open(os.path.join(self.job_dir, self.dataset.name + '.relatedness_output.egc'), 'w') as egc_outfile:
+            egc_outfile.write(header + '\n')
+            for e in egc_lines:
+                egc_outfile.write('\t'.join(e) + '\n')
+
+
+    def get_outfile_content(self, values):
+        gel_lines = []
+        egc_lines = []
+        user_ids = self.user_sample_ids()
+        for r in values:
+            if r['sample1'] != r['sample2']:
+                comparison = {'samples': [], 'family_ids': set(), 'proband': [], 'other': []}
+
+                for sample in [r['sample1'], r['sample2']]:
+                    internal_id = user_ids[sample]
+                    comparison['samples'].append(internal_id)
+                    comparison['family_ids'].add(self.family_id(internal_id))
+                    relationship = self.relationship(internal_id)
+                    if relationship == 'Proband':
+                        comparison['proband'].append(internal_id)
+                    elif relationship != 'Proband':
+                        comparison['other'].append(internal_id)
+
+                if not len(comparison['proband'] + comparison['other']) == 2:
+                    raise PipelineError('Incorrect number of samples in this comparison')
+
+                if len(list(comparison['family_ids'])) == 1:
+                    if len(comparison['proband']) == 1:
+                        gel_line = [''.join(list(comparison['family_ids'])),
+                                comparison['proband'][0],
+                                'Proband',
+                                comparison['other'][0],
+                                self.relationship(comparison['other'])
+                                    ]
+                        gel_line.extend(r['relatedness'])
+                        gel_lines.append(gel_line)
+
+                egc_sample_pair = comparison['proband'] + comparison['other']
+                egc_line = [self.family_id(egc_sample_pair[0]),
+                            egc_sample_pair[0],
+                            self.relationship(egc_sample_pair[0]),
+                            self.family_id(egc_sample_pair[1]),
+                            egc_sample_pair[1],
+                            self.relationship(egc_sample_pair[1])
+                            ]
+
+                egc_line.extend(r['relatedness'])
+                egc_lines.append(egc_line)
+
+        return gel_lines, egc_lines
+
+
+    def get_columns(self, filename, column_headers):
+        columns_to_return = []
+        with open(filename) as openfile:
+            csvfile = csv.DictReader(openfile)
+            for line in csvfile:
+                columns_to_return.append([line[i] for i in column_headers])
+        return columns_to_return
+
+    def parse_all(self):
+        exit_status = 0
+        try:
+            peddy_relatedness = self.get_columns(self.peddy_file, ['sample_a', 'sample_b', 'rel'])
+            peddy_vcftools_relatedness = []
+            with open(self.relatedness_file) as openfile:
+                csvfile = csv.DictReader(openfile, delimiter='\t')
+                for line in csvfile:
+                    relatedness_samples = (Counter([line['INDV1'], line['INDV2']]))
+                    for i in peddy_relatedness:
+                        if Counter([i[0], i[1]]) == relatedness_samples:
+                            peddy_vcftools_relatedness.append({'sample1': i[0],
+                                                               'sample2': i[1],
+                                                               'relatedness': [i[2], line['RELATEDNESS_PHI']]
+                                                                 })
+            gel_lines, egc_lines = self.get_outfile_content(peddy_vcftools_relatedness)
+            self.write_results(gel_lines, egc_lines)
+        except (OSError, FileNotFoundError, NotADirectoryError) as e:
+            self.error(str(e))
+            exit_status += 1
+        return exit_status
+
+    def parse_single(self, sample1, sample2, relatedness):
+        exit_status = 0
+        try:
+            columns = self.get_columns(self.relatedness_file, [sample1, sample2, relatedness])
+            gel_lines, egc_lines = self.get_outfile_content(columns)
+            self.write_results(gel_lines, egc_lines)
+        except (OSError, FileNotFoundError, NotADirectoryError) as e:
+            self.error(str(e))
+            exit_status += 1
+        return exit_status
+
+    def _run(self):
+        exit_status = 0
+        if self.parse_method == 'parse_both':
+            exit_status+=self.parse_all()
+        elif self.parse_method == 'parse_relatedness':
+            sample1 = 'INDV1'
+            sample2 = 'INDV2'
+            relatedness = 'RELATEDNESS_PHI'
+            exit_status+=self.parse_single(sample1, sample2, relatedness)
+        elif self.parse_method == 'parse_peddy':
+            sample1 = 'sample_a'
+            sample2 = 'sample_b'
+            relatedness = 'rel'
+            exit_status+=self.parse_single(sample1, sample2, relatedness, self.peddy_file)
+        return exit_status
+
 
 class Genotype_gVCFs(RelatednessStage):
     gVCFs = ListParameter()
@@ -91,24 +260,6 @@ class Peddy(RelatednessStage):
             for line in self.ped_file_content:
                 openfile.write('\t'.join(line) + '\n')
         return ped_file
-
-    def family_id(self, sample_id):
-        family_id = clarity.get_sample(sample_id).udf.get('Family ID')
-        if not family_id:
-            return 'No_ID'
-        return family_id
-
-    def relationship(self, member):
-        relationship = clarity.get_sample(member).udf.get('Relationship')
-        if not relationship:
-            return 'Other'
-        return relationship
-
-    def sex(self, member):
-        sex = clarity.get_sample(member).udf.get('Sex')
-        if not sex:
-            return 'No_Sex'
-        return sex
 
     def relationships(self, family):
         relationship_codes = {'Proband': {'Mother':'0', 'Father':'0'},

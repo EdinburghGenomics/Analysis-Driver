@@ -1,5 +1,6 @@
 # Analysis Driver
 [![travis](https://img.shields.io/travis/EdinburghGenomics/Analysis-Driver/master.svg)](https://travis-ci.org/EdinburghGenomics/Analysis-Driver)
+[![Coverage Status](https://coveralls.io/repos/github/EdinburghGenomics/Analysis-Driver/badge.svg?branch=master)](https://coveralls.io/github/EdinburghGenomics/Analysis-Driver?branch=master)
 [![landscape](https://landscape.io/github/EdinburghGenomics/Analysis-Driver/master/landscape.svg)](https://landscape.io/github/EdinburghGenomics/Analysis-Driver)
 [![GitHub issues](https://img.shields.io/github/issues/EdinburghGenomics/Analysis-Driver.svg)](https://github.com/EdinburghGenomics/Analysis-Driver/issues)
 

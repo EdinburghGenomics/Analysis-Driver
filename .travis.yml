@@ -6,11 +6,12 @@ python:
 before_install:
   - "pip install pip --upgrade"
 # command to install dependencies
-install: "pip install -r requirements.txt"
-script: py.test tests
-#branches:
-#  only:
-#    - master
+install:
+  - "pip install -r requirements.txt"
+  - "pip install python-coveralls pytest-cov"
+script: py.test tests -v --cov analysis_driver --cov bin --cov-report term-missing
+after_success:
+  - coveralls
 notifications:
   email:
     on_success: change # default: change

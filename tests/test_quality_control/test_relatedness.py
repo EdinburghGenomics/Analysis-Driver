@@ -1,6 +1,10 @@
-from unittest.mock import patch
+import os
+import pytest
+from unittest.mock import patch, Mock
 from tests.test_quality_control.qc_tester import QCTester
-from analysis_driver.quality_control.relatedness import Relatedness, Genotype_gVCFs, Peddy
+from analysis_driver.quality_control.relatedness import Relatedness, Genotype_gVCFs, Peddy, ParseRelatedness
+from analysis_driver.exceptions import PipelineError
+
 
 ppath = 'analysis_driver.quality_control.relatedness.'
 
@@ -18,7 +22,7 @@ class TestGenotype_gVCFs(QCTester):
         with patch(ppath + 'util.find_file', new=self.fake_find_file):
             assert self.g.gatk_genotype_gvcfs_cmd() == (
                 'java -Djava.io.tmpdir=path/to/jobs/test_project_id -XX:+UseSerialGC -Xmx50G '
-                '-jar path/to/GenomeAnalysisTK.jar -T GenotypeGVCFs -nt 12 -R /path/to/reference.fa '
+                '-jar path/to/GenomeAnalysisTK.jar  -T GenotypeGVCFs -nt 12 -R /path/to/reference.fa '
                 '--variant test_sample1.g.vcf.gz --variant test_sample2.g.vcf.gz '
                 '--variant test_sample3.g.vcf.gz -o path/to/jobs/test_project_id/test_project_id_genotype_gvcfs.vcf'
             )
@@ -179,3 +183,76 @@ class TestPeddy(QCTester):
 
     def test_tabix_command(self):
         assert self.p.tabix_command == 'path/to/tabix -f -p vcf path/to/jobs/test_project_id/test_project_id_genotype_gvcfs.vcf.gz'
+
+
+class TestParseRelatedness(QCTester):
+    def setUp(self):
+        super().setUp()
+        self.p = ParseRelatedness(dataset=self.project_dataset, parse_method='parse_both', ids=['test_sample1', 'test_sample2', 'test_sample3'])
+
+    def test_user_sample_ids(self):
+        with patch(ppath + 'clarity.get_user_sample_name', side_effect=['user_sample1', 'user_sample2', 'user_sample3']):
+            assert self.p.user_sample_ids() == {'user_sample1': 'test_sample1',
+                                              'user_sample2': 'test_sample2',
+                                              'user_sample3': 'test_sample3'}
+
+        with patch(ppath + 'clarity.get_user_sample_name', side_effect=['user_sample1', 'user_sample1', 'user_sample2']):
+            with pytest.raises(PipelineError):
+                user_ids = self.p.user_sample_ids()
+
+
+    def test_get_outfile_content(self):
+        with patch(ppath + 'ParseRelatedness.user_sample_ids', return_value={'user_sample1': 'test_sample1',
+                                                                             'user_sample2': 'test_sample2',
+                                                                             'user_sample3': 'test_sample3',
+                                                                             'user_sample4': 'test_sample4'}), \
+             patch(ppath + 'ParseRelatedness.family_id', side_effect=['FAM1', 'FAM1', 'FAM1', 'FAM1', 'FAM1', 'FAM1', 'FAM1', 'FAM1']), \
+             patch(ppath + 'ParseRelatedness.relationship', side_effect=['Other', 'Other', 'Other', 'Other', 'Other', 'Other', 'Other', 'Other']):
+
+            gel, egc = self.p.get_outfile_content([
+                    {'sample1': 'user_sample1','sample2': 'user_sample2','relatedness': [1, 0.9]},
+                    {'sample1': 'user_sample3','sample2': 'user_sample4','relatedness': [0.9, 0.7]}])\
+
+            assert gel == []
+            assert egc == [['FAM1', 'test_sample1', 'Other', 'FAM1', 'test_sample2', 'Other', 1, 0.9],
+                           ['FAM1', 'test_sample3', 'Other', 'FAM1', 'test_sample4', 'Other', 0.9, 0.7]]
+
+
+        with patch(ppath + 'ParseRelatedness.user_sample_ids', return_value={'user_sample1': 'test_sample1',
+                                                                 'user_sample2': 'test_sample2',
+                                                                 'user_sample3': 'test_sample3',
+                                                                 'user_sample4': 'test_sample4'}), \
+             patch(ppath + 'ParseRelatedness.family_id', side_effect=['FAM1', 'FAM1', 'FAM1', 'FAM1', 'FAM1', 'FAM1', 'FAM1', 'FAM1']), \
+             patch(ppath + 'ParseRelatedness.relationship', side_effect=['Proband', 'Other', 'Other', 'Proband', 'Other', 'Other', 'Other', 'Other', 'Other']):
+
+            gel, egc = self.p.get_outfile_content([
+                    {'sample1': 'user_sample1','sample2': 'user_sample2','relatedness': [1, 0.9]},
+                    {'sample1': 'user_sample3','sample2': 'user_sample4','relatedness': [0.9, 0.7]}])\
+
+            assert gel == ([['FAM1', 'test_sample1', 'Proband', 'test_sample2', 'Other', 1, 0.9]])
+            assert egc == ([['FAM1', 'test_sample1', 'Proband', 'FAM1',  'test_sample2', 'Other', 1, 0.9],
+                          ['FAM1', 'test_sample3', 'Other', 'FAM1', 'test_sample4', 'Other', 0.9, 0.7]])
+
+        with patch(ppath + 'ParseRelatedness.user_sample_ids', return_value={'user_sample1': 'test_sample1',
+                                                                 'user_sample2': 'test_sample2',
+                                                                 'user_sample3': 'test_sample3',
+                                                                 'user_sample4': 'test_sample4'}), \
+             patch(ppath + 'ParseRelatedness.family_id', side_effect=['FAM1', 'FAM1', 'FAM1', 'FAM1', 'FAM1', 'FAM1', 'FAM1', 'FAM1']), \
+             patch(ppath + 'ParseRelatedness.relationship', side_effect=['Proband', 'Other', 'Other', 'Proband', 'Other', 'Other', 'Other', 'Other', 'Other']):
+
+            gel, egc = self.p.get_outfile_content([
+                    {'sample1': 'user_sample1','sample2': 'user_sample1','relatedness': [1, 0.9]},
+                    {'sample1': 'user_sample2','sample2': 'user_sample2','relatedness': [0.9, 0.7]}])
+
+            assert gel == ([])
+            assert egc == ([])
+
+
+    def test_get_columns(self):
+        peddy_file = os.path.join(self.assets_path, self.project_id + '.ped_check.csv')
+        assert self.p.get_columns(peddy_file, ['sample_a', 'sample_b', 'rel']) == [['NA12777', 'NA12777NA12877', '1'],
+                                                                                   ['NA12777', 'NA12877', '1'],
+                                                                                   ['NA12777', 'NA12878', '0']]
+        peddy_file = os.path.join('/path/to/nonexistent/file')
+        with pytest.raises(FileNotFoundError):
+            self.p.get_columns(peddy_file, ['sample_a', 'sample_b', 'rel'])

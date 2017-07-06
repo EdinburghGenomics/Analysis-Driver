@@ -1,10 +1,19 @@
 Changelog for Analysis-Driver
 =============================
 
-0.15.3 (unreleased)
+0.17 (unreleased)
+-----------------
+
+- Add Parser for Peddy and Relatedness
+
+
+0.16 (2017-06-22)
 -----------------
 
 - Fixed fastq_filterer stats file bug and removed workaround from 0.15.1
+- Bug fixes in pipeline stage reporting
+- Samples to be passed through variant calling can now be marked `Variant Calling` or `Variant Calling gatk`
+- Added genotype relatedness check with [Peddy](https://github.com/brentp/peddy)
 
 
 0.15.2 (2017-05-29)
