@@ -2,7 +2,7 @@ import os
 from egcg_core.util import find_file
 from analysis_driver.pipelines.common import Cleanup
 from analysis_driver.config import default as cfg, OutputFileConfiguration
-from analysis_driver.quality_control import Relatedness, Peddy, Genotype_gVCFs
+from analysis_driver.quality_control import Relatedness, Peddy, Genotype_gVCFs, ParseRelatedness
 from analysis_driver.exceptions import PipelineError
 from analysis_driver.transfer_data import output_project_data
 from analysis_driver import segmentation
@@ -26,8 +26,9 @@ def build_pipeline(dataset):
     genotype_gvcfs = Genotype_gVCFs(dataset=dataset, gVCFs=gvcf_files, reference=reference)
     relatedness = Relatedness(dataset=dataset, previous_stages=[genotype_gvcfs])
     peddy = Peddy(dataset=dataset, ids=sample_ids, previous_stages=[genotype_gvcfs])
-    output = Output(dataset=dataset, previous_stages=[relatedness, peddy])
-    cleanup = Cleanup(previous_stages=[output])
+    parse = ParseRelatedness(dataset=dataset, parse_method='parse_both', previous_stages=[relatedness, peddy])
+    output = Output(dataset=dataset, previous_stages=[relatedness, peddy, parse])
+    cleanup = Cleanup(dataset=dataset, previous_stages=[output])
     return cleanup
 
 

@@ -4,7 +4,7 @@ Changelog for Analysis-Driver
 0.17 (unreleased)
 -----------------
 
-- Nothing changed yet.
+- Add Parser for Peddy and Relatedness
 
 
 0.16 (2017-06-22)
