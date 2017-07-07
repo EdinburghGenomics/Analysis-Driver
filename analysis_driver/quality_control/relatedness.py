@@ -131,11 +131,13 @@ class ParseRelatedness(RelatednessStage):
 
         gel_lines, egc_lines = self.get_outfile_content(peddy_vcftools_relatedness)
         self.write_results(gel_lines, egc_lines)
+        return 0
 
-    def parse_single(self, sample1, sample2, relatedness):
-        columns = self.get_columns(self.relatedness_file, [sample1, sample2, relatedness])
+    def parse_single(self, sample1, sample2, relatedness, relatedness_file):
+        columns = self.get_columns(relatedness_file, [sample1, sample2, relatedness])
         gel_lines, egc_lines = self.get_outfile_content(columns)
         self.write_results(gel_lines, egc_lines)
+        return 0
 
     def _run(self):
         exit_status = 0
@@ -146,8 +148,7 @@ class ParseRelatedness(RelatednessStage):
             sample1 = 'INDV1'
             sample2 = 'INDV2'
             relatedness = 'RELATEDNESS_PHI'
-            exit_status += self.parse_single(sample1, sample2, relatedness)
-
+            exit_status += self.parse_single(sample1, sample2, relatedness, self.relatedness_file)
         elif self.parse_method == 'parse_peddy':
             sample1 = 'sample_a'
             sample2 = 'sample_b'
