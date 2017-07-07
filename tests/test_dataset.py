@@ -13,8 +13,6 @@ from analysis_driver.dataset import Dataset, RunDataset, SampleDataset, MostRece
 
 
 ppath = 'analysis_driver.dataset.'
-
-
 fake_proc = {'proc_id': 'a_proc_id', 'dataset_type': 'test', 'dataset_name': 'test'}
 
 patched_patch = patch(ppath + 'rest_communication.patch_entry')
@@ -234,7 +232,7 @@ class TestRunDataset(TestDataset):
     def test_is_ready(self):
         with patched_get_docs():
             d = RunDataset('dataset_ready')
-            assert d._is_ready() == True
+            assert d._is_ready()
 
     def test_dataset_status(self):
         with patched_get_run:

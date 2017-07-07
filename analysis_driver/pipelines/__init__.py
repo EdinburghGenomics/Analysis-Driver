@@ -7,28 +7,32 @@ from analysis_driver.exceptions import PipelineError
 from analysis_driver.pipelines import demultiplexing, bcbio, qc, variant_calling, projects
 
 
-def pipeline(d):
+def pipeline(dataset):
+    """
+    Decide which pipeline to run on a dataset, and run luigi.build.
+    :param analysis_driver.dataset.Dataset dataset:
+    """
     luigi.interface.setup_interface_logging.has_run = True  # turn off Luigi's default logging setup
     log_cfg.get_logger('luigi-interface', 20)  # just calling log_cfg.get_logger registers the luigi-interface
 
-    if isinstance(d, RunDataset):
+    if isinstance(dataset, RunDataset):
         _pipeline = demultiplexing
-    elif isinstance(d, SampleDataset):
-        analysis_type = clarity.get_sample(d.name).udf.get('Analysis Type')
-        if d.species is None:
-            raise PipelineError('No species information found in the LIMS for ' + d.name)
-        elif d.species == 'Homo sapiens':
+    elif isinstance(dataset, SampleDataset):
+        analysis_type = clarity.get_sample(dataset.name).udf.get('Analysis Type')
+        if dataset.species is None:
+            raise PipelineError('No species information found in the LIMS for ' + dataset.name)
+        elif dataset.species == 'Homo sapiens':
             _pipeline = bcbio
         elif analysis_type in ['Variant Calling', 'Variant Calling gatk']:
             _pipeline = variant_calling
         else:
             _pipeline = qc
-    elif isinstance(d, ProjectDataset):
+    elif isinstance(dataset, ProjectDataset):
         _pipeline = projects
     else:
-        raise AssertionError('Unexpected dataset type: ' + str(d))
+        raise AssertionError('Unexpected dataset type: ' + str(dataset))
 
-    final_stage = _pipeline.build_pipeline(d)
+    final_stage = _pipeline.build_pipeline(dataset)
 
     luigi_params = {
         'tasks': [final_stage],
@@ -40,7 +44,7 @@ def pipeline(d):
 
     success = luigi.build(**luigi_params)
 
-    # If any exception occured during the pipeline raise them here again
-    d.raise_exceptions()
+    # if any exception occurred during the pipeline raise them here again
+    dataset.raise_exceptions()
 
     return 0 if success is True else 9

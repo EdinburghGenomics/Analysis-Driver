@@ -31,7 +31,7 @@ class GenotypeValidation(Stage):
 
     def _bwa_aln(self, fastq_files):
         """
-        Contruct a command that will perform the alignment and duplicate removal using bwa aln.
+        Construct a command that will perform the alignment and duplicate removal using bwa aln.
         :param fastq_files: 1 or 2 fastqs
         :return: A pipe-separated bash command
         """

@@ -201,9 +201,9 @@ def calculate_relatedness(dataset, args):
             project_folder = util.find_file(cfg['input_dir'], project_id)
             all_gvcfs.extend(get_all_project_gvcfs(project_folder))
 
-    g = qc.Genotype_gVCFs(dataset=dataset, gVCFs=all_gvcfs, reference=args.reference)
+    g = qc.GenotypeGVCFs(dataset=dataset, gVCFs=all_gvcfs, reference=args.reference)
     g.run()
-    if not args.method in ['peddy', 'relatedness']:
+    if args.method not in ('peddy', 'relatedness'):
         raise AnalysisDriverError('Choose either "peddy" or "relatedness" as method')
     if args.method == 'peddy':
         p = qc.Peddy(dataset=dataset, ids=sample_ids)

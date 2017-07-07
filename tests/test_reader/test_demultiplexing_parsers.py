@@ -97,13 +97,13 @@ class TestDemultiplexingStats(TestAnalysisDriver):
         bases_5x, bases_15x, bases_30x = dm.calculate_bases_at_coverage(histogram)
         assert bases_30x == 0
 
-    def test_get_percentiles(self):
+    def test_get_n_percentile(self):
         histogram = {1: 5, 2: 2, 3: 4, 4: 6, 5: 3}
-        assert dm.get_percentiles(histogram, 50) == 3
+        assert dm.get_percentile(histogram, 50) == 3
         histogram = {1: 1, 2: 3, 3: 4, 4: 6, 5: 6}
-        assert dm.get_percentiles(histogram, 50) == 4
+        assert dm.get_percentile(histogram, 50) == 4
         histogram = {1: 3, 2: 3, 3: 4, 4: 6, 5: 4}
-        assert dm.get_percentiles(histogram, 50) == 3.5
+        assert dm.get_percentile(histogram, 50) == 3.5
 
     def test_get_coverage_statistics(self):
         hist_file = os.path.join(self.assets_path, 'test_sample.depth')
