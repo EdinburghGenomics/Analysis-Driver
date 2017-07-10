@@ -12,7 +12,7 @@ def test_bcl2fastq():
     mask = run_info.reads.generate_mask(barcode_len=8)
     sample_sheet_csv = join(assets, 'SampleSheet_analysis_driver.csv')
     obs = bash_commands.bcl2fastq(assets, fastq_path, sample_sheet_csv, mask)
-    exp = ('path/to/bcl2fastq_1.0.4 -l INFO --runfolder-dir %s --output-dir %s -r 8 -d 8 -p 8 -w 8 '
+    exp = ('path/to/bcl2fastq -l INFO --runfolder-dir %s --output-dir %s -r 8 -d 8 -p 8 -w 8 '
            '--sample-sheet %s --use-bases-mask %s') % (assets, fastq_path, sample_sheet_csv, mask)
     assert obs == exp
 
@@ -43,7 +43,7 @@ def test_bwa_mem_samblaster():
     cmd = bash_commands.bwa_mem_samblaster(['this.fastq', 'that.fastq'], 'ref.fasta', 'output/out.bam')
     expected_cmd = (
         'set -o pipefail; '
-        'path/to/bwa_1.1 mem -M -t 16 ref.fasta this.fastq that.fastq | '
+        'path/to/bwa mem -M -t 16 ref.fasta this.fastq that.fastq | '
         'path/to/samblaster | '
         'path/to/samtools view -b - | '
         'path/to/sambamba sort -m 5G --tmpdir output -t 16 -o output/out.bam /dev/stdin'
@@ -60,7 +60,7 @@ def test_bwa_mem_samblaster_read_groups():
     )
     expected_cmd = (
         'set -o pipefail; '
-        'path/to/bwa_1.1 mem -M -t 16 -R \'@RG\\tID:1\\tPL:illumina\\tSM:user_sample_id\' '
+        'path/to/bwa mem -M -t 16 -R \'@RG\\tID:1\\tPL:illumina\\tSM:user_sample_id\' '
         'ref.fasta this.fastq that.fastq | '
         'path/to/samblaster | '
         'path/to/samtools view -b - | '
@@ -78,9 +78,9 @@ def test_bwa_mem_biobambam_read_groups():
     )
     expected_cmd = (
         'set -o pipefail; '
-        'path/to/bwa_1.1 mem -M -t 16 -R \'@RG\\tID:1\\tPL:illumina\\tSM:user_sample_id\' '
+        'path/to/bwa mem -M -t 16 -R \'@RG\\tID:1\\tPL:illumina\\tSM:user_sample_id\' '
         'ref.fasta this.fastq that.fastq | '
-        'path/to/bamsormadup inputformat=sam SO=coordinate tmpfile=output/out.bam '
+        'path/to/biobambam_sortmapdup inputformat=sam SO=coordinate tmpfile=output/out.bam '
         'threads=16 indexfilename=output/out.bam.bai > output/out.bam'
     )
     assert cmd == expected_cmd
@@ -92,7 +92,7 @@ def test_samtools_stats():
 
 
 def test_md5sum():
-    assert bash_commands.md5sum('in.txt') == 'md5sum in.txt > in.txt.md5'
+    assert bash_commands.md5sum('in.txt') == 'path/to/md5sum in.txt > in.txt.md5'
 
 
 def test_export_env_vars():

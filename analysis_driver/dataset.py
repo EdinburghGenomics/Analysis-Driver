@@ -150,6 +150,10 @@ class Dataset(AppLogger):
     def _is_ready(self):
         raise NotImplementedError
 
+    @property
+    def pipeline_version(self):
+        raise NotImplementedError
+
     def register_exception(self, luigi_task, exception):
         self.exceptions[luigi_task.stage_name] = exception
 
@@ -352,6 +356,10 @@ class RunDataset(Dataset):
     def lane_metrics(self):
         return rest_communication.get_documents('aggregate/run_elements_by_lane', match={'run_id': self.name})
 
+    @property
+    def pipeline_version(self):
+        return None  # always use the most recent run toolset
+
 
 class SampleDataset(Dataset):
     type = 'sample'
@@ -420,6 +428,10 @@ class SampleDataset(Dataset):
         if not self._data_threshold:
             raise AnalysisDriverError('Could not find data threshold in LIMS for ' + self.name)
         return self._data_threshold
+
+    @property
+    def pipeline_version(self):
+        return rest_communication.get_document('samples', match={'sample_id': self.name}).get('pipeline_version')
 
     def _is_ready(self):
         return self.data_threshold and int(self._amount_data()) > int(self.data_threshold)
@@ -501,6 +513,10 @@ class ProjectDataset(Dataset):
     @property
     def reference_genome(self):
         return cfg['genomes'][self.genome_version]['fasta']
+
+    @property
+    def pipeline_version(self):
+        return rest_communication.get_document('projects', match={'project_id': self.name}).get('pipeline_version')
 
     def __str__(self):
         return '%s  (%s samples / %s) ' % (super().__str__(), len(self.samples_processed), self.number_of_samples)

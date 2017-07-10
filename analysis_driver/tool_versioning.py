@@ -7,21 +7,31 @@ from analysis_driver.exceptions import AnalysisDriverError
 class Toolset(AppLogger):
     tools = {}
     tool_versions = {}
-    toolset_version = None
-    latest_version = max(tool_versioning_cfg['toolsets'].keys())
+    version = None
+    type = None
 
-    def select_toolset(self, version):
-        self.toolset_version = version
+    @property
+    def latest_version(self):
+        return max(tool_versioning_cfg['toolsets'][self.type].keys())
+
+    def select_type(self, pipeline_type):
+        self.type = pipeline_type
+
+    def select_version(self, version):
+        if self.type is None:
+            raise AnalysisDriverError('Tried to select a toolset version with no type set')
+
+        self.version = version
         self.tools = {}
         self.tool_versions = {}
 
         for k in cfg['tools']:
-            if k in tool_versioning_cfg['toolsets'][self.toolset_version]:
+            if k in tool_versioning_cfg['toolsets'][self.type][self.version]:
                 self.tools[k] = self.add_versioned_tool(k)
             else:
                 self.tools[k] = cfg['tools'][k]
 
-        self.info('Selected toolset version %s', self.toolset_version)
+        self.info('Selected %s toolset version %s', self.type, self.version)
 
     def add_versioned_tool(self, toolname):
         version = self.resolve(toolname, 'version')
@@ -47,11 +57,11 @@ class Toolset(AppLogger):
 
     def resolve(self, toolname, key, toolset_version=None):
         if toolset_version is None:
-            toolset_version = self.toolset_version
+            toolset_version = self.version
         elif toolset_version < 0:
             raise AnalysisDriverError('Could not resolve %s for %s', key, toolname)
 
-        config = tool_versioning_cfg['toolsets'][toolset_version][toolname] or {}
+        config = tool_versioning_cfg['toolsets'][self.type][toolset_version][toolname] or {}
 
         if key in config:
             self.debug(

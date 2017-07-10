@@ -5,23 +5,28 @@ cmd_aliases:
 
 
 toolsets:
-    0:
-        bwa:
-            version: 1.0
-            version_cmd: grep_version
+    run_processing:
+        0:
+            bcl2fastq:
+                version: 1.0.4
+                version_cmd: grep_toolname
+        1:
+            bcl2fastq: null  # inherit everything from previous version
 
-        bcl2fastq:
-            version: 1.0.4
-            version_cmd: grep_toolname
+    non_human_variant_calling:
+        0:
+            bwa:
+                version: 1.0
+                version_cmd: grep_version
 
-        gatk:
-            version: 3
-            version_cmd: 'java -jar {executable} -h 2>&1 | grep "The Genome Analysis Toolkit (GATK)" | cut -d " " -f 6 | cut -d "," -f 1'
+            gatk:
+                version: 3
+                version_cmd: 'java -jar {executable} -h 2>&1 | grep "The Genome Analysis Toolkit (GATK)" | cut -d " " -f 6 | cut -d "," -f 1'
 
-    1:
-        bcl2fastq: null  # inherit everything from previous version
-        gatk:  # override
-            version: 4
-            version_cmd: 'java -jar {executable} -v 2>&1 | grep "GATK" | cut -d " " -f 2'
-        bwa:  # inherit version_cmd from previous version
-            version: 1.1
+        1:
+
+            gatk:  # override
+                version: 4
+                version_cmd: 'java -jar {executable} -v 2>&1 | grep "GATK" | cut -d " " -f 2'
+            bwa:  # inherit version_cmd from previous version
+                version: 1.1

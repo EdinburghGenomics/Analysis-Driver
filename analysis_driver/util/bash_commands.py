@@ -73,7 +73,7 @@ def fq_filt_prelim_cmd():
     return '\n'.join(cmd).format(
         ff=toolset['fastq-filterer'],
         threshold=cfg.query('fastq_filterer', 'min_length', ret_default='36'),
-        pigz=cfg.query('tools', 'pigz', ret_default='pigz'),
+        pigz=toolset['pigz'],
         pzt=10  # two pigz processes run, so pigz threads here will be doubled
     )
 
@@ -152,14 +152,14 @@ def bwa_mem_biobambam(fastq_pair, reference, expected_output_bam, read_group=Non
 
 
 def samtools_stats(bam_file, output_file):
-    samtools_bin = cfg.query('tools', 'samtools')
+    samtools_bin = toolset['samtools']
     cmd = '%s stats %s > %s' % (samtools_bin, bam_file, output_file)
     app_logger.debug('Writing: ' + cmd)
     return cmd
 
 
 def md5sum(input_file):
-    cmd = cfg.query('tools', 'md5sum', ret_default='md5sum') + ' %s > %s.md5' % (input_file, input_file)
+    cmd = toolset['md5sum'] + ' %s > %s.md5' % (input_file, input_file)
     app_logger.debug('Writing: ' + cmd)
     return cmd
 
