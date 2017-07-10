@@ -68,7 +68,8 @@ class TestPeddy(QCTester):
 
     @patch('egcg_core.executor.execute')
     @patch(ppath + 'Peddy.peddy_command', return_value='peddy_command')
-    def test_run_peddy(self, mocked_peddy_command, mocked_execute):
+    @patch(ppath + 'Peddy.write_ped_file')
+    def test_run_peddy(self, mocked_write_ped, mocked_peddy_command, mocked_execute):
         self.p.run_peddy()
         mocked_execute.assert_called_with(
             mocked_peddy_command,
@@ -78,8 +79,7 @@ class TestPeddy(QCTester):
             mem=10
         )
 
-    @patch(ppath + 'Peddy.write_ped_file')
-    def test_peddy_command(self, mocked_ped_file):
+    def test_peddy_command(self):
         assert self.p.peddy_command == ('path/to/peddy --plot --prefix test_project_id '
                                         'path/to/jobs/test_project_id/test_project_id_genotype_gvcfs.vcf.gz '
                                         'path/to/jobs/test_project_id/ped.fam')
