@@ -140,21 +140,20 @@ class ParseRelatedness(RelatednessStage):
         return 0
 
     def _run(self):
-        exit_status = 0
         if self.parse_method == 'parse_both':
-            exit_status += self.parse_all()
+            return self.parse_all()
 
         elif self.parse_method == 'parse_relatedness':
             sample1 = 'INDV1'
             sample2 = 'INDV2'
             relatedness = 'RELATEDNESS_PHI'
-            exit_status += self.parse_single(sample1, sample2, relatedness, self.relatedness_file)
+            return self.parse_single(sample1, sample2, relatedness, self.relatedness_file)
+
         elif self.parse_method == 'parse_peddy':
             sample1 = 'sample_a'
             sample2 = 'sample_b'
             relatedness = 'rel'
-            exit_status += self.parse_single(sample1, sample2, relatedness, self.peddy_file)
-        return exit_status
+            return self.parse_single(sample1, sample2, relatedness, self.peddy_file)
 
 
 class GenotypeGVCFs(RelatednessStage):
@@ -296,12 +295,12 @@ class Peddy(RelatednessStage):
 
     @property
     def peddy_command(self):
-        self.write_ped_file()
         return '%s --plot --prefix %s %s %s' % (
             cfg['tools']['peddy'], self.dataset.name, self.gatk_outfile + '.gz', self.ped_file
         )
 
     def run_peddy(self):
+        self.write_ped_file()
         return executor.execute(
             self.peddy_command,
             job_name='peddy',

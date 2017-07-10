@@ -180,19 +180,12 @@ class MergeFastqs(VarCallingStage):
             exit_status,
             sample_fastqs
         )
-        return 0
+        return exit_status
 
 
 class Cleanup(segmentation.Stage):
     def _run(self):
-        # wait for all the previous PBS steps to be done writing to the folder before cleaning it up
-        time.sleep(120)
-        job_dir = os.path.join(cfg['jobs_dir'], self.dataset.name)
-
-        self.info('Cleaning up job dir %s', job_dir)
-        try:
-            shutil.rmtree(job_dir)
-            return 0
-        except (OSError, FileNotFoundError, NotADirectoryError) as e:
-            self.error('Could not remove job dir: %s', e)
-            return 1
+        time.sleep(120)  # wait for any previous PBS steps to be done writing to the folder before cleaning it up
+        self.info('Cleaning up job dir')
+        shutil.rmtree(self.job_dir)
+        return 0
