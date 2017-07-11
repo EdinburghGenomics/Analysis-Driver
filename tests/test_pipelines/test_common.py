@@ -2,9 +2,8 @@ import os
 from shutil import rmtree
 from unittest.mock import Mock, patch
 from tests.test_analysisdriver import TestAnalysisDriver, NamedMock
-from analysis_driver.config import OutputFileConfiguration
+from analysis_driver.config import OutputFileConfiguration, cfg
 from analysis_driver.pipelines import common
-from analysis_driver.config import cfg
 
 
 class TestCommon(TestAnalysisDriver):

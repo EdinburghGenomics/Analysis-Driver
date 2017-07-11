@@ -3,7 +3,6 @@ import signal
 import pytest
 from sys import modules
 from unittest.mock import patch, Mock, PropertyMock
-from egcg_core.constants import ELEMENT_PROJECT_ID, ELEMENT_SAMPLE_INTERNAL_ID, ELEMENT_BARCODE
 from egcg_core import constants as c
 
 from integration_tests.mocked_data import MockedSamples, MockedRunProcess
@@ -253,9 +252,9 @@ class TestRunDataset(TestDataset):
         with patch('analysis_driver.dataset.clarity.get_run', return_value=MockedRunProcess(container=mocked_flowcell_non_pooling)), \
              patch.object(RunDataset, 'has_barcodes', new_callable=PropertyMock(return_value=False)):
             run_elements = d._run_elements_from_lims()
-            assert len(set(r[ELEMENT_PROJECT_ID] for r in run_elements)) == 1
-            assert len(set(r[ELEMENT_SAMPLE_INTERNAL_ID] for r in run_elements)) == 2
-            barcodes_len = set(len(r[ELEMENT_BARCODE]) for r in run_elements)
+            assert len(set(r[c.ELEMENT_PROJECT_ID] for r in run_elements)) == 1
+            assert len(set(r[c.ELEMENT_SAMPLE_INTERNAL_ID] for r in run_elements)) == 2
+            barcodes_len = set(len(r[c.ELEMENT_BARCODE]) for r in run_elements)
             assert len(barcodes_len) == 1
             assert barcodes_len.pop() == 0
 
@@ -264,9 +263,9 @@ class TestRunDataset(TestDataset):
         with patch('egcg_core.clarity.get_run', return_value=MockedRunProcess(container=mocked_flowcell_pooling)), \
              patch.object(RunDataset, 'has_barcodes', new_callable=PropertyMock(return_value=True)):
             run_elements = d._run_elements_from_lims()
-            assert len(set(r[ELEMENT_PROJECT_ID] for r in run_elements)) == 1
-            assert len(set(r[ELEMENT_SAMPLE_INTERNAL_ID] for r in run_elements)) == 4
-            barcodes_len = set(len(r[ELEMENT_BARCODE]) for r in run_elements)
+            assert len(set(r[c.ELEMENT_PROJECT_ID] for r in run_elements)) == 1
+            assert len(set(r[c.ELEMENT_SAMPLE_INTERNAL_ID] for r in run_elements)) == 4
+            barcodes_len = set(len(r[c.ELEMENT_BARCODE]) for r in run_elements)
             assert len(barcodes_len) == 1
             assert barcodes_len.pop() == 8
 

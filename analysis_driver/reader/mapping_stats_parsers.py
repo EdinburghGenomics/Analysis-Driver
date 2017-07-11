@@ -2,8 +2,7 @@ import re
 import csv
 import yaml
 from collections import Counter
-from egcg_core.constants import ELEMENT_NO_CALL_CHIP, ELEMENT_NO_CALL_SEQ, ELEMENT_MISMATCHING, \
-    ELEMENT_MATCHING
+from egcg_core.constants import ELEMENT_NO_CALL_CHIP, ELEMENT_NO_CALL_SEQ, ELEMENT_MISMATCHING, ELEMENT_MATCHING
 
 
 def parse_samtools_stats(samtools_stats):

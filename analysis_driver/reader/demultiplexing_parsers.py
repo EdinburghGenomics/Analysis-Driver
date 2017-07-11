@@ -3,8 +3,8 @@ from itertools import islice
 from collections import Counter, defaultdict
 from xml.etree import ElementTree
 from egcg_core import constants as c
-
 from egcg_core.app_logging import logging_default as log_cfg
+
 app_logger = log_cfg.get_logger(__name__)
 
 

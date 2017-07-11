@@ -3,8 +3,8 @@ import csv
 from collections import Counter
 from egcg_core import executor, util, clarity
 from luigi import Parameter, ListParameter
-from analysis_driver.config import default as cfg
 from analysis_driver import segmentation
+from analysis_driver.config import default as cfg
 from analysis_driver.util.bash_commands import java_command
 from analysis_driver.exceptions import PipelineError
 

@@ -20,7 +20,8 @@ class TestTransferData(TestAnalysisDriver):
 
     def test_create_links(self):
         list_of_linked_files = transfer_data.create_output_links(
-            self.data_output, self.output_cfg, self.link_dir, sample_id=self.sample_id, user_sample_id=self.sample_id        )
+            self.data_output, self.output_cfg, self.link_dir, sample_id=self.sample_id, user_sample_id=self.sample_id
+        )
 
         output_files = os.path.join(self.data_output, 'linked_output_files')
 
