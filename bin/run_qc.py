@@ -34,7 +34,7 @@ def _parse_args():
     geno_val.add_argument('--project_id', required=True)
     geno_val.add_argument('--check_neighbour', action='store_true', default=False)
     geno_val.add_argument('--check_project', action='store_true', default=False)
-    geno_val.add_argument('--check_samples', nargs='*')
+    geno_val.add_argument('--check_samples', nargs='*', default=[])
     geno_val.set_defaults(func=run_genotype_validation)
 
     sp_contamination = subparsers.add_parser('species_contamination_check')
@@ -82,15 +82,15 @@ def run_genotype_validation(dataset, args):
     sample_output_dir = os.path.join(cfg['output_dir'], args.project_id, dataset.name)
     genotype_vcfs = util.find_files(sample_output_dir, '*_genotype_validation.vcf.gz')
     if not genotype_vcfs:
-        fastq_files = util.find_files(sample_output_dir, '*_R?.fastq.gz')
+        fq_pattern = os.path.join(sample_output_dir, '*_R?.fastq.gz')
         genotype_vcf = None
     else:
         genotype_vcf = genotype_vcfs[0]
-        fastq_files = []
+        fq_pattern = []
 
     geno_val = qc.GenotypeValidation(
         dataset=dataset,
-        fastq_files=sorted(fastq_files),
+        fq_pattern=fq_pattern,
         vcf_file=genotype_vcf,
         check_neighbour=args.check_neighbour,
         check_project=args.check_project,
