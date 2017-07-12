@@ -147,7 +147,7 @@ class MergeFastqs(VarCallingStage):
         fastqs = []
         for run_element in self.dataset.run_elements:
             if int(run_element.get(ELEMENT_NB_READS_CLEANED, 0)) > 0:
-                fastqs.extend(self._find_fastqs_for_sample(run_element))
+                fastqs.extend(self._find_fastqs_for_run_element(run_element))
         return fastqs
 
     def _write_bcbio_csv(self, fastqs):
@@ -165,7 +165,7 @@ class MergeFastqs(VarCallingStage):
 
     def _run(self):
         """Merge the fastq files per sample using bcbio prepare sample"""
-        fastq_files = self.prepare_sample_data()
+        fastq_files = self.find_fastqs_for_sample()
         bcbio_csv_file = self._write_bcbio_csv(fastq_files)
         self.info('Setting up BCBio samples from ' + bcbio_csv_file)
         cmd = bash_commands.bcbio_prepare_samples(
