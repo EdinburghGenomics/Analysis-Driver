@@ -1,8 +1,8 @@
 import os
 from egcg_core import executor
+from analysis_driver import segmentation
 from analysis_driver.pipelines import common
 from analysis_driver.config import default as cfg
-from analysis_driver import segmentation
 from analysis_driver.util.bash_commands import java_command
 
 
@@ -61,11 +61,11 @@ class GATKStage(segmentation.Stage):
 
     @property
     def dbsnp(self):
-        return common.get_dbsnp(self.dataset.genome_version)
+        return cfg.query('genomes', self.dataset.genome_version, 'dbsnp')
 
     @property
     def known_indels(self):
-        return common.get_known_indels(self.dataset.genome_version)
+        return cfg.query('genomes', self.dataset.genome_version, 'known_indels')
 
 
 class BaseRecal(GATKStage):
@@ -184,6 +184,6 @@ def build_pipeline(dataset):
     bgzip = stage(BGZip, previous_stages=[haplotype])
     tabix = stage(Tabix, previous_stages=[bgzip])
 
-    output = stage(common.DataOutput, previous_stages=[tabix], output_fileset='gatk_var_calling')
+    output = stage(common.SampleDataOutput, previous_stages=[tabix], output_fileset='gatk_var_calling')
     _cleanup = stage(common.Cleanup, previous_stages=[output])
     return _cleanup

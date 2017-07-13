@@ -51,28 +51,23 @@ class TestDemultiplexingStats(TestAnalysisDriver):
             ELEMENT_PCNT_UNMAPPED_FOCAL: 1.09,
             ELEMENT_TOTAL_READS_MAPPED: 100000,
             ELEMENT_CONTAMINANT_UNIQUE_MAP: {
-                'Gallus gallus': 1,
-                'Felis catus': 4,
-                'Bos taurus': 1,
-                'Ovis aries': 2,
-                'Mus musculus': 4,
-                'Homo sapiens': 74144
+                'Gallus gallus': 1, 'Felis catus': 4, 'Bos taurus': 1,
+                'Ovis aries': 2, 'Mus musculus': 4, 'Homo sapiens': 74144
             }
         }
 
     def test_parse_fastqscreen_file2(self):
         screen_file = os.path.join(self.assets_path, 'test_sample_R1_screen.txt')
         result = dm.parse_fastqscreen_file(screen_file, 'Mellivora capensis')
-        assert result == {'contaminant_unique_mapped':
-                              {'Bos taurus': 1,
-                               'Felis catus': 4,
-                               'Gallus gallus': 1,
-                               'Homo sapiens': 74144,
-                               'Ovis aries': 2,
-                               'Mus musculus': 4},
-                          'percent_unmapped': 1.06,
-                          'percent_unmapped_focal': 100.0,
-                          'total_reads_mapped': 100000}
+        assert result == {
+            'percent_unmapped': 1.06,
+            'percent_unmapped_focal': 100.0,
+            'total_reads_mapped': 100000,
+            'contaminant_unique_mapped': {
+                'Bos taurus': 1, 'Felis catus': 4, 'Gallus gallus': 1,
+                'Homo sapiens': 74144, 'Ovis aries': 2, 'Mus musculus': 4
+            }
+        }
 
     def test_calculate_mean(self):
         hist_file = os.path.join(self.assets_path, 'test_sample.depth')
@@ -102,13 +97,13 @@ class TestDemultiplexingStats(TestAnalysisDriver):
         bases_5x, bases_15x, bases_30x = dm.calculate_bases_at_coverage(histogram)
         assert bases_30x == 0
 
-    def test_get_percentiles(self):
+    def test_get_n_percentile(self):
         histogram = {1: 5, 2: 2, 3: 4, 4: 6, 5: 3}
-        assert dm.get_percentiles(histogram, 50) == 3
+        assert dm.get_percentile(histogram, 50) == 3
         histogram = {1: 1, 2: 3, 3: 4, 4: 6, 5: 6}
-        assert dm.get_percentiles(histogram, 50) == 4
+        assert dm.get_percentile(histogram, 50) == 4
         histogram = {1: 3, 2: 3, 3: 4, 4: 6, 5: 4}
-        assert dm.get_percentiles(histogram, 50) == 3.5
+        assert dm.get_percentile(histogram, 50) == 3.5
 
     def test_get_coverage_statistics(self):
         hist_file = os.path.join(self.assets_path, 'test_sample.depth')
@@ -142,7 +137,7 @@ class TestDemultiplexingStats(TestAnalysisDriver):
     def test_parse_welldup_file(self):
         welldup_file = os.path.join(self.assets_path, 'test_crawlers', 'test_run.well_dup')
         dup_per_lane = dm.parse_welldup_file(welldup_file)
-        assert dup_per_lane == {1: 11.747, 2: 14.576, 3: 0, 4: 20.496, 5: 5.981, 6: 10.917, 7: 14.611, 8: 26.416}
+        assert dup_per_lane == {1: 11.747, 2: 14.576, 4: 20.496, 5: 5.981, 6: 10.917, 7: 14.611, 8: 26.416}
 
     def test_parse_adapter_trim_file(self):
         adapter_trim_file = os.path.join(self.assets_path, 'test_crawlers', 'AdapterTrimming.txt')
@@ -170,4 +165,4 @@ class TestDemultiplexingStats(TestAnalysisDriver):
             'remove_tiles': '1102,2202',
             'trim_r1': '14', 'trim_r2': '16'
         }
-        assert dm.parse_fastqFilterer_stats(fastqfilterer_stats) == expected_dict
+        assert dm.parse_fastq_filterer_stats(fastqfilterer_stats) == expected_dict

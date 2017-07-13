@@ -1,8 +1,7 @@
 import os
 import yaml
 from egcg_core import executor, clarity, util
-from analysis_driver import segmentation
-from analysis_driver import quality_control as qc
+from analysis_driver import segmentation, quality_control as qc
 from analysis_driver.exceptions import PipelineError
 from analysis_driver.pipelines import common
 from analysis_driver.util import bash_commands
@@ -107,8 +106,8 @@ def build_pipeline(dataset):
     fastqc = stage(common.FastQC, previous_stages=[merge_fastqs])
     bcbio = stage(BCBio, previous_stages=[fastqc])
 
-    contam_check = stage(qc.ContaminationCheck, fq_pattern=bcbio.fastq_pair, previous_stages=[fastqc])
-    blast = stage(qc.ContaminationBlast, fastq_file=bcbio.fastq_pair.replace('?', '1'), previous_stages=[fastqc])
+    contam_check = stage(qc.FastqScreen, fq_pattern=bcbio.fastq_pair, previous_stages=[fastqc])
+    blast = stage(qc.Blast, fastq_file=bcbio.fastq_pair.replace('?', '1'), previous_stages=[fastqc])
     geno_val = stage(qc.GenotypeValidation, fq_pattern=bcbio.fastq_pair, previous_stages=[fastqc])
     bcbio_and_qc = [bcbio, fastqc, contam_check, blast, geno_val]
 
@@ -118,7 +117,7 @@ def build_pipeline(dataset):
     samtools_depth = stage(qc.SamtoolsDepth, bam_file=bcbio.bam_path, previous_stages=bcbio_and_qc)
     post_bcbio_qc = [gender_val, vcfstats, verify_bam_id, samtools_depth]
 
-    output = stage(common.DataOutput, previous_stages=post_bcbio_qc, output_fileset='bcbio')
+    output = stage(common.SampleDataOutput, previous_stages=post_bcbio_qc, output_fileset='bcbio')
     cleanup = stage(common.Cleanup, previous_stages=[output])
 
     return cleanup

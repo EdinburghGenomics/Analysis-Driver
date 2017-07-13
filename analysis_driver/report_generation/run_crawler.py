@@ -1,48 +1,11 @@
 import copy
-from collections import Counter, defaultdict
-
-from egcg_core import util, clarity
-from egcg_core.app_logging import AppLogger
-from egcg_core.constants import *  # pylint: disable=unused-import
+from collections import defaultdict, Counter
+from egcg_core import util
+from egcg_core.constants import *
 from egcg_core.rest_communication import post_or_patch as pp
-
-from analysis_driver.config import default as cfg
+from analysis_driver.reader import demultiplexing_parsers as dm
 from analysis_driver.exceptions import PipelineError
-from analysis_driver.reader import demultiplexing_parsers as dm, mapping_stats_parsers as mp
-
-_gender_aliases = {'female': ['f', 'female', 'girl', 'woman'], 'male': ['m', 'male', 'boy', 'man']}
-
-
-def gender_alias(gender):
-    for key in _gender_aliases:
-        if str(gender).lower() in _gender_aliases[key]:
-            return key
-    return 'unknown'
-
-
-def get_sample_information_from_lims(sample_name):
-    sample_info = {
-        ELEMENT_SAMPLE_EXTERNAL_ID: clarity.get_user_sample_name(sample_name, lenient=True),
-        ELEMENT_SAMPLE_PLATE: clarity.get_plate_id_and_well(sample_name)[0],  # returns [plate_id, well]
-        ELEMENT_PROVIDED_GENDER: gender_alias(clarity.get_sample_gender(sample_name)),
-        ELEMENT_SAMPLE_SPECIES: clarity.get_species_from_sample(sample_name),
-        ELEMENT_SAMPLE_EXPECTED_YIELD: clarity.get_expected_yield_for_sample(sample_name)
-    }
-    lims_sample = clarity.get_sample(sample_name)
-    coverage = lims_sample.udf.get('Coverage')
-    if coverage:
-        sample_info[ELEMENT_SAMPLE_EXPECTED_COVERAGE] = coverage
-
-    return sample_info
-
-
-class Crawler(AppLogger):
-    def _check_config(self):
-        if cfg.get('rest_api') and cfg.query('rest_api', 'url'):
-            return True
-        else:
-            self.warning('rest_api is not configured. Cancel upload')
-            return False
+from .crawler import Crawler
 
 
 class RunCrawler(Crawler):
@@ -145,7 +108,7 @@ class RunCrawler(Crawler):
     def _populate_from_lims(self):
         for libname in self.libraries:
             self.libraries[libname].update(
-                get_sample_information_from_lims(self.libraries[libname][ELEMENT_SAMPLE_INTERNAL_ID])
+                self.get_sample_information_from_lims(self.libraries[libname][ELEMENT_SAMPLE_INTERNAL_ID])
             )
 
     def _run_sample_lane_to_barcode(self, adapters_trimmed_by_id):
@@ -227,7 +190,7 @@ class RunCrawler(Crawler):
                     '*_S*_L00%s_fastqfilterer.stats' % barcode_info[ELEMENT_LANE]
                 )
             if fastqfilter_stats_file:
-                stats = dm.parse_fastqFilterer_stats(fastqfilter_stats_file)
+                stats = dm.parse_fastq_filterer_stats(fastqfilter_stats_file)
                 # make sure the stats can be nullable if rerun without filtering
                 barcode_info[ELEMENT_TILES_FILTERED] = stats.get('remove_tiles')
                 barcode_info[ELEMENT_TRIM_R1_LENGTH] = stats.get('trim_r1')
@@ -241,9 +204,9 @@ class RunCrawler(Crawler):
         dup_per_lane = dm.parse_welldup_file(welldup_file)
         for run_element_id in self.barcodes_info:
             barcode_info = self.barcodes_info.get(run_element_id)
-            lane = barcode_info.get(ELEMENT_LANE)
-            if int(lane) in dup_per_lane:
-                barcode_info[ELEMENT_LANE_PC_OPT_DUP] = dup_per_lane.get(int(lane))
+            lane = int(barcode_info.get(ELEMENT_LANE))
+            if lane in dup_per_lane:
+                barcode_info[ELEMENT_LANE_PC_OPT_DUP] = dup_per_lane[lane]
 
     def _populate_barcode_info_from_conversion_file(self, conversion_xml):
         all_barcodes, top_unknown_barcodes, all_barcodeless = dm.parse_conversion_stats(conversion_xml, self.dataset.has_barcodes)
@@ -287,136 +250,13 @@ class RunCrawler(Crawler):
             }
 
     def send_data(self):
-        if self._check_config():
-            return all(
-                (
-                    pp('run_elements', self.barcodes_info.values(), ELEMENT_RUN_ELEMENT_ID),
-                    pp('unexpected_barcodes', self.unexpected_barcodes.values(), ELEMENT_RUN_ELEMENT_ID),
-                    pp('lanes', self.lanes.values(), ELEMENT_LANE_ID),
-                    pp('runs', [self.run], ELEMENT_RUN_NAME),
-                    pp('samples', self.libraries.values(), ELEMENT_SAMPLE_INTERNAL_ID, ['run_elements']),
-                    pp('projects', self.projects.values(), ELEMENT_PROJECT_ID, ['samples'])
-                )
+        return all(
+            (
+                pp('run_elements', self.barcodes_info.values(), ELEMENT_RUN_ELEMENT_ID),
+                pp('unexpected_barcodes', self.unexpected_barcodes.values(), ELEMENT_RUN_ELEMENT_ID),
+                pp('lanes', self.lanes.values(), ELEMENT_LANE_ID),
+                pp('runs', [self.run], ELEMENT_RUN_NAME),
+                pp('samples', self.libraries.values(), ELEMENT_SAMPLE_INTERNAL_ID, ['run_elements']),
+                pp('projects', self.projects.values(), ELEMENT_PROJECT_ID, ['samples'])
             )
-
-
-class SampleCrawler(Crawler):
-    def __init__(self, sample_id,  project_id, data_dir, output_cfg, post_pipeline=False):
-        self.sample_id = sample_id
-        self.user_sample_id = clarity.get_user_sample_name(sample_id, lenient=True)
-        self.project_id = project_id
-        self.all_info = []
-        self.data_dir = data_dir
-        self.post_pipeline = post_pipeline
-        self.output_cfg = output_cfg
-        self.sample = self._populate_lib_info()
-
-    def get_output_file(self, outfile_id):
-        if self.post_pipeline:
-            fp = self.output_cfg.output_dir_file(outfile_id)
-        else:
-            fp = self.output_cfg.job_dir_file(outfile_id)
-
-        self.debug('Searching for %s in %s/%s' % (outfile_id, self.data_dir, fp))
-        if fp:
-            return util.find_file(
-                self.data_dir,
-                fp.format(sample_id=self.sample_id, user_sample_id=self.user_sample_id)
-            )
-
-    def _populate_lib_info(self):
-        sample = {
-            ELEMENT_SAMPLE_INTERNAL_ID: self.sample_id,
-            ELEMENT_PROJECT_ID: self.project_id,
-        }
-        sample.update(get_sample_information_from_lims(self.sample_id))
-
-        samtools_path = self.get_output_file('samtools_stats')
-        if samtools_path:
-            (total_reads, mapped_reads,
-             duplicate_reads, proper_pairs) = mp.parse_samtools_stats(samtools_path)
-
-            sample[ELEMENT_NB_READS_IN_BAM] = total_reads
-            sample[ELEMENT_NB_MAPPED_READS] = mapped_reads
-            sample[ELEMENT_NB_DUPLICATE_READS] = duplicate_reads
-            sample[ELEMENT_NB_PROPERLY_MAPPED] = proper_pairs
-        else:
-            self.critical('Missing samtools_stats.txt')
-
-        bed_file_path = self.get_output_file('sort_callable')
-        if bed_file_path:
-            coverage_per_type = mp.parse_callable_bed_file(bed_file_path)
-            callable_bases = coverage_per_type.get('CALLABLE')
-            total = sum(coverage_per_type.values())
-            sample[ELEMENT_PC_BASES_CALLABLE] = callable_bases/total
-        else:
-            self.critical('Missing *-sort-callable.bed')
-
-        sex_file_path = self.get_output_file('gender_call')
-        if sex_file_path:
-            with open(sex_file_path) as f:
-                gender, het_x = f.read().strip().split()
-                sample[ELEMENT_CALLED_GENDER] = gender_alias(gender)
-                sample[ELEMENT_GENDER_VALIDATION] = {ELEMENT_GENDER_HETX: het_x}
-
-        genotype_validation_path = self.get_output_file('genoval')
-        if genotype_validation_path:
-            genotyping_results = mp.parse_and_aggregate_genotype_concordance(genotype_validation_path)
-            genotyping_result = genotyping_results.get(self.sample_id)
-            if genotyping_result:
-                sample[ELEMENT_GENOTYPE_VALIDATION] = genotyping_result
-            else:
-                self.critical('Sample %s not found in file %s', self.sample_id, genotype_validation_path)
-
-        species_contamination_path = self.get_output_file('r1_fastqscreen')
-        if species_contamination_path:
-            species_contamination_result = dm.parse_fastqscreen_file(species_contamination_path,
-                                                                     sample[ELEMENT_SAMPLE_SPECIES])
-            if species_contamination_result:
-                sample[ELEMENT_SPECIES_CONTAMINATION] = species_contamination_result
-            else:
-                self.critical('Contamination check unavailable for %s', self.sample_id)
-
-        sample_contamination_path = self.get_output_file('self_sm')
-        if sample_contamination_path:
-            freemix = mp.parse_vbi_selfSM(sample_contamination_path)
-            if freemix is not None:
-                sample[ELEMENT_SAMPLE_CONTAMINATION] = {ELEMENT_FREEMIX: freemix}
-            else:
-                self.critical('freemix results from validateBamId are not available for %s', self.sample_id)
-
-        coverage_statistics_path = self.get_output_file('depth_file')
-        if coverage_statistics_path:
-            mean, median, sd, coverage_percentiles, bases_at_coverage, \
-             genome_size, evenness = dm.get_coverage_statistics(coverage_statistics_path)
-            coverage_statistics = {
-                ELEMENT_MEAN_COVERAGE: mean,
-                ELEMENT_MEDIAN_COVERAGE_SAMTOOLS: median,
-                ELEMENT_COVERAGE_SD: sd,
-                ELEMENT_COVERAGE_PERCENTILES: coverage_percentiles,
-                ELEMENT_BASES_AT_COVERAGE: bases_at_coverage,
-                ELEMENT_SAMPLE_GENOME_SIZE: genome_size,
-                ELEMENT_COVERAGE_EVENNESS: evenness
-            }
-            sample[ELEMENT_COVERAGE_STATISTICS] = coverage_statistics
-            sample[ELEMENT_MEDIAN_COVERAGE] = median
-            if ELEMENT_GENDER_VALIDATION in sample:
-                cov_y = dm.get_coverage_y_chrom(coverage_statistics_path)
-                if cov_y:
-                    sample[ELEMENT_GENDER_VALIDATION][ELEMENT_GENDER_COVY] = cov_y
-        else:
-            self.critical('coverage statistics unavailable for %s', self.sample_id)
-
-        vcf_stats_path = self.get_output_file('vcf_stats')
-        if vcf_stats_path:
-            ti_tv, het_hom = mp.parse_vcf_stats(vcf_stats_path)
-            if ELEMENT_SAMPLE_CONTAMINATION in sample:
-                sample[ELEMENT_SAMPLE_CONTAMINATION][ELEMENT_SNPS_TI_TV] = ti_tv
-                sample[ELEMENT_SAMPLE_CONTAMINATION][ELEMENT_SNPS_HET_HOM] = het_hom
-            else:
-                sample[ELEMENT_SAMPLE_CONTAMINATION] = {ELEMENT_SNPS_TI_TV: ti_tv, ELEMENT_SNPS_HET_HOM: het_hom}
-        return sample
-
-    def send_data(self):
-        if self._check_config():
-            return pp('samples', [self.sample], ELEMENT_SAMPLE_INTERNAL_ID)
+        )

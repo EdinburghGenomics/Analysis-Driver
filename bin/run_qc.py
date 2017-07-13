@@ -2,8 +2,7 @@ import os
 import logging
 import argparse
 from sys import path
-from egcg_core import executor, clarity, util
-from egcg_core.clarity import get_user_sample_name
+from egcg_core import executor, util, clarity
 from egcg_core.app_logging import logging_default as log_cfg
 from egcg_core.rest_communication import get_document
 path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -98,7 +97,7 @@ def run_genotype_validation(dataset, args):
     )
     geno_val.run()
 
-    user_sample_id = get_user_sample_name(dataset.name)
+    user_sample_id = clarity.get_user_sample_name(dataset.name)
     output_commands = []
     for f in [geno_val.seq_vcf_file, geno_val.validation_results.get(dataset.name)]:
         if f and os.path.exists(f):
@@ -122,11 +121,10 @@ def run_genotype_validation(dataset, args):
 
 def run_species_contamination_check(dataset, args):
     os.makedirs(os.path.join(cfg['jobs_dir'], dataset.name), exist_ok=True)
-    species_contamination_check = qc.ContaminationCheck(dataset=dataset, fastq_files=sorted(args.fastq_files))
-    species_contamination_check.run()
+    f = qc.FastqScreen(dataset=dataset, fastq_files=sorted(args.fastq_files))
+    f.run()
 
-    species_name = clarity.get_species_from_sample(dataset.name)
-    fastqscreen_result = parse_fastqscreen_file(species_contamination_check.fastqscreen_expected_outfiles, species_name)
+    fastqscreen_result = parse_fastqscreen_file(f.fastqscreen_expected_outfiles, dataset.species)
     print(fastqscreen_result)
 
 
@@ -147,10 +145,12 @@ def median_coverage(dataset, args):
     s = qc.SamtoolsDepth(dataset=dataset, bam_file=args.bam_file)
     s.run()
 
+
 def contamination_blast(dataset, args):
     os.makedirs(os.path.join(cfg['jobs_dir'], dataset.name), exist_ok=True)
-    b = qc.ContaminationBlast(dataset=dataset, fastq_file=args.fastq_file)
+    b = qc.Blast(dataset=dataset, fastq_file=args.fastq_file)
     b.run()
+
 
 def detect_bad_cycles_and_tiles(dataset, args):
     cfg.merge(cfg['run'])
@@ -170,13 +170,13 @@ def detect_bad_cycles_and_tiles(dataset, args):
         if lane in bad_tiles:
             print('Bad tiles are: ' + ', '.join([str(c) for c in bad_tiles[lane]]))
 
+
 def get_all_project_gvcfs(project_folder):
         gvcfs = []
-        for path in os.walk(project_folder):
-            gvcf = [i for i in path[2] if i.endswith('.g.vcf.gz')]
-            if gvcf:
-                gvcfs.append(os.path.join(path[0], ''.join(gvcf)))
+        for dirname, dirs, filenames in os.walk(project_folder):
+            gvcfs.extend([os.path.join(dirname, f) for f in filenames if f.endswith('.g.vcf.gz')])
         return gvcfs
+
 
 def calculate_relatedness(dataset, args):
     if not (args.samples or args.projects):
@@ -201,9 +201,9 @@ def calculate_relatedness(dataset, args):
             project_folder = util.find_file(cfg['input_dir'], project_id)
             all_gvcfs.extend(get_all_project_gvcfs(project_folder))
 
-    g = qc.Genotype_gVCFs(dataset=dataset, gVCFs=all_gvcfs, reference=args.reference)
+    g = qc.GenotypeGVCFs(dataset=dataset, gVCFs=all_gvcfs, reference=args.reference)
     g.run()
-    if not args.method in ['peddy', 'relatedness']:
+    if args.method not in ('peddy', 'relatedness'):
         raise AnalysisDriverError('Choose either "peddy" or "relatedness" as method')
     if args.method == 'peddy':
         p = qc.Peddy(dataset=dataset, ids=sample_ids)

@@ -1,7 +1,7 @@
 import os
-from unittest.mock import Mock, patch, call
+from unittest.mock import Mock
 
-from analysis_driver.quality_control.detect_bad_cycles_tiles import BadTileCycleDetector
+from analysis_driver.quality_control.interop_metrics import BadTileCycleDetector
 from tests.test_analysisdriver import TestAnalysisDriver
 
 
@@ -20,7 +20,6 @@ class TestBadTileCycleDetector(TestAnalysisDriver):
         assert list(self.detector.windows(l, window_size=3)) == expected_lists
         l = ['a', 'b', 'c']
         assert list(self.detector.windows(l, window_size=4)) == []
-
 
     def test_average_from_list_hist(self):
         list_hist = [
