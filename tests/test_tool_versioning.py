@@ -31,8 +31,7 @@ def test_tool_versioning():
     assert toolset['bcl2fastq'] == 'path/to/bcl2fastq_1.0.4'
 
 
-@patch('analysis_driver.tool_versioning.Toolset._get_stdout')
+@patch('analysis_driver.tool_versioning.Toolset._get_stdout', return_value='1.0')
 def test_check_tool_version(mocked_stdout):
-    mocked_stdout.return_value = '1.0'
     assert toolset.check_version('bwa', 'path/to/bwa_1.0', 1.0, 'bwa -v')
     assert not toolset.check_version('bwa', 'path/to/bwa_1.0', 1.1, 'bwa -v')

@@ -34,6 +34,11 @@ class Toolset(AppLogger):
         self.info('Selected %s toolset version %s', self.type, self.version)
 
     def add_versioned_tool(self, toolname):
+        """
+        For a given tool, resolve its version and version_cmd from tool_versioning_cfg and find the correct executable
+        in cfg['tools'].
+        :param str toolname:
+        """
         version = self.resolve(toolname, 'version')
         version_cmd = self.resolve(toolname, 'version_cmd')
 
@@ -49,27 +54,40 @@ class Toolset(AppLogger):
         raise AnalysisDriverError('Could not find version %s for %s' % (version, toolname))
 
     def check_version(self, toolname, executable, exp_version, version_cmd):
+        """
+        Query an executable for its version and compare with an expected value.
+        :param str toolname:
+        :param str executable:
+        :param str exp_version:
+        :param str version_cmd:
+        """
         if version_cmd in tool_versioning_cfg['cmd_aliases']:
             version_cmd = tool_versioning_cfg['cmd_aliases'][version_cmd]
 
         obs_version = self._get_stdout(version_cmd.format(executable=executable, toolname=toolname))
         return obs_version == str(exp_version)
 
-    def resolve(self, toolname, key, toolset_version=None):
+    def resolve(self, toolname, val, toolset_version=None):
+        """
+        Extract a value from tool_versioning_cfg for a given tool, inheriting from previous toolset versions if needed.
+        :param str toolname:
+        :param str val: The value to extract for the tool, e.g. version or version_cmd
+        :param int toolset_version:
+        """
         if toolset_version is None:
             toolset_version = self.version
         elif toolset_version < 0:
-            raise AnalysisDriverError('Could not resolve %s for %s', key, toolname)
+            raise AnalysisDriverError('Could not resolve %s for %s', val, toolname)
 
         config = tool_versioning_cfg['toolsets'][self.type][toolset_version][toolname] or {}
 
-        if key in config:
+        if val in config:
             self.debug(
-                'Resolved tool %s with %s %s from toolset %s', toolname, key, config[key], toolset_version
+                'Resolved tool %s with %s=%s from toolset %s', toolname, val, config[val], toolset_version
             )
-            return config[key]
+            return config[val]
         else:
-            return self.resolve(toolname, key, toolset_version - 1)
+            return self.resolve(toolname, val, toolset_version - 1)
 
     @staticmethod
     def _get_stdout(cmd):
@@ -79,5 +97,6 @@ class Toolset(AppLogger):
 
     def __getitem__(self, item):
         return self.tools[item]
+
 
 toolset = Toolset()

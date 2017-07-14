@@ -12,13 +12,9 @@ def pipeline(d):
     luigi.interface.setup_interface_logging.has_run = True  # turn off Luigi's default logging setup
     log_cfg.get_logger('luigi-interface', 20)  # just calling log_cfg.get_logger registers the luigi-interface
 
-    def select_pipeline_version(pipeline_type):
-        toolset.select_type(pipeline_type)
-        toolset.select_version(d.pipeline_version or toolset.most_recent_version)
-
     if isinstance(d, RunDataset):
         _pipeline = demultiplexing
-        select_pipeline_version('run_processing')
+        _pipeline_type = 'run_processing'
 
     elif isinstance(d, SampleDataset):
         analysis_type = clarity.get_sample(d.name).udf.get('Analysis Type')
@@ -26,20 +22,23 @@ def pipeline(d):
             raise PipelineError('No species information found in the LIMS for ' + d.name)
 
         elif d.species == 'Homo sapiens':
-            select_pipeline_version('human_variant_calling')
+            _pipeline_type = 'human_variant_calling'
             _pipeline = bcbio
         elif analysis_type in ['Variant Calling', 'Variant Calling gatk']:
-            select_pipeline_version('non_human_variant_calling')
+            _pipeline_type = 'non_human_variant_calling'
             _pipeline = variant_calling
         else:
-            select_pipeline_version('basic_qc')
+            _pipeline_type = 'basic_qc'
             _pipeline = qc
     elif isinstance(d, ProjectDataset):
-        select_pipeline_version('project_processing')
+        _pipeline_type = 'project_processing'
         _pipeline = projects
     else:
         raise AssertionError('Unexpected dataset type: ' + str(d))
 
+    d.pipeline_used = _pipeline_type
+    toolset.select_type(_pipeline_type)
+    toolset.select_version(d.toolset_version)
     final_stage = _pipeline.build_pipeline(d)
 
     luigi_params = {
