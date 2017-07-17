@@ -90,17 +90,19 @@ class SampleDataOutput(segmentation.Stage):
         return OutputFileConfiguration(self.output_fileset)
 
     def _run(self):
-        dir_with_linked_files = self.link_files()
-        write_versions_to_yaml(os.path.join(dir_with_linked_files, 'program_versions.yaml'))
-        return self.output_data(dir_with_linked_files)
-
-    def link_files(self):
         dir_with_linked_files = os.path.join(self.job_dir, 'linked_output_files')
         os.makedirs(dir_with_linked_files, exist_ok=True)
 
         # Create the links from the bcbio output to one directory
-        create_output_links(self.dataset.name, self.job_dir, self.output_cfg, dir_with_linked_files)
-        return dir_with_linked_files
+        create_output_links(
+            self.job_dir,
+            self.output_cfg,
+            dir_with_linked_files,
+            sample_id=self.dataset.name,
+            user_sample_id=self.dataset.user_sample_id
+        )
+        write_versions_to_yaml(os.path.join(dir_with_linked_files, 'program_versions.yaml'))
+        return self.output_data(dir_with_linked_files)
 
     def output_data(self, dir_with_linked_files):
         # upload the data to the rest API
@@ -145,7 +147,7 @@ class MergeFastqs(VarCallingStage):
         fastqs = []
         for run_element in self.dataset.run_elements:
             if int(run_element.get(ELEMENT_NB_READS_CLEANED, 0)) > 0:
-                fastqs.extend(self._find_fastqs_for_sample(run_element))
+                fastqs.extend(self._find_fastqs_for_run_element(run_element))
         return fastqs
 
     def _write_bcbio_csv(self, fastqs):
@@ -163,7 +165,7 @@ class MergeFastqs(VarCallingStage):
 
     def _run(self):
         """Merge the fastq files per sample using bcbio prepare sample"""
-        fastq_files = self.prepare_sample_data()
+        fastq_files = self.find_fastqs_for_sample()
         bcbio_csv_file = self._write_bcbio_csv(fastq_files)
         self.info('Setting up BCBio samples from ' + bcbio_csv_file)
         cmd = bash_commands.bcbio_prepare_samples(
@@ -178,19 +180,12 @@ class MergeFastqs(VarCallingStage):
             exit_status,
             sample_fastqs
         )
-        return 0
+        return exit_status
 
 
 class Cleanup(segmentation.Stage):
     def _run(self):
-        # wait for all the previous PBS steps to be done writing to the folder before cleaning it up
-        time.sleep(120)
-        job_dir = os.path.join(cfg['jobs_dir'], self.dataset.name)
-
-        self.info('Cleaning up job dir %s', job_dir)
-        try:
-            shutil.rmtree(job_dir)
-            return 0
-        except (OSError, FileNotFoundError, NotADirectoryError) as e:
-            self.error('Could not remove job dir: %s', e)
-            return 1
+        time.sleep(120)  # wait for any previous PBS steps to be done writing to the folder before cleaning it up
+        self.info('Cleaning up job dir')
+        shutil.rmtree(self.job_dir)
+        return 0

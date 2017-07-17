@@ -1,7 +1,5 @@
 import os
 import shutil
-from unittest.mock import patch
-
 from tests.test_analysisdriver import TestAnalysisDriver
 from analysis_driver import transfer_data
 from analysis_driver.config import OutputFileConfiguration
@@ -21,10 +19,9 @@ class TestTransferData(TestAnalysisDriver):
             shutil.rmtree(self.link_dir)
 
     def test_create_links(self):
-        with patch('egcg_core.clarity.get_user_sample_name', return_value=self.sample_id):
-            list_of_linked_files = transfer_data.create_output_links(
-                self.sample_id, self.data_output, self.output_cfg, self.link_dir
-            )
+        list_of_linked_files = transfer_data.create_output_links(
+            self.data_output, self.output_cfg, self.link_dir, sample_id=self.sample_id, user_sample_id=self.sample_id
+        )
 
         output_files = os.path.join(self.data_output, 'linked_output_files')
 

@@ -71,15 +71,12 @@ class TestScanner(TestAnalysisDriver):
     def _setup_scanner(self):
         self.scanner = DatasetScanner({'input_dir': self.base_dir})
 
-    def _assert_datasets_equal(self, obs, exp):
-        assert obs.name == exp.name
-
 
 class TestRunScanner(TestScanner):
     def test_get_dataset(self):
         obs = self.scanner.get_dataset('test_dataset')
         exp = FakeRunDataset('test_dataset')
-        self._assert_datasets_equal(obs, exp)
+        assert obs.name == exp.name
 
     def test_get_dataset_records_for_statuses(self):
         for d in self.scanner.expected_bcl_subdirs:

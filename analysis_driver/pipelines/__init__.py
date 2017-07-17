@@ -8,20 +8,24 @@ from analysis_driver.pipelines import demultiplexing, bcbio, qc, variant_calling
 from analysis_driver.tool_versioning import toolset
 
 
-def pipeline(d):
+def pipeline(dataset):
+    """
+    Decide which pipeline to run on a dataset, and run luigi.build.
+    :param analysis_driver.dataset.Dataset dataset:
+    """
     luigi.interface.setup_interface_logging.has_run = True  # turn off Luigi's default logging setup
     log_cfg.get_logger('luigi-interface', 20)  # just calling log_cfg.get_logger registers the luigi-interface
 
-    if isinstance(d, RunDataset):
+    if isinstance(dataset, RunDataset):
         _pipeline = demultiplexing
         _pipeline_type = 'run_processing'
 
-    elif isinstance(d, SampleDataset):
-        analysis_type = clarity.get_sample(d.name).udf.get('Analysis Type')
-        if d.species is None:
+    elif isinstance(dataset, SampleDataset):
+        analysis_type = clarity.get_sample(dataset.name).udf.get('Analysis Type')
+        if dataset.species is None:
             raise PipelineError('No species information found in the LIMS for ' + d.name)
 
-        elif d.species == 'Homo sapiens':
+        elif dataset.species == 'Homo sapiens':
             _pipeline_type = 'human_variant_calling'
             _pipeline = bcbio
         elif analysis_type in ['Variant Calling', 'Variant Calling gatk']:
@@ -30,16 +34,16 @@ def pipeline(d):
         else:
             _pipeline_type = 'basic_qc'
             _pipeline = qc
-    elif isinstance(d, ProjectDataset):
+    elif isinstance(dataset, ProjectDataset):
         _pipeline_type = 'project_processing'
         _pipeline = projects
     else:
-        raise AssertionError('Unexpected dataset type: ' + str(d))
+        raise AssertionError('Unexpected dataset type: ' + str(dataset))
 
     d.pipeline_used = _pipeline_type
     toolset.select_type(_pipeline_type)
     toolset.select_version(d.toolset_version)
-    final_stage = _pipeline.build_pipeline(d)
+    final_stage = _pipeline.build_pipeline(dataset)
 
     luigi_params = {
         'tasks': [final_stage],
@@ -51,7 +55,7 @@ def pipeline(d):
 
     success = luigi.build(**luigi_params)
 
-    # If any exception occured during the pipeline raise them here again
-    d.raise_exceptions()
+    # if any exception occurred during the pipeline raise them here again
+    dataset.raise_exceptions()
 
     return 0 if success is True else 9

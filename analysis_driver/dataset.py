@@ -4,7 +4,6 @@ import signal
 from multiprocessing import Lock
 from datetime import datetime
 from errno import ESRCH
-from os.path import join
 from sys import modules
 from time import sleep
 from collections import OrderedDict
@@ -234,7 +233,7 @@ class RunDataset(Dataset):
     @property
     def sample_sheet_file(self):
         if self._sample_sheet_file is None:
-            self._sample_sheet_file = join(self.input_dir, 'SampleSheet_analysis_driver.csv')
+            self._sample_sheet_file = os.path.join(self.input_dir, 'SampleSheet_analysis_driver.csv')
             self._generate_samplesheet(self._sample_sheet_file)
         return self._sample_sheet_file
 

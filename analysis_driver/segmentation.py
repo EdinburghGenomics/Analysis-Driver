@@ -57,6 +57,8 @@ class BasicStage(luigi.Task, AppLogger):
 
     def on_failure(self, exception):
         self.dataset.register_exception(self, exception)
+        if self.exit_status is None:
+            self.dataset.end_stage(self.stage_name, 9)
         return super().on_failure(exception)
 
 
@@ -92,4 +94,3 @@ class RestAPITarget(luigi.Target):
     def exists(self):
         s = self.rest_api_stage
         return s and bool(s.get('date_finished')) and s.get('exit_status') == 0
-

@@ -6,7 +6,6 @@ from analysis_driver.util import bash_commands
 from analysis_driver.config import default as cfg
 from analysis_driver.reader.mapping_stats_parsers import parse_genotype_concordance
 from analysis_driver.segmentation import Stage
-from analysis_driver.util.bash_commands import java_command
 from analysis_driver.tool_versioning import toolset
 
 
@@ -28,11 +27,11 @@ class GenotypeValidation(Stage):
         return os.path.join(self.job_dir, self.dataset.name + '_geno_val.bam')
 
     def _gatk_command(self, memory):
-        return java_command(memory=memory, tmp_dir=self.job_dir, jar=toolset['gatk'])
+        return bash_commands.java_command(memory=memory, tmp_dir=self.job_dir, jar=toolset['gatk'])
 
     def _bwa_aln(self, fastq_files):
         """
-        Contruct a command that will perform the alignment and duplicate removal using bwa aln.
+        Construct a command that will perform the alignment and duplicate removal using bwa aln.
         :param fastq_files: 1 or 2 fastqs
         :return: A pipe-separated bash command
         """

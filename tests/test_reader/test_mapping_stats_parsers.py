@@ -1,7 +1,6 @@
 from os.path import join
 from tests.test_analysisdriver import TestAnalysisDriver
-from analysis_driver.reader.mapping_stats_parsers import parse_genotype_concordance,\
-    aggregate_genotype_concordance, parse_vbi_self_sm, parse_samtools_stats, parse_vcf_stats
+from analysis_driver.reader import mapping_stats_parsers as mp
 
 
 class TestMappingStats(TestAnalysisDriver):
@@ -35,29 +34,29 @@ class TestMappingStats(TestAnalysisDriver):
         self.vcf_stats_file = join(self.assets_path, 'test_crawlers', 'test_sample.vcf.stats')
 
     def test_parse_genotype_concordance(self):
-        table_type, headers, lines = parse_genotype_concordance(self.geno_val_file)
+        table_type, headers, lines = mp.parse_genotype_concordance(self.geno_val_file)
         assert self.expected_headers == '\t'.join(headers.split())
         assert self.expected_lines == ['\t'.join(l.split()) for l in lines]
 
     def test_aggregate_genotype_concordance_lines(self):
-        samples = aggregate_genotype_concordance(self.expected_headers, self.expected_lines)
+        samples = mp.aggregate_genotype_concordance(self.expected_headers, self.expected_lines)
         assert set(samples.keys()) == {'ALL', 'T00001P001A01'}
         assert samples['T00001P001A01'] == {
             'matching_snps': 28, 'no_call_chip': 4, 'no_call_seq': 0, 'mismatching_snps': 0
         }
 
     def test_parse_vbi_selfSM(self):
-        freemix = parse_vbi_self_sm(self.vbi_selfSM_file)
+        freemix = mp.parse_vbi_self_sm(self.vbi_selfSM_file)
         assert freemix == 0.00605
 
     def test_samtools_stats_parser(self):
-        total_reads, mapped_reads, duplicate_reads, proper_pairs = parse_samtools_stats(self.samtools_stats)
+        total_reads, mapped_reads, duplicate_reads, proper_pairs = mp.parse_samtools_stats(self.samtools_stats)
         assert total_reads == 7928618
         assert mapped_reads == 7892452
         assert duplicate_reads == 676698
         assert proper_pairs == 7741548
 
     def test_parse_vcf_stats(self):
-        ti_tv, het_hom = parse_vcf_stats(self.vcf_stats_file)
+        ti_tv, het_hom = mp.parse_vcf_stats(self.vcf_stats_file)
         assert ti_tv == 2.01
         assert het_hom == 1.6

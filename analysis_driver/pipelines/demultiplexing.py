@@ -5,11 +5,10 @@ from egcg_core.config import cfg
 from egcg_core import executor, util
 
 from analysis_driver import segmentation
-from analysis_driver.quality_control import BadTileCycleDetector
 from analysis_driver.util import bash_commands, find_all_fastq_pairs_for_lane, get_trim_values_for_bad_cycles
 from analysis_driver.pipelines.common import Cleanup
 from analysis_driver.exceptions import SequencingRunError, AnalysisDriverError
-from analysis_driver.quality_control import well_duplicates, BCLValidator
+from analysis_driver.quality_control import well_duplicates, BCLValidator, BadTileCycleDetector
 from analysis_driver.reader.version_reader import write_versions_to_yaml
 from analysis_driver.report_generation import RunCrawler
 from analysis_driver.transfer_data import output_data_and_archive

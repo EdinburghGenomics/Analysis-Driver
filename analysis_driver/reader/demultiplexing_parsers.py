@@ -3,8 +3,8 @@ from itertools import islice
 from collections import Counter, defaultdict
 from xml.etree import ElementTree
 from egcg_core import constants as c
-
 from egcg_core.app_logging import logging_default as log_cfg
+
 app_logger = log_cfg.get_logger(__name__)
 
 
@@ -225,11 +225,12 @@ def collapse_histograms(histograms):
     return res
 
 
-def get_percentiles(histogram, percentile):
+def get_percentile(histogram, percentile):
     """
-    Calculate the percentiles of the histogram.
-    :param percentile: a scalar or an array of scalar comprised in between 0 and 100.
-    :return: A value or a array value for the given percentiles.
+    Find a percentile from a histogram.
+    :param dict histogram:
+    :param int percentile: a scalar between 0 and 100.
+    :return: A value for the given percentile
     """
     n_percentile = None
     sorted_set_of_keys = sorted(histogram.keys())
@@ -258,7 +259,7 @@ def calculate_mean(histogram):
 
 
 def calculate_median(histogram):
-    return get_percentiles(histogram, 50)
+    return get_percentile(histogram, 50)
 
 
 def calculate_sd(histogram):
@@ -312,14 +313,16 @@ def get_coverage_statistics(histogram_file):
     coverage_mean = calculate_mean(histogram)
     coverage_median = calculate_median(histogram)
     coverage_sd = calculate_sd(histogram)
-    coverage_percentiles = {c.ELEMENT_PERCENTILE_5: get_percentiles(histogram, 5),
-                            c.ELEMENT_PERCENTILE_25: get_percentiles(histogram, 25),
-                            c.ELEMENT_PERCENTILE_50: get_percentiles(histogram, 50),
-                            c.ELEMENT_PERCENTILE_75: get_percentiles(histogram, 75),
-                            c.ELEMENT_PERCENTILE_95: get_percentiles(histogram, 95)}
+    coverage_percentiles = {c.ELEMENT_PERCENTILE_5: get_percentile(histogram, 5),
+                            c.ELEMENT_PERCENTILE_25: get_percentile(histogram, 25),
+                            c.ELEMENT_PERCENTILE_50: get_percentile(histogram, 50),
+                            c.ELEMENT_PERCENTILE_75: get_percentile(histogram, 75),
+                            c.ELEMENT_PERCENTILE_95: get_percentile(histogram, 95)}
 
     bases_5x, bases_15x, bases_30x = calculate_bases_at_coverage(histogram)
-    bases_at_coverage = {c.ELEMENT_BASES_AT_5X: bases_5x, c.ELEMENT_BASES_AT_15X: bases_15x, c.ELEMENT_BASES_AT_30X: bases_30x}
+    bases_at_coverage = {
+        c.ELEMENT_BASES_AT_5X: bases_5x, c.ELEMENT_BASES_AT_15X: bases_15x, c.ELEMENT_BASES_AT_30X: bases_30x
+    }
 
     genome_size = calculate_size_genome(histogram)
     evenness = calculate_evenness(histogram)
