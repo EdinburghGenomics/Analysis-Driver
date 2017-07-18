@@ -34,7 +34,7 @@ def fastqc(fastq, threads=1):
 
 
 def gzip_test(f):
-    cmd = 'gzip -t ' + f
+    cmd = toolset['gzip'] + ' -t ' + f
     app_logger.debug('Writing: ' + cmd)
     return cmd
 
@@ -71,7 +71,7 @@ def fq_filt_prelim_cmd():
         '}}'
     )
     return '\n'.join(cmd).format(
-        ff=toolset['fastq-filterer'],
+        ff=toolset['fastq_filterer'],
         threshold=cfg.query('fastq_filterer', 'min_length', ret_default='36'),
         pigz=toolset['pigz'],
         pzt=10  # two pigz processes run, so pigz threads here will be doubled
@@ -152,8 +152,7 @@ def bwa_mem_biobambam(fastq_pair, reference, expected_output_bam, read_group=Non
 
 
 def samtools_stats(bam_file, output_file):
-    samtools_bin = toolset['samtools']
-    cmd = '%s stats %s > %s' % (samtools_bin, bam_file, output_file)
+    cmd = '%s stats %s > %s' % (toolset['samtools'], bam_file, output_file)
     app_logger.debug('Writing: ' + cmd)
     return cmd
 
@@ -221,7 +220,7 @@ def rsync_from_to(source, dest, exclude=None, size_only=False):
 
 
 def java_command(memory, tmp_dir, jar):
-    return 'java -Djava.io.tmpdir={tmp_dir} -XX:+UseSerialGC -Xmx{memory}G -jar {jar} '.format(
+    return 'java -Djava.io.tmpdir={tmp_dir} -XX:+UseSerialGC -Xmx{memory}G -jar {jar}'.format(
         memory=memory,
         tmp_dir=tmp_dir,
         jar=jar

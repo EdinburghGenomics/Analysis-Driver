@@ -1,3 +1,4 @@
+import yaml
 import subprocess
 from egcg_core.app_logging import AppLogger
 from analysis_driver.config import cfg, tool_versioning_cfg
@@ -7,12 +8,13 @@ from analysis_driver.exceptions import AnalysisDriverError
 class Toolset(AppLogger):
     tools = {}
     tool_versions = {}
+    versioning_cfg = tool_versioning_cfg
     version = None
     type = None
 
     @property
     def latest_version(self):
-        return max(tool_versioning_cfg['toolsets'][self.type].keys())
+        return max(self.versioning_cfg['toolsets'][self.type].keys())
 
     def select_type(self, pipeline_type):
         self.type = pipeline_type
@@ -26,16 +28,20 @@ class Toolset(AppLogger):
         self.tool_versions = {}
 
         for k in cfg['tools']:
-            if k in tool_versioning_cfg['toolsets'][self.type][self.version]:
+            if k in self.versioning_cfg['toolsets'][self.type][self.version]:
                 self.tools[k] = self.add_versioned_tool(k)
             else:
                 self.tools[k] = cfg['tools'][k]
 
         self.info('Selected %s toolset version %s', self.type, self.version)
 
+    @property
+    def unversioned_tools(self):
+        return [k for k in self.tools if k not in self.tool_versions]
+
     def add_versioned_tool(self, toolname):
         """
-        For a given tool, resolve its version and version_cmd from tool_versioning_cfg and find the correct executable
+        For a given tool, resolve its version and version_cmd from self.versioning_cfg and find the correct executable
         in cfg['tools'].
         :param str toolname:
         """
@@ -61,15 +67,15 @@ class Toolset(AppLogger):
         :param str exp_version:
         :param str version_cmd:
         """
-        if version_cmd in tool_versioning_cfg['cmd_aliases']:
-            version_cmd = tool_versioning_cfg['cmd_aliases'][version_cmd]
+        if version_cmd in self.versioning_cfg['cmd_aliases']:
+            version_cmd = self.versioning_cfg['cmd_aliases'][version_cmd]
 
         obs_version = self._get_stdout(version_cmd.format(executable=executable, toolname=toolname))
         return obs_version == str(exp_version)
 
     def resolve(self, toolname, val, toolset_version=None):
         """
-        Extract a value from tool_versioning_cfg for a given tool, inheriting from previous toolset versions if needed.
+        Extract a value from self.versioning_cfg for a given tool, inheriting from previous toolset versions if needed.
         :param str toolname:
         :param str val: The value to extract for the tool, e.g. version or version_cmd
         :param int toolset_version:
@@ -79,7 +85,7 @@ class Toolset(AppLogger):
         elif toolset_version < 0:
             raise AnalysisDriverError('Could not resolve %s for %s', val, toolname)
 
-        config = tool_versioning_cfg['toolsets'][self.type][toolset_version][toolname] or {}
+        config = self.versioning_cfg['toolsets'][self.type][toolset_version][toolname] or {}
 
         if val in config:
             self.debug(
@@ -88,6 +94,10 @@ class Toolset(AppLogger):
             return config[val]
         else:
             return self.resolve(toolname, val, toolset_version - 1)
+
+    def write_to_yaml(self, file_path):
+        with open(file_path, 'w') as f:
+            f.write(yaml.safe_dump(self.tool_versions, default_flow_style=False))
 
     @staticmethod
     def _get_stdout(cmd):

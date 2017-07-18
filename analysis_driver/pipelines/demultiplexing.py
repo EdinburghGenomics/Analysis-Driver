@@ -9,9 +9,9 @@ from analysis_driver.util import bash_commands, find_all_fastq_pairs_for_lane, g
 from analysis_driver.pipelines.common import Cleanup
 from analysis_driver.exceptions import SequencingRunError, AnalysisDriverError
 from analysis_driver.quality_control import well_duplicates, BCLValidator, BadTileCycleDetector
-from analysis_driver.reader.version_reader import write_versions_to_yaml
 from analysis_driver.report_generation import RunCrawler
 from analysis_driver.transfer_data import output_data_and_archive
+from analysis_driver.tool_versioning import toolset
 
 
 class DemultiplexingStage(segmentation.Stage):
@@ -203,7 +203,7 @@ class QCOutput(DemultiplexingStage):
 
 class DataOutput(DemultiplexingStage):
     def _run(self):
-        write_versions_to_yaml(join(self.fastq_dir, 'program_versions.yaml'))
+        toolset.write_to_yaml(join(self.fastq_dir, 'program_versions.yaml'))
         return output_data_and_archive(self.fastq_dir, join(cfg['output_dir'], self.dataset.name))
 
 

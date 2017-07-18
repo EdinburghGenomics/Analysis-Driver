@@ -53,10 +53,10 @@ class GenotypeValidation(Stage):
         else:
             raise PipelineError('Bad number of fastqs: ' + str(fastq_files))
 
-        command_samblaster = '%s --removeDups' % cfg.query('tools', 'samblaster', ret_default='samblaster')
-        command_samtools = '%s view -F 4 -Sb -' % cfg.query('tools', 'samtools', ret_default='samtools')
+        command_samblaster = '%s --removeDups' % toolset['samblaster']
+        command_samtools = '%s view -F 4 -Sb -' % toolset['samtools']
         command_sambamba = '%s sort -t 16 -o %s /dev/stdin' % (
-            cfg.query('tools', 'sambamba', ret_default='sambamba'), self.output_bam
+            toolset['sambamba'], self.output_bam
         )
 
         return ' | '.join([command_bwa, command_samblaster, command_samtools, command_sambamba])
@@ -134,7 +134,7 @@ class GenotypeValidation(Stage):
         """This function assumes only one sample in the header"""
         base_cmd = '{bcftools} reheader -s <(echo {sn}) {genovcf} > {genovcf}.tmp; mv {genovcf}.tmp {genovcf}'
         commands = [
-            base_cmd.format(bcftools=cfg.query('tools', 'bcftools'), sn=self.dataset.name, genovcf=genovcf)
+            base_cmd.format(bcftools=toolset['bcftools'], sn=self.dataset.name, genovcf=genovcf)
             for genovcf in sample2genotype.values()
         ]
 
@@ -149,7 +149,7 @@ class GenotypeValidation(Stage):
 
     def _index_vcf_gz(self, vcf_file):
         return executor.execute(
-            '{tabix} -p vcf {vcf}'.format(tabix=cfg.query('tools', 'tabix'), vcf=vcf_file),
+            '{tabix} -p vcf {vcf}'.format(tabix=toolset['tabix'], vcf=vcf_file),
             job_name='index_vcf',
             working_dir=self.job_dir,
             cpus=1,

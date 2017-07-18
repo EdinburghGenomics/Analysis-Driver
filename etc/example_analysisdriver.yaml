@@ -35,27 +35,22 @@ default:
             - path/to/GenomeAnalysisTK.jar_4
 
         qsub: /bin/sh
-        fastqc: path/to/fastqc
+        fastqc: path/to/fastqc_v0.11.5
         bcbio: path/to/bcbio
         seqtk: path/to/seqtk
-        jdk: path/to/jdk
         samblaster: path/to/samblaster
         biobambam_sortmapdup: path/to/bamsormadup
-        samtools: path/to/samtools
+        samtools: path/to/samtools_1.3.1
         sambamba: path/to/sambamba
-        sickle: path/to/sickle
         bcftools: path/to/bcftools
         tabix: path/to/tabix
         fastqscreen: path/to/fastqscreen
         verifybamid: path/to/verifybamid
-        well_duplicate: path/to/well_duplicate
+        well_duplicates: path/to/well_duplicates
         fastq-filterer: path/to/fastq-filterer
-        echo: echo
         vcftools: path/to/vcftools
         blastn: path/to/blastn
         peddy: path/to/peddy
-    versions:
-        bwa: '0.9'
 
     logging:
         format: '[%(asctime)s][%(name)s][%(levelname)s] %(message)s'

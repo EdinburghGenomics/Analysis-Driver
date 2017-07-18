@@ -23,7 +23,7 @@ def pipeline(dataset):
     elif isinstance(dataset, SampleDataset):
         analysis_type = clarity.get_sample(dataset.name).udf.get('Analysis Type')
         if dataset.species is None:
-            raise PipelineError('No species information found in the LIMS for ' + d.name)
+            raise PipelineError('No species information found in the LIMS for ' + dataset.name)
 
         elif dataset.species == 'Homo sapiens':
             _pipeline_type = 'human_variant_calling'
@@ -40,9 +40,9 @@ def pipeline(dataset):
     else:
         raise AssertionError('Unexpected dataset type: ' + str(dataset))
 
-    d.pipeline_used = _pipeline_type
+    dataset.pipeline_used = _pipeline_type
     toolset.select_type(_pipeline_type)
-    toolset.select_version(d.toolset_version)
+    toolset.select_version(dataset.toolset_version)
     final_stage = _pipeline.build_pipeline(dataset)
 
     luigi_params = {

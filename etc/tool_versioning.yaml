@@ -8,25 +8,153 @@ toolsets:
     run_processing:
         0:
             bcl2fastq:
-                version: 1.0.4
+                version: v2.17.1.14
                 version_cmd: grep_toolname
-        1:
-            bcl2fastq: null  # inherit everything from previous version
 
-    non_human_variant_calling:
-        0:
-            bwa:
-                version: 1.0
+            fastq_filterer:
+                version: 0.3.1
+                version_cmd: '{executable} --version'
+
+            fastqc:
+                version: v0.11.5
+                version_cmd: '{executable} -v 2>&1 | cut -d " " -f 2'
+
+            pigz:
+                version: 2.3.4
+                version_cmd: '{executable} --version 2>&1 | cut -d " " -f 2'
+
+            seqtk:
+                version: 1.0-r82-dirty
                 version_cmd: grep_version
 
+            well_duplicates:
+                version: 0.2
+                version_cmd: '{executable} --version'
+
+
+    non_human_sample_processing:
+        0:
+            bcbio:
+                version: 0.9.8
+                version_cmd: '{executable}/bin/bcbio_nextgen.py -v'
+
+            bgzip:
+                version: 1.3
+                version_cmd: '{executable} --help 2>&1 | grep "Version" | cut -d " " -f 2'
+
+            biobambam_sortmapdup:
+                version: 2.0.44
+                version_cmd: "{executable} -v 2>&1 | head -1 | awk '{{print substr($5,1,length($5)-1)}}'"
+
+            blastn:
+                version: 2.5.0+
+                version_cmd: '{executable} -version | grep {toolname} | cut -d " " -f 2'
+
+            bwa:
+                version: 0.7.13-r1126
+                version_cmd: grep_version
+
+            fastqc:
+                version: v0.11.5
+                version_cmd: '{executable} -v 2>&1 | cut -d " " -f 2 '
+
+            fastqscreen:
+                version: v0.5.2
+                version_cmd: '{executable} -v 2>&1 | grep "fastq_screen" | cut -d " " -f 2 | head -n1'
+
             gatk:
-                version: 3
+                version: v3.4-0-g7e26428
                 version_cmd: 'java -jar {executable} -h 2>&1 | grep "The Genome Analysis Toolkit (GATK)" | cut -d " " -f 6 | cut -d "," -f 1'
 
-        1:
+            samtools:
+                version: 1.3.1
+                version_cmd: grep_version
 
-            gatk:  # override
-                version: 4
-                version_cmd: 'java -jar {executable} -v 2>&1 | grep "GATK" | cut -d " " -f 2'
-            bwa:  # inherit version_cmd from previous version
-                version: 1.1
+            seqtk:
+                version: 1.0-r82-dirty
+                version_cmd: grep_version
+
+            tabix:
+                version: 1.3
+                version_cmd: grep_version
+
+    human_sample_processing:
+        0:
+            bcftools:
+                version: 1.3
+                version_cmd: grep_toolname
+
+            bcbio:
+                version: 0.9.8
+                version_cmd: '{executable}/bin/bcbio_nextgen.py -v'
+
+            blastn:
+                version: 2.5.0+
+                version_cmd: '{executable} -version | grep {toolname} | cut -d " " -f 2'
+
+            bwa:
+                version: 0.7.13-r1126
+                version_cmd: grep_version
+
+            fastqc:
+                version: v0.11.5
+                version_cmd: '{executable} -v 2>&1 | cut -d " " -f 2 '
+
+            fastqscreen:
+                version: v0.5.2
+                version_cmd: '{executable} -v 2>&1 | grep "fastq_screen" | cut -d " " -f 2 | head -n1'
+
+            gatk:
+                version: v3.4-0-g7e26428
+                version_cmd: 'java -jar {executable} -h 2>&1 | grep "The Genome Analysis Toolkit (GATK)" | cut -d " " -f 6 | cut -d "," -f 1'
+
+            rtg:
+                version: 3.6
+                version_cmd: '{executable} version 2>&1 | grep "Product: RTG Tools" | cut -d " " -f 4'
+
+            sambamba:
+                version: 0.6.1
+                version_cmd: grep_toolname
+
+            samblaster:
+                version: 0.1.22
+                version_cmd: '{executable} -h 2>&1 | grep "Version" | cut -d " " -f 3'
+
+            samtools:
+                version: 1.3.1
+                version_cmd: grep_version
+
+            seqtk:
+                version: 1.0-r82-dirty
+                version_cmd: grep_version
+
+            tabix:
+                version: 1.3
+                version_cmd: grep_version
+
+            verifybamid:
+                version: 1.1.2
+                version_cmd: '{executable} 2>&1 | grep "verifyBamID" | cut -d " " -f 2'
+            
+
+    project_processing:
+        0:
+            bgzip:
+                version: 1.3
+                version_cmd: '{executable} --help 2>&1 | grep "Version" | cut -d " " -f 2'
+
+            gatk:
+                version: v3.4-0-g7e26428
+                version_cmd: 'java -jar {executable} -h 2>&1 | grep "The Genome Analysis Toolkit (GATK)" | cut -d " " -f 6 | cut -d "," -f 1'
+
+            peddy:
+                version: 0.3.0
+                version_cmd: '{executable} --version | cut -d " " -f 3'
+
+            tabix:
+                version: 1.3
+                version_cmd: grep_version
+
+            vcftools:
+                version: v0.1.13
+                version_cmd: "{executable} | grep VCFtools | awk '{{print substr($2,2,length($2)-2)}}'"
