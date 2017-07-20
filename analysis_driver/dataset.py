@@ -15,7 +15,7 @@ from egcg_core.constants import *  # pylint: disable=unused-import
 from egcg_core.exceptions import RestCommunicationError
 from analysis_driver import reader
 from analysis_driver.exceptions import AnalysisDriverError
-from analysis_driver.notification import NotificationCentre
+from analysis_driver.notification import NotificationCentre, LimsNotification
 from analysis_driver.util import generate_samplesheet
 
 
@@ -29,12 +29,19 @@ class Dataset(AppLogger):
         self.name = name
         self.most_recent_proc = MostRecentProc(self.type, self.name, most_recent_proc)
         self._ntf = None
+        self._lims_ntf = None
 
     @property
     def ntf(self):
         if self._ntf is None:
             self._ntf = NotificationCentre(self.name)
         return self._ntf
+
+    @property
+    def lims_ntf(self):
+        if self._lims_ntf is None:
+            self._lims_ntf = LimsNotification(self.name)
+        return self._lims_ntf
 
     @property
     def dataset_status(self):
@@ -65,19 +72,23 @@ class Dataset(AppLogger):
             self.most_recent_proc.initialise_entity()  # take a new entity
         self.most_recent_proc.start()
         self.ntf.start_pipeline()
+        if self.type == 'sample': self.lims_ntf.start_sample_pipeline()
 
     def succeed(self):
         self._assert_status(DATASET_PROCESSING)
         self.most_recent_proc.finish(DATASET_PROCESSED_SUCCESS)
         self.ntf.end_pipeline(0)
+        if self.type == 'sample': self.lims_ntf.end_sample_pipeline()
 
     def fail(self, exit_status):
         self._assert_status(DATASET_PROCESSING)
         self.ntf.end_pipeline(exit_status)
+        if self.type == 'sample': self.lims_ntf.fail_and_reset_sample_pipeline()
         self.most_recent_proc.finish(DATASET_PROCESSED_FAIL)
 
     def abort(self):
         self.most_recent_proc.finish(DATASET_ABORTED)
+        if self.type == 'sample': self.lims_ntf.fail_and_reset_sample_pipeline()
 
     def resume(self):
         self.terminate()

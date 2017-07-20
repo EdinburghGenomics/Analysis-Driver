@@ -34,7 +34,7 @@ def _parse_args():
     geno_val.add_argument('--project_id', required=True)
     geno_val.add_argument('--check_neighbour', action='store_true', default=False)
     geno_val.add_argument('--check_project', action='store_true', default=False)
-    geno_val.add_argument('--check_samples', nargs='*')
+    geno_val.add_argument('--check_samples', nargs='*', default=[])
     geno_val.set_defaults(func=run_genotype_validation)
 
     sp_contamination = subparsers.add_parser('species_contamination_check')
