@@ -1,6 +1,4 @@
-import argparse
 import os
-import sys
 from luigi import Parameter
 from egcg_core import executor, util
 from analysis_driver.segmentation import Stage
@@ -39,24 +37,3 @@ class GenderValidation(Stage):
             mem=2,
             log_commands=False
         ).join()
-
-
-def main():
-    from analysis_driver.config import default as cfg
-    from analysis_driver.dataset_scanner import SampleScanner
-    args = _parse_args()
-    os.makedirs(args.working_dir, exist_ok=True)
-    dataset = SampleScanner(cfg).get_dataset(args.sample_id)
-    s = GenderValidation(dataset=dataset, vcf_file=args.vcf_file)
-    s.run()
-
-
-def _parse_args():
-    p = argparse.ArgumentParser()
-    p.add_argument('--sample_id', type=str, help='sample ID for creating a Sample dataset object')
-    p.add_argument('-v', '--vcf_file', dest='vcf_file', type=str, help='the vcf file used to detect the gender')
-    p.add_argument('-s', '--working_dir', dest='working_dir', type=str, help='the working dir for execution')
-    return p.parse_args()
-
-if __name__ == '__main__':
-    sys.exit(main())

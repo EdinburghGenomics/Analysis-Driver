@@ -1,6 +1,6 @@
 import os.path
-from analysis_driver.config import default as cfg
 from egcg_core.app_logging import logging_default as log_cfg
+from analysis_driver.config import default as cfg
 from analysis_driver.exceptions import AnalysisDriverError
 
 
@@ -165,15 +165,16 @@ def md5sum(input_file):
 
 def export_env_vars():
     """Write export statements for environment variables required by BCBio"""
-    app_logger.debug('Writing Java paths')
+    app_logger.debug('Setting custom library paths')
     return (
-        _export('PATH', os.path.join(cfg['tools']['bcbio'], 'bin'), prepend=True),
-        _export('PATH', os.path.join(cfg['tools']['jdk'], 'bin'), prepend=True),
-        _export('LD_LIBRARY_PATH', os.path.join(cfg['tools']['bcbio'], 'lib'), prepend=True),
-        _export('PERL5LIB', os.path.join(cfg['tools']['bcbio'], 'lib', 'perl5'), prepend=True),
-        _export('JAVA_HOME', cfg['tools']['jdk']),
-        _export('JAVA_BINDIR', os.path.join(cfg['tools']['jdk'], 'bin')),
-        _export('JAVA_ROOT', cfg['tools']['jdk']),
+        'export PATH=%s:%s:$PATH' % (
+            os.path.join(cfg['tools']['bcbio'], 'bin'), os.path.join(cfg['tools']['jdk'], 'bin')
+        ),
+        'export LD_LIBRARY_PATH=%s:$LD_LIBRARY_PATH' % os.path.join(cfg['tools']['bcbio'], 'lib'),
+        'export PERL5LIB=%s:$PERL5LIB' % os.path.join(cfg['tools']['bcbio'], 'lib', 'perl5'),
+        'export JAVA_HOME=' + cfg['tools']['jdk'],
+        'export JAVA_BINDIR=' + os.path.join(cfg['tools']['jdk'], 'bin'),
+        'export JAVA_ROOT=' + cfg['tools']['jdk'],
         ''
     )
 
@@ -186,11 +187,17 @@ def bcbio(run_yaml, workdir, threads=10):
     return cmd
 
 
-def _export(env_var, value, prepend=False):
-    statement = 'export %s=%s' % (env_var, value)
-    if prepend:
-        statement += ':$' + env_var
-    return statement
+def bcbio_prepare_samples(job_dir, bcbio_csv_file):
+    """
+    Call bcbio_prepare_samples with a csv sample file and a list of fastqs.
+    :param str job_dir: Full path to the job folder
+    :param str bcbio_csv_file: Full path to the BCBio csv
+    """
+    merged_dir = os.path.join(job_dir, 'merged')
+    return '{bcbio} --out {d} --csv {csv}'.format(
+        bcbio=os.path.join(cfg['tools']['bcbio'], 'bin', 'bcbio_prepare_samples.py'),
+        d=merged_dir, csv=bcbio_csv_file
+    )
 
 
 def is_remote_path(fp):

@@ -1,16 +1,16 @@
 import os
+import csv
 import time
 import shutil
 from luigi import Parameter
 from egcg_core import executor, clarity, util
-from analysis_driver.util import bash_commands, bcbio_prepare_samples_cmd
+from egcg_core.constants import ELEMENT_PROJECT_ID, ELEMENT_LANE, ELEMENT_NB_READS_CLEANED, ELEMENT_RUN_NAME
+from analysis_driver import segmentation, quality_control as qc
+from analysis_driver.util import bash_commands
 from analysis_driver.config import default as cfg, OutputFileConfiguration
 from analysis_driver.reader.version_reader import write_versions_to_yaml
 from analysis_driver.report_generation import SampleCrawler
-from analysis_driver.transfer_data import output_sample_data, create_links_from_bcbio, prepare_sample_data
-from analysis_driver.exceptions import PipelineError
-from analysis_driver import quality_control as qc
-from analysis_driver import segmentation
+from analysis_driver.transfer_data import output_data_and_archive, create_output_links
 
 
 class VarCallingStage(segmentation.Stage):
@@ -74,15 +74,15 @@ def build_bam_file_production(dataset):
     merge_fastqs = stage(MergeFastqs)
     fastqc = stage(FastQC, previous_stages=[merge_fastqs])
     bwa = stage(BWAMem, previous_stages=[merge_fastqs])
-    contam = stage(qc.ContaminationCheck, previous_stages=[bwa], fq_pattern=bwa.fq_pattern)
-    blast = stage(qc.ContaminationBlast, previous_stages=[bwa], fastq_file=bwa.fq_pattern.replace('?', '1'))
+    contam = stage(qc.FastqScreen, previous_stages=[bwa], fq_pattern=bwa.fq_pattern)
+    blast = stage(qc.Blast, previous_stages=[bwa], fastq_file=bwa.fq_pattern.replace('?', '1'))
     samtools_stat = stage(SamtoolsStats, previous_stages=[fastqc, bwa, contam, blast])
     samtools_depth = stage(qc.SamtoolsDepth, bam_file=bwa.exp_bam_path, previous_stages=[bwa])
 
     return [samtools_stat, samtools_depth]
 
 
-class DataOutput(segmentation.Stage):
+class SampleDataOutput(segmentation.Stage):
     output_fileset = Parameter()
 
     @property
@@ -90,21 +90,21 @@ class DataOutput(segmentation.Stage):
         return OutputFileConfiguration(self.output_fileset)
 
     def _run(self):
-        dir_with_linked_files = self.link_files()
-        write_versions_to_yaml(os.path.join(dir_with_linked_files, 'program_versions.yaml'))
-        return self.output_data(dir_with_linked_files)
-
-    def link_files(self):
         dir_with_linked_files = os.path.join(self.job_dir, 'linked_output_files')
         os.makedirs(dir_with_linked_files, exist_ok=True)
 
         # Create the links from the bcbio output to one directory
-        create_links_from_bcbio(self.dataset.name, self.job_dir, self.output_cfg, dir_with_linked_files)
-        return dir_with_linked_files
+        create_output_links(
+            self.job_dir,
+            self.output_cfg,
+            dir_with_linked_files,
+            sample_id=self.dataset.name,
+            user_sample_id=self.dataset.user_sample_id
+        )
+        write_versions_to_yaml(os.path.join(dir_with_linked_files, 'program_versions.yaml'))
+        return self.output_data(dir_with_linked_files)
 
     def output_data(self, dir_with_linked_files):
-        exit_status = 0
-
         # upload the data to the rest API
         project_id = clarity.find_project_name_from_sample(self.dataset.name)
         c = SampleCrawler(self.dataset.name, project_id, self.job_dir, self.output_cfg)
@@ -122,21 +122,54 @@ class DataOutput(segmentation.Stage):
         ).join()
         self.dataset.end_stage('md5sum', md5sum_exit_status)
 
-        exit_status += md5sum_exit_status
-
         # transfer output data
-        transfer_exit_status = output_sample_data(self.dataset.name, dir_with_linked_files, cfg['output_dir'])
-        exit_status += transfer_exit_status
-
-        return exit_status
+        output_dir = os.path.join(cfg['output_dir'], project_id, self.dataset.name)
+        transfer_exit_status = output_data_and_archive(
+            dir_with_linked_files.rstrip('/') + '/',
+            output_dir.rstrip('/')
+        )
+        return md5sum_exit_status + transfer_exit_status
 
 
 class MergeFastqs(VarCallingStage):
+    def _find_fastqs_for_run_element(self, run_element):
+        local_fastq_dir = os.path.join(cfg['input_dir'], run_element.get(ELEMENT_RUN_NAME))
+        self.debug('Searching for fastqs in ' + local_fastq_dir)
+        return util.find_fastqs(
+            local_fastq_dir,
+            run_element.get(ELEMENT_PROJECT_ID),
+            self.dataset.name,
+            run_element.get(ELEMENT_LANE)
+        )
+
+    def find_fastqs_for_sample(self):
+        self.debug('Preparing dataset %s (%s)', self.dataset.name, self.dataset.dataset_status)
+        fastqs = []
+        for run_element in self.dataset.run_elements:
+            if int(run_element.get(ELEMENT_NB_READS_CLEANED, 0)) > 0:
+                fastqs.extend(self._find_fastqs_for_run_element(run_element))
+        return fastqs
+
+    def _write_bcbio_csv(self, fastqs):
+        """Write out a simple csv mapping fastq files to a sample id."""
+        csv_file = os.path.join(self.job_dir, 'samples_' + self.dataset.name + '.csv')
+        self.info('Writing BCBio sample csv ' + csv_file)
+
+        with open(csv_file, 'w') as f:
+            writer = csv.writer(f)
+            writer.writerow(['samplename', 'description'])
+            for fq in fastqs:
+                writer.writerow([fq, self.dataset.user_sample_id])
+
+        return csv_file
+
     def _run(self):
         """Merge the fastq files per sample using bcbio prepare sample"""
-        fastq_files = prepare_sample_data(self.dataset)
-        cmd = bcbio_prepare_samples_cmd(
-            self.job_dir, self.dataset.name, fastq_files, user_sample_id=self.dataset.user_sample_id
+        fastq_files = self.find_fastqs_for_sample()
+        bcbio_csv_file = self._write_bcbio_csv(fastq_files)
+        self.info('Setting up BCBio samples from ' + bcbio_csv_file)
+        cmd = bash_commands.bcbio_prepare_samples(
+            self.job_dir, bcbio_csv_file
         )
 
         exit_status = executor.execute(cmd, job_name='bcbio_prepare_samples', working_dir=self.job_dir).join()
@@ -147,46 +180,12 @@ class MergeFastqs(VarCallingStage):
             exit_status,
             sample_fastqs
         )
-
-        return 0
-
-
-def get_genome_version(dataset_name, species):
-    genome_version = clarity.get_sample(dataset_name).udf.get('Genome Version')
-    if genome_version is None:
-        genome_version = cfg.query('species', species, 'default')
-    reference = cfg.query('genomes', genome_version, 'fasta')
-    if not reference:
-        raise PipelineError('Could not find reference for species %s in sample %s ' % (species, dataset_name))
-    return genome_version, reference
-
-
-def get_dbsnp(genome_version):
-    return cfg.query('genomes', genome_version, 'dbsnp')
-
-
-def get_known_indels(genome_version):
-    return cfg.query('genomes', genome_version, 'known_indels')
+        return exit_status
 
 
 class Cleanup(segmentation.Stage):
     def _run(self):
-        exit_status = 0
-        # wait for all the previous PBS steps to be done writing to the folder before cleaning it up
-        time.sleep(120)
-        job_dir = os.path.join(cfg['jobs_dir'], self.dataset.name)
-        cleanup_targets = [job_dir]
-        intermediates_dir = cfg.get('intermediate_dir')
-        if intermediates_dir:
-            cleanup_targets.append(os.path.join(intermediates_dir, self.dataset.name))
-
-        for t in cleanup_targets:
-            self.info('Cleaning up ' + t)
-            try:
-                shutil.rmtree(t)
-            except (OSError, FileNotFoundError, NotADirectoryError) as e:
-                self.error(str(e))
-                self.warning('Could not remove: ' + t)
-                exit_status += 1
-
-        return exit_status
+        time.sleep(120)  # wait for any previous PBS steps to be done writing to the folder before cleaning it up
+        self.info('Cleaning up job dir')
+        shutil.rmtree(self.job_dir)
+        return 0

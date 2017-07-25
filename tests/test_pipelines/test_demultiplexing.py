@@ -5,11 +5,13 @@ from tests.test_analysisdriver import TestAnalysisDriver, NamedMock
 
 class TestFastqFilter(TestAnalysisDriver):
     def test_run(self):
-        run_info = Mock(reads=Mock(
-            upstream_read=Mock(attrib={'NumCycles': '151'}),
-            downstream_read=Mock(attrib={'NumCycles': '151'}),
-            index_lengths=[8]
-        ))
+        run_info = Mock(
+            reads=Mock(
+                upstream_read=Mock(attrib={'NumCycles': '151'}),
+                downstream_read=Mock(attrib={'NumCycles': '151'}),
+                index_lengths=[8]
+            )
+        )
         dataset = NamedMock(
             real_name='test',
             lane_metrics=[{'pc_q30': 73, 'lane_number': 3}, {'pc_q30': 73, 'lane_number': 4}],

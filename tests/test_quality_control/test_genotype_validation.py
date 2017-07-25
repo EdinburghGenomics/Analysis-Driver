@@ -33,7 +33,6 @@ class TestGenotypeValidation(QCTester):
     @patch(ppath + 'GenotypeValidation._bwa_aln', return_value='long_bwa_command')
     @patched_execute
     def test_bwa_alignment(self, mocked_execute, mocked_bwa_aln):
-
         self.validator._bwa_alignment()
         assert self.validator.output_bam == join('path/to/jobs/test_sample/test_sample_geno_val.bam')
         assert mocked_execute.call_count == 1

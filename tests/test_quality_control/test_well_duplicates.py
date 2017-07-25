@@ -1,5 +1,5 @@
 from unittest.mock import patch
-from analysis_driver.quality_control.lane_duplicates import WellDuplicates
+from analysis_driver.quality_control.well_duplicates import WellDuplicates
 from tests.test_quality_control.qc_tester import QCTester
 
 

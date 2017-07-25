@@ -39,7 +39,6 @@ executable_commands = {
     'seqtk': grep_version,
     'samblaster': '{executable} -h 2>&1 | grep "Version" | cut -d " " -f 3',
     'sambamba': grep_toolname,
-    'bamtools': grep_toolname,
     'bcftools': grep_toolname,
     'tabix': grep_version,
     'bgzip': '{executable} --help 2>&1 | grep "Version" | cut -d " " -f 2',

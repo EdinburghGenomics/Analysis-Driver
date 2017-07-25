@@ -10,14 +10,13 @@ from io import StringIO
 from time import sleep
 from shutil import rmtree
 from datetime import datetime
-from contextlib import redirect_stdout, contextmanager
+from contextlib import redirect_stdout
+from egcg_core import rest_communication, notifications, util
 from egcg_core.config import cfg, Configuration
 from egcg_core.app_logging import logging_default
-from egcg_core import rest_communication, notifications, util
 from unittest import TestCase
-from unittest.mock import Mock, patch
 from analysis_driver import client
-from integration_tests.mocked_data import mocked_clarity_run
+from integration_tests.mocked_data import patch_pipeline
 
 cfg.load_config_file(os.getenv('ANALYSISDRIVERCONFIG'), env_var='ANALYSISDRIVERENV')
 integration_cfg = Configuration(os.getenv('INTEGRATIONCONFIG'))
@@ -26,72 +25,6 @@ entry_point = sys.argv[0]
 
 def _now():
     return datetime.utcnow().strftime('%d/%m/%Y %H:%M:%S')
-
-
-def _fake_get_list_of_samples(sample_names):
-    samples = []
-    for n in sample_names:
-        m = Mock(udf={'Yield for Quoted Coverage (Gb)': 0.9})
-        m.name = n
-        samples.append(m)
-    return samples
-
-
-def _fake_get_user_sample_id(sample_name, lenient=False):
-    return 'uid_' + sample_name
-
-
-def _fake_get_plate_id_and_well(sample_name):
-    return [sample_name + '_plate', 1337]
-
-
-def _fake_welldups_cmd(self):
-    output_file = os.path.join(self.output_directory, self.dataset.name + '.wellduplicate')
-    return '{welldups} -f {coords} -r {run_dir} -t 1101 -s hiseq_x > {outfile} 2> {outfile}.err'.format(
-        welldups=cfg.query('tools', 'well_duplicate'),
-        coords=cfg['well_duplicate']['coord_file'], run_dir=self.run_directory, outfile=output_file
-    )
-
-
-@contextmanager
-def patch_pipeline(species='Homo sapiens', analysis_type='Variant Calling gatk'):
-    patches = []
-
-    def _patch(ppath, **kwargs):
-        p = patch('analysis_driver.' + ppath, **kwargs)
-        p.start()
-        patches.append(p)
-
-    def _fake_get_sample(sample_name):
-        return Mock(name=sample_name, udf={'Coverage': 1337, 'Analysis Type': analysis_type})
-
-    _patch('dataset.clarity.get_species_from_sample', new=species)
-    _patch('dataset.clarity.get_user_sample_name', new=_fake_get_user_sample_id)
-    _patch('dataset.clarity.get_run', return_value=mocked_clarity_run)
-    _patch('dataset.clarity.get_expected_yield_for_sample', return_value=0.9)
-    _patch('dataset_scanner.get_list_of_samples', new=_fake_get_list_of_samples)
-    _patch('pipelines.clarity.get_sample', new=_fake_get_sample)
-    _patch('pipelines.common.clarity.find_project_name_from_sample', return_value='10015AT')
-    _patch('pipelines.common.clarity.get_sample', return_value=Mock(udf={}))
-    _patch('pipelines.common.clarity.get_user_sample_name', new=_fake_get_user_sample_id)
-    _patch('report_generation.report_crawlers.clarity.get_species_from_sample', return_value=species)
-    _patch('report_generation.report_crawlers.clarity.get_sample', new=_fake_get_sample)
-    _patch('report_generation.report_crawlers.clarity.get_expected_yield_for_sample', return_value=0.9)
-    _patch('report_generation.report_crawlers.clarity.get_user_sample_name', new=_fake_get_user_sample_id)
-    _patch('report_generation.report_crawlers.clarity.get_plate_id_and_well', new=_fake_get_plate_id_and_well)
-    _patch('report_generation.report_crawlers.clarity.get_sample_gender')
-    _patch('quality_control.genotype_validation.clarity.find_project_name_from_sample', return_value='10015AT')
-    _patch('quality_control.genotype_validation.clarity.get_samples_arrived_with', return_value=set())
-    _patch('quality_control.genotype_validation.clarity.get_samples_genotyped_with', return_value=set())
-    _patch('quality_control.genotype_validation.clarity.get_samples_sequenced_with', return_value=set())
-    _patch('quality_control.genotype_validation.clarity.get_sample_names_from_project', return_value=set())
-    _patch('quality_control.genotype_validation.clarity.get_sample_genotype', return_value=set())
-    _patch('quality_control.lane_duplicates.WellDuplicates._welldups_cmd', new=_fake_welldups_cmd)
-
-    yield
-
-    for p in patches:
-        p.stop()
 
 
 class IntegrationTest(TestCase):

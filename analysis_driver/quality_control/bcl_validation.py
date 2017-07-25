@@ -1,8 +1,7 @@
+import os
 import csv
 import time
-from os.path import join, isfile
 import illuminate
-import os
 from bitstring import ReadError
 from egcg_core import executor
 from egcg_core.util import str_join
@@ -18,11 +17,11 @@ class BCLValidator(Stage):
 
     @property
     def basecalls_dir(self):
-        return join(self.run_dir, 'Data', 'Intensities', 'BaseCalls')
+        return os.path.join(self.run_dir, 'Data', 'Intensities', 'BaseCalls')
 
     @property
     def validation_log(self):
-        return join(self.run_dir, 'checked_bcls.csv')
+        return os.path.join(self.run_dir, 'checked_bcls.csv')
 
     def validate_expr(self, validation_log):
         return str_join(
@@ -74,7 +73,7 @@ class BCLValidator(Stage):
             for t in tile_ids:
                 lane = t[0]  # 1_1101
                 lane_id = 'L00' + lane
-                bcl = join(lane_id, cycle_id, 's_' + t + '.bcl.gz')
+                bcl = os.path.join(lane_id, cycle_id, 's_' + t + '.bcl.gz')
                 if bcl not in validated_bcls:
                     bcls_to_check.append(bcl)
 
@@ -83,12 +82,15 @@ class BCLValidator(Stage):
 
     def run_bcl_check(self, bcls, slice_size=100, max_job_number=500):
         """
-        Run bcl checks through executor.execute. Commands will be collapsed to 50 sequential commands per
+        Run bcl checks through executor.execute. Commands will be collapsed to 100 sequential commands per
         array job so we don't spam the resource manager with 200,000 commands at once.
+        :param list bcls: File paths of bcls to check
+        :param int slice_size: Group size for collapsing array jobs
+        :param int max_job_number: Maximum number of bcls that will be processed for this method call
         """
         max_nb_bcl = max_job_number * slice_size
-        validation_log_tmp = join(self.job_dir, 'tmp_checked_bcls.csv')
-        if isfile(validation_log_tmp):
+        validation_log_tmp = os.path.join(self.job_dir, 'tmp_checked_bcls.csv')
+        if os.path.isfile(validation_log_tmp):
             os.remove(validation_log_tmp)
         for i in range(0, len(bcls), max_nb_bcl):
             tmp_bcls = bcls[i:i + max_nb_bcl]
@@ -112,7 +114,7 @@ class BCLValidator(Stage):
         with open(self.validation_log, 'w') as f:
             for bcl in valid_bcls:
                 f.write('%s,0\n' % bcl)
-            if isfile(validation_log_tmp):
+            if os.path.isfile(validation_log_tmp):
                 for bcl, exit_status in self.read_check_bcl_files(validation_log_tmp):
                     f.write('%s,%s\n' % (bcl, exit_status))
         self.info('Finished validation. Found %s invalid files' % len(self.read_invalid_files()))
@@ -124,13 +126,13 @@ class BCLValidator(Stage):
             return [i for i in csv.reader(f, delimiter=',')]
 
     def read_invalid_files(self):
-        if isfile(self.validation_log):
+        if os.path.isfile(self.validation_log):
             return [bcl for bcl, exit_status in self.read_check_bcl_files() if int(exit_status) != 0]
         else:
             return []
 
     def read_valid_files(self):
-        if isfile(self.validation_log):
+        if os.path.isfile(self.validation_log):
             return [bcl for bcl, exit_status in self.read_check_bcl_files() if int(exit_status) == 0]
         else:
             return []

@@ -120,6 +120,7 @@ def _process_dataset(d):
         stop_running_jobs()
         d.fail(sig)
         sys.exit(sig)
+
     # SIGUSR1 is used by Luigi to stop submitting new jobs.
     # make sure here that SIGUSR1 is caught even if luigi is not running.
     signal.signal(signal.SIGUSR1, _sigterm_handler)
@@ -135,7 +136,7 @@ def _process_dataset(d):
         app_logger.info('Done')
 
     except exceptions.SequencingRunError as e:
-        app_logger.info('Bad sequencing run: %s. Aborting this dataset' % str(e))
+        app_logger.info('Bad sequencing run: %s. Aborting this dataset', str(e))
         exit_status = 2  # TODO: we should send a notification of the run status found
         d.abort()
 
