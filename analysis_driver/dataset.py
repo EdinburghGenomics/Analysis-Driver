@@ -15,8 +15,9 @@ from egcg_core.exceptions import RestCommunicationError
 from analysis_driver import reader
 from analysis_driver.exceptions import AnalysisDriverError
 from analysis_driver.notification import NotificationCentre, LimsNotification
-from analysis_driver.util import generate_samplesheet
 
+def now(datefmt='%d_%m_%Y_%H:%M:%S'):
+    return datetime.now().strftime(datefmt)
 
 class Dataset(AppLogger):
     type = None
