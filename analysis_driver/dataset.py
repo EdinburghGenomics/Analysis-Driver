@@ -451,7 +451,7 @@ class SampleDataset(Dataset):
 
     def succeed(self):
         super().succeed()
-        self.lims_ntf.fail_and_reset_sample_pipeline()
+        self.lims_ntf.assign_next_and_advance_step()
 
     def fail(self, exit_status):
         super().fail(exit_status)
