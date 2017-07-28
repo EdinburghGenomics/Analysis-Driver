@@ -357,9 +357,7 @@ class TestSampleDataset(TestDataset):
     @patch(ppath + 'MostRecentProc.retrieve_entity')
     @patch(ppath + 'Dataset.lims_ntf', new_callable=PropertyMock)
     def test_start(self, mocked_lims_ntf, mocked_retrieve_entity, mocked_start, mocked_update):
-        self.dataset.most_recent_proc.entity['status'] = c.DATASET_PROCESSING
         with patched_get_run:
-            del self.dataset.most_recent_proc.entity['status']
             self.dataset.start()
         self.assertTrue(mocked_lims_ntf.called)
 
