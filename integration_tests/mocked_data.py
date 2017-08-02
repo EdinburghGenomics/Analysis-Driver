@@ -1,8 +1,14 @@
 import os
 from contextlib import contextmanager
 from unittest.mock import Mock, patch
-from tests.test_analysisdriver import NamedMock
 from analysis_driver.config import cfg
+from analysis_driver.tool_versioning import toolset
+
+
+class NamedMock(Mock):  # don't import the tests - that patches `toolset`!
+    @property
+    def name(self):
+        return self.real_name
 
 
 class MockedSamples(NamedMock):
@@ -80,8 +86,8 @@ def _fake_get_plate_id_and_well(sample_name):
 def _fake_welldups_cmd(self):
     output_file = os.path.join(self.output_directory, self.dataset.name + '.wellduplicate')
     return '{welldups} -f {coords} -r {run_dir} -t 1101 -s hiseq_x > {outfile} 2> {outfile}.err'.format(
-        welldups=cfg.query('tools', 'well_duplicate'),
-        coords=cfg['well_duplicate']['coord_file'], run_dir=self.run_directory, outfile=output_file
+        welldups=toolset['well_duplicates'],
+        coords=cfg['well_duplicates']['coord_file'], run_dir=self.run_directory, outfile=output_file
     )
 
 

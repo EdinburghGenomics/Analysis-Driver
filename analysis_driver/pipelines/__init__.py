@@ -26,13 +26,13 @@ def pipeline(dataset):
             raise PipelineError('No species information found in the LIMS for ' + dataset.name)
 
         elif dataset.species == 'Homo sapiens':
-            _pipeline_type = 'human_variant_calling'
+            _pipeline_type = 'human_sample_processing'
             _pipeline = bcbio
         elif analysis_type in ['Variant Calling', 'Variant Calling gatk']:
-            _pipeline_type = 'non_human_variant_calling'
+            _pipeline_type = 'non_human_sample_processing'
             _pipeline = variant_calling
         else:
-            _pipeline_type = 'basic_qc'
+            _pipeline_type = 'non_human_sample_processing'
             _pipeline = qc
     elif isinstance(dataset, ProjectDataset):
         _pipeline_type = 'project_processing'
@@ -40,9 +40,11 @@ def pipeline(dataset):
     else:
         raise AssertionError('Unexpected dataset type: ' + str(dataset))
 
-    dataset.pipeline_used = _pipeline_type
+    dataset.pipeline_type = _pipeline_type
     toolset.select_type(_pipeline_type)
     toolset.select_version(dataset.toolset_version)
+
+    dataset.start()
     final_stage = _pipeline.build_pipeline(dataset)
 
     luigi_params = {

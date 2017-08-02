@@ -153,7 +153,7 @@ class Dataset(AppLogger):
 
     @property
     def toolset_version(self):
-        raise NotImplementedError
+        return toolset.latest_version
 
     def register_exception(self, luigi_task, exception):
         self.exceptions[luigi_task.stage_name] = exception
@@ -361,10 +361,6 @@ class RunDataset(Dataset):
     def lane_metrics(self):
         return rest_communication.get_documents('aggregate/run_elements_by_lane', match={'run_id': self.name})
 
-    @property
-    def toolset_version(self):
-        return None  # always use the latest run toolset
-
 
 class SampleDataset(Dataset):
     type = 'sample'
@@ -447,7 +443,7 @@ class SampleDataset(Dataset):
                 'projects',
                 {
                     'sample_pipeline': {
-                        'pipeline': self.pipeline_type, 'toolset_type': toolset.type, 'toolset_version': version
+                        'name': self.pipeline_type, 'toolset_type': toolset.type, 'toolset_version': version
                     }
                 },
                 'project_id',
@@ -536,10 +532,6 @@ class ProjectDataset(Dataset):
     def reference_genome(self):
         return cfg['genomes'][self.genome_version]['fasta']
 
-    @property
-    def toolset_version(self):
-        return None  # always use the latest project toolset
-
     def __str__(self):
         return '%s  (%s samples / %s) ' % (super().__str__(), len(self.samples_processed), self.number_of_samples)
 
@@ -618,9 +610,11 @@ class MostRecentProc:
             rest_communication.patch_entry(
                 'analysis_driver_procs',
                 {
-                    'pipeline_used': self.dataset.pipeline_type,
-                    'toolset_type': toolset.type,
-                    'toolset_version': toolset.version
+                    'pipeline_used': {
+                        'name': self.dataset.pipeline_type,
+                        'toolset_type': toolset.type,
+                        'toolset_version': toolset.version
+                    }
                 },
                 'proc_id',
                 self.proc_id

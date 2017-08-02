@@ -131,7 +131,6 @@ def _process_dataset(d):
     exit_status = 9
     try:
         from analysis_driver import pipelines
-        d.start()
         exit_status = pipelines.pipeline(d)
         app_logger.info('Done')
 
