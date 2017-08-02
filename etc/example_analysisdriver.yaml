@@ -81,5 +81,5 @@ default:
       db_dir:           path/to/db/dir
       ete_db:           path/to/ete_db
 
-    well_duplicate:
+    well_duplicates:
       coord_file: path/to/coord_file
