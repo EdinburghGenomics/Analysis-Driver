@@ -329,7 +329,7 @@ class TestSampleDataset(TestDataset):
             'projects',
             {
                 'sample_pipeline': {
-                    'pipeline': 'some kind of variant calling',
+                    'name': 'some kind of variant calling',
                     'toolset_type': 'some kind of toolset',
                     'toolset_version': 3
                 }
@@ -474,9 +474,11 @@ class TestMostRecentProc(TestAnalysisDriver):
         mocked_patch.assert_called_with(
             'analysis_driver_procs',
             {
-                'pipeline_used': 'some kind of variant calling',
-                'toolset_type': 'some kind of toolset',
-                'toolset_version': 3
+                'pipeline_used': {
+                    'name': 'some kind of variant calling',
+                    'toolset_type': 'some kind of toolset',
+                    'toolset_version': 3
+                }
             },
             'proc_id',
             'a_proc_id'
