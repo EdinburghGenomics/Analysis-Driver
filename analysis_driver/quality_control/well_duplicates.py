@@ -14,7 +14,7 @@ class WellDuplicates(Stage):
         output_file = os.path.join(self.output_directory, self.dataset.name + '.wellduplicate')
         return '{welldups} -f {coords} -r {run_dir} -s hiseq_x > {outfile} 2> {outfile}.err'.format(
             welldups=toolset['well_duplicates'],
-            coords=cfg['well_duplicate']['coord_file'], run_dir=self.run_directory, outfile=output_file
+            coords=cfg['well_duplicates']['coord_file'], run_dir=self.run_directory, outfile=output_file
         )
 
     def _run(self):
