@@ -15,6 +15,7 @@ from egcg_core.exceptions import RestCommunicationError
 from analysis_driver import reader
 from analysis_driver.exceptions import AnalysisDriverError
 from analysis_driver.notification import NotificationCentre
+from analysis_driver.pipelines import demultiplexing, bcbio, qc, variant_calling, projects
 from analysis_driver.tool_versioning import toolset
 
 
@@ -31,7 +32,7 @@ class Dataset(AppLogger):
     def __init__(self, name, most_recent_proc=None):
         self.name = name
         self.most_recent_proc = MostRecentProc(self, most_recent_proc)
-        self.pipeline_type = None
+        self.pipeline = None
         self._ntf = None
 
     @property
@@ -188,6 +189,14 @@ class Dataset(AppLogger):
     def __lt__(self, other):
         return self.name < other.name
 
+    def resolve_pipeline(self):
+        raise NotImplementedError
+
+    def resolve_pipeline_and_toolset(self):
+        self.pipeline = self.resolve_pipeline()
+        toolset.select_type(self.pipeline.toolset_type)
+        toolset.select_version(self.toolset_version)
+
 
 class NoCommunicationDataset(Dataset):
     """Dummy dataset that can be used in QC object but won't contact the API"""
@@ -204,6 +213,9 @@ class NoCommunicationDataset(Dataset):
 
     def _is_ready(self):
         pass
+
+    def resolve_pipeline(self):
+        return None
 
     @property
     def toolset_version(self):
@@ -361,6 +373,9 @@ class RunDataset(Dataset):
     def lane_metrics(self):
         return rest_communication.get_documents('aggregate/run_elements_by_lane', match={'run_id': self.name})
 
+    def resolve_pipeline(self):
+        return demultiplexing
+
 
 class SampleDataset(Dataset):
     type = 'sample'
@@ -443,7 +458,7 @@ class SampleDataset(Dataset):
                 'projects',
                 {
                     'sample_pipeline': {
-                        'name': self.pipeline_type, 'toolset_type': toolset.type, 'toolset_version': version
+                        'name': self.pipeline.__name__, 'toolset_type': toolset.type, 'toolset_version': version
                     }
                 },
                 'project_id',
@@ -466,6 +481,17 @@ class SampleDataset(Dataset):
         else:
             s += '(no non useable run elements)'
         return s
+
+    def resolve_pipeline(self):
+        if self.species is None:
+            raise AnalysisDriverError('No species information found in the LIMS for ' + self.name)
+
+        elif self.species == 'Homo sapiens':
+            return bcbio
+        elif clarity.get_sample(self.name).udf.get('Analysis Type') in ['Variant Calling', 'Variant Calling gatk']:
+            return variant_calling
+        else:
+            return qc
 
 
 class ProjectDataset(Dataset):
@@ -534,6 +560,9 @@ class ProjectDataset(Dataset):
 
     def __str__(self):
         return '%s  (%s samples / %s) ' % (super().__str__(), len(self.samples_processed), self.number_of_samples)
+
+    def resolve_pipeline(self):
+        return projects
 
 
 class MostRecentProc:
@@ -611,7 +640,7 @@ class MostRecentProc:
                 'analysis_driver_procs',
                 {
                     'pipeline_used': {
-                        'name': self.dataset.pipeline_type,
+                        'name': self.dataset.pipeline.__name__,
                         'toolset_type': toolset.type,
                         'toolset_version': toolset.version
                     }

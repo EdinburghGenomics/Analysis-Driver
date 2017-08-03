@@ -176,6 +176,17 @@ class TestDataset(TestAnalysisDriver):
         with pytest.raises(SequencingRunError):
             self.dataset.raise_exceptions()
 
+    @patch(ppath + 'toolset', return_value=Mock(latest_version=1338))
+    def test_resolve_pipeline_and_toolset(self, mocked_toolset):
+        self.dataset.resolve_pipeline = Mock(return_value=Mock(__name__='a_pipeline', toolset_type='a_toolset'))
+
+        with patch.object(self.dataset.__class__, 'toolset_version', new=1337):
+            self.dataset.resolve_pipeline_and_toolset()
+
+        assert self.dataset.pipeline.__name__ == 'a_pipeline'
+        mocked_toolset.select_type.assert_called_with('a_toolset')
+        mocked_toolset.select_version.assert_called_with(1337)
+
 
 mocked_lane_artifact1 = NamedMock(real_name='art1', reagent_labels=['D701-D502 (ATTACTCG-ATAGAGGC)'], samples=[MockedSamples(real_name='sample1')])
 mocked_lane_artifact2 = NamedMock(real_name='art2', reagent_labels=['D702-D502 (TCCGGAGA-ATAGAGGC)'], samples=[MockedSamples(real_name='sample2')])
@@ -319,7 +330,7 @@ class TestSampleDataset(TestDataset):
     @patched_patch
     @patched_get_doc({'sample_pipeline': {'toolset_version': 2}})
     def test_toolset_version(self, mocked_get, mocked_patch):
-        self.dataset.pipeline_type = 'some kind of variant calling'
+        self.dataset.pipeline = Mock(__name__='some kind of variant calling')
         assert self.dataset.toolset_version == 2
         assert mocked_patch.call_count == 0
 
@@ -468,6 +479,7 @@ class TestMostRecentProc(TestAnalysisDriver):
     @patched_patch
     @patched_update
     def test_start(self, mocked_update, mocked_patch):
+        self.proc.dataset.pipeline = Mock(__name__='some kind of variant calling')
         with patched_pid:
             self.proc.start()
         mocked_update.assert_called_with(status=c.DATASET_PROCESSING, pid=1)
