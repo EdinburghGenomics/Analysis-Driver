@@ -6,8 +6,10 @@ from analysis_driver.exceptions import PipelineError
 class LimsNotification():
     def __init__(self, name):
         self.name = name
-        self.sample_list = clarity.get_list_of_samples(self.name)
-        self.artifacts = [sample.artifact for sample in self.sample_list]
+        self.sample = clarity.get_sample(self.name)
+        self.artifact = self.sample.artifact
+        self.data_processing_stage = self.get_stage('Data Processing EG 1.0 ST')
+        self.sample_review_stage = self.get_stage('Sample Review EG 1.0 ST')
         self.step = None
 
     @property
@@ -19,21 +21,21 @@ class LimsNotification():
         return self.lims.get_workflows(name='PostSeqLab EG 1.0 WF')[0].stages
 
     def get_stage(self, stage_name):
-        stage = [stage for stage in self.postseqlab_stages if stage == stage_name]
+        stage = [stage for stage in self.postseqlab_stages if stage.name == stage_name]
         if not len(stage) == 1:
             raise PipelineError('Can not find %s from Workflow Stages' % stage_name)
         return stage[0]
 
     def route_sample_to_data_processing(self):
-        self.lims.route_artifacts(self.artifacts, stage_uri=self.get_stage('Data Processing EG 1.0 ST').uri)
+        self.lims.route_artifacts(self.artifact, stage_uri=self.data_processing_stage.uri)
 
     def create_step(self):
-        self.step = Step.create(self.lims, protocol_step=self.get_stage('Data Processing EG 1.0 ST').step, inputs=[self.artifacts], container_type_name='Tube')
+        self.step = Step.create(self.lims, protocol_step=self.data_processing_stage.step, inputs=self.artifact)
         self.step.advance()
 
     def assign_next_and_advance_step(self):
         assert self.step.current_state == 'Assign Next Steps'
-        next_step_uri = self.get_stage('Sample Review EG 1.0 ST').uri
+        next_step_uri = self.sample_review_stage.uri
         self.step.actions.next_actions[0]['step-uri'] = next_step_uri
         self.step.actions.next_actions[0]['action'] = 'nextstep'
         self.step.actions.put()

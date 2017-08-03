@@ -29,19 +29,12 @@ class Dataset(AppLogger):
         self.name = name
         self.most_recent_proc = MostRecentProc(self.type, self.name, most_recent_proc)
         self._ntf = None
-        self._lims_ntf = None
 
     @property
     def ntf(self):
         if self._ntf is None:
             self._ntf = NotificationCentre(self.name)
         return self._ntf
-
-    @property
-    def lims_ntf(self):
-        if self._lims_ntf is None:
-            self._lims_ntf = LimsNotification(self.name)
-        return self._lims_ntf
 
     @property
     def dataset_status(self):
@@ -370,6 +363,13 @@ class SampleDataset(Dataset):
         self._species = None
         self._genome_version = None
         self._user_sample_id = None
+        self._lims_ntf = None
+
+    @property
+    def lims_ntf(self):
+        if self._lims_ntf is None:
+            self._lims_ntf = LimsNotification(self.name)
+        return self._lims_ntf
 
     @property
     def species(self):

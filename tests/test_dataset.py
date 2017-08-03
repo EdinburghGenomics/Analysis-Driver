@@ -67,7 +67,7 @@ class TestDataset(TestAnalysisDriver):
     @patched_initialise
     @patch(ppath + 'MostRecentProc.start')
     @patch(ppath + 'MostRecentProc.retrieve_entity')
-    @patch(ppath + 'Dataset.lims_ntf', new_callable=PropertyMock)
+    @patch(ppath + 'SampleDataset.lims_ntf', new_callable=PropertyMock)
     def test_start(self, mocked_lims_ntf, mocked_retrieve_entity, mocked_start, mocked_update):
         self.dataset.most_recent_proc.entity['status'] = c.DATASET_PROCESSING
         with patched_get_run:
@@ -80,7 +80,7 @@ class TestDataset(TestAnalysisDriver):
 
     @patched_finish
     @patch(ppath + 'MostRecentProc.retrieve_entity')
-    @patch(ppath + 'Dataset.lims_ntf', new_callable=PropertyMock)
+    @patch(ppath + 'SampleDataset.lims_ntf', new_callable=PropertyMock)
     def test_succeed(self, mocked_lims_ntf, mocked_retrieve_entity, mocked_finish):
         with patched_get_run:
             with pytest.raises(AssertionError):
@@ -92,7 +92,7 @@ class TestDataset(TestAnalysisDriver):
 
     @patched_finish
     @patch(ppath + 'MostRecentProc.retrieve_entity')
-    @patch(ppath + 'Dataset.lims_ntf', new_callable=PropertyMock)
+    @patch(ppath + 'SampleDataset.lims_ntf', new_callable=PropertyMock)
     def test_fail(self, mocked_lims_ntf, mocked_retrieve_entity, mocked_finish):
         with patched_get_run:
             with pytest.raises(AssertionError):
@@ -105,7 +105,7 @@ class TestDataset(TestAnalysisDriver):
 
     @patched_finish
     @patch(ppath + 'MostRecentProc.retrieve_entity')
-    @patch(ppath + 'Dataset.lims_ntf', new_callable=PropertyMock)
+    @patch(ppath + 'SampleDataset.lims_ntf', new_callable=PropertyMock)
     def test_abort(self, mocked_lims_ntf, mocked_retrieve_entity, mocked_finish):
         self.dataset.abort()
         mocked_finish.assert_called_with(c.DATASET_ABORTED)
@@ -355,7 +355,7 @@ class TestSampleDataset(TestDataset):
     @patched_initialise
     @patch(ppath + 'MostRecentProc.start')
     @patch(ppath + 'MostRecentProc.retrieve_entity')
-    @patch(ppath + 'Dataset.lims_ntf', new_callable=PropertyMock)
+    @patch(ppath + 'SampleDataset.lims_ntf', new_callable=PropertyMock)
     def test_start(self, mocked_lims_ntf, mocked_retrieve_entity, mocked_start, mocked_update):
         with patched_get_run:
             self.dataset.start()
@@ -363,7 +363,7 @@ class TestSampleDataset(TestDataset):
 
     @patched_finish
     @patch(ppath + 'MostRecentProc.retrieve_entity')
-    @patch(ppath + 'Dataset.lims_ntf', new_callable=PropertyMock)
+    @patch(ppath + 'SampleDataset.lims_ntf', new_callable=PropertyMock)
     def test_succeed(self, mocked_lims_ntf, mocked_retrieve_entity, mocked_finish):
         with patched_get_run:
             self.dataset.most_recent_proc.entity['status'] = c.DATASET_PROCESSING
@@ -372,7 +372,7 @@ class TestSampleDataset(TestDataset):
 
     @patched_finish
     @patch(ppath + 'MostRecentProc.retrieve_entity')
-    @patch(ppath + 'Dataset.lims_ntf', new_callable=PropertyMock)
+    @patch(ppath + 'SampleDataset.lims_ntf', new_callable=PropertyMock)
     def test_fail(self, mocked_lims_ntf, mocked_retrieve_entity, mocked_finish):
         self.dataset.most_recent_proc.entity['status'] = c.DATASET_PROCESSING
         self.dataset.fail(1)
@@ -380,7 +380,7 @@ class TestSampleDataset(TestDataset):
 
     @patched_finish
     @patch(ppath + 'MostRecentProc.retrieve_entity')
-    @patch(ppath + 'Dataset.lims_ntf', new_callable=PropertyMock)
+    @patch(ppath + 'SampleDataset.lims_ntf', new_callable=PropertyMock)
     def test_abort(self, mocked_lims_ntf, mocked_retrieve_entity, mocked_finish):
         self.dataset.abort()
         self.assertTrue(mocked_lims_ntf.called)
