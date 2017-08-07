@@ -83,3 +83,8 @@ default:
 
     well_duplicate:
       coord_file: path/to/coord_file
+
+    clarity:
+      baseuri: 'http://clarity.co.uk'
+      username: username
+      password: password

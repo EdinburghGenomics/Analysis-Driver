@@ -2,32 +2,21 @@ from egcg_core import notifications, clarity
 from pyclarity_lims.entities import Step
 from analysis_driver.exceptions import PipelineError
 
-
 class LimsNotification():
     def __init__(self, name):
         self.name = name
         self.sample = clarity.get_sample(self.name)
         self.artifact = self.sample.artifact
-        self.data_processing_stage = self.get_stage('Data Processing EG 1.0 ST')
-        self.sample_review_stage = self.get_stage('Sample Review EG 1.0 ST')
+        self.data_processing_stage = clarity.get_workflow_stage('PostSeqLab EG 1.0 WF', stage_name='Data Processing EG 1.0 ST')
+        self.sample_review_stage = clarity.get_workflow_stage('PostSeqLab EG 1.0 WF', stage_name='Sample Review EG 1.0 ST')
         self.step = None
 
     @property
     def lims(self):
         return clarity.connection()
 
-    @property
-    def postseqlab_stages(self):
-        return self.lims.get_workflows(name='PostSeqLab EG 1.0 WF')[0].stages
-
-    def get_stage(self, stage_name):
-        stage = [stage for stage in self.postseqlab_stages if stage.name == stage_name]
-        if not len(stage) == 1:
-            raise PipelineError('Can not find %s from Workflow Stages' % stage_name)
-        return stage[0]
-
     def route_sample_to_data_processing(self):
-        self.lims.route_artifacts(self.artifact, stage_uri=self.data_processing_stage.uri)
+        self.lims.route_artifacts([self.artifact], stage_uri=self.data_processing_stage.uri)
 
     def create_step(self):
         self.step = Step.create(self.lims, protocol_step=self.data_processing_stage.step, inputs=self.artifact)
@@ -50,12 +39,6 @@ class LimsNotification():
     def start_sample_pipeline(self):
         self.route_sample_to_data_processing()
         self.create_step()
-
-    def end_sample_pipeline(self):
-        self.assign_next_and_advance_step()
-
-    def fail_and_reset_sample_pipeline(self):
-        self.remove_sample_from_workflow()
 
 
 class NotificationCentre(notifications.NotificationCentre):

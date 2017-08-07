@@ -445,17 +445,13 @@ class SampleDataset(Dataset):
         super().start()
         self.lims_ntf.start_sample_pipeline()
 
-    def abort(self):
-        super().abort()
-        self.lims_ntf.fail_and_reset_sample_pipeline()
-
     def succeed(self):
         super().succeed()
         self.lims_ntf.assign_next_and_advance_step()
 
     def fail(self, exit_status):
         super().fail(exit_status)
-        self.lims_ntf.fail_and_reset_sample_pipeline()
+        self.lims_ntf.remove_sample_from_workflow()
 
 
 class ProjectDataset(Dataset):
