@@ -24,11 +24,15 @@ class TestNotificationCentre(TestAnalysisDriver):
     def test_end_stage(self, mocked_notify):
         self.n.end_stage('test_stage')
         mocked_notify.assert_called_with("Stage 'test_stage' finished with exit status 0", ['log'])
+        self.n.end_stage('test_stage', exit_status=1)
+        mocked_notify.assert_called_with("Stage 'test_stage' finished with exit status 1", ['log', 'email'])
 
     @patch('egcg_core.notifications.NotificationCentre.notify')
     def test_end_pipeline(self, mocked_notify):
         self.n.end_pipeline(0)
         mocked_notify.assert_called_with('Pipeline finished with exit status 0', ['log', 'email'])
+        self.n.end_pipeline(1)
+        mocked_notify.assert_called_with('Pipeline finished with exit status 1', ['log', 'email', 'asana'])
 
     @patch('egcg_core.notifications.NotificationCentre.notify_all')
     def test_crash_report(self, mocked_notify_all):
@@ -52,7 +56,8 @@ class TestLimsNotification(TestAnalysisDriver):
     def test_create_step(self, mocked_create_step, mocked_lims):
         self.n.create_step()
         mocked_create_step.assert_called_with('LIMSconnection', inputs='LimsArtifact', protocol_step='stage_step')
-        mocked_create_step.advance.assert_called_once()
+        self.n.step = Mock()
+        self.n.step.advance.assert_called_once()
 
     def test_assign_next_and_advance_step(self):
         self.n.step = Mock(current_state='Assign Next Steps', actions=Mock(next_actions=[{}]))
