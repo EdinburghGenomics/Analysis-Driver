@@ -378,13 +378,6 @@ class TestSampleDataset(TestDataset):
         self.dataset.fail(1)
         self.assertTrue(mocked_lims_ntf.called)
 
-    @patched_finish
-    @patch(ppath + 'MostRecentProc.retrieve_entity')
-    @patch(ppath + 'SampleDataset.lims_ntf', new_callable=PropertyMock)
-    def test_abort(self, mocked_lims_ntf, mocked_retrieve_entity, mocked_finish):
-        self.dataset.abort()
-        self.assertTrue(mocked_lims_ntf.called)
-
 
 class TestMostRecentProc(TestAnalysisDriver):
     def setUp(self):
