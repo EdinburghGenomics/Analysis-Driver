@@ -9,7 +9,7 @@ from integration_tests.mocked_data import MockedSamples, MockedRunProcess
 from tests.test_analysisdriver import TestAnalysisDriver, NamedMock
 from analysis_driver.exceptions import AnalysisDriverError, SequencingRunError
 from analysis_driver.dataset import Dataset, RunDataset, SampleDataset, MostRecentProc
-
+from analysis_driver.tool_versioning import Toolset
 
 ppath = 'analysis_driver.dataset.'
 fake_proc = {'proc_id': 'a_proc_id', 'dataset_type': 'test', 'dataset_name': 'test'}
@@ -176,17 +176,25 @@ class TestDataset(TestAnalysisDriver):
         with pytest.raises(SequencingRunError):
             self.dataset.raise_exceptions()
 
-    @patch(ppath + 'toolset', return_value=Mock(latest_version=1338))
-    def test_resolve_pipeline_and_toolset(self, mocked_toolset):
-        self.dataset.resolve_pipeline = Mock(return_value=Mock(__name__='a_pipeline', toolset_type='a_toolset'))
-
-        with patch.object(self.dataset.__class__, 'toolset_version', new=1337):
+    def test_resolve_pipeline_and_toolset(self):
+        self.dataset._pipeline_instruction = Mock(
+            return_value={'toolset_type': 'a_toolset', 'toolset_version': 3, 'name': 'analysis_driver.pipelines.qc'}
+        )
+        with patch(ppath + 'toolset') as mocked_toolset:
             self.dataset.resolve_pipeline_and_toolset()
 
-        assert self.dataset.pipeline.__name__ == 'a_pipeline'
         mocked_toolset.select_type.assert_called_with('a_toolset')
-        mocked_toolset.select_version.assert_called_with(1337)
+        mocked_toolset.select_version.assert_called_with(3)
+        assert self.dataset.pipeline.__name__ == 'analysis_driver.pipelines.qc'
 
+    @patch(ppath + 'toolset', new=Toolset())
+    def test_pipeline_instruction(self):
+        self.dataset._default_pipeline = Mock(return_value='analysis_driver.pipelines.qc')
+        assert self.dataset._pipeline_instruction() == {
+            'name': 'analysis_driver.pipelines.qc',
+            'toolset_type': 'non_human_sample_processing',
+            'toolset_version': 0
+        }
 
 mocked_lane_artifact1 = NamedMock(real_name='art1', reagent_labels=['D701-D502 (ATTACTCG-ATAGAGGC)'], samples=[MockedSamples(real_name='sample1')])
 mocked_lane_artifact2 = NamedMock(real_name='art2', reagent_labels=['D702-D502 (TCCGGAGA-ATAGAGGC)'], samples=[MockedSamples(real_name='sample2')])
@@ -325,29 +333,24 @@ class TestSampleDataset(TestDataset):
         assert 'Could not find data threshold in LIMS' in str(e)
         mocked_exp_yield.assert_called_with('test_dataset')
 
-    @patch(ppath + 'toolset', new=Mock(type='some kind of toolset', latest_version=3))
-    @patch(ppath + 'SampleDataset.run_elements', new=[{'project_id': 'a_project'}])
+    @patch(ppath + 'toolset', new=Toolset())
+    @patch(ppath + 'SampleDataset.project_id', new='a_project')
     @patched_patch
-    @patched_get_doc({'sample_pipeline': {'toolset_version': 2}})
-    def test_toolset_version(self, mocked_get, mocked_patch):
-        self.dataset.pipeline = Mock(__name__='some kind of variant calling')
-        assert self.dataset.toolset_version == 2
-        assert mocked_patch.call_count == 0
+    def test_pipeline_instruction(self, mocked_patch):
+        self.dataset._default_pipeline = Mock(return_value='analysis_driver.pipelines.qc')
 
-        mocked_get.return_value = {}
-        assert self.dataset.toolset_version == 3
-        mocked_patch.assert_called_with(
-            'projects',
-            {
-                'sample_pipeline': {
-                    'name': 'some kind of variant calling',
-                    'toolset_type': 'some kind of toolset',
-                    'toolset_version': 3
-                }
-            },
-            'project_id',
-            'a_project'
-        )
+        with patched_get_doc({'sample_pipeline': 'some_data'}):
+            assert self.dataset._pipeline_instruction() == 'some_data'
+
+        exp = {
+            'name': 'analysis_driver.pipelines.qc',
+            'toolset_type': 'non_human_sample_processing',
+            'toolset_version': 0
+        }
+
+        with patched_get_doc(None):
+            assert self.dataset._pipeline_instruction() == exp
+            mocked_patch.assert_called_with('projects', {'sample_pipeline': exp}, 'project_id', 'a_project')
 
     @patched_expected_yield()
     def test_is_ready(self, mocked_instance):
