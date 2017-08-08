@@ -8,6 +8,7 @@ from analysis_driver.util import bash_commands
 from analysis_driver.tool_versioning import toolset
 
 toolset_type = 'human_sample_processing'
+name = 'bcbio'
 
 
 class BCBioStage(segmentation.Stage):

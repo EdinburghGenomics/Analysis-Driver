@@ -178,20 +178,20 @@ class TestDataset(TestAnalysisDriver):
 
     def test_resolve_pipeline_and_toolset(self):
         self.dataset._pipeline_instruction = Mock(
-            return_value={'toolset_type': 'a_toolset', 'toolset_version': 3, 'name': 'analysis_driver.pipelines.qc'}
+            return_value={'toolset_type': 'a_toolset', 'toolset_version': 3, 'name': 'qc'}
         )
         with patch(ppath + 'toolset') as mocked_toolset:
             self.dataset.resolve_pipeline_and_toolset()
 
         mocked_toolset.select_type.assert_called_with('a_toolset')
         mocked_toolset.select_version.assert_called_with(3)
-        assert self.dataset.pipeline.__name__ == 'analysis_driver.pipelines.qc'
+        assert self.dataset.pipeline.name == 'qc'
 
     @patch(ppath + 'toolset', new=Toolset())
     def test_pipeline_instruction(self):
-        self.dataset._default_pipeline = Mock(return_value='analysis_driver.pipelines.qc')
+        self.dataset._default_pipeline = Mock(return_value='qc')
         assert self.dataset._pipeline_instruction() == {
-            'name': 'analysis_driver.pipelines.qc',
+            'name': 'qc',
             'toolset_type': 'non_human_sample_processing',
             'toolset_version': 0
         }
@@ -335,20 +335,19 @@ class TestSampleDataset(TestDataset):
 
     @patch(ppath + 'toolset', new=Toolset())
     @patch(ppath + 'SampleDataset.project_id', new='a_project')
-    @patched_patch
-    def test_pipeline_instruction(self, mocked_patch):
-        self.dataset._default_pipeline = Mock(return_value='analysis_driver.pipelines.qc')
+    def test_pipeline_instruction(self):
+        self.dataset._default_pipeline = Mock(return_value='qc')
 
         with patched_get_doc({'sample_pipeline': 'some_data'}):
             assert self.dataset._pipeline_instruction() == 'some_data'
 
         exp = {
-            'name': 'analysis_driver.pipelines.qc',
+            'name': 'qc',
             'toolset_type': 'non_human_sample_processing',
             'toolset_version': 0
         }
 
-        with patched_get_doc(None):
+        with patched_get_doc(None), patched_patch as mocked_patch:
             assert self.dataset._pipeline_instruction() == exp
             mocked_patch.assert_called_with('projects', {'sample_pipeline': exp}, 'project_id', 'a_project')
 
@@ -482,7 +481,7 @@ class TestMostRecentProc(TestAnalysisDriver):
     @patched_patch
     @patched_update
     def test_start(self, mocked_update, mocked_patch):
-        self.proc.dataset.pipeline = Mock(__name__='some kind of variant calling')
+        self.proc.dataset.pipeline = NamedMock(real_name='some kind of variant calling')
         with patched_pid:
             self.proc.start()
         mocked_update.assert_called_with(status=c.DATASET_PROCESSING, pid=1)

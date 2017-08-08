@@ -191,7 +191,7 @@ class Dataset(AppLogger):
     def _pipeline_instruction(self):
         pipeline = pipeline_register[self._default_pipeline()]
         return {
-            'name': pipeline.__name__,
+            'name': pipeline.name,
             'toolset_type': pipeline.toolset_type,
             'toolset_version': toolset.latest_version(pipeline.toolset_type)
         }
@@ -635,7 +635,7 @@ class MostRecentProc:
                 'analysis_driver_procs',
                 {
                     'pipeline_used': {
-                        'name': self.dataset.pipeline.__name__,
+                        'name': self.dataset.pipeline.name,
                         'toolset_type': toolset.type,
                         'toolset_version': toolset.version
                     }
