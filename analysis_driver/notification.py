@@ -1,6 +1,5 @@
 from egcg_core import notifications, clarity
 from pyclarity_lims.entities import Step
-from analysis_driver.exceptions import PipelineError
 
 class LimsNotification():
     def __init__(self, name):

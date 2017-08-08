@@ -1,4 +1,4 @@
-EGCG-Core==0.7
+EGCG-Core==0.7.2
 pyclarity-lims==0.4
 luigi==2.5.0
 ete3==3.0.0b35
