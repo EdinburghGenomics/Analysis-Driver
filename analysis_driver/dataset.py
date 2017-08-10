@@ -15,6 +15,8 @@ from egcg_core.exceptions import RestCommunicationError
 from analysis_driver import reader
 from analysis_driver.exceptions import AnalysisDriverError
 from analysis_driver.notification import NotificationCentre
+from analysis_driver.pipelines import register as pipeline_register
+from analysis_driver.tool_versioning import toolset
 
 
 def now(datefmt='%d_%m_%Y_%H:%M:%S'):
@@ -29,7 +31,8 @@ class Dataset(AppLogger):
 
     def __init__(self, name, most_recent_proc=None):
         self.name = name
-        self.most_recent_proc = MostRecentProc(self.type, self.name, most_recent_proc)
+        self.most_recent_proc = MostRecentProc(self, most_recent_proc)
+        self.pipeline = None
         self._ntf = None
 
     @property
@@ -182,6 +185,23 @@ class Dataset(AppLogger):
     def __lt__(self, other):
         return self.name < other.name
 
+    def _default_pipeline(self):
+        raise NotImplementedError
+
+    def _pipeline_instruction(self):
+        pipeline = pipeline_register[self._default_pipeline()]
+        return {
+            'name': pipeline.name,
+            'toolset_type': pipeline.toolset_type,
+            'toolset_version': toolset.latest_version(pipeline.toolset_type)
+        }
+
+    def resolve_pipeline_and_toolset(self):
+        instruction = self._pipeline_instruction()
+        toolset.select_type(instruction['toolset_type'])
+        toolset.select_version(instruction['toolset_version'])
+        self.pipeline = pipeline_register[instruction['name']]
+
 
 class NoCommunicationDataset(Dataset):
     """Dummy dataset that can be used in QC object but won't contact the API"""
@@ -198,6 +218,9 @@ class NoCommunicationDataset(Dataset):
 
     def _is_ready(self):
         pass
+
+    def _default_pipeline(self):
+        return None
 
 
 class RunDataset(Dataset):
@@ -351,6 +374,9 @@ class RunDataset(Dataset):
     def lane_metrics(self):
         return rest_communication.get_documents('aggregate/run_elements_by_lane', match={'run_id': self.name})
 
+    def _default_pipeline(self):
+        return 'demultiplexing'
+
 
 class SampleDataset(Dataset):
     type = 'sample'
@@ -404,6 +430,10 @@ class SampleDataset(Dataset):
             )
         return self._non_useable_run_elements
 
+    @property
+    def project_id(self):
+        return self.run_elements[0]['project_id']
+
     def _amount_data(self):
         return sum(
             [
@@ -420,6 +450,17 @@ class SampleDataset(Dataset):
             raise AnalysisDriverError('Could not find data threshold in LIMS for ' + self.name)
         return self._data_threshold
 
+    def _pipeline_instruction(self):
+        instruction = rest_communication.get_document(
+            'projects', match={'project_id': self.project_id}
+        ).get('sample_pipeline')
+
+        if not instruction:
+            instruction = super()._pipeline_instruction()
+            rest_communication.patch_entry('projects', {'sample_pipeline': instruction}, 'project_id', self.project_id)
+
+        return instruction
+
     def _is_ready(self):
         return self.data_threshold and int(self._amount_data()) > int(self.data_threshold)
 
@@ -435,6 +476,17 @@ class SampleDataset(Dataset):
         else:
             s += '(no non useable run elements)'
         return s
+
+    def _default_pipeline(self):
+        if self.species is None:
+            raise AnalysisDriverError('No species information found in the LIMS for ' + self.name)
+
+        elif self.species == 'Homo sapiens':
+            return 'bcbio'
+        elif clarity.get_sample(self.name).udf.get('Analysis Type') in ['Variant Calling', 'Variant Calling gatk']:
+            return 'variant_calling'
+        else:
+            return 'qc'
 
 
 class ProjectDataset(Dataset):
@@ -504,12 +556,14 @@ class ProjectDataset(Dataset):
     def __str__(self):
         return '%s  (%s samples / %s) ' % (super().__str__(), len(self.samples_processed), self.number_of_samples)
 
+    def _default_pipeline(self):
+        return 'projects'
+
 
 class MostRecentProc:
-    def __init__(self, dataset_type, dataset_name, initial_content=None):
+    def __init__(self, dataset, initial_content=None):
         self.lock = Lock()
-        self.dataset_type = dataset_type
-        self.dataset_name = dataset_name
+        self.dataset = dataset
         self.proc_id = None
         if initial_content:
             self._entity = initial_content.copy()
@@ -519,7 +573,7 @@ class MostRecentProc:
     def retrieve_entity(self):
         procs = rest_communication.get_documents(
             'analysis_driver_procs',
-            where={'dataset_type': self.dataset_type, 'dataset_name': self.dataset_name},
+            where={'dataset_type': self.dataset.type, 'dataset_name': self.dataset.name},
             sort='-_created'
         )
         if procs:
@@ -535,18 +589,18 @@ class MostRecentProc:
         return self._entity
 
     def initialise_entity(self):
-        self.proc_id = '_'.join((self.dataset_type, self.dataset_name, now()))
+        self.proc_id = '_'.join((self.dataset.type, self.dataset.name, now()))
         entity = {
             'proc_id': self.proc_id,
-            'dataset_type': self.dataset_type,
-            'dataset_name': self.dataset_name
+            'dataset_type': self.dataset.type,
+            'dataset_name': self.dataset.name
         }
         rest_communication.post_entry('analysis_driver_procs', entity)
         rest_communication.patch_entry(
-            self.dataset_type + 's',
+            self.dataset.type + 's',
             {'analysis_driver_procs': [self.proc_id]},
-            id_field=self.dataset_type + '_id',
-            element_id=self.dataset_name,
+            id_field=self.dataset.type + '_id',
+            element_id=self.dataset.name,
             update_lists=['analysis_driver_procs']
         )
         self._entity = entity
@@ -577,6 +631,18 @@ class MostRecentProc:
     def start(self):
         with self.lock:
             self.update_entity(status=DATASET_PROCESSING, pid=os.getpid())
+            rest_communication.patch_entry(
+                'analysis_driver_procs',
+                {
+                    'pipeline_used': {
+                        'name': self.dataset.pipeline.name,
+                        'toolset_type': toolset.type,
+                        'toolset_version': toolset.version
+                    }
+                },
+                'proc_id',
+                self.proc_id
+            )
 
     def finish(self, status):
         with self.lock:

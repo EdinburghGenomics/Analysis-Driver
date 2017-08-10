@@ -8,9 +8,9 @@ from egcg_core.constants import ELEMENT_PROJECT_ID, ELEMENT_LANE, ELEMENT_NB_REA
 from analysis_driver import segmentation, quality_control as qc
 from analysis_driver.util import bash_commands
 from analysis_driver.config import default as cfg, OutputFileConfiguration
-from analysis_driver.reader.version_reader import write_versions_to_yaml
 from analysis_driver.report_generation import SampleCrawler
 from analysis_driver.transfer_data import output_data_and_archive, create_output_links
+from analysis_driver.tool_versioning import toolset
 
 
 class VarCallingStage(segmentation.Stage):
@@ -101,7 +101,7 @@ class SampleDataOutput(segmentation.Stage):
             sample_id=self.dataset.name,
             user_sample_id=self.dataset.user_sample_id
         )
-        write_versions_to_yaml(os.path.join(dir_with_linked_files, 'program_versions.yaml'))
+        toolset.write_to_yaml(os.path.join(dir_with_linked_files, 'program_versions.yaml'))
         return self.output_data(dir_with_linked_files)
 
     def output_data(self, dir_with_linked_files):

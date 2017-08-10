@@ -2,7 +2,6 @@ from os.path import join
 from tests.test_analysisdriver import TestAnalysisDriver
 from analysis_driver.util import bash_commands
 from analysis_driver.reader import RunInfo
-from analysis_driver.config import default as cfg
 
 assets = TestAnalysisDriver.assets_path
 fastq_path = TestAnalysisDriver.fastq_path
@@ -13,9 +12,8 @@ def test_bcl2fastq():
     mask = run_info.reads.generate_mask(barcode_len=8)
     sample_sheet_csv = join(assets, 'SampleSheet_analysis_driver.csv')
     obs = bash_commands.bcl2fastq(assets, fastq_path, sample_sheet_csv, mask)
-    exp = '%s -l INFO --runfolder-dir %s --output-dir %s -r 8 -d 8 -p 8 -w 8 --sample-sheet %s --use-bases-mask %s' % (
-        cfg['tools']['bcl2fastq'], assets, fastq_path, sample_sheet_csv, mask
-    )
+    exp = ('path/to/bcl2fastq -l INFO --runfolder-dir %s --output-dir %s -r 8 -d 8 -p 8 -w 8 '
+           '--sample-sheet %s --use-bases-mask %s') % (assets, fastq_path, sample_sheet_csv, mask)
     assert obs == exp
 
 
@@ -82,7 +80,7 @@ def test_bwa_mem_biobambam_read_groups():
         'set -o pipefail; '
         'path/to/bwa mem -M -t 16 -R \'@RG\\tID:1\\tPL:illumina\\tSM:user_sample_id\' '
         'ref.fasta this.fastq that.fastq | '
-        'path/to/bamsormadup inputformat=sam SO=coordinate tmpfile=output/out.bam '
+        'path/to/biobambam_sortmapdup inputformat=sam SO=coordinate tmpfile=output/out.bam '
         'threads=16 indexfilename=output/out.bam.bai > output/out.bam'
     )
     assert cmd == expected_cmd
@@ -94,7 +92,7 @@ def test_samtools_stats():
 
 
 def test_md5sum():
-    assert bash_commands.md5sum('in.txt') == 'md5sum in.txt > in.txt.md5'
+    assert bash_commands.md5sum('in.txt') == 'path/to/md5sum in.txt > in.txt.md5'
 
 
 def test_export_env_vars():
@@ -117,7 +115,7 @@ def test_is_remote_path():
 
 def test_seqtk_fqchk():
     fastq_file = 'path/to/fastq_R1.fastq.gz'
-    expected = '%s fqchk -q 0 %s > %s.fqchk' % (cfg['tools']['seqtk'], fastq_file, fastq_file)
+    expected = 'path/to/seqtk fqchk -q 0 %s > %s.fqchk' % (fastq_file, fastq_file)
     assert bash_commands.seqtk_fqchk(fastq_file) == expected
 
 

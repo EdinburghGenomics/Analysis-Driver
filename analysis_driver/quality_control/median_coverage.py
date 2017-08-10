@@ -2,7 +2,7 @@ import os
 from luigi import Parameter
 from egcg_core import executor
 from egcg_core.util import find_file
-from analysis_driver.config import default as cfg
+from analysis_driver.tool_versioning import toolset
 from analysis_driver.segmentation import Stage
 
 
@@ -18,7 +18,7 @@ class SamtoolsDepth(Stage):
             '%s depth -a -a -q 0 -Q 0 %s | '
             'awk -F "\t" \'{array[$1"\t"$3]+=1} END{for (val in array){print val"\t"array[val]}}\' | '
             'sort -T %s -k 1,1 -nk 2,2 > %s'
-        ) % (cfg['tools']['samtools'], find_file(self.bam_file), self.job_dir, self.samtools_depth_out_file)
+        ) % (toolset['samtools'], find_file(self.bam_file), self.job_dir, self.samtools_depth_out_file)
 
     def _run(self):
         self.info('Generating depth file: %s', self.samtools_depth_out_file)

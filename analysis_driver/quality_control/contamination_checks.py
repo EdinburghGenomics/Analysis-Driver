@@ -9,6 +9,7 @@ from egcg_core import executor, util
 from analysis_driver.exceptions import AnalysisDriverError
 from analysis_driver.config import default as cfg
 from analysis_driver.segmentation import Stage
+from analysis_driver.tool_versioning import toolset
 
 
 class FastqScreen(Stage):
@@ -18,7 +19,7 @@ class FastqScreen(Stage):
         fqs = util.find_files(self.fq_pattern)
         assert 1 <= len(fqs) <= 2, 'Bad number of fastqs: %s' % fqs
         return '%s --aligner bowtie2 %s --conf %s --force' % (
-            cfg['tools']['fastqscreen'], ' '.join(fqs), cfg['contamination-check']['fastqscreen_conf']
+            toolset['fastqscreen'], ' '.join(fqs), cfg['contamination-check']['fastqscreen_conf']
         )
 
     @property
@@ -46,7 +47,7 @@ class VerifyBamID(Stage):
     def _filter_bam(self):
         # use only chromosome 22 for speed
         return executor.execute(
-            cfg['tools']['samtools'] + ' view -b %s chr22 > %s' % (util.find_file(self.bam_file), self.filtered_bam),
+            toolset['samtools'] + ' view -b %s chr22 > %s' % (util.find_file(self.bam_file), self.filtered_bam),
             job_name='filter_bam22',
             working_dir=self.job_dir,
             cpus=1,
@@ -56,7 +57,7 @@ class VerifyBamID(Stage):
 
     def _index_filtered_bam(self):
         return executor.execute(
-            cfg['tools']['samtools'] + ' index %s' % self.filtered_bam,
+            toolset['samtools'] + ' index %s' % self.filtered_bam,
             job_name='index_bam22',
             working_dir=self.job_dir,
             cpus=1,
@@ -65,7 +66,7 @@ class VerifyBamID(Stage):
 
     def _verify_bam_id(self):
         cmd = '%s --bam %s --vcf %s --out %s' % (
-            cfg['tools']['verifybamid'],
+            toolset['verifybamid'],
             self.filtered_bam,
             cfg['contamination-check']['population_vcf'],
             os.path.join(self.job_dir, self.dataset.name + '-chr22-vbi')
@@ -102,7 +103,7 @@ class VCFStats(Stage):
 
         name, ext = os.path.splitext(vcf)
         stats_file = name + '.stats'
-        cmd = '%s vcfstats %s > %s' % (cfg['tools']['rtg'], vcf, stats_file)
+        cmd = '%s vcfstats %s > %s' % (toolset['rtg'], vcf, stats_file)
         exit_status = executor.execute(
             cmd,
             job_name='rtg_vcfstats',
@@ -131,7 +132,7 @@ class Blast(Stage):
 
     def sample_fastq_command(self):
         return 'set -o pipefail; {seqtk} sample {fastq} {nb_reads} | {seqtk} seq -a > {fasta}'.format(
-            nb_reads=self.nb_reads, seqtk=cfg['tools']['seqtk'], fastq=util.find_file(self.fastq_file),
+            nb_reads=self.nb_reads, seqtk=toolset['seqtk'], fastq=util.find_file(self.fastq_file),
             fasta=self.fasta_outfile
         )
 
@@ -141,7 +142,7 @@ class Blast(Stage):
                '-num_threads 12 -max_target_seqs 1 -max_hsps 1 '
                "-outfmt '6 qseqid sseqid length pident evalue sgi sacc staxids sscinames scomnames stitle'")
         return cmd.format(
-            db_dir=db_dir, blastn=cfg['tools']['blastn'], fasta_file=self.fasta_outfile,
+            db_dir=db_dir, blastn=toolset['blastn'], fasta_file=self.fasta_outfile,
             nt=os.path.join(db_dir, 'nt'), blast_outfile=self.blast_outfile
         )
 

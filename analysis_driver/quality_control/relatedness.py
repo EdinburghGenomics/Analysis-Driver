@@ -3,8 +3,8 @@ import csv
 from collections import Counter
 from egcg_core import executor, util, clarity
 from luigi import Parameter, ListParameter
+from analysis_driver.tool_versioning import toolset
 from analysis_driver import segmentation
-from analysis_driver.config import default as cfg
 from analysis_driver.util.bash_commands import java_command
 from analysis_driver.exceptions import PipelineError
 
@@ -163,8 +163,8 @@ class GenotypeGVCFs(RelatednessStage):
     def gatk_genotype_gvcfs_cmd(self):
         gvcf_variants = ' '. join(['--variant ' + util.find_file(i) for i in self.gVCFs])
         number_threads = 12
-        return java_command(memory=50, tmp_dir=self.job_dir, jar=cfg['tools']['gatk']) + \
-            ' -T GenotypeGVCFs -nt %s -R %s %s -o %s' % (
+        return java_command(memory=50, tmp_dir=self.job_dir, jar=toolset['gatk']) + \
+            '-T GenotypeGVCFs -nt %s -R %s %s -o %s' % (
                 number_threads, self.reference, gvcf_variants, self.gatk_outfile
             )
 
@@ -181,7 +181,7 @@ class GenotypeGVCFs(RelatednessStage):
 class Relatedness(RelatednessStage):
     def vcftools_relatedness_cmd(self):
         return '%s --relatedness2 --vcf %s --out %s' % (
-            cfg['tools']['vcftools'], self.gatk_outfile, self.dataset.name
+            toolset['vcftools'], self.gatk_outfile, self.dataset.name
         )
 
     def _run(self):
@@ -203,7 +203,7 @@ class Peddy(RelatednessStage):
 
     @property
     def tabix_command(self):
-        return '%s -f -p vcf %s' % (cfg['tools']['tabix'], self.gatk_outfile + '.gz')
+        return '%s -f -p vcf %s' % (toolset['tabix'], self.gatk_outfile + '.gz')
 
     def bgzip(self):
         return executor.execute(
@@ -216,7 +216,7 @@ class Peddy(RelatednessStage):
 
     @property
     def bgzip_command(self):
-        return '%s %s' % (cfg['tools']['bgzip'], self.gatk_outfile)
+        return '%s %s' % (toolset['bgzip'], self.gatk_outfile)
 
     def tabix_index(self):
         return executor.execute(
@@ -296,7 +296,7 @@ class Peddy(RelatednessStage):
     @property
     def peddy_command(self):
         return '%s --plot --prefix %s %s %s' % (
-            cfg['tools']['peddy'], self.dataset.name, self.gatk_outfile + '.gz', self.ped_file
+            toolset['peddy'], self.dataset.name, self.gatk_outfile + '.gz', self.ped_file
         )
 
     def run_peddy(self):
