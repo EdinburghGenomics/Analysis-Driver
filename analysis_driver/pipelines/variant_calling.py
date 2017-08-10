@@ -6,6 +6,10 @@ from analysis_driver.config import default as cfg
 from analysis_driver.util.bash_commands import java_command
 from analysis_driver.tool_versioning import toolset
 
+toolset_type = 'non_human_sample_processing'
+name = 'variant_calling'
+
+
 
 class GATKStage(segmentation.Stage):
     @property

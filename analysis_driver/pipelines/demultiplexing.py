@@ -13,6 +13,9 @@ from analysis_driver.report_generation import RunCrawler
 from analysis_driver.transfer_data import output_data_and_archive
 from analysis_driver.tool_versioning import toolset
 
+toolset_type = 'non_human_sample_processing'
+name = 'demultiplexing'
+
 
 class DemultiplexingStage(segmentation.Stage):
     @property

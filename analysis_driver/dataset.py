@@ -15,6 +15,7 @@ from egcg_core.exceptions import RestCommunicationError
 from analysis_driver import reader
 from analysis_driver.exceptions import AnalysisDriverError
 from analysis_driver.notification import NotificationCentre
+from analysis_driver.pipelines import register as pipeline_register
 from analysis_driver.tool_versioning import toolset
 
 
@@ -31,7 +32,7 @@ class Dataset(AppLogger):
     def __init__(self, name, most_recent_proc=None):
         self.name = name
         self.most_recent_proc = MostRecentProc(self, most_recent_proc)
-        self.pipeline_type = None
+        self.pipeline = None
         self._ntf = None
 
     @property
@@ -151,10 +152,6 @@ class Dataset(AppLogger):
     def _is_ready(self):
         raise NotImplementedError
 
-    @property
-    def toolset_version(self):
-        return toolset.latest_version
-
     def register_exception(self, luigi_task, exception):
         self.exceptions[luigi_task.stage_name] = exception
 
@@ -188,6 +185,23 @@ class Dataset(AppLogger):
     def __lt__(self, other):
         return self.name < other.name
 
+    def _default_pipeline(self):
+        raise NotImplementedError
+
+    def _pipeline_instruction(self):
+        pipeline = pipeline_register[self._default_pipeline()]
+        return {
+            'name': pipeline.name,
+            'toolset_type': pipeline.toolset_type,
+            'toolset_version': toolset.latest_version(pipeline.toolset_type)
+        }
+
+    def resolve_pipeline_and_toolset(self):
+        instruction = self._pipeline_instruction()
+        toolset.select_type(instruction['toolset_type'])
+        toolset.select_version(instruction['toolset_version'])
+        self.pipeline = pipeline_register[instruction['name']]
+
 
 class NoCommunicationDataset(Dataset):
     """Dummy dataset that can be used in QC object but won't contact the API"""
@@ -205,8 +219,7 @@ class NoCommunicationDataset(Dataset):
     def _is_ready(self):
         pass
 
-    @property
-    def toolset_version(self):
+    def _default_pipeline(self):
         return None
 
 
@@ -361,6 +374,9 @@ class RunDataset(Dataset):
     def lane_metrics(self):
         return rest_communication.get_documents('aggregate/run_elements_by_lane', match={'run_id': self.name})
 
+    def _default_pipeline(self):
+        return 'demultiplexing'
+
 
 class SampleDataset(Dataset):
     type = 'sample'
@@ -414,6 +430,10 @@ class SampleDataset(Dataset):
             )
         return self._non_useable_run_elements
 
+    @property
+    def project_id(self):
+        return self.run_elements[0]['project_id']
+
     def _amount_data(self):
         return sum(
             [
@@ -430,26 +450,16 @@ class SampleDataset(Dataset):
             raise AnalysisDriverError('Could not find data threshold in LIMS for ' + self.name)
         return self._data_threshold
 
-    @property
-    def toolset_version(self):
-        project_id = self.run_elements[0]['project_id']
-        version = rest_communication.get_document(
-            'projects',
-            match={'project_id': project_id}
-        ).get('sample_pipeline', {}).get('toolset_version')
-        if not version:
-            version = toolset.latest_version
-            rest_communication.patch_entry(
-                'projects',
-                {
-                    'sample_pipeline': {
-                        'name': self.pipeline_type, 'toolset_type': toolset.type, 'toolset_version': version
-                    }
-                },
-                'project_id',
-                project_id
-            )
-        return version
+    def _pipeline_instruction(self):
+        instruction = rest_communication.get_document(
+            'projects', match={'project_id': self.project_id}
+        ).get('sample_pipeline')
+
+        if not instruction:
+            instruction = super()._pipeline_instruction()
+            rest_communication.patch_entry('projects', {'sample_pipeline': instruction}, 'project_id', self.project_id)
+
+        return instruction
 
     def _is_ready(self):
         return self.data_threshold and int(self._amount_data()) > int(self.data_threshold)
@@ -466,6 +476,17 @@ class SampleDataset(Dataset):
         else:
             s += '(no non useable run elements)'
         return s
+
+    def _default_pipeline(self):
+        if self.species is None:
+            raise AnalysisDriverError('No species information found in the LIMS for ' + self.name)
+
+        elif self.species == 'Homo sapiens':
+            return 'bcbio'
+        elif clarity.get_sample(self.name).udf.get('Analysis Type') in ['Variant Calling', 'Variant Calling gatk']:
+            return 'variant_calling'
+        else:
+            return 'qc'
 
 
 class ProjectDataset(Dataset):
@@ -534,6 +555,9 @@ class ProjectDataset(Dataset):
 
     def __str__(self):
         return '%s  (%s samples / %s) ' % (super().__str__(), len(self.samples_processed), self.number_of_samples)
+
+    def _default_pipeline(self):
+        return 'projects'
 
 
 class MostRecentProc:
@@ -611,7 +635,7 @@ class MostRecentProc:
                 'analysis_driver_procs',
                 {
                     'pipeline_used': {
-                        'name': self.dataset.pipeline_type,
+                        'name': self.dataset.pipeline.name,
                         'toolset_type': toolset.type,
                         'toolset_version': toolset.version
                     }

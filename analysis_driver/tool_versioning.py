@@ -12,12 +12,11 @@ class Toolset(AppLogger):
     version = None
     type = None
 
-    @property
-    def latest_version(self):
-        return max(self.versioning_cfg['toolsets'][self.type].keys())
+    def latest_version(self, toolset_type):
+        return max(self.versioning_cfg['toolsets'][toolset_type])
 
-    def select_type(self, pipeline_type):
-        self.type = pipeline_type
+    def select_type(self, toolset_type):
+        self.type = toolset_type
 
     def select_version(self, version):
         if self.type is None:
