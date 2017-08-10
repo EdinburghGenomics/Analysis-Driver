@@ -7,6 +7,9 @@ from analysis_driver.quality_control import Relatedness, Peddy, GenotypeGVCFs, P
 from analysis_driver.exceptions import PipelineError
 from analysis_driver.transfer_data import output_data_and_archive
 
+toolset_type = 'project_processing'
+name = 'project'
+
 
 def build_pipeline(dataset):
     sample_ids = [sample['sample_id'] for sample in dataset.samples_processed]

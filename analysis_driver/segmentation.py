@@ -71,7 +71,7 @@ class Stage(BasicStage):
         self.exit_status = self._run()
         self.dataset.end_stage(self.stage_name, self.exit_status)
         if self.exit_status:
-            raise PipelineError('Exit status was %s. Stopping' % self.exit_status)
+            raise PipelineError('Exit status for %s was %s. Stopping' % (self.stage_name, self.exit_status))
 
         self.info('Finished stage %s' % self.stage_name)
 

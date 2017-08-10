@@ -1,5 +1,8 @@
 from analysis_driver.pipelines import common
 
+toolset_type = 'non_human_sample_processing'
+name = 'qc'
+
 
 def build_pipeline(dataset):
     bam_file_production = common.build_bam_file_production(dataset)

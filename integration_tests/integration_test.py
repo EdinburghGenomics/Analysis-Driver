@@ -62,6 +62,10 @@ class IntegrationTest(TestCase):
             {'library_id': 'LP6002014-DTP_A04', 'project_id': '10015AT', 'sample_id': '10015AT0004',
              'run_elements': [e['run_element_id'] for e in run_elements]}
         )
+        rest_communication.post_entry(
+            'projects',
+            {'project_id': '10015AT', 'samples': ['10015AT0004']}
+        )
 
         # clean up any previous tests
         self._try_rm_dir(os.path.join(cfg['run']['output_dir'], run_id))
@@ -130,6 +134,15 @@ class IntegrationTest(TestCase):
             exp_md5s = [integration_cfg['demultiplexing']['md5s'].get(os.path.basename(f)) for f in output_fastqs]
             obs_md5s = [hashlib.md5(gzip.open(f, 'r').read()).hexdigest() for f in output_fastqs]
             self.expect_equal(obs_md5s, exp_md5s, 'md5s')
+
+            proc = rest_communication.get_document('analysis_driver_procs')
+            self.expect_equal(
+                proc['pipeline_used'],
+                integration_cfg['demultiplexing']['pipeline_used']
+            )
+            self.expect_equal(proc['status'], 'finished')
+            self.expect_equal(proc['pid'], None)
+
         assert self._test_success
 
     def test_bcbio(self):
@@ -152,6 +165,15 @@ class IntegrationTest(TestCase):
             obs = [self._read_md5_file(os.path.join(output_dir, f + '.md5')) for f in files]
             exp = [integration_cfg['bcbio']['md5s'].get(f) for f in files]
             self.expect_equal(obs, exp, 'md5s')
+
+            proc = rest_communication.get_document('analysis_driver_procs')
+            self.expect_equal(
+                proc['pipeline_used'],
+                integration_cfg['bcbio']['pipeline_used']
+            )
+            self.expect_equal(proc['status'], 'finished')
+            self.expect_equal(proc['pid'], None)
+
         assert self._test_success
 
     def test_var_calling(self):
@@ -173,6 +195,15 @@ class IntegrationTest(TestCase):
             obs = [self._read_md5_file(os.path.join(output_dir, f + '.md5')) for f in files]
             exp = [integration_cfg['var_calling']['md5s'].get(f) for f in files]
             self.expect_equal(obs, exp, 'md5s')
+
+            proc = rest_communication.get_document('analysis_driver_procs')
+            self.expect_equal(
+                proc['pipeline_used'],
+                integration_cfg['var_calling']['pipeline_used']
+            )
+            self.expect_equal(proc['status'], 'finished')
+            self.expect_equal(proc['pid'], None)
+
         assert self._test_success
 
     def test_qc(self):
@@ -194,6 +225,15 @@ class IntegrationTest(TestCase):
             obs = [self._read_md5_file(os.path.join(output_dir, f + '.md5')) for f in files]
             exp = [integration_cfg['var_calling']['md5s'].get(f) for f in files]
             self.expect_equal(obs, exp, 'md5s')
+
+            proc = rest_communication.get_document('analysis_driver_procs')
+            self.expect_equal(
+                proc['pipeline_used'],
+                integration_cfg['qc']['pipeline_used']
+            )
+            self.expect_equal(proc['status'], 'finished')
+            self.expect_equal(proc['pid'], None)
+
         assert self._test_success
 
 

@@ -6,6 +6,7 @@ from analysis_driver.util import bash_commands
 from analysis_driver.config import default as cfg
 from analysis_driver.reader.mapping_stats_parsers import parse_genotype_concordance
 from analysis_driver.segmentation import Stage
+from analysis_driver.tool_versioning import toolset
 
 
 class GenotypeValidation(Stage):
@@ -26,7 +27,7 @@ class GenotypeValidation(Stage):
         return os.path.join(self.job_dir, self.dataset.name + '_geno_val.bam')
 
     def _gatk_command(self, memory):
-        return bash_commands.java_command(memory=memory, tmp_dir=self.job_dir, jar=cfg.query('tools', 'gatk'))
+        return bash_commands.java_command(memory=memory, tmp_dir=self.job_dir, jar=toolset['gatk'])
 
     def _bwa_aln(self, fastq_files):
         """
@@ -36,25 +37,26 @@ class GenotypeValidation(Stage):
         """
         header = '@RG\\tID:1\\tSM:' + self.dataset.name
         reference = cfg.query('genotype-validation', 'reference')
-        bwa_bin = cfg.query('tools', 'bwa', ret_default='bwa')
 
         if len(fastq_files) == 2:
-            aln1 = '%s aln %s %s' % (bwa_bin, reference, fastq_files[0])
-            aln2 = '%s aln %s %s' % (bwa_bin, reference, fastq_files[1])
+            aln1 = '%s aln %s %s' % (toolset['bwa'], reference, fastq_files[0])
+            aln2 = '%s aln %s %s' % (toolset['bwa'], reference, fastq_files[1])
             command_bwa = "%s sampe -r '%s' %s <(%s) <(%s) %s %s" % (
-                bwa_bin, header, reference, aln1, aln2, fastq_files[0], fastq_files[1]
+                toolset['bwa'], header, reference, aln1, aln2, fastq_files[0], fastq_files[1]
             )
         elif len(fastq_files) == 1:
-            aln1 = '%s aln %s %s' % (bwa_bin, reference, fastq_files[0])
-            command_bwa = "%s samse -r '%s' %s <(%s) %s" % (bwa_bin, header, reference, aln1, fastq_files[0])
+            aln1 = '%s aln %s %s' % (toolset['bwa'], reference, fastq_files[0])
+            command_bwa = "%s samse -r '%s' %s <(%s) %s" % (
+                toolset['bwa'], header, reference, aln1, fastq_files[0]
+            )
 
         else:
             raise PipelineError('Bad number of fastqs: ' + str(fastq_files))
 
-        command_samblaster = '%s --removeDups' % cfg.query('tools', 'samblaster', ret_default='samblaster')
-        command_samtools = '%s view -F 4 -Sb -' % cfg.query('tools', 'samtools', ret_default='samtools')
+        command_samblaster = '%s --removeDups' % toolset['samblaster']
+        command_samtools = '%s view -F 4 -Sb -' % toolset['samtools']
         command_sambamba = '%s sort -t 16 -o %s /dev/stdin' % (
-            cfg.query('tools', 'sambamba', ret_default='sambamba'), self.output_bam
+            toolset['sambamba'], self.output_bam
         )
 
         return ' | '.join([command_bwa, command_samblaster, command_samtools, command_sambamba])
@@ -74,17 +76,13 @@ class GenotypeValidation(Stage):
         :param str bam_file: The file containing all reads aligned to the synthetic genome.
         """
 
-        gatk_command = (self._gatk_command(memory=4) +
-                        ' -T UnifiedGenotyper -nt 4 -R {reference} '
-                        '--standard_min_confidence_threshold_for_calling 30.0 '
-                        '--standard_min_confidence_threshold_for_emitting 0 -out_mode EMIT_ALL_SITES '
-                        '-I {bam_file} -o {vcf_file}').format(
-            reference=cfg.query('genotype-validation', 'reference'),
-            bam_file=bam_file, vcf_file=self.seq_vcf_file
-        )
+        gatk_args = (
+            '-T UnifiedGenotyper -nt 4 -R {ref} --standard_min_confidence_threshold_for_calling 30.0 '
+            '--standard_min_confidence_threshold_for_emitting 0 -out_mode EMIT_ALL_SITES -I {bam_file} -o {vcf_file}'
+        ).format(ref=cfg['genotype-validation']['reference'], bam_file=bam_file, vcf_file=self.seq_vcf_file)
 
         return executor.execute(
-            gatk_command,
+            self._gatk_command(memory=4) + gatk_args,
             prelim_cmds=bash_commands.export_env_vars(),
             job_name='snpcall_gatk',
             working_dir=self.job_dir,
@@ -103,18 +101,17 @@ class GenotypeValidation(Stage):
         # Make sure the file exists and is indexed
         assert os.path.isfile(self.seq_vcf_file)
         if not os.path.isfile(self.seq_vcf_file + '.tbi'):
-            self._index_vcf_gz(self.seq_vcf_file)
+            self._index_vcf(self.seq_vcf_file)
 
         for sample_name in sample2genotype:
             validation_results = os.path.join(self.job_dir, sample_name + '_genotype_validation.txt')
             sample2genotype_validation[sample_name] = validation_results
-            gatk_command = [self._gatk_command(memory=4),
-                            '-T GenotypeConcordance',
-                            '-eval:VCF %s' % self.seq_vcf_file,
-                            '-comp:VCF %s' % sample2genotype.get(sample_name),
-                            '-R %s' % cfg.query('genotype-validation', 'reference'),
-                            '> %s' % validation_results]
-            list_commands.append(' '.join(gatk_command))
+
+            gatk_args = '-T GenotypeConcordance -eval:VCF {vcf} -comp:VCF {genotype} -R {ref} > {f}'.format(
+                vcf=self.seq_vcf_file, genotype=sample2genotype.get(sample_name),
+                ref=cfg['genotype-validation']['reference'], f=validation_results
+            )
+            list_commands.append(self._gatk_command(memory=4) + gatk_args)
 
         exit_status = executor.execute(
             *list_commands,
@@ -132,7 +129,7 @@ class GenotypeValidation(Stage):
         """This function assumes only one sample in the header"""
         base_cmd = '{bcftools} reheader -s <(echo {sn}) {genovcf} > {genovcf}.tmp; mv {genovcf}.tmp {genovcf}'
         commands = [
-            base_cmd.format(bcftools=cfg.query('tools', 'bcftools'), sn=self.dataset.name, genovcf=genovcf)
+            base_cmd.format(bcftools=toolset['bcftools'], sn=self.dataset.name, genovcf=genovcf)
             for genovcf in sample2genotype.values()
         ]
 
@@ -145,9 +142,9 @@ class GenotypeValidation(Stage):
             log_commands=False
         ).join()
 
-    def _index_vcf_gz(self, vcf_file):
+    def _index_vcf(self, vcf_file):
         return executor.execute(
-            '{tabix} -p vcf {vcf}'.format(tabix=cfg.query('tools', 'tabix'), vcf=vcf_file),
+            '{tabix} -p vcf {vcf}'.format(tabix=toolset['tabix'], vcf=vcf_file),
             job_name='index_vcf',
             working_dir=self.job_dir,
             cpus=1,

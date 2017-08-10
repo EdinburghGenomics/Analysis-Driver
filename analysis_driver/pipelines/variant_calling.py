@@ -4,6 +4,11 @@ from analysis_driver import segmentation
 from analysis_driver.pipelines import common
 from analysis_driver.config import default as cfg
 from analysis_driver.util.bash_commands import java_command
+from analysis_driver.tool_versioning import toolset
+
+toolset_type = 'non_human_sample_processing'
+name = 'variant_calling'
+
 
 
 class GATKStage(segmentation.Stage):
@@ -15,7 +20,7 @@ class GATKStage(segmentation.Stage):
 
     def gatk_cmd(self, run_cls, input_bam, output, xmx=16, nct=16, ext=None):
 
-        base_cmd = (java_command(memory=xmx, tmp_dir=self.gatk_run_dir, jar=cfg['tools']['gatk']) +
+        base_cmd = java_command(memory=xmx, tmp_dir=self.gatk_run_dir, jar=toolset['gatk']) + (
                     '-R {ref} -I {input_bam} -T {run_cls} --read_filter BadCigar --read_filter NotPrimaryAlignment '
                     '-o {output} -l INFO -U LENIENT_VCF_PROCESSING ')
 
@@ -150,7 +155,7 @@ class HaplotypeCaller(GATKStage):
 class BGZip(GATKStage):
     def _run(self):
         return executor.execute(
-            '%s %s' % (cfg['tools']['bgzip'], self.sample_gvcf),
+            '%s %s' % (toolset['bgzip'], self.sample_gvcf),
             job_name='bgzip',
             working_dir=self.gatk_run_dir,
             cpus=1,
@@ -161,7 +166,7 @@ class BGZip(GATKStage):
 class Tabix(GATKStage):
     def _run(self):
         return executor.execute(
-            '%s -p vcf %s' % (cfg['tools']['tabix'], self.sample_gvcf + '.gz'),
+            '%s -p vcf %s' % (toolset['tabix'], self.sample_gvcf + '.gz'),
             job_name='tabix',
             working_dir=self.gatk_run_dir,
             cpus=1,

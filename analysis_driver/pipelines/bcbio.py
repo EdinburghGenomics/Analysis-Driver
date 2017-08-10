@@ -5,7 +5,10 @@ from analysis_driver import segmentation, quality_control as qc
 from analysis_driver.exceptions import PipelineError
 from analysis_driver.pipelines import common
 from analysis_driver.util import bash_commands
-from analysis_driver.config import default as cfg
+from analysis_driver.tool_versioning import toolset
+
+toolset_type = 'human_sample_processing'
+name = 'bcbio'
 
 
 class BCBioStage(segmentation.Stage):
@@ -64,7 +67,7 @@ class BCBio(BCBioStage):
         bcbio_dir = os.path.join(self.job_dir, 'samples_' + self.dataset.name + '-merged')
 
         sample_prep = [
-            os.path.join(cfg['tools']['bcbio'], 'bin', 'bcbio_nextgen.py'),
+            os.path.join(toolset['bcbio'], 'bin', 'bcbio_nextgen.py'),
             '-w template',
             run_template,
             bcbio_dir,
