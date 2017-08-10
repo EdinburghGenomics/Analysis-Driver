@@ -4,12 +4,11 @@ import pytest
 from sys import modules
 from unittest.mock import patch, Mock, PropertyMock
 from egcg_core import constants as c
-
 from integration_tests.mocked_data import MockedSamples, MockedRunProcess
 from tests.test_analysisdriver import TestAnalysisDriver, NamedMock
 from analysis_driver.exceptions import AnalysisDriverError, SequencingRunError
 from analysis_driver.dataset import Dataset, RunDataset, SampleDataset, MostRecentProc
-
+from analysis_driver.notification import LimsNotification
 
 ppath = 'analysis_driver.dataset.'
 fake_proc = {'proc_id': 'a_proc_id', 'dataset_type': 'test', 'dataset_name': 'test'}
@@ -356,27 +355,30 @@ class TestSampleDataset(TestDataset):
     @patch(ppath + 'MostRecentProc.start')
     @patch(ppath + 'MostRecentProc.retrieve_entity')
     @patch(ppath + 'SampleDataset.lims_ntf', new_callable=PropertyMock)
-    def test_start(self, mocked_lims_ntf, mocked_retrieve_entity, mocked_start, mocked_update):
+    def test_start(self, mocked_lims_ntf,  mocked_retrieve_entity, mocked_start, mocked_update):
         with patched_get_run:
-            self.dataset.start()
-        self.assertTrue(mocked_lims_ntf.called)
+            with patch.object(LimsNotification, 'start_sample_pipeline') as mocked_start_pipeline:
+                self.dataset.start()
+                mocked_start_pipeline.assert_called_once()
 
     @patched_finish
     @patch(ppath + 'MostRecentProc.retrieve_entity')
     @patch(ppath + 'SampleDataset.lims_ntf', new_callable=PropertyMock)
     def test_succeed(self, mocked_lims_ntf, mocked_retrieve_entity, mocked_finish):
         with patched_get_run:
-            self.dataset.most_recent_proc.entity['status'] = c.DATASET_PROCESSING
-            self.dataset.succeed()
-        self.assertTrue(mocked_lims_ntf.called)
+            with patch.object(LimsNotification, 'assign_next_and_advance_step') as mocked_assign_and_advance:
+                self.dataset.most_recent_proc.entity['status'] = c.DATASET_PROCESSING
+                self.dataset.succeed()
+                mocked_assign_and_advance.assert_called_once()
 
     @patched_finish
     @patch(ppath + 'MostRecentProc.retrieve_entity')
     @patch(ppath + 'SampleDataset.lims_ntf', new_callable=PropertyMock)
     def test_fail(self, mocked_lims_ntf, mocked_retrieve_entity, mocked_finish):
-        self.dataset.most_recent_proc.entity['status'] = c.DATASET_PROCESSING
-        self.dataset.fail(1)
-        self.assertTrue(mocked_lims_ntf.called)
+        with patch.object(LimsNotification, 'remove_sample_from_workflow') as mocked_remove:
+            self.dataset.most_recent_proc.entity['status'] = c.DATASET_PROCESSING
+            self.dataset.fail(1)
+            mocked_remove.assert_called_once()
 
 
 class TestMostRecentProc(TestAnalysisDriver):
