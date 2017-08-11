@@ -4,11 +4,36 @@ from pyclarity_lims.entities import Step
 class LimsNotification():
     def __init__(self, name):
         self.name = name
-        self.sample = clarity.get_sample(self.name)
-        self.artifact = self.sample.artifact
-        self.data_processing_stage = clarity.get_workflow_stage('PostSeqLab EG 1.0 WF', stage_name='Data Processing EG 1.0 ST')
-        self.sample_review_stage = clarity.get_workflow_stage('PostSeqLab EG 1.0 WF', stage_name='Sample Review EG 1.0 ST')
+        self._sample = None
+        self._artifact = None
+        self._data_processing_stage = None
+        self._sample_review_stage = None
         self.step = None
+
+    @property
+    def sample(self):
+        if not self._sample:
+            self._sample = clarity.get_sample(self.name)
+        return self._sample
+
+    @property
+    def artifact(self):
+        if not self._artifact:
+            self._artifact = self.sample.artifact
+        return self._artifact
+
+    @property
+    def data_processing_stage(self):
+        if not self._data_processing_stage:
+            self._data_processing_stage = clarity.get_workflow_stage('PostSeqLab EG 1.0 WF', stage_name='Data Processing EG 1.0 ST')
+        return self._data_processing_stage
+
+    @property
+    def sample_review_stage(self):
+        if not self._sample_review_stage:
+            self._sample_review_stage = clarity.get_workflow_stage('PostSeqLab EG 1.0 WF', stage_name='Sample Review EG 1.0 ST')
+        return self._sample_review_stage
+
 
     @property
     def lims(self):

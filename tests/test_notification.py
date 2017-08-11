@@ -41,16 +41,19 @@ class TestNotificationCentre(TestAnalysisDriver):
 
 
 class TestLimsNotification(TestAnalysisDriver):
-    def setUp(self):
-        with patch('egcg_core.clarity.get_sample', return_value=Mock(artifact='LimsArtifact')),\
-             patch('egcg_core.clarity.get_workflow_stage', return_value=Mock(uri='stage_uri', step='stage_step')):
-            self.n = notification.LimsNotification('test_name')
 
+    def setUp(self):
+        self.n = notification.LimsNotification('test_name')
+
+    @patch('analysis_driver.notification.LimsNotification.data_processing_stage', new=Mock(uri='stage_uri'))
+    @patch('analysis_driver.notification.LimsNotification.artifact', new='LimsArtifact')
     @patch.object(Lims, 'route_artifacts')
     def test_route_sample_to_data_processing(self, mocked_route):
         self.n.route_sample_to_data_processing()
         mocked_route.assert_called_with(['LimsArtifact'], stage_uri='stage_uri')
 
+    @patch('analysis_driver.notification.LimsNotification.data_processing_stage', new=Mock(step='stage_step'))
+    @patch('analysis_driver.notification.LimsNotification.artifact', new='LimsArtifact')
     @patch('egcg_core.clarity.connection', return_value='LIMSconnection')
     @patch.object(Step, 'create')
     def test_create_step(self, mocked_create_step, mocked_lims):
@@ -59,6 +62,7 @@ class TestLimsNotification(TestAnalysisDriver):
         mocked_create_step.assert_called_with('LIMSconnection', inputs='LimsArtifact', protocol_step='stage_step')
         self.n.step.advance.assert_called_once()
 
+    @patch('analysis_driver.notification.LimsNotification.sample_review_stage', new=Mock(uri='stage_uri'))
     def test_assign_next_and_advance_step(self):
         self.n.step = Mock(current_state='Assign Next Steps', actions=Mock(next_actions=[{}]))
         self.n.assign_next_and_advance_step()
