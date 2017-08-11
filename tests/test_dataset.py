@@ -2,14 +2,13 @@ import os
 import signal
 import pytest
 from sys import modules
-from unittest.mock import patch, Mock, PropertyMock
+from unittest.mock import patch, Mock, PropertyMock, call
 from egcg_core import constants as c
-
 from integration_tests.mocked_data import MockedSamples, MockedRunProcess
 from tests.test_analysisdriver import TestAnalysisDriver, NamedMock
 from analysis_driver.exceptions import AnalysisDriverError, SequencingRunError
 from analysis_driver.dataset import Dataset, RunDataset, SampleDataset, MostRecentProc
-from analysis_driver.tool_versioning import Toolset
+from analysis_driver.notification import LimsNotification
 
 ppath = 'analysis_driver.dataset.'
 fake_proc = {'proc_id': 'a_proc_id', 'dataset_type': 'test', 'dataset_name': 'test'}
@@ -20,7 +19,6 @@ patched_pid = patch(ppath + 'os.getpid', return_value=1)
 patched_update = patch(ppath + 'MostRecentProc.update_entity')
 patched_initialise = patch(ppath + 'MostRecentProc.initialise_entity')
 patched_finish = patch(ppath + 'MostRecentProc.finish')
-patched_is_ready = patch(ppath + 'Dataset._is_ready', return_value=None)
 patched_stages = patch(
     ppath + 'Dataset.running_stages',
     new_callable=PropertyMock(return_value=['this', 'that', 'other'])
@@ -29,10 +27,6 @@ patched_get_run = patch(
     ppath + 'clarity.get_run',
     return_value=Mock(udf={'Run Status': 'RunStarted'})
 )
-
-
-def patched_get_doc(content=None):
-    return patch(ppath + 'rest_communication.get_document', return_value=content or fake_proc)
 
 
 def patched_get_docs(content=None):
@@ -72,9 +66,10 @@ class TestDataset(TestAnalysisDriver):
     @patched_initialise
     @patch(ppath + 'MostRecentProc.start')
     @patch(ppath + 'MostRecentProc.retrieve_entity')
-    def test_start(self, mocked_retrieve_entity, mocked_start, mocked_update):
+    @patch(ppath + 'SampleDataset.lims_ntf', new_callable=PropertyMock)
+    def test_start(self, mocked_lims_ntf, mocked_retrieve_entity, mocked_start, mocked_update):
         self.dataset.most_recent_proc.entity['status'] = c.DATASET_PROCESSING
-        with patched_get_run, patched_is_ready:
+        with patched_get_run:
             with pytest.raises(AssertionError):
                 self.dataset.start()
             del self.dataset.most_recent_proc.entity['status']
@@ -84,8 +79,9 @@ class TestDataset(TestAnalysisDriver):
 
     @patched_finish
     @patch(ppath + 'MostRecentProc.retrieve_entity')
-    def test_succeed(self, mocked_retrieve_entity, mocked_finish):
-        with patched_get_run, patched_is_ready:
+    @patch(ppath + 'SampleDataset.lims_ntf', new_callable=PropertyMock)
+    def test_succeed(self, mocked_lims_ntf, mocked_retrieve_entity, mocked_finish):
+        with patched_get_run:
             with pytest.raises(AssertionError):
                 self.dataset.succeed()
             self.dataset.most_recent_proc.entity['status'] = c.DATASET_PROCESSING
@@ -95,8 +91,9 @@ class TestDataset(TestAnalysisDriver):
 
     @patched_finish
     @patch(ppath + 'MostRecentProc.retrieve_entity')
-    def test_fail(self, mocked_retrieve_entity, mocked_finish):
-        with patched_get_run, patched_is_ready:
+    @patch(ppath + 'SampleDataset.lims_ntf', new_callable=PropertyMock)
+    def test_fail(self, mocked_lims_ntf, mocked_retrieve_entity, mocked_finish):
+        with patched_get_run:
             with pytest.raises(AssertionError):
                 self.dataset.succeed()
 
@@ -107,7 +104,8 @@ class TestDataset(TestAnalysisDriver):
 
     @patched_finish
     @patch(ppath + 'MostRecentProc.retrieve_entity')
-    def test_abort(self, mocked_retrieve_entity, mocked_finish):
+    @patch(ppath + 'SampleDataset.lims_ntf', new_callable=PropertyMock)
+    def test_abort(self, mocked_lims_ntf, mocked_retrieve_entity, mocked_finish):
         self.dataset.abort()
         mocked_finish.assert_called_with(c.DATASET_ABORTED)
 
@@ -166,7 +164,7 @@ class TestDataset(TestAnalysisDriver):
 
     def setup_dataset(self):
         with patched_get_docs():
-            self.dataset = Dataset(
+            self.dataset = _TestDataset(
                 'test_dataset',
                 {'proc_id': 'a_proc_id', 'date_started': 'now', 'dataset_name': 'None', 'dataset_type': 'None'}
             )
@@ -176,25 +174,14 @@ class TestDataset(TestAnalysisDriver):
         with pytest.raises(SequencingRunError):
             self.dataset.raise_exceptions()
 
-    def test_resolve_pipeline_and_toolset(self):
-        self.dataset._pipeline_instruction = Mock(
-            return_value={'toolset_type': 'a_toolset', 'toolset_version': 3, 'name': 'qc'}
-        )
-        with patch(ppath + 'toolset') as mocked_toolset:
-            self.dataset.resolve_pipeline_and_toolset()
 
-        mocked_toolset.select_type.assert_called_with('a_toolset')
-        mocked_toolset.select_version.assert_called_with(3)
-        assert self.dataset.pipeline.name == 'qc'
+class _TestDataset(Dataset):
+    type = 'None'
+    endpoint = 'None'
+    id_field = 'None'
 
-    @patch(ppath + 'toolset', new=Toolset())
-    def test_pipeline_instruction(self):
-        self.dataset._default_pipeline = Mock(return_value='qc')
-        assert self.dataset._pipeline_instruction() == {
-            'name': 'qc',
-            'toolset_type': 'non_human_sample_processing',
-            'toolset_version': 0
-        }
+    def _is_ready(self):
+        pass
 
 mocked_lane_artifact1 = NamedMock(real_name='art1', reagent_labels=['D701-D502 (ATTACTCG-ATAGAGGC)'], samples=[MockedSamples(real_name='sample1')])
 mocked_lane_artifact2 = NamedMock(real_name='art2', reagent_labels=['D702-D502 (TCCGGAGA-ATAGAGGC)'], samples=[MockedSamples(real_name='sample2')])
@@ -333,24 +320,6 @@ class TestSampleDataset(TestDataset):
         assert 'Could not find data threshold in LIMS' in str(e)
         mocked_exp_yield.assert_called_with('test_dataset')
 
-    @patch(ppath + 'toolset', new=Toolset())
-    @patch(ppath + 'SampleDataset.project_id', new='a_project')
-    def test_pipeline_instruction(self):
-        self.dataset._default_pipeline = Mock(return_value='qc')
-
-        with patched_get_doc({'sample_pipeline': 'some_data'}):
-            assert self.dataset._pipeline_instruction() == 'some_data'
-
-        exp = {
-            'name': 'qc',
-            'toolset_type': 'non_human_sample_processing',
-            'toolset_version': 0
-        }
-
-        with patched_get_doc(None), patched_patch as mocked_patch:
-            assert self.dataset._pipeline_instruction() == exp
-            mocked_patch.assert_called_with('projects', {'sample_pipeline': exp}, 'project_id', 'a_project')
-
     @patched_expected_yield()
     def test_is_ready(self, mocked_instance):
         self.dataset._data_threshold = None
@@ -380,6 +349,35 @@ class TestSampleDataset(TestDataset):
             {'run_id': 'another_run_id', 'clean_q30_bases_r1': 110, 'clean_q30_bases_r2': 135}
         ]
         self.dataset._data_threshold = 1000000000
+
+    @patched_initialise
+    @patch(ppath + 'MostRecentProc.start')
+    @patch(ppath + 'MostRecentProc.retrieve_entity')
+    @patch(ppath + 'SampleDataset.lims_ntf', new_callable=PropertyMock)
+    def test_start(self, mocked_lims_ntf, mocked_retrieve_entity, mocked_start, mocked_update):
+        with patched_get_run:
+            self.dataset.start()
+            mocked_lims_ntf.assert_has_calls([call(), call().start_sample_pipeline()])
+
+
+    @patched_finish
+    @patch(ppath + 'MostRecentProc.retrieve_entity')
+    @patch(ppath + 'SampleDataset.lims_ntf', new_callable=PropertyMock)
+    def test_succeed(self, mocked_lims_ntf, mocked_retrieve_entity, mocked_finish):
+        with patched_get_run:
+            self.dataset.most_recent_proc.entity['status'] = c.DATASET_PROCESSING
+            self.dataset.succeed()
+            mocked_lims_ntf.assert_has_calls([call(), call().assign_next_and_advance_step()])
+
+
+    @patched_finish
+    @patch(ppath + 'MostRecentProc.retrieve_entity')
+    @patch(ppath + 'SampleDataset.lims_ntf', new_callable=PropertyMock)
+    def test_fail(self, mocked_lims_ntf, mocked_retrieve_entity, mocked_finish):
+        self.dataset.most_recent_proc.entity['status'] = c.DATASET_PROCESSING
+        self.dataset.fail(1)
+        self.assertTrue(mocked_lims_ntf.called)
+        mocked_lims_ntf.assert_has_calls([call(), call().remove_sample_from_workflow()])
 
 
 class TestMostRecentProc(TestAnalysisDriver):
