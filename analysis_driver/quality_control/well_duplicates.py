@@ -3,6 +3,7 @@ from luigi import Parameter
 from egcg_core import executor
 from analysis_driver.config import default as cfg
 from analysis_driver.segmentation import Stage
+from analysis_driver.tool_versioning import toolset
 
 
 class WellDuplicates(Stage):
@@ -12,7 +13,7 @@ class WellDuplicates(Stage):
     def _welldups_cmd(self):
         output_file = os.path.join(self.output_directory, self.dataset.name + '.wellduplicate')
         return '{welldups} -f {coords} -r {run_dir} -s hiseq_x > {outfile} 2> {outfile}.err'.format(
-            welldups=cfg.query('tools', 'well_duplicate'),
+            welldups=toolset['well_duplicates'],
             coords=cfg['well_duplicate']['coord_file'], run_dir=self.run_directory, outfile=output_file
         )
 

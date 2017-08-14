@@ -13,7 +13,7 @@ class TestWellDuplicates(QCTester):
         )
         welldup._run()
         mocked_execute.assert_called_once_with(
-            ('path/to/well_duplicate -f path/to/coord_file -r path/to/run -s hiseq_x > '
+            ('path/to/well_duplicates -f path/to/coord_file -r path/to/run -s hiseq_x > '
              'test_run/fastq/test_run.wellduplicate 2> test_run/fastq/test_run.wellduplicate.err'),
             cpus=1,
             job_name='welldup',

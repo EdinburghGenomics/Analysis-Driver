@@ -9,6 +9,9 @@ from analysis_driver.quality_control import Relatedness, Peddy, GenotypeGVCFs, P
 from analysis_driver.exceptions import PipelineError
 from analysis_driver.transfer_data import output_data_and_archive, create_output_links
 
+toolset_type = 'project_processing'
+name = 'project'
+
 
 def delivery_source():
     return cfg.query('sample', 'delivery_source')

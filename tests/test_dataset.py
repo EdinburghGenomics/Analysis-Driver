@@ -9,7 +9,7 @@ from integration_tests.mocked_data import MockedSamples, MockedRunProcess
 from tests.test_analysisdriver import TestAnalysisDriver, NamedMock
 from analysis_driver.exceptions import AnalysisDriverError, SequencingRunError
 from analysis_driver.dataset import Dataset, RunDataset, SampleDataset, MostRecentProc
-
+from analysis_driver.tool_versioning import Toolset
 
 ppath = 'analysis_driver.dataset.'
 fake_proc = {'proc_id': 'a_proc_id', 'dataset_type': 'test', 'dataset_name': 'test'}
@@ -20,6 +20,7 @@ patched_pid = patch(ppath + 'os.getpid', return_value=1)
 patched_update = patch(ppath + 'MostRecentProc.update_entity')
 patched_initialise = patch(ppath + 'MostRecentProc.initialise_entity')
 patched_finish = patch(ppath + 'MostRecentProc.finish')
+patched_is_ready = patch(ppath + 'Dataset._is_ready', return_value=None)
 patched_stages = patch(
     ppath + 'Dataset.running_stages',
     new_callable=PropertyMock(return_value=['this', 'that', 'other'])
@@ -28,6 +29,10 @@ patched_get_run = patch(
     ppath + 'clarity.get_run',
     return_value=Mock(udf={'Run Status': 'RunStarted'})
 )
+
+
+def patched_get_doc(content=None):
+    return patch(ppath + 'rest_communication.get_document', return_value=content or fake_proc)
 
 
 def patched_get_docs(content=None):
@@ -69,7 +74,7 @@ class TestDataset(TestAnalysisDriver):
     @patch(ppath + 'MostRecentProc.retrieve_entity')
     def test_start(self, mocked_retrieve_entity, mocked_start, mocked_update):
         self.dataset.most_recent_proc.entity['status'] = c.DATASET_PROCESSING
-        with patched_get_run:
+        with patched_get_run, patched_is_ready:
             with pytest.raises(AssertionError):
                 self.dataset.start()
             del self.dataset.most_recent_proc.entity['status']
@@ -80,7 +85,7 @@ class TestDataset(TestAnalysisDriver):
     @patched_finish
     @patch(ppath + 'MostRecentProc.retrieve_entity')
     def test_succeed(self, mocked_retrieve_entity, mocked_finish):
-        with patched_get_run:
+        with patched_get_run, patched_is_ready:
             with pytest.raises(AssertionError):
                 self.dataset.succeed()
             self.dataset.most_recent_proc.entity['status'] = c.DATASET_PROCESSING
@@ -91,7 +96,7 @@ class TestDataset(TestAnalysisDriver):
     @patched_finish
     @patch(ppath + 'MostRecentProc.retrieve_entity')
     def test_fail(self, mocked_retrieve_entity, mocked_finish):
-        with patched_get_run:
+        with patched_get_run, patched_is_ready:
             with pytest.raises(AssertionError):
                 self.dataset.succeed()
 
@@ -161,7 +166,7 @@ class TestDataset(TestAnalysisDriver):
 
     def setup_dataset(self):
         with patched_get_docs():
-            self.dataset = _TestDataset(
+            self.dataset = Dataset(
                 'test_dataset',
                 {'proc_id': 'a_proc_id', 'date_started': 'now', 'dataset_name': 'None', 'dataset_type': 'None'}
             )
@@ -171,15 +176,25 @@ class TestDataset(TestAnalysisDriver):
         with pytest.raises(SequencingRunError):
             self.dataset.raise_exceptions()
 
+    def test_resolve_pipeline_and_toolset(self):
+        self.dataset._pipeline_instruction = Mock(
+            return_value={'toolset_type': 'a_toolset', 'toolset_version': 3, 'name': 'qc'}
+        )
+        with patch(ppath + 'toolset') as mocked_toolset:
+            self.dataset.resolve_pipeline_and_toolset()
 
-class _TestDataset(Dataset):
-    type = 'None'
-    endpoint = 'None'
-    id_field = 'None'
+        mocked_toolset.select_type.assert_called_with('a_toolset')
+        mocked_toolset.select_version.assert_called_with(3)
+        assert self.dataset.pipeline.name == 'qc'
 
-    def _is_ready(self):
-        pass
-
+    @patch(ppath + 'toolset', new=Toolset())
+    def test_pipeline_instruction(self):
+        self.dataset._default_pipeline = Mock(return_value='qc')
+        assert self.dataset._pipeline_instruction() == {
+            'name': 'qc',
+            'toolset_type': 'non_human_sample_processing',
+            'toolset_version': 0
+        }
 
 mocked_lane_artifact1 = NamedMock(real_name='art1', reagent_labels=['D701-D502 (ATTACTCG-ATAGAGGC)'], samples=[MockedSamples(real_name='sample1')])
 mocked_lane_artifact2 = NamedMock(real_name='art2', reagent_labels=['D702-D502 (TCCGGAGA-ATAGAGGC)'], samples=[MockedSamples(real_name='sample2')])
@@ -318,6 +333,24 @@ class TestSampleDataset(TestDataset):
         assert 'Could not find data threshold in LIMS' in str(e)
         mocked_exp_yield.assert_called_with('test_dataset')
 
+    @patch(ppath + 'toolset', new=Toolset())
+    @patch(ppath + 'SampleDataset.project_id', new='a_project')
+    def test_pipeline_instruction(self):
+        self.dataset._default_pipeline = Mock(return_value='qc')
+
+        with patched_get_doc({'sample_pipeline': 'some_data'}):
+            assert self.dataset._pipeline_instruction() == 'some_data'
+
+        exp = {
+            'name': 'qc',
+            'toolset_type': 'non_human_sample_processing',
+            'toolset_version': 0
+        }
+
+        with patched_get_doc(None), patched_patch as mocked_patch:
+            assert self.dataset._pipeline_instruction() == exp
+            mocked_patch.assert_called_with('projects', {'sample_pipeline': exp}, 'project_id', 'a_project')
+
     @patched_expected_yield()
     def test_is_ready(self, mocked_instance):
         self.dataset._data_threshold = None
@@ -352,7 +385,9 @@ class TestSampleDataset(TestDataset):
 class TestMostRecentProc(TestAnalysisDriver):
     def setUp(self):
         with patched_get_docs():
-            self.proc = MostRecentProc('test', 'test')
+            self.proc = MostRecentProc(
+                NamedMock(type='test', real_name='test', pipeline_type='some kind of variant calling')
+            )
         self.proc._entity = fake_proc.copy()
         self.proc.proc_id = 'a_proc_id'
 
@@ -442,11 +477,26 @@ class TestMostRecentProc(TestAnalysisDriver):
                                     'dataset_name': 'test', 'other': 'another'}
         mocked_sync.assert_called()
 
+    @patch(ppath + 'toolset', new=Mock(type='some kind of toolset', version=3))
+    @patched_patch
     @patched_update
-    def test_start(self, mocked_update):
+    def test_start(self, mocked_update, mocked_patch):
+        self.proc.dataset.pipeline = NamedMock(real_name='some kind of variant calling')
         with patched_pid:
             self.proc.start()
         mocked_update.assert_called_with(status=c.DATASET_PROCESSING, pid=1)
+        mocked_patch.assert_called_with(
+            'analysis_driver_procs',
+            {
+                'pipeline_used': {
+                    'name': 'some kind of variant calling',
+                    'toolset_type': 'some kind of toolset',
+                    'toolset_version': 3
+                }
+            },
+            'proc_id',
+            'a_proc_id'
+        )
 
     @patched_update
     def test_finish(self, mocked_update):
