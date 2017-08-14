@@ -8,6 +8,9 @@ default:
         delivery_source: /path/to/delivery/source
         delivery_dest:   /path/to/delivery/destination
 
+    project:
+        input_dir:       /path/to/input/dir
+
     rest_api:
         url: 'http://localhost:4999/api/0.1'
 

@@ -51,7 +51,6 @@ class MD5Sum(segmentation.Stage):
 
 class Output(segmentation.Stage):
     def _run(self):
-
         dir_with_linked_files = os.path.join(self.job_dir, 'relatedness_outfiles')
         os.makedirs(dir_with_linked_files, exist_ok=True)
         output_cfg = OutputFileConfiguration('project_process')
