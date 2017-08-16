@@ -1,4 +1,5 @@
 import os
+import sys
 import json
 import pytest
 import subprocess
@@ -47,7 +48,10 @@ class IntegrationTest(TestCase):
 
     def setUp(self):
         assert self.container_id is None
-        self.container_id = self._execute('docker', 'run', '-d', 'egcg_reporting_app', integration_cfg.get('reporting_app_branch', 'master'))
+        self.container_id = self._execute(
+            'docker', 'run', '-d', integration_cfg['reporting_app']['image_name'],
+            integration_cfg.query('reporting_app', 'branch', ret_default='master')
+        )
         assert self.container_id
         container_info = json.loads(self._execute('docker', 'inspect', self.container_id))[0]
         # for now, assume the container is running on the main 'bridge' network
@@ -97,7 +101,8 @@ class IntegrationTest(TestCase):
         cfg.content['run']['output_dir'] = self.original_run_output
         cfg.content['sample']['output_dir'] = self.original_sample_output
 
-    def setup_test(self, test_type, test_name):
+    @staticmethod
+    def setup_test(test_type, test_name):
         cfg.content['jobs_dir'] = os.path.join(cfg['jobs_dir'], test_name)
         cfg.content[test_type]['output_dir'] = os.path.join(cfg[test_type]['output_dir'], test_name)
         os.mkdir(cfg['jobs_dir'])
@@ -186,7 +191,7 @@ class IntegrationTest(TestCase):
             self.expect_output_files(
                 integration_cfg['demultiplexing']['files'],
                 base_dir=output_dir
-        )
+            )
             self.expect_qc_data(
                 rest_communication.get_document(
                     'run_elements',
@@ -204,18 +209,15 @@ class IntegrationTest(TestCase):
             exit_status = client.main(['--sample'])
             self.assertEqual(exit_status, 0)
 
-            # Rest data
             self.expect_qc_data(
                 rest_communication.get_document('samples', where={'sample_id': self.sample_id}),
                 integration_cfg['bcbio']['qc']
             )
 
-            # md5s
             self.expect_output_files(
                 integration_cfg['bcbio']['files'],
                 base_dir=os.path.join(cfg['sample']['output_dir'], self.project_id, self.sample_id)
             )
-
             self.expect_stage_data(integration_cfg['bcbio']['stages'])
 
         assert self._test_success
@@ -261,29 +263,33 @@ class IntegrationTest(TestCase):
 
 def main():
     a = argparse.ArgumentParser()
+    a.add_argument('--quiet', action='store_true')
     a.add_argument('--noemail', dest='email', action='store_false')
     args = a.parse_args()
 
     start_time = _now()
     s = StringIO()
     with redirect_stdout(s):
-        pytest.main([__file__])
+        exit_status = pytest.main([__file__])
     end_time = _now()
 
     test_output = util.str_join(
         'Pipeline test finished. ',
-        'Start time: %s, finish time: %s. '
-        'Pytest output:\n' % (start_time, end_time),
+        'Start time: %s, finish time: %s. ' % (start_time, end_time),
+        'Pytest output:\n',
         s.getvalue()
     )
-    print(test_output)
+
+    if not args.quiet:
+        print(test_output)
+
     if args.email:
-        e = notifications.EmailNotification(
-            'Analysis Driver integration test',
-            **integration_cfg['notification']
+        notifications.send_email(
+            test_output, subject='Analysis Driver integration test', **integration_cfg['notification']
         )
-        e.notify(test_output)
+
+    return exit_status
 
 
 if __name__ == '__main__':
-    main()
+    sys.exit(main())
