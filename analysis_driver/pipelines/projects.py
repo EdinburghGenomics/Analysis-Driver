@@ -8,17 +8,14 @@ from analysis_driver.config import default as cfg, OutputFileConfiguration
 from analysis_driver.quality_control import Relatedness, Peddy, GenotypeGVCFs, ParseRelatedness
 from analysis_driver.exceptions import PipelineError
 from analysis_driver.transfer_data import output_data_and_archive, create_output_links
+from analysis_driver.tool_versioning import toolset
 
 toolset_type = 'project_processing'
 name = 'project'
 
-
-def delivery_source():
-    return cfg.query('sample', 'delivery_source')
-
 def build_pipeline(dataset):
     sample_ids = [sample['sample_id'] for sample in dataset.samples_processed]
-    project_source = os.path.join(delivery_source(), dataset.name)
+    project_source = os.path.join(cfg.query('sample', 'output_dir'), dataset.name)
     gvcf_files = []
     for sample in dataset.samples_processed:
         gvcf_file = find_file(project_source, sample['sample_id'], sample['user_sample_id'] + '.g.vcf.gz')
@@ -27,8 +24,7 @@ def build_pipeline(dataset):
         gvcf_files.append(gvcf_file)
     if len(gvcf_files) < 2:
         raise PipelineError('Incorrect number of gVCF files: require at least two')
-
-    reference = cfg['references'][dataset.species]['fasta']
+    reference = dataset.reference_genome
     genotype_gvcfs = GenotypeGVCFs(dataset=dataset, gVCFs=gvcf_files, reference=reference)
     relatedness = Relatedness(dataset=dataset, previous_stages=[genotype_gvcfs])
     peddy = Peddy(dataset=dataset, ids=sample_ids, previous_stages=[genotype_gvcfs])
@@ -57,6 +53,7 @@ class Output(segmentation.Stage):
         dir_with_linked_files = os.path.join(self.job_dir, 'relatedness_outfiles')
         os.makedirs(dir_with_linked_files, exist_ok=True)
         output_cfg = OutputFileConfiguration('project_process')
+        toolset.write_to_yaml(os.path.join(dir_with_linked_files, 'program_versions.yaml'))
 
         create_output_links(
             self.job_dir,

@@ -4,7 +4,7 @@ default:
 
     sample:
         input_dir:       /path/to/input/dir
-        output_dir:      /path/to/output/dir
+        output_dir:      tests/assets/test_projects/
         delivery_source: /path/to/delivery/source
         delivery_dest:   /path/to/delivery/destination
 
@@ -93,7 +93,11 @@ default:
     well_duplicate:
       coord_file: path/to/coord_file
 
-    references:
-        Homo sapiens:
-            fasta: /lustre/home/production/Resources/genomes/Homo_sapiens/hg38.fa
-            dbsnp: /lustre/home/production/Applications/bcbio/0.9.8/genomes/Hsapiens/hg38/variation/dbsnp-147.vcf.gz
+    species:
+        'Homo sapiens':
+            default: genome_version
+
+    genomes:
+      genome_version:
+        fasta: /path/to/genome.fa
+        dbsnp: /path/to/dbsnp.vcf.gz
