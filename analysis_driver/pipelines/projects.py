@@ -38,6 +38,7 @@ def build_pipeline(dataset):
 class MD5Sum(segmentation.Stage):
     def _run(self):
         dir_with_linked_files = os.path.join(self.job_dir, 'relatedness_outfiles')
+        os.makedirs(dir_with_linked_files, exist_ok=True)
         return executor.execute(
             *[bash_commands.md5sum(os.path.join(dir_with_linked_files, f)) for f in os.listdir(dir_with_linked_files)],
             job_name='md5sum',
