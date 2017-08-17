@@ -19,12 +19,6 @@ class TestProjects(TestAnalysisDriver):
                                  name='10015AT0004',
                                  species='Homo sapiens')
 
-        [open(os.path.join(self.assets_path,
-                           'test_projects',
-                           self.project_id,
-                           f['sample_id'],
-                           f['user_sample_id'] + '.g.vcf.gz'), 'w').close() for f in self.two_sample_dataset.samples_processed]
-
     def test_build_pipeline(self):
         projects.build_pipeline(self.two_sample_dataset)
         with self.assertRaises(PipelineError):
