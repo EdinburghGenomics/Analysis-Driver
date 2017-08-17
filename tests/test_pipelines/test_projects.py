@@ -53,7 +53,7 @@ class TestMD5Sum(TestAnalysisDriver):
                                                job_name='md5sum',
                                                log_commands=False,
                                                mem=2,
-                                               working_dir='/Users/katie/PycharmProjects/Analysis-Driver/tests/assets/test_projects')
+                                               working_dir=os.path.join(self.assets_path, 'test_projects'))
 
 
 class TestOutput(TestAnalysisDriver):
@@ -73,4 +73,4 @@ class TestOutput(TestAnalysisDriver):
                                                      '/path/to/input/dir/test_dataset')
             assert mocked_output_links.called_with(os.path.join(self.assets_path, 'test_projects'),
                                                    'OutfileConfig',
-                                                   '/Users/katie/PycharmProjects/Analysis-Driver/tests/assets/test_projects/relatedness_outfiles')
+                                                   os.path.join(self.assets_path, 'test_projects/relatedness_outfiles'))
