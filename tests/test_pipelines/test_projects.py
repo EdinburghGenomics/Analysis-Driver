@@ -19,8 +19,15 @@ class TestProjects(TestAnalysisDriver):
                                  samples_processed=[{'sample_id': '10015AT0004', 'user_sample_id': 'test_user_sample1'}],
                                  name='10015AT0004',
                                  species='Homo sapiens')
+
+
+
+
+
         project_source = os.path.join(cfg.query('sample', 'output_dir'), self.two_sample_dataset.name)
-        [open(os.path.join(project_source, f), 'w').close() for f in [self.two_sample_dataset, self.one_sample_dataset]]
+        [open(os.path.join(project_source,
+                           f['sample_id'],
+                           f['user_sample_id'] + '.g.vcf.gz'), 'w').close() for f in self.two_sample_dataset.samples_processed]
 
     def test_build_pipeline(self):
         projects.build_pipeline(self.two_sample_dataset)
