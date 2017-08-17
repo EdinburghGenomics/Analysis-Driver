@@ -3,6 +3,7 @@ from unittest.mock import patch
 from tests.test_analysisdriver import TestAnalysisDriver, NamedMock
 from analysis_driver.pipelines import projects
 from analysis_driver.exceptions import PipelineError
+from analysis_driver.config import default as cfg
 
 
 class TestProjects(TestAnalysisDriver):
@@ -18,6 +19,8 @@ class TestProjects(TestAnalysisDriver):
                                  samples_processed=[{'sample_id': '10015AT0004', 'user_sample_id': 'test_user_sample1'}],
                                  name='10015AT0004',
                                  species='Homo sapiens')
+        project_source = os.path.join(cfg.query('sample', 'output_dir'), self.two_sample_dataset.name)
+        [open(os.path.join(project_source, f), 'w').close() for f in [self.two_sample_dataset, self.one_sample_dataset]]
 
     def test_build_pipeline(self):
         projects.build_pipeline(self.two_sample_dataset)
@@ -59,8 +62,8 @@ class TestOutput(TestAnalysisDriver):
     def test_run(self, mocked_outfile_config, mocked_output_archive, mocked_output_links):
         with patch('analysis_driver.segmentation.BasicStage.job_dir', new=os.path.join(self.assets_path, 'test_projects')):
             self.o._run()
-            assert mocked_output_archive.called_with('/Users/katie/PycharmProjects/Analysis-Driver/tests/assets/test_projects/relatedness_outfiles',
+            assert mocked_output_archive.called_with(os.path.join(self.assets_path, 'test_projects/relatedness_outfiles'),
                                                      '/path/to/input/dir/test_dataset')
-            assert mocked_output_links.called_with('/Users/katie/PycharmProjects/Analysis-Driver/tests/assets/test_projects',
+            assert mocked_output_links.called_with(os.path.join(self.assets_path, 'test_projects'),
                                                    'OutfileConfig',
                                                    '/Users/katie/PycharmProjects/Analysis-Driver/tests/assets/test_projects/relatedness_outfiles')
