@@ -59,6 +59,8 @@ class TestOutput(TestAnalysisDriver):
         dataset = NamedMock(real_name=self.project_id, samples_processed=[{'sample_id': '10015AT0004', 'user_sample_id': 'test_user_sample1'},
                                                                                {'sample_id': '10015AT0003', 'user_sample_id': 'test_user_sample2'}])
         self.o = projects.Output(dataset=dataset)
+        print('printing!!!')
+        print(self.assets_path)
 
     @patch('analysis_driver.pipelines.projects.create_output_links')
     @patch('analysis_driver.pipelines.projects.output_data_and_archive')
@@ -71,3 +73,4 @@ class TestOutput(TestAnalysisDriver):
             assert mocked_output_links.called_with(os.path.join(self.assets_path, 'test_projects'),
                                                    'OutfileConfig',
                                                    os.path.join(self.assets_path, 'test_projects/relatedness_outfiles'))
+
