@@ -20,12 +20,9 @@ class TestProjects(TestAnalysisDriver):
                                  name='10015AT0004',
                                  species='Homo sapiens')
 
-
-
-
-
-        project_source = os.path.join(cfg.query('sample', 'output_dir'), self.two_sample_dataset.name)
-        [open(os.path.join(project_source,
+        [open(os.path.join(self.assets_path,
+                           'test_projects',
+                           self.project_id,
                            f['sample_id'],
                            f['user_sample_id'] + '.g.vcf.gz'), 'w').close() for f in self.two_sample_dataset.samples_processed]
 
