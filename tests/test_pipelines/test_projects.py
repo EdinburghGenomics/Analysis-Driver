@@ -3,7 +3,6 @@ from unittest.mock import patch
 from tests.test_analysisdriver import TestAnalysisDriver, NamedMock
 from analysis_driver.pipelines import projects
 from analysis_driver.exceptions import PipelineError
-from analysis_driver.config import default as cfg
 
 
 class TestProjects(TestAnalysisDriver):
@@ -45,7 +44,6 @@ class TestMD5Sum(TestAnalysisDriver):
         with patch('analysis_driver.segmentation.BasicStage.job_dir', new=os.path.join(self.assets_path, 'test_projects')):
             self.md5._run()
 
-
         mocked_execute.assert_called_once_with(cpus=1,
                                                job_name='md5sum',
                                                log_commands=False,
@@ -59,8 +57,6 @@ class TestOutput(TestAnalysisDriver):
         dataset = NamedMock(real_name=self.project_id, samples_processed=[{'sample_id': '10015AT0004', 'user_sample_id': 'test_user_sample1'},
                                                                                {'sample_id': '10015AT0003', 'user_sample_id': 'test_user_sample2'}])
         self.o = projects.Output(dataset=dataset)
-        print('printing!!!')
-        print(self.assets_path)
 
     @patch('analysis_driver.pipelines.projects.create_output_links')
     @patch('analysis_driver.pipelines.projects.output_data_and_archive')
