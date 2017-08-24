@@ -143,6 +143,5 @@ not be picked up by the scanner.
 
 ## Integration tests
 There is a set of end-to-end pipeline tests to be run on compute infrastructure. These require test input
-data, a config file describing expected output data, and a Docker image of
-[Reporting-App](https://github.com/EdinburghGenomics/Reporting-App), installed under the name
-`egcg_reporting_app`.
+data, a config file describing expected output data, and a built Docker image of
+[Reporting-App](https://github.com/EdinburghGenomics/Reporting-App).

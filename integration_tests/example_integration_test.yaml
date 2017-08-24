@@ -1,26 +1,34 @@
 
+reporting_app:
+    image_name: 'an_image_name'
+    branch: 'a_reporting_app_branch'
+
+input_data:
+    run_id: 'a_run'
+    barcode: 'a_barcode'
+    project_id: 'a_project'
+    sample_id: 'a_sample'
+    library_id: 'a_library'
+
+
 notification:
-        mailhost: server.domain.com
-        port: port_number
-        sender: sender@domain.com
-        recipients: [recipient@domain.com]
-        email_template: template.html
+    mailhost: server.domain.com
+    port: port_number
+    sender: sender@domain.com
+    recipients: [recipient@domain.com]
+    email_template: template.html
 
 
-demultiplexing:
-    md5s:  # these should be fastq basenames as found in bcl2fastq's output dir
-        lane_1_r1.fastq.gz: <md5um>
-        lane_1_r2.fastq.gz: <md5um>
-        lane_2_r1.fastq.gz: <md5um>
-        lane_2_r2.fastq.gz: <md5um>
-
-bcbio:
-    md5s:
-        programs.txt: <md5um>
-        sample-gatk-haplotype.vcf.gz: <md5um>
+a_test_method:
+    files:
+        file_1.txt: <md5>  # there should be a file called file_1.txt.md5 with this content
+        file_2.txt: null  # file_2.txt should exist
+        file_3.txt.gz: <md5>  # zcat file_3.txt.gz should give this md5
+        # ...
 
     qc:
-        bam_file_reads: 7000000
-        genome_size: 3000000000
-        duplicate_reads: 700000
-        called_gender: 'unknown'
+        this: 0
+        that.other: 'another'
+        # ...
+        pipeline_used: {'name': 'a_pipeline', 'toolset_version': 0, 'toolset_type': 'a_toolset_type'}
+        stages: ['stage_1', 'stage_2', 'stage_3']
