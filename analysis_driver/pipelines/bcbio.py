@@ -36,6 +36,16 @@ class BCBioStage(segmentation.Stage):
             self.dataset.user_sample_id + '-ready.bam'
         )
 
+    @property
+    def bam_path_fixed(self):
+        return os.path.join(
+            self.job_dir,
+            'samples_%s-merged' % self.dataset.name,
+            'final',
+            self.dataset.user_sample_id,
+            self.dataset.user_sample_id + '-ready_fixed.bam'
+        )
+
 
 class BCBio(BCBioStage):
     def _run(self):
@@ -100,6 +110,21 @@ class BCBio(BCBioStage):
         return bcbio_executor.join()
 
 
+class FixUnmapped(BCBioStage):
+
+    def _run(self):
+        return executor.execute(
+            toolset['fix_dup_unmapped'] + ' -i %s -o %s' % (
+                self.bam_path,
+                self.bam_path_fixed,
+            ),
+            job_name='fixunmmaped',
+            working_dir=self.job_dir,
+            cpus=1,
+            mem=8,
+        ).join()
+
+
 def build_pipeline(dataset):
 
     def stage(cls, **params):
@@ -107,17 +132,20 @@ def build_pipeline(dataset):
 
     merge_fastqs = stage(common.MergeFastqs)
     fastqc = stage(common.FastQC, previous_stages=[merge_fastqs])
-    bcbio = stage(BCBio, previous_stages=[fastqc])
+    bcbio = stage(BCBio, previous_stages=[merge_fastqs])
 
     contam_check = stage(qc.FastqScreen, fq_pattern=bcbio.fastq_pair, previous_stages=[fastqc])
     blast = stage(qc.Blast, fastq_file=bcbio.fastq_pair.replace('?', '1'), previous_stages=[fastqc])
     geno_val = stage(qc.GenotypeValidation, fq_pattern=bcbio.fastq_pair, previous_stages=[fastqc])
-    bcbio_and_qc = [bcbio, fastqc, contam_check, blast, geno_val]
+
+    fix_unmapped = stage(FixUnmapped, previous_stages=[bcbio])
+
+    bcbio_and_qc = [fix_unmapped, fastqc, contam_check, blast, geno_val]
 
     gender_val = stage(qc.GenderValidation, vcf_file=bcbio.vcf_path, previous_stages=bcbio_and_qc),
     vcfstats = stage(qc.VCFStats, vcf_file=bcbio.vcf_path, previous_stages=bcbio_and_qc),
-    verify_bam_id = stage(qc.VerifyBamID, bam_file=bcbio.bam_path, previous_stages=bcbio_and_qc),
-    samtools_depth = stage(qc.SamtoolsDepth, bam_file=bcbio.bam_path, previous_stages=bcbio_and_qc)
+    verify_bam_id = stage(qc.VerifyBamID, bam_file=bcbio.bam_path_fixed, previous_stages=bcbio_and_qc),
+    samtools_depth = stage(qc.SamtoolsDepth, bam_file=bcbio.bam_path_fixed, previous_stages=bcbio_and_qc)
     post_bcbio_qc = [gender_val, vcfstats, verify_bam_id, samtools_depth]
 
     output = stage(common.SampleDataOutput, previous_stages=post_bcbio_qc, output_fileset='bcbio')
