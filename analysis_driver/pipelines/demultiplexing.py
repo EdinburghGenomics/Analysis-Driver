@@ -93,7 +93,7 @@ class FastqFilter(DemultiplexingStage):
             crawler.send_data()
 
         # Assess if the lanes need filtering
-        lane_need_filtering = {1: False, 2: False, 3: False, 4: False, 5: False, 6: False, 7: False, 8: False}
+        filter_lanes = {1: False, 2: False, 3: False, 4: False, 5: False, 6: False, 7: False, 8: False}
         q30_threshold = float(cfg.query('fastq_filterer', 'q30_threshold', ret_default=74))
         self.debug('Q30 threshold: %s', q30_threshold)
         for lane_metrics in self.dataset.lane_metrics:
@@ -104,7 +104,7 @@ class FastqFilter(DemultiplexingStage):
                     lane_metrics['pc_q30'],
                     q30_threshold
                 )
-                lane_need_filtering[int(lane_metrics['lane_number'])] = True
+                filter_lanes[int(lane_metrics['lane_number'])] = True
 
         try:
             detector = BadTileCycleDetector(self.dataset)
@@ -116,18 +116,15 @@ class FastqFilter(DemultiplexingStage):
             bad_cycles = {}
 
         cmd_list = []
-        for lane in lane_need_filtering:
+        for lane in filter_lanes:
             fq_pairs = find_all_fastq_pairs_for_lane(self.fastq_dir, lane)
-            if lane_need_filtering[lane]:
-                trim_r1, trim_r2 = get_trim_values_for_bad_cycles(bad_cycles.get(int(lane)), self.dataset.run_info)
-                for fqs in fq_pairs:
-                    cmd_list.append(bash_commands.fastq_filterer_and_pigz_in_place(
-                        fastq_file_pair=fqs,
-                        tiles_to_filter=bad_tiles.get(int(lane)),
-                        trim_r2=trim_r2
-                    ))
-            else:
-                cmd_list.extend([bash_commands.fastq_filterer_and_pigz_in_place(fqs) for fqs in fq_pairs])
+            kwargs = {}
+            if filter_lanes[lane]:
+                trim_r1, trim_r2 = get_trim_values_for_bad_cycles(bad_cycles.get(lane), self.dataset.run_info)
+                kwargs = {'tiles_to_filter': bad_tiles.get(lane), 'trim_r2': trim_r2}
+
+            for fqs in fq_pairs:
+                cmd_list.append(bash_commands.fastq_filterer(fqs, **kwargs))
 
         return executor.execute(
             *cmd_list,
