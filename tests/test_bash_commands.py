@@ -119,10 +119,13 @@ def test_seqtk_fqchk():
     assert bash_commands.seqtk_fqchk(fastq_file) == expected
 
 
-def test_fastq_filterer_and_pigz_in_place():
-    exp = (
-        'run_filterer RE_R1_001.fastq.gz RE_R2_001.fastq.gz RE_R1_001_filtered.fastq.gz '
-        'RE_R2_001_filtered.fastq.gz RE_R1_001_filtered.fastq RE_R2_001_filtered.fastq '
-        '--stats_file RE_fastqfilterer.stats'
+def test_fastq_filterer():
+    assert bash_commands.fastq_filterer(('RE_R1_001.fastq.gz', 'RE_R2_001.fastq.gz')) == (
+        'run_filterer in_place RE_R1_001.fastq.gz RE_R2_001.fastq.gz RE_R1_001_filtered.fastq.gz '
+        'RE_R2_001_filtered.fastq.gz RE_R1_001_filtered.fastq RE_R2_001_filtered.fastq RE_fastqfilterer.stats'
     )
-    assert bash_commands.fastq_filterer_and_pigz_in_place(('RE_R1_001.fastq.gz', 'RE_R2_001.fastq.gz')) == exp
+    assert bash_commands.fastq_filterer(('RE_R1_001.fastq.gz', 'RE_R2_001.fastq.gz'), trim_r1=149) == (
+        'run_filterer keep_originals RE_R1_001.fastq.gz RE_R2_001.fastq.gz RE_R1_001_filtered.fastq.gz '
+        'RE_R2_001_filtered.fastq.gz RE_R1_001_filtered.fastq RE_R2_001_filtered.fastq RE_fastqfilterer.stats'
+        ' --trim_r1 149'
+    )
