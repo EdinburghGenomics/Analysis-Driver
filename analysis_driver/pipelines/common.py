@@ -65,20 +65,6 @@ class SamtoolsStats(VarCallingStage):
             log_commands=False
         ).join()
 
-class PicardMarkDuplicates(VarCallingStage):
-    def _run(self):
-        return executor.execute(
-            bash_commands.samtools_stats(
-                self.exp_bam_path,
-                os.path.join(self.job_dir, 'samtools_stats.txt')
-            ),
-            job_name='samtools',
-            working_dir=self.job_dir,
-            cpus=1,
-            mem=8,
-            log_commands=False
-        ).join()
-
 
 def build_bam_file_production(dataset):
 

@@ -2,9 +2,6 @@
 ---
 default:
 
-    project:
-        deliver_source: tests/assets/data_transfer/from/
-
     rest_api:
         url: 'http://localhost:4999/api/0.1'
 
