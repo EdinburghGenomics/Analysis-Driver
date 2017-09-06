@@ -14,8 +14,8 @@ from analysis_driver.dataset_scanner import RunScanner, SampleScanner, ProjectSc
 app_logger = log_cfg.get_logger('client')
 
 
-def main():
-    args = _parse_args()
+def main(argv=None):
+    args = _parse_args(argv)
 
     load_config()
 
@@ -153,7 +153,7 @@ def _process_dataset(d):
         return exit_status
 
 
-def _parse_args():
+def _parse_args(argv=None):
     p = argparse.ArgumentParser()
     p.add_argument('--debug', action='store_true', help='override pipeline log level to debug')
     group = p.add_mutually_exclusive_group(required=True)
@@ -170,4 +170,4 @@ def _parse_args():
     p.add_argument('--stop', nargs='+', default=[], help='stop a currently processing run/sample')
     p.add_argument('--soft-stop', nargs='+', default=[], help='prevent any new luigi task from starting for a run/sample')
 
-    return p.parse_args()
+    return p.parse_args(argv)

@@ -66,7 +66,7 @@ def fq_filt_prelim_cmd():
         'wait $pigz_r2_pid',
         'exit_status=$[$exit_status + $?]',
         'rm $fifo_1 $fifo_2',
-        'if [ $exit_status == 0 ]; then'
+        'if [ $exit_status == 0 ]; then',
         'if [ "$strategy" == "keep_originals" ]; then mv $i1 $i1.original; mv $i2 $i2.original; fi',
         'mv $o1 $i1; mv $o2 $i2',
         'fi',

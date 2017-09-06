@@ -5,6 +5,7 @@ Changelog for Analysis-Driver
 -----------------
 
 - Add Parser for Peddy and Relatedness
+- Improvements to integration_test, including more flexible checking of outputs and and retention of data/logs
 
 
 0.16 (2017-06-22)
