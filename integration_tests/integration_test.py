@@ -142,8 +142,8 @@ class IntegrationTest(TestCase):
 
     def expect_stage_data(self, stage_names):
         stages = rest_communication.get_documents('analysis_driver_stages')
-        d = {s['stage_name']: s['exit_status'] for s in stages}
-        self.expect_equal(d, {s: 0 for s in stage_names}, 'stages')
+        obs = {s['stage_name']: s['exit_status'] for s in stages}
+        self.expect_equal(obs, {s: 0 for s in stage_names}, 'stages')
 
     @staticmethod
     def _check_md5(fp):
