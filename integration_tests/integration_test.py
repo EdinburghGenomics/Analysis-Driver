@@ -21,8 +21,16 @@ cfg.load_config_file(os.getenv('ANALYSISDRIVERCONFIG'), env_var='ANALYSISDRIVERE
 integration_cfg = Configuration(os.getenv('INTEGRATIONCONFIG'))
 
 
-def _now():
-    return datetime.utcnow().strftime('%d/%m/%Y %H:%M:%S')
+def now():
+    return datetime.utcnow().strftime('%Y-%m-%d_%H:%M:%S')
+
+
+def execute(*cmd, shell=False):
+    p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=shell)
+    out, err = p.communicate()
+    if err:
+        raise ValueError(err)
+    return out.decode('utf-8').rstrip('\n')
 
 
 class IntegrationTest(TestCase):
@@ -48,12 +56,12 @@ class IntegrationTest(TestCase):
 
     def setUp(self):
         assert self.container_id is None
-        self.container_id = self._execute(
+        self.container_id = execute(
             'docker', 'run', '-d', integration_cfg['reporting_app']['image_name'],
             integration_cfg.query('reporting_app', 'branch', ret_default='master')
         )
         assert self.container_id
-        container_info = json.loads(self._execute('docker', 'inspect', self.container_id))[0]
+        container_info = json.loads(execute('docker', 'inspect', self.container_id))[0]
         # for now, assume the container is running on the main 'bridge' network
         container_ip = container_info['NetworkSettings']['Networks']['bridge']['IPAddress']
         container_port = list(container_info['Config']['ExposedPorts'])[0].rstrip('/tcp')
@@ -87,8 +95,8 @@ class IntegrationTest(TestCase):
 
     def tearDown(self):
         assert self.container_id
-        self._execute('docker', 'stop', self.container_id)
-        self._execute('docker', 'rm', self.container_id)
+        execute('docker', 'stop', self.container_id)
+        execute('docker', 'rm', self.container_id)
 
         for logger in logging_default.loggers.values():
             for handler in logger.handlers:
@@ -134,19 +142,26 @@ class IntegrationTest(TestCase):
 
     def expect_stage_data(self, stage_names):
         stages = rest_communication.get_documents('analysis_driver_stages')
-        d = {s['stage_name']: s['exit_status'] for s in stages}
-        self.expect_equal(d, {s: 0 for s in stage_names}, 'stages')
+        obs = {s['stage_name']: s['exit_status'] for s in stages}
+        self.expect_equal(obs, {s: 0 for s in stage_names}, 'stages')
 
-    @classmethod
-    def _check_md5(cls, fp):
+    @staticmethod
+    def _check_md5(fp):
         if os.path.isfile(fp):
             if fp.endswith('.gz'):
-                return cls._execute('zcat ' + fp + ' | md5sum', shell=True).split()[0]
+                return execute('zcat ' + fp + ' | md5sum', shell=True).split()[0]
+            elif fp.endswith('.bam'):
+                cmd = "{samtools} idxstats {fp} | awk '{awk_exp}' | md5sum".format(
+                    samtools=integration_cfg['samtools'],
+                    fp=fp,
+                    awk_exp='{seq_len+=$2; mapped+=$3; unmapped+=$4}END {print seq_len,mapped,unmapped}'
+                )
+                return execute(cmd, shell=True).split()[0]
             elif os.path.isfile(fp + '.md5'):
                 with open(fp + '.md5', 'r') as f:
                     return f.readline().split(' ')[0]
             else:
-                return cls._execute('md5sum', fp).split()[0]
+                return execute('md5sum', fp).split()[0]
 
     @staticmethod
     def _query_dict(input_dict, path):
@@ -161,14 +176,6 @@ class IntegrationTest(TestCase):
             elif type(v) is dict:
                 i = v
         return v
-
-    @staticmethod
-    def _execute(*cmd, shell=False):
-        p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=shell)
-        out, err = p.communicate()
-        if err:
-            raise ValueError(err)
-        return out.decode('utf-8').rstrip('\n')
 
     def test_demultiplexing(self):
         self.setup_test('run', 'test_demultiplexing')
@@ -263,24 +270,31 @@ class IntegrationTest(TestCase):
 
 def main():
     a = argparse.ArgumentParser()
-    a.add_argument('--quiet', action='store_true')
-    a.add_argument('--noemail', dest='email', action='store_false')
+    a.add_argument('--stdout', action='store_true')
+    a.add_argument('--email', action='store_true')
+    a.add_argument('--log_repo')
     args = a.parse_args()
 
-    start_time = _now()
+    start_time = now()
     s = StringIO()
     with redirect_stdout(s):
         exit_status = pytest.main([__file__])
-    end_time = _now()
+    end_time = now()
 
     test_output = util.str_join(
-        'Pipeline test finished. ',
-        'Start time: %s, finish time: %s. ' % (start_time, end_time),
-        'Pytest output:\n',
-        s.getvalue()
+        'Pipeline end-to-end test finished',
+        'Run on commit %s' % execute('git', 'log', "--format=%h on%d, made on %aD", '-1'),
+        'Start time: %s, finish time: %s' % (start_time, end_time),
+        'Pytest output:',
+        s.getvalue(),
+        separator='\n'
     )
 
-    if not args.quiet:
+    if args.log_repo:
+        with open(os.path.join(args.log_repo, start_time + '.log'), 'w') as f:
+            f.write(test_output)
+
+    if args.stdout:
         print(test_output)
 
     if args.email:

@@ -24,6 +24,7 @@ a_test_method:
         file_1.txt: <md5>  # there should be a file called file_1.txt.md5 with this content
         file_2.txt: null  # file_2.txt should exist
         file_3.txt.gz: <md5>  # zcat file_3.txt.gz should give this md5
+        file_4.bam: <md5>  # output of counting all mapped/unmapped reads from samtools idxstats should give this md5
         # ...
 
     qc:
