@@ -2,6 +2,15 @@
 ---
 default:
 
+    sample:
+        input_dir:       /path/to/input/dir
+        output_dir:      tests/assets/test_projects/
+        delivery_source: /path/to/delivery/source
+        delivery_dest:   /path/to/delivery/destination
+
+    project:
+        input_dir:       /path/to/input/dir
+
     rest_api:
         url: 'http://localhost:4999/api/0.1'
 
@@ -83,3 +92,12 @@ default:
 
     well_duplicates:
       coord_file: path/to/coord_file
+
+    species:
+        'Homo sapiens':
+            default: genome_version
+
+    genomes:
+      genome_version:
+        fasta: /path/to/genome.fa
+        dbsnp: /path/to/dbsnp.vcf.gz
