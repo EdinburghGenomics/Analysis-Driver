@@ -6,7 +6,7 @@ default:
         url: 'http://localhost:4999/api/0.1'
 
     input_dir: tests/assets/data_transfer/from/
-    jobs_dir : path/to/jobs
+    jobs_dir: path/to/jobs
     output_dir: path/to/output_data
 
     data_deletion:
@@ -51,6 +51,7 @@ default:
         vcftools: path/to/vcftools
         blastn: path/to/blastn
         peddy: path/to/peddy
+        fix_dup_unmapped: path/to/fix_dup_unmapped
 
     logging:
         format: '[%(asctime)s][%(name)s][%(levelname)s] %(message)s'
