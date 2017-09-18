@@ -23,7 +23,9 @@ class TestBCBio(TestAnalysisDriver):
         }))
         patch_chdir = patch('os.chdir')
         yaml_content = {'fc_name': 'fc1'}
-        patch_open = patch('analysis_driver.pipelines.bcbio.open', new=mock_open(read_data=yaml.safe_dump(yaml_content)))
+        # FIXME: have to patch the builtins to get 3.4 support patch directly in the file in 3.6
+        # patch_open = patch('analysis_driver.pipelines.bcbio.open', new=mock_open(read_data=yaml.safe_dump(yaml_content)))
+        patch_open = patch('builtins.open', new=mock_open(read_data=yaml.safe_dump(yaml_content)))
 
         with patch_executor as pexecute, patch_get_sample as pgetsample, patch_chdir, patch_open as popen:
             b._run()
