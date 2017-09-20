@@ -22,17 +22,17 @@ bcbio:
 
     bam:
         location: ['samples_{sample_id}-merged', 'final', '{user_sample_id}']
-        basename: '{user_sample_id}-ready.bam'
+        basename: '{user_sample_id}-ready_fixed.bam'
         new_name: '{user_sample_id}.bam'
 
     bam_bai:
         location: ['samples_{sample_id}-merged', 'final', '{user_sample_id}']
-        basename: '{user_sample_id}-ready.bam.bai'
+        basename: '{user_sample_id}-ready_fixed.bam.bai'
         new_name: '{user_sample_id}.bam.bai'
 
     depth_file:
         location: ['samples_{sample_id}-merged', 'final', '{user_sample_id}']
-        basename: '{user_sample_id}-ready.depth'
+        basename: '{user_sample_id}-ready_fixed.depth'
         new_name: '{user_sample_id}.depth'
 
     samtools_stats:
