@@ -306,10 +306,7 @@ class RunDataset(Dataset):
                 artifacts = [flowcell.placements[lane]]
             for artifact in artifacts:
                 assert len(artifact.samples) == 1
-                assert len(artifact.reagent_labels) == 1
                 sample = artifact.samples[0]
-                reagent_label = artifact.reagent_labels[0]
-                match = re.match('(\w{4})-(\w{4}) \(([ATCG]{8})-([ATCG]{8})\)', reagent_label)
                 run_element = {
                     ELEMENT_PROJECT_ID: sample.project.name,
                     ELEMENT_SAMPLE_INTERNAL_ID: sample.name,
@@ -318,6 +315,9 @@ class RunDataset(Dataset):
                     ELEMENT_BARCODE: ''
                 }
                 if self.has_barcodes:
+                    assert len(artifact.reagent_labels) == 1
+                    reagent_label = artifact.reagent_labels[0]
+                    match = re.match('(\w{4})-(\w{4}) \(([ATCG]{8})-([ATCG]{8})\)', reagent_label)
                     run_element[ELEMENT_BARCODE] = match.group(3)
                 run_elements.append(run_element)
         return run_elements
