@@ -6,6 +6,11 @@ Changelog for Analysis-Driver
 
 - Add Parser for Peddy and Relatedness
 - Improvements to integration_test, including more flexible checking of outputs and and retention of data/logs
+- Tools versioning: config can now list multiple tool path for multiple version. Toolset config file chose the appropriate version for specific pipeline
+- Add md5 files for project process output file
+- Original fastq files are now kept when fastq filtering is enabled
+- Duplicated unmapped read generated in bcbio are removed
+- Small fix to support userprepared libraries
 
 
 0.16 (2017-06-22)
