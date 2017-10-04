@@ -209,6 +209,10 @@ project_process:
         location: ['']
         basename: '{project_id}.ped_check.csv'
 
-    relatedness_output:
+    relatedness_output_egc:
         location: ['']
-        basename: '{project_id}.relatedness_output'
+        basename: '{project_id}.relatedness_output.egc'
+
+    relatedness_output_gel:
+        location: ['']
+        basename: '{project_id}.relatedness_output.gel'

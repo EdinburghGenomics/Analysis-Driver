@@ -52,7 +52,14 @@ class ParseRelatedness(RelatednessStage):
         return os.path.join(self.job_dir, self.dataset.name + '.relatedness2')
 
     def write_results(self, gel_lines, egc_lines):
-        header = '\t'.join(['S1', 'S1 Family ID', 'S1 Relationship', 'S2', 'S2 Family ID', 'S2 Relationship'])
+        header = '\t'.join(['S1',
+                            'S1 Family ID',
+                            'S1 Relationship',
+                            'S2',
+                            'S2 Family ID',
+                            'S2 Relationship',
+                            'Peddy Relatedness',
+                            'VCFtools Relatedness'])
 
         with open(os.path.join(self.job_dir, self.dataset.name + '.relatedness_output.gel'), 'w') as gel_outfile:
             gel_lines.sort(key=lambda x: x[1])
@@ -88,19 +95,20 @@ class ParseRelatedness(RelatednessStage):
 
                 if len(list(comparison['family_ids'])) == 1:
                     if len(comparison['proband']) == 1:
-                        gel_line = [''.join(list(comparison['family_ids'])),
-                                    comparison['proband'][0],
+                        gel_line = [comparison['proband'][0],
+                                    ''.join(list(comparison['family_ids'])),
                                     'Proband',
                                     comparison['other'][0],
+                                    ''.join(list(comparison['family_ids'])),
                                     self.relationship(comparison['other'])] + r['relatedness']
                         gel_lines.append(gel_line)
 
                 egc_sample_pair = comparison['proband'] + comparison['other']
-                egc_line = [self.family_id(egc_sample_pair[0]),
-                            egc_sample_pair[0],
+                egc_line = [egc_sample_pair[0],
+                            self.family_id(egc_sample_pair[0]),
                             self.relationship(egc_sample_pair[0]),
-                            self.family_id(egc_sample_pair[1]),
                             egc_sample_pair[1],
+                            self.family_id(egc_sample_pair[1]),
                             self.relationship(egc_sample_pair[1])] + r['relatedness']
 
                 egc_lines.append(egc_line)
