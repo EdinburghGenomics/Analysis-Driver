@@ -20,7 +20,7 @@ class GenderValidation(Stage):
 
         command = util.str_join(
             '%s %s' % (file_opener, self.vcf_file),
-            "grep '^chrX'",
+            "grep -P '^chrX|^X'",
             "awk '{split($10,a,\":\"); count[a[1]]++; total++} END{for (g in count){print g\" \"count[g]/total}}'",
             "grep '0/1'",
             "awk '{if ($2>.35){gender=\"FEMALE\"}else{if ($2<.15){gender=\"MALE\"}else{gender=\"UNKNOWN\"}} print gender, $2}'",
