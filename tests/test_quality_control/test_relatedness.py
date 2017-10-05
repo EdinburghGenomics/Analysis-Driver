@@ -206,23 +206,6 @@ class TestParseRelatedness(QCTester):
             self.p.user_sample_ids()
         assert str(c.exception) == 'User ID user_sample1 appears more than once in sample list'
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     @patch(ppath + 'ParseRelatedness.user_sample_ids')
     @patch(ppath + 'ParseRelatedness.family_id')
     @patch(ppath + 'ParseRelatedness.relationship')
@@ -245,18 +228,6 @@ class TestParseRelatedness(QCTester):
         assert gel == []
         assert egc == [['test_sample1', 'FAM1', 'Other', 'test_sample2', 'FAM1', 'Other', 1, 0.9],
                        ['test_sample3', 'FAM1', 'Other', 'test_sample4', 'FAM1', 'Other', 0.9, 0.7]]
-
-
-
-
-
-
-
-
-
-
-
-
 
         pname.return_value = {'user_sample1': 'test_sample1',
                               'user_sample2': 'test_sample2',
