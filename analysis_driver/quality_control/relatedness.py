@@ -52,7 +52,15 @@ class ParseRelatedness(RelatednessStage):
         return os.path.join(self.job_dir, self.dataset.name + '.relatedness2')
 
     def write_results(self, gel_lines, egc_lines):
-        header = '\t'.join(['S1',
+        gel_header = '\t'.join(['S1',
+                            'S1 Family ID',
+                            'S1 Relationship',
+                            'S2',
+                            'S2 Family ID',
+                            'S2 Relationship',
+                            'VCFtools Relatedness'])
+
+        egc_header = '\t'.join(['S1',
                             'S1 Family ID',
                             'S1 Relationship',
                             'S2',
@@ -61,14 +69,15 @@ class ParseRelatedness(RelatednessStage):
                             'Peddy Relatedness',
                             'VCFtools Relatedness'])
 
+
         with open(os.path.join(self.job_dir, self.dataset.name + '.relatedness_output.gel'), 'w') as gel_outfile:
             gel_lines.sort(key=lambda x: x[1])
-            gel_outfile.write(header + '\n')
+            gel_outfile.write(gel_header + '\n')
             for g in gel_lines:
                 gel_outfile.write('\t'.join(g) + '\n')
 
         with open(os.path.join(self.job_dir, self.dataset.name + '.relatedness_output.egc'), 'w') as egc_outfile:
-            egc_outfile.write(header + '\n')
+            egc_outfile.write(egc_header + '\n')
             for e in egc_lines:
                 egc_outfile.write('\t'.join(e) + '\n')
 
@@ -100,7 +109,8 @@ class ParseRelatedness(RelatednessStage):
                                     'Proband',
                                     comparison['other'][0],
                                     ''.join(list(comparison['family_ids'])),
-                                    self.relationship(comparison['other'])] + r['relatedness']
+                                    self.relationship(comparison['other']),
+                                    r['relatedness'][1]]
                         gel_lines.append(gel_line)
 
                 egc_sample_pair = comparison['proband'] + comparison['other']
@@ -124,7 +134,7 @@ class ParseRelatedness(RelatednessStage):
                 columns_to_return.append([line[i] for i in column_headers])
         return columns_to_return
 
-    def parse_all(self):
+    def combine_peddy_vcftools(self):
         peddy_relatedness = self.get_columns(self.peddy_file, ['sample_a', 'sample_b', 'rel'])
         peddy_vcftools_relatedness = []
         with open(self.relatedness_file) as openfile:
@@ -133,10 +143,13 @@ class ParseRelatedness(RelatednessStage):
                 relatedness_samples = Counter([line['INDV1'], line['INDV2']])
                 for i in peddy_relatedness:
                     if Counter([i[0], i[1]]) == relatedness_samples:
-                        peddy_vcftools_relatedness.append(
-                            {'sample1': i[0], 'sample2': i[1], 'relatedness': [i[2], line['RELATEDNESS_PHI']]}
-                        )
+                        combined_relatedness = {'sample1': i[0], 'sample2': i[1], 'relatedness': [float(i[2]), float(line['RELATEDNESS_PHI'])]}
+                        if combined_relatedness not in peddy_vcftools_relatedness:
+                            peddy_vcftools_relatedness.append(combined_relatedness)
+        return peddy_vcftools_relatedness
 
+    def parse_all(self):
+        peddy_vcftools_relatedness = self.combine_peddy_vcftools()
         gel_lines, egc_lines = self.get_outfile_content(peddy_vcftools_relatedness)
         self.write_results(gel_lines, egc_lines)
         return 0
