@@ -14,6 +14,15 @@ class RelatednessStage(segmentation.Stage):
     def gatk_outfile(self):
         return os.path.join(self.job_dir, self.dataset.name + '_genotype_gvcfs.vcf')
 
+    _gender_aliases = {'female': ['f', 'female', 'girl', 'woman'], 'male': ['m', 'male', 'boy', 'man']}
+
+    @classmethod
+    def gender_alias(cls, gender):
+        for key in cls._gender_aliases:
+            if str(gender).lower() in cls._gender_aliases[key]:
+                return key
+        return 'unknown'
+
     @staticmethod
     def family_id(sample_id):
         family_id = clarity.get_sample(sample_id).udf.get('Family ID')
@@ -23,11 +32,6 @@ class RelatednessStage(segmentation.Stage):
     def relationship(member):
         relationship = clarity.get_sample(member).udf.get('Relationship')
         return relationship or 'Other'
-
-    @staticmethod
-    def sex(member):
-        sex = clarity.get_sample(member).udf.get('Sex')
-        return sex or 'No_Sex'
 
 
 class ParseRelatedness(RelatednessStage):
@@ -274,7 +278,8 @@ class Peddy(RelatednessStage):
         family_lines = []
         family_info = self.relationships(all_families[family])
         for member in all_families[family]:
-            sex_codes = {'Male': '1', 'Female': '2', 'No_Sex': '0'}
+            sex = self.gender_alias(clarity.get_sample(member).udf.get('Sex'))
+            sex_codes = {'male': '1', 'female': '2', 'unknown': '0'}
             relationship = self.relationship(member)
             member_id = clarity.get_user_sample_name(member)
 
@@ -288,7 +293,7 @@ class Peddy(RelatednessStage):
             else:
                 mother_id = family_info[relationship]['Mother']
 
-            family_lines.append([family, member_id, father_id, mother_id, sex_codes[self.sex(member)], '0'])
+            family_lines.append([family, member_id, father_id, mother_id, sex_codes[sex], '0'])
 
         return family_lines
 
