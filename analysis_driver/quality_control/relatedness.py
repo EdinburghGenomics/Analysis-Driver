@@ -57,11 +57,10 @@ class ParseRelatedness(RelatednessStage):
 
     def write_results(self, gel_lines, egc_lines):
         gel_header = '\t'.join(['S1',
-                            'S1 Family ID',
                             'S1 Relationship',
                             'S2',
-                            'S2 Family ID',
                             'S2 Relationship',
+                            'Family ID',
                             'VCFtools Relatedness'])
 
         egc_header = '\t'.join(['S1',
@@ -72,7 +71,6 @@ class ParseRelatedness(RelatednessStage):
                             'S2 Relationship',
                             'Peddy Relatedness',
                             'VCFtools Relatedness'])
-
 
         with open(os.path.join(self.job_dir, self.dataset.name + '.relatedness_output.gel'), 'w') as gel_outfile:
             gel_lines.sort(key=lambda x: x[1])
@@ -99,9 +97,9 @@ class ParseRelatedness(RelatednessStage):
                     comparison['family_ids'].add(self.family_id(internal_id))
                     relationship = self.relationship(internal_id)
                     if relationship == 'Proband':
-                        comparison['proband'].append(internal_id)
+                        comparison['proband'].append(sample)
                     elif relationship != 'Proband':
-                        comparison['other'].append(internal_id)
+                        comparison['other'].append(sample)
 
                 if len(comparison['proband'] + comparison['other']) != 2:
                     raise PipelineError('Incorrect number of samples in this comparison')
@@ -109,11 +107,10 @@ class ParseRelatedness(RelatednessStage):
                 if len(list(comparison['family_ids'])) == 1:
                     if len(comparison['proband']) == 1:
                         gel_line = [comparison['proband'][0],
-                                    ''.join(list(comparison['family_ids'])),
                                     'Proband',
                                     comparison['other'][0],
-                                    ''.join(list(comparison['family_ids'])),
                                     self.relationship(comparison['other']),
+                                    ''.join(list(comparison['family_ids'])),
                                     r['relatedness'][1]]
                         gel_lines.append(gel_line)
 
@@ -147,7 +144,7 @@ class ParseRelatedness(RelatednessStage):
                 relatedness_samples = Counter([line['INDV1'], line['INDV2']])
                 for i in peddy_relatedness:
                     if Counter([i[0], i[1]]) == relatedness_samples:
-                        combined_relatedness = {'sample1': i[0], 'sample2': i[1], 'relatedness': [float(i[2]), float(line['RELATEDNESS_PHI'])]}
+                        combined_relatedness = {'sample1': i[0], 'sample2': i[1], 'relatedness': [str(i[2]), str(line['RELATEDNESS_PHI'])]}
                         if combined_relatedness not in peddy_vcftools_relatedness:
                             peddy_vcftools_relatedness.append(combined_relatedness)
         return peddy_vcftools_relatedness

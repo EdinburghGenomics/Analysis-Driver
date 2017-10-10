@@ -228,8 +228,8 @@ class TestParseRelatedness(QCTester):
             ]
         )
         assert gel == []
-        assert egc == [['test_sample1', 'FAM1', 'Other', 'test_sample2', 'FAM1', 'Other', 1, 0.9],
-                       ['test_sample3', 'FAM1', 'Other', 'test_sample4', 'FAM1', 'Other', 0.9, 0.7]]
+        assert egc == [['user_sample1', 'FAM1', 'Other', 'user_sample2', 'FAM1', 'Other', 1, 0.9],
+                       ['user_sample3', 'FAM1', 'Other', 'user_sample4', 'FAM1', 'Other', 0.9, 0.7]]
 
         pname.return_value = {'user_sample1': 'test_sample1',
                               'user_sample2': 'test_sample2',
@@ -242,9 +242,9 @@ class TestParseRelatedness(QCTester):
             [{'sample1': 'user_sample1', 'sample2': 'user_sample2', 'relatedness': [1, 0.9]},
              {'sample1': 'user_sample3', 'sample2': 'user_sample4', 'relatedness': [0.9, 0.7]}]
         )
-        assert gel == [['test_sample1', 'FAM1', 'Proband', 'test_sample2', 'FAM1', 'Other', 0.9]]
-        assert egc == [['test_sample1', 'FAM1', 'Proband', 'test_sample2', 'FAM1', 'Other', 1, 0.9],
-                       ['test_sample3', 'FAM1', 'Other', 'test_sample4', 'FAM1', 'Other', 0.9, 0.7]]
+        assert gel == [['user_sample1', 'Proband', 'user_sample2', 'Other', 'FAM1', 0.9]]
+        assert egc == [['user_sample1', 'FAM1', 'Proband', 'user_sample2', 'FAM1', 'Other', 1, 0.9],
+                       ['user_sample3', 'FAM1', 'Other', 'user_sample4', 'FAM1', 'Other', 0.9, 0.7]]
 
 
 
@@ -274,23 +274,23 @@ class TestParseRelatedness(QCTester):
 
     def test_combine_peddy_vcftools(self):
         with patch(ppath + 'ParseRelatedness.relatedness_file', new_callable=PropertyMock(return_value=os.path.join(self.assets_path, 'test_project.relatedness2'))),\
-                patch(ppath + 'ParseRelatedness.get_columns', return_value=[['NA12777', 'NA12777NA12877', 1],
-                                                                            ['NA12777', 'NA12877', -0.09722],
-                                                                            ['NA12777', 'NA12878', -0.07692],
-                                                                            ['NA12777', 'NA12882', -0.1667],
-                                                                            ['NA12777NA12877', 'NA12877', 0.8077],
-                                                                            ['NA12777NA12877', 'NA12878', 0.4923],
-                                                                            ['NA12777NA12877', 'NA12882', 0.6364],
-                                                                            ['NA12877', 'NA12878', -0.03077],
-                                                                            ['NA12877', 'NA12882', 0.5303],
-                                                                            ['NA12878', 'NA12882', 0.4769]]):
-            assert self.p.combine_peddy_vcftools() == [{'sample2': 'NA12777NA12877', 'sample1': 'NA12777', 'relatedness': [1, 0.369531]},
-                                                        {'sample2': 'NA12877', 'sample1': 'NA12777', 'relatedness': [-0.09722, -0.00872645]},
-                                                        {'sample2': 'NA12878', 'sample1': 'NA12777', 'relatedness': [-0.07692, -0.00330048]},
-                                                        {'sample2': 'NA12882', 'sample1': 'NA12777', 'relatedness': [-0.1667, -0.00613699]},
-                                                        {'sample2': 'NA12877', 'sample1': 'NA12777NA12877', 'relatedness': [0.8077, 0.28758]},
-                                                        {'sample2': 'NA12878', 'sample1': 'NA12777NA12877', 'relatedness': [0.4923, 0.150708]},
-                                                        {'sample2': 'NA12882', 'sample1': 'NA12777NA12877', 'relatedness': [0.6364, 0.213526]},
-                                                        {'sample2': 'NA12878', 'sample1': 'NA12877', 'relatedness': [-0.03077, 0.00116826]},
-                                                        {'sample2': 'NA12882', 'sample1': 'NA12877', 'relatedness': [0.5303, 0.218896]},
-                                                        {'sample2': 'NA12882', 'sample1': 'NA12878', 'relatedness': [0.4769, 0.243608]}]
+                patch(ppath + 'ParseRelatedness.get_columns', return_value=[['NA12777', 'NA12777NA12877', '1'],
+                                                                            ['NA12777', 'NA12877', '-0.09722'],
+                                                                            ['NA12777', 'NA12878', '-0.07692'],
+                                                                            ['NA12777', 'NA12882', '-0.1667'],
+                                                                            ['NA12777NA12877', 'NA12877', '0.8077'],
+                                                                            ['NA12777NA12877', 'NA12878', '0.4923'],
+                                                                            ['NA12777NA12877', 'NA12882', '0.6364'],
+                                                                            ['NA12877', 'NA12878', '-0.03077'],
+                                                                            ['NA12877', 'NA12882', '0.5303'],
+                                                                            ['NA12878', 'NA12882', '0.4769']]):
+            assert self.p.combine_peddy_vcftools() == [{'sample2': 'NA12777NA12877', 'sample1': 'NA12777', 'relatedness': ['1', '0.369531']},
+                                                        {'sample2': 'NA12877', 'sample1': 'NA12777', 'relatedness': ['-0.09722', '-0.00872645']},
+                                                        {'sample2': 'NA12878', 'sample1': 'NA12777', 'relatedness': ['-0.07692', '-0.00330048']},
+                                                        {'sample2': 'NA12882', 'sample1': 'NA12777', 'relatedness': ['-0.1667', '-0.00613699']},
+                                                        {'sample2': 'NA12877', 'sample1': 'NA12777NA12877', 'relatedness': ['0.8077', '0.28758']},
+                                                        {'sample2': 'NA12878', 'sample1': 'NA12777NA12877', 'relatedness': ['0.4923', '0.150708']},
+                                                        {'sample2': 'NA12882', 'sample1': 'NA12777NA12877', 'relatedness': ['0.6364', '0.213526']},
+                                                        {'sample2': 'NA12878', 'sample1': 'NA12877', 'relatedness': ['-0.03077', '0.00116826']},
+                                                        {'sample2': 'NA12882', 'sample1': 'NA12877', 'relatedness': ['0.5303', '0.218896']},
+                                                        {'sample2': 'NA12882', 'sample1': 'NA12878', 'relatedness': ['0.4769', '0.243608']}]
