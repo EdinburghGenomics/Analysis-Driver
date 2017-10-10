@@ -242,7 +242,7 @@ class TestParseRelatedness(QCTester):
             [{'sample1': 'user_sample1', 'sample2': 'user_sample2', 'relatedness': [1, 0.9]},
              {'sample1': 'user_sample3', 'sample2': 'user_sample4', 'relatedness': [0.9, 0.7]}]
         )
-        assert gel == [['user_sample1', 'Proband', 'user_sample2', 'Other', 'FAM1', 0.9]]
+        assert gel == [['FAM1', 'user_sample1', 'Proband', 'user_sample2', 'Other', 0.9]]
         assert egc == [['user_sample1', 'FAM1', 'Proband', 'user_sample2', 'FAM1', 'Other', 1, 0.9],
                        ['user_sample3', 'FAM1', 'Other', 'user_sample4', 'FAM1', 'Other', 0.9, 0.7]]
 

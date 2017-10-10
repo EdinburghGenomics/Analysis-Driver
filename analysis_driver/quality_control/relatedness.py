@@ -56,11 +56,11 @@ class ParseRelatedness(RelatednessStage):
         return os.path.join(self.job_dir, self.dataset.name + '.relatedness2')
 
     def write_results(self, gel_lines, egc_lines):
-        gel_header = '\t'.join(['S1',
+        gel_header = '\t'.join(['Family ID',
+                            'S1',
                             'S1 Relationship',
                             'S2',
                             'S2 Relationship',
-                            'Family ID',
                             'VCFtools Relatedness'])
 
         egc_header = '\t'.join(['S1',
@@ -106,11 +106,11 @@ class ParseRelatedness(RelatednessStage):
 
                 if len(list(comparison['family_ids'])) == 1:
                     if len(comparison['proband']) == 1:
-                        gel_line = [comparison['proband'][0],
+                        gel_line = [''.join(list(comparison['family_ids'])),
+                                    comparison['proband'][0],
                                     'Proband',
                                     comparison['other'][0],
                                     self.relationship(comparison['other']),
-                                    ''.join(list(comparison['family_ids'])),
                                     r['relatedness'][1]]
                         gel_lines.append(gel_line)
 
