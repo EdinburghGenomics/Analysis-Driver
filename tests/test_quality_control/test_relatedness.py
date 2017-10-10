@@ -228,26 +228,23 @@ class TestParseRelatedness(QCTester):
             ]
         )
         assert gel == []
-        assert egc == [['user_sample1', 'FAM1', 'Other', 'user_sample2', 'FAM1', 'Other', 1, 0.9],
-                       ['user_sample3', 'FAM1', 'Other', 'user_sample4', 'FAM1', 'Other', 0.9, 0.7]]
+        assert egc == [['test_sample1', 'FAM1', 'Other', 'test_sample2', 'FAM1', 'Other', 1, 0.9],
+                       ['test_sample3', 'FAM1', 'Other', 'test_sample4', 'FAM1', 'Other', 0.9, 0.7]]
 
         pname.return_value = {'user_sample1': 'test_sample1',
                               'user_sample2': 'test_sample2',
                               'user_sample3': 'test_sample3',
                               'user_sample4': 'test_sample4'}
-        pfam.side_effect = ['FAM1', 'FAM1', 'FAM1', 'FAM1', 'FAM1', 'FAM1', 'FAM1', 'FAM1']
-        prel.side_effect = ['Proband', 'Other', 'Other', 'Proband', 'Other', 'Other', 'Other', 'Other', 'Other']
+        pfam.side_effect = ['FAM1', 'FAM1', 'FAM1', 'FAM1']
+        prel.side_effect = ['Proband', 'Other', 'Other', 'Other']
 
         gel, egc = self.p.get_outfile_content(
             [{'sample1': 'user_sample1', 'sample2': 'user_sample2', 'relatedness': [1, 0.9]},
              {'sample1': 'user_sample3', 'sample2': 'user_sample4', 'relatedness': [0.9, 0.7]}]
         )
         assert gel == [['FAM1', 'user_sample1', 'Proband', 'user_sample2', 'Other', 0.9]]
-        assert egc == [['user_sample1', 'FAM1', 'Proband', 'user_sample2', 'FAM1', 'Other', 1, 0.9],
-                       ['user_sample3', 'FAM1', 'Other', 'user_sample4', 'FAM1', 'Other', 0.9, 0.7]]
-
-
-
+        assert egc == [['test_sample1', 'FAM1', 'Proband', 'test_sample2', 'FAM1', 'Other', 1, 0.9],
+                       ['test_sample3', 'FAM1', 'Other', 'test_sample4', 'FAM1', 'Other', 0.9, 0.7]]
 
         pname.return_value = {'user_sample1': 'test_sample1',
                               'user_sample2': 'test_sample2',

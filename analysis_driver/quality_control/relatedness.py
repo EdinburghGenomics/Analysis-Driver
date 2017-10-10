@@ -86,20 +86,72 @@ class ParseRelatedness(RelatednessStage):
     def get_outfile_content(self, values):
         gel_lines = []
         egc_lines = []
-        user_ids = self.user_sample_ids()
+        user_ids_to_interal = self.user_sample_ids()
+        for relatedness_2_samples in values:
+            if relatedness_2_samples['sample1'] != relatedness_2_samples['sample2']:
+                internal_id1 = user_ids_to_interal[relatedness_2_samples['sample1']]
+                internal_id2 = user_ids_to_interal[relatedness_2_samples['sample2']]
+                relationship1 = self.relationship(internal_id1)
+                relationship2 = self.relationship(internal_id2)
+                family_id1 = self.family_id(internal_id1)
+                family_id2 = self.family_id(internal_id2)
+                if family_id1 == family_id2:
+
+                    if relationship1 == 'Proband':
+                        gel_line = [
+                            family_id1,
+                            relatedness_2_samples['sample1'],
+                            'Proband',
+                            relatedness_2_samples['sample2'],
+                            relationship2,
+                            relatedness_2_samples['relatedness'][1]
+                        ]
+                    elif relationship2 == 'Proband':
+                        gel_line = [
+                            family_id1,
+                            relatedness_2_samples['sample2'],
+                            'Proband',
+                            relatedness_2_samples['sample1'],
+                            relationship1,
+                            relatedness_2_samples['relatedness'][1]
+                        ]
+                    else:
+                        # No proband --> no line
+                        gel_line = []
+
+                egc_line = [
+                    internal_id1,  # internal sample name
+                    family_id1,    #
+                    relationship1,
+                    internal_id2,
+                    family_id2,
+                    relationship2,
+                    relatedness_2_samples['relatedness'][0],
+                    relatedness_2_samples['relatedness'][1]
+                ]
+                egc_lines.append(egc_line)
+                if gel_line: gel_lines.append(gel_line)
+
+        return gel_lines, egc_lines
+
+    def old_get_outfile_content(self, values):
+        gel_lines = []
+        egc_lines = []
+        user_ids_to_interal = self.user_sample_ids()
         for r in values:
             if r['sample1'] != r['sample2']:
-                comparison = {'samples': [], 'family_ids': set(), 'proband': [], 'other': []}
+                comparison = {'list_samples': [], 'family_ids': set(), 'proband': {}, 'other': {}}
 
-                for sample in [r['sample1'], r['sample2']]:
-                    internal_id = user_ids[sample]
-                    comparison['samples'].append(internal_id)
+                for user_sample_id in [r['sample1'], r['sample2']]:
+                    internal_id = user_ids_to_interal[user_sample_id]
+
+                    comparison['list_samples'].append(internal_id)
                     comparison['family_ids'].add(self.family_id(internal_id))
                     relationship = self.relationship(internal_id)
                     if relationship == 'Proband':
-                        comparison['proband'].append(sample)
+                        comparison['proband'][user_sample_id] = internal_id
                     elif relationship != 'Proband':
-                        comparison['other'].append(sample)
+                        comparison['other'][user_sample_id] = internal_id
 
                 if len(comparison['proband'] + comparison['other']) != 2:
                     raise PipelineError('Incorrect number of samples in this comparison')
@@ -107,24 +159,31 @@ class ParseRelatedness(RelatednessStage):
                 if len(list(comparison['family_ids'])) == 1:
                     if len(comparison['proband']) == 1:
                         gel_line = [''.join(list(comparison['family_ids'])),
-                                    comparison['proband'][0],
+                                    list(comparison['proband'])[0],
                                     'Proband',
-                                    comparison['other'][0],
-                                    self.relationship(comparison['other']),
+                                    list(comparison['other'])[0],
+                                    self.relationship(list(comparison['other'].values())[0]),
                                     r['relatedness'][1]]
                         gel_lines.append(gel_line)
 
                 egc_sample_pair = comparison['proband'] + comparison['other']
-                egc_line = [egc_sample_pair[0],
-                            self.family_id(egc_sample_pair[0]),
-                            self.relationship(egc_sample_pair[0]),
-                            egc_sample_pair[1],
-                            self.family_id(egc_sample_pair[1]),
-                            self.relationship(egc_sample_pair[1])] + r['relatedness']
+                egc_line = [
+                    egc_sample_pair[0],  # internal sample name
+                    self.family_id(egc_sample_pair[0]),  #
+                    self.relationship(egc_sample_pair[0]),
+                    egc_sample_pair[1],
+                    self.family_id(egc_sample_pair[1]),
+                    self.relationship(egc_sample_pair[1]),
+                    r['relatedness'][0],
+                    r['relatedness'][1]
+                ]
 
                 egc_lines.append(egc_line)
 
         return gel_lines, egc_lines
+
+
+
 
     @staticmethod
     def get_columns(filename, column_headers):
