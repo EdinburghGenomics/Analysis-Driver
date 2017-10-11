@@ -4,7 +4,8 @@ Changelog for Analysis-Driver
 0.18 (unreleased)
 -----------------
 
-- Nothing changed yet.
+- Fix bugs in project process
+- Rearrange outfile format of GEL relatedness file
 
 
 0.17 (2017-09-22)
