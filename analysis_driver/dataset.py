@@ -557,7 +557,7 @@ class ProjectDataset(Dataset):
         return '%s  (%s samples / %s) ' % (super().__str__(), len(self.samples_processed), self.number_of_samples)
 
     def _default_pipeline(self):
-        return 'projects'
+        return 'project'
 
 
 class MostRecentProc:

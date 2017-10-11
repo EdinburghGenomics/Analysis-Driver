@@ -59,7 +59,8 @@ class Output(segmentation.Stage):
         create_output_links(
             self.job_dir,
             output_cfg,
-            dir_with_linked_files
+            dir_with_linked_files,
+            project_id=self.dataset.name
         )
 
         return output_data_and_archive(

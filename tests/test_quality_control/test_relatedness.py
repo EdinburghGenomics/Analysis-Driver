@@ -1,5 +1,5 @@
 import os
-from unittest.mock import patch
+from unittest.mock import patch, PropertyMock, Mock
 from tests.test_quality_control.qc_tester import QCTester
 from analysis_driver.quality_control.relatedness import Relatedness, GenotypeGVCFs, Peddy, ParseRelatedness
 from analysis_driver.exceptions import PipelineError
@@ -142,9 +142,11 @@ class TestPeddy(QCTester):
 
     @patch(ppath + 'Peddy.relationships')
     @patch(ppath + 'Peddy.relationship')
-    @patch(ppath + 'Peddy.sex')
+    @patch(ppath + 'Peddy.gender_alias')
     @patch(ppath + 'clarity.get_user_sample_name')
-    def test_get_member_details(self, pname, psex, prel, prels):
+    @patch(ppath + 'clarity.get_sample')
+    def test_get_member_details(self, psample, pname, psex, prel, prels):
+        psample.return_value = Mock(udf={'Sex': 'F'})
         prels.return_value = {'Proband': {'Mother': 'test_sample1', 'Father': '0'},
                               'Mother': {'Mother': '0', 'Father': '0'},
                               'Father': {'Mother': '0', 'Father': '0'},
@@ -152,7 +154,7 @@ class TestPeddy(QCTester):
                               'Brother': {'Mother': 'test_sample1', 'Father': '0'},
                               'Other': {'Mother': '0', 'Father': '0'}}
         prel.side_effect = ['Mother', 'Proband']
-        psex.side_effect = ['Female', 'Male']
+        psex.side_effect = ['female', 'male']
         pname.side_effect = ['usersample1', 'usersample2', 'usersample1']
         all_families = {'FAM1': ['test_sample1', 'test_sample2'], 'FAM2': ['test_sample3']}
         assert self.p.get_member_details('FAM1', all_families) == [
@@ -167,7 +169,7 @@ class TestPeddy(QCTester):
                               'Other': {'Mother': '0', 'Father': '0'}}
 
         prel.side_effect = ['Other', 'Other', 'Proband']
-        psex.side_effect = ['No_Sex', 'No_Sex', 'Male']
+        psex.side_effect = ['unknown', 'unknown', 'male']
         pname.side_effect = ['usersample1', 'usersample2', 'usersample3']
         all_families = {'FAM1': ['test_sample1', 'test_sample2', 'test_sample3']}
         assert self.p.get_member_details('FAM1', all_families) == [['FAM1', 'usersample1', '0', '0', '0', '0'],
@@ -226,23 +228,23 @@ class TestParseRelatedness(QCTester):
             ]
         )
         assert gel == []
-        assert egc == [['FAM1', 'test_sample1', 'Other', 'FAM1', 'test_sample2', 'Other', 1, 0.9],
-                       ['FAM1', 'test_sample3', 'Other', 'FAM1', 'test_sample4', 'Other', 0.9, 0.7]]
+        assert egc == [['test_sample1', 'FAM1', 'Other', 'test_sample2', 'FAM1', 'Other', 1, 0.9],
+                       ['test_sample3', 'FAM1', 'Other', 'test_sample4', 'FAM1', 'Other', 0.9, 0.7]]
 
         pname.return_value = {'user_sample1': 'test_sample1',
                               'user_sample2': 'test_sample2',
                               'user_sample3': 'test_sample3',
                               'user_sample4': 'test_sample4'}
-        pfam.side_effect = ['FAM1', 'FAM1', 'FAM1', 'FAM1', 'FAM1', 'FAM1', 'FAM1', 'FAM1']
-        prel.side_effect = ['Proband', 'Other', 'Other', 'Proband', 'Other', 'Other', 'Other', 'Other', 'Other']
+        pfam.side_effect = ['FAM1', 'FAM1', 'FAM1', 'FAM1']
+        prel.side_effect = ['Proband', 'Other', 'Other', 'Other']
 
         gel, egc = self.p.get_outfile_content(
             [{'sample1': 'user_sample1', 'sample2': 'user_sample2', 'relatedness': [1, 0.9]},
              {'sample1': 'user_sample3', 'sample2': 'user_sample4', 'relatedness': [0.9, 0.7]}]
         )
-        assert gel == [['FAM1', 'test_sample1', 'Proband', 'test_sample2', 'Other', 1, 0.9]]
-        assert egc == [['FAM1', 'test_sample1', 'Proband', 'FAM1',  'test_sample2', 'Other', 1, 0.9],
-                       ['FAM1', 'test_sample3', 'Other', 'FAM1', 'test_sample4', 'Other', 0.9, 0.7]]
+        assert gel == [['FAM1', 'user_sample1', 'Proband', 'user_sample2', 'Other', 0.9]]
+        assert egc == [['test_sample1', 'FAM1', 'Proband', 'test_sample2', 'FAM1', 'Other', 1, 0.9],
+                       ['test_sample3', 'FAM1', 'Other', 'test_sample4', 'FAM1', 'Other', 0.9, 0.7]]
 
         pname.return_value = {'user_sample1': 'test_sample1',
                               'user_sample2': 'test_sample2',
@@ -266,3 +268,26 @@ class TestParseRelatedness(QCTester):
 
         with self.assertRaises(FileNotFoundError):
             self.p.get_columns('/path/to/nonexistent/file', ['sample_a', 'sample_b', 'rel'])
+
+    def test_combine_peddy_vcftools(self):
+        with patch(ppath + 'ParseRelatedness.relatedness_file', new_callable=PropertyMock(return_value=os.path.join(self.assets_path, 'test_project.relatedness2'))),\
+                patch(ppath + 'ParseRelatedness.get_columns', return_value=[['NA12777', 'NA12777NA12877', '1'],
+                                                                            ['NA12777', 'NA12877', '-0.09722'],
+                                                                            ['NA12777', 'NA12878', '-0.07692'],
+                                                                            ['NA12777', 'NA12882', '-0.1667'],
+                                                                            ['NA12777NA12877', 'NA12877', '0.8077'],
+                                                                            ['NA12777NA12877', 'NA12878', '0.4923'],
+                                                                            ['NA12777NA12877', 'NA12882', '0.6364'],
+                                                                            ['NA12877', 'NA12878', '-0.03077'],
+                                                                            ['NA12877', 'NA12882', '0.5303'],
+                                                                            ['NA12878', 'NA12882', '0.4769']]):
+            assert self.p.combine_peddy_vcftools() == [{'sample2': 'NA12777NA12877', 'sample1': 'NA12777', 'relatedness': ['1', '0.369531']},
+                                                        {'sample2': 'NA12877', 'sample1': 'NA12777', 'relatedness': ['-0.09722', '-0.00872645']},
+                                                        {'sample2': 'NA12878', 'sample1': 'NA12777', 'relatedness': ['-0.07692', '-0.00330048']},
+                                                        {'sample2': 'NA12882', 'sample1': 'NA12777', 'relatedness': ['-0.1667', '-0.00613699']},
+                                                        {'sample2': 'NA12877', 'sample1': 'NA12777NA12877', 'relatedness': ['0.8077', '0.28758']},
+                                                        {'sample2': 'NA12878', 'sample1': 'NA12777NA12877', 'relatedness': ['0.4923', '0.150708']},
+                                                        {'sample2': 'NA12882', 'sample1': 'NA12777NA12877', 'relatedness': ['0.6364', '0.213526']},
+                                                        {'sample2': 'NA12878', 'sample1': 'NA12877', 'relatedness': ['-0.03077', '0.00116826']},
+                                                        {'sample2': 'NA12882', 'sample1': 'NA12877', 'relatedness': ['0.5303', '0.218896']},
+                                                        {'sample2': 'NA12882', 'sample1': 'NA12878', 'relatedness': ['0.4769', '0.243608']}]
