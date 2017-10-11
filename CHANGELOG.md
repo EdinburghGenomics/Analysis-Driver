@@ -1,7 +1,7 @@
 Changelog for Analysis-Driver
 =============================
 
-0.18 (unreleased)
+0.18 (2017-10-11)
 -----------------
 
 - Fix bugs in project process
