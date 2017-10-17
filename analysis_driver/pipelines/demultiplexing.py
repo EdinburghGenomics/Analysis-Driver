@@ -1,8 +1,10 @@
 import shutil
 from os import mkdir
-from os.path import join, exists, isdir
+from os.path import join, exists, isdir, basename
 from egcg_core.config import cfg
-from egcg_core import executor, util
+from egcg_core import executor, util, clarity
+from egcg_core.constants import ELEMENT_PROJECT_ID, ELEMENT_LANE, ELEMENT_SAMPLE_INTERNAL_ID
+from egcg_core.util import find_file
 
 from analysis_driver import segmentation
 from analysis_driver.util import bash_commands, find_all_fastq_pairs_for_lane, get_trim_values_for_bad_cycles
@@ -207,6 +209,152 @@ class DataOutput(DemultiplexingStage):
         return output_data_and_archive(self.fastq_dir, join(cfg['output_dir'], self.dataset.name))
 
 
+class PostDemultiplexingStage(DemultiplexingStage):
+    @property
+    def alignment_dir(self):
+        return join(self.job_dir, 'alignment')
+
+    def fastq_pair(self, run_element):
+        fqs = util.find_fastqs(
+            self.fastq_dir,
+            run_element.get(ELEMENT_PROJECT_ID),
+            run_element.get(ELEMENT_SAMPLE_INTERNAL_ID),
+            run_element.get(ELEMENT_LANE)
+        )
+        fqs.sort()
+        return fqs
+
+    def fastq_base(self, run_element):
+        fastq_pair = self._fastq_pair(run_element)
+        return fastq_pair[0][:-len('_R1_001.fastq.gz')]
+
+    def bam_path(self, run_element):
+        return join(
+            self.alignment_dir,
+            run_element.get(ELEMENT_PROJECT_ID),
+            run_element.get(ELEMENT_SAMPLE_INTERNAL_ID),
+            basename(self.fastq_base)
+        ) + '.bam'
+
+
+class BwaAlignMulti(PostDemultiplexingStage):
+    def _run(self):
+        bwa_commands = []
+        self.debug('Searching for fastqs in ' + self.fastq_dir)
+        for run_element in self.dataset.run_elements:
+            fastq_pair = util.find_fastqs(
+                self.fastq_dir,
+                run_element.get(ELEMENT_PROJECT_ID),
+                run_element.get(ELEMENT_SAMPLE_INTERNAL_ID),
+                run_element.get(ELEMENT_LANE)
+            )
+            fastq_pair.sort()
+
+            species = clarity.get_species_from_sample(run_element.get(ELEMENT_SAMPLE_INTERNAL_ID))
+            default_genome_version = cfg.query('species', species, 'default')
+            reference_genome = cfg.query('genomes', default_genome_version, 'fasta')
+
+            bwa_commands.append(
+                bash_commands.bwa_mem_biobambam(
+                    fastq_pair,
+                    reference_genome,
+                    self._bam_path(run_element),
+                    {'ID': '1', 'SM': run_element.get(ELEMENT_SAMPLE_INTERNAL_ID), 'PL': 'illumina'},
+                    thread=16
+                )
+            )
+        return executor.execute(
+            *bwa_commands,
+            job_name='bwa_mem',
+            working_dir=self.job_dir,
+            cpus=16,
+            mem=64
+        ).join()
+
+
+class SamtoolsStatsMulti(PostDemultiplexingStage):
+    def _run(self):
+        samtools_stats_cmds = []
+        for run_element in self.dataset.run_elements:
+            samtools_stats_cmds.append(bash_commands.samtools_stats(
+                self.bam_path(run_element),
+                self.fastq_base(run_element) + '_samtools_stats.txt'
+            ))
+        return executor.execute(
+            *samtools_stats_cmds,
+            job_name='samtools',
+            working_dir=self.job_dir,
+            cpus=1,
+            mem=8,
+            log_commands=False
+        ).join()
+
+
+class SamtoolsDepthMulti(PostDemultiplexingStage):
+    def _samtools_depth_command(self, bam_file, out_file):
+        return (
+                   '%s depth -a -a -q 0 -Q 0 %s | '
+                   'awk -F "\t" \'{array[$1"\t"$3]+=1} END{for (val in array){print val"\t"array[val]}}\' | '
+                   'sort -T %s -k 1,1 -nk 2,2 > %s'
+               ) % (toolset['samtools'], find_file(bam_file), self.job_dir, out_file)
+
+    def _run(self):
+        samtools_depth_cmds = []
+        for run_element in self.dataset.run_elements:
+            samtools_depth_cmds.append(bash_commands.samtools_depth_command(
+                self.job_dir,
+                self.bam_path(run_element),
+                self.fastq_base(run_element) + '_samtools.depth'
+            ))
+        return executor.execute(
+            *samtools_depth_cmds,
+            job_name='samtoolsdepth',
+            working_dir=self.job_dir,
+            cpus=1,
+            mem=6
+        ).join()
+
+
+class PicardMarkDuplicateMulti(PostDemultiplexingStage):
+    def _run(self):
+        mark_dup_cmds = []
+        for run_element in self.dataset.run_elements:
+            out_md_bam = self.bam_path(run_element)[:-len('.bam')] + 'markdup.bam'
+            metrics_file = self.fastq_base(run_element) + '_markdup.metrics'
+            mark_dup_cmds.append(bash_commands.picard_mark_dup_command(
+                self.bam_path(run_element),
+                out_md_bam,
+                metrics_file
+            ))
+        return executor.execute(
+            *mark_dup_cmds,
+            job_name='picardMD',
+            working_dir=self.job_dir,
+            cpus=1,
+            mem=8
+        ).join()
+
+
+class PicardInsertSizeMulti(PostDemultiplexingStage):
+    def _run(self):
+        insert_size_cmds = []
+        for run_element in self.dataset.run_elements:
+            metrics_file = self.fastq_base(run_element) + '_insertsize.metrics'
+            histogram_file = self.fastq_base(run_element) + '_insertsize.png'
+            insert_size_cmds.append(bash_commands.picard_mark_dup_command(
+                self.bam_path(run_element),
+                metrics_file,
+                histogram_file
+            ))
+        return executor.execute(
+            *insert_size_cmds,
+            job_name='picardIS',
+            working_dir=self.job_dir,
+            cpus=1,
+            mem=8
+        ).join()
+
+
 def build_pipeline(dataset):
 
     def stage(cls, **params):
@@ -221,7 +369,12 @@ def build_pipeline(dataset):
     seqtk = stage(SeqtkFQChk, previous_stages=[fastq_filter])
     md5 = stage(MD5Sum, previous_stages=[fastq_filter])
     qc_output = stage(QCOutput, previous_stages=[welldups, integrity_check, fastqc, seqtk, md5])
-    data_output = stage(DataOutput, previous_stages=[qc_output])
+    align_output  = stage(BwaAlignMulti, previous_stage=[qc_output])
+    stats_output = stage(SamtoolsStatsMulti, previous_stage=[align_output])
+    depth_output = stage(SamtoolsDepthMulti, previous_stage=[align_output])
+    md_output = stage(PicardMarkDuplicateMulti, previous_stage=[align_output])
+    is_output = stage(PicardInsertSizeMulti, previous_stage=[align_output])
+    data_output = stage(DataOutput, previous_stages=[stats_output, depth_output, md_output, is_output])
     _cleanup = stage(Cleanup, previous_stages=[data_output])
 
     return _cleanup

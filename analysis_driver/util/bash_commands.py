@@ -1,5 +1,7 @@
 import os.path
 from egcg_core.app_logging import logging_default as log_cfg
+from egcg_core.util import find_file
+
 from analysis_driver.config import default as cfg
 from analysis_driver.tool_versioning import toolset
 from analysis_driver.exceptions import AnalysisDriverError
@@ -165,10 +167,30 @@ def samtools_stats(bam_file, output_file):
     return cmd
 
 
+def samtools_depth_command(job_dir, bam_file, out_file):
+    cmd = '%s depth -a -a -q 0 -Q 0 %s | '\
+          'awk -F "\t" \'{array[$1"\t"$3]+=1} END{for (val in array){print val"\t"array[val]}}\' | '\
+          'sort -T %s -k 1,1 -nk 2,2 > %s' % (toolset['samtools'], bam_file, job_dir, out_file)
+    app_logger.debug('Writing: ' + cmd)
+    return
+
+
 def md5sum(input_file):
     cmd = toolset['md5sum'] + ' %s > %s.md5' % (input_file, input_file)
     app_logger.debug('Writing: ' + cmd)
     return cmd
+
+
+def picard_mark_dup_command(input_file, output_file, metrics_file):
+    cmd = '%s MarkDuplicates INPUT=%s OUTPUT=%s METRICS_FILE=%s ASSUME_SORTED=true '\
+          'OPTICAL_DUPLICATE_PIXEL_DISTANCE=100 VALIDATION_STRINGENCY=LENIENT'
+    return cmd % (toolset['picard'], input_file, output_file, metrics_file)
+
+
+def picard_mark_dup_command(input_file, metrics_file, histogram_file):
+    cmd = '%s CollectInsertSizeMetrics INPUT=%s OUTPUT=%s HISTOGRAM_FILE=%s ASSUME_SORTED=true '\
+          'VALIDATION_STRINGENCY=LENIENT'
+    return cmd % (toolset['picard'], input_file, metrics_file, histogram_file)
 
 
 def export_env_vars():
@@ -227,9 +249,11 @@ def rsync_from_to(source, dest, exclude=None, size_only=False):
     return command
 
 
+
 def java_command(memory, tmp_dir, jar):
     return 'java -Djava.io.tmpdir={tmp_dir} -XX:+UseSerialGC -Xmx{memory}G -jar {jar} '.format(
         memory=memory,
         tmp_dir=tmp_dir,
         jar=jar
     )
+
