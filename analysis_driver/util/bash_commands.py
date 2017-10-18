@@ -1,6 +1,5 @@
 import os.path
 from egcg_core.app_logging import logging_default as log_cfg
-from egcg_core.util import find_file
 
 from analysis_driver.config import default as cfg
 from analysis_driver.tool_versioning import toolset
@@ -172,7 +171,7 @@ def samtools_depth_command(job_dir, bam_file, out_file):
           'awk -F "\t" \'{array[$1"\t"$3]+=1} END{for (val in array){print val"\t"array[val]}}\' | '\
           'sort -T %s -k 1,1 -nk 2,2 > %s' % (toolset['samtools'], bam_file, job_dir, out_file)
     app_logger.debug('Writing: ' + cmd)
-    return
+    return cmd
 
 
 def md5sum(input_file):

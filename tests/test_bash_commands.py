@@ -91,6 +91,13 @@ def test_samtools_stats():
     assert bash_commands.samtools_stats('in.bam', 'out.txt') == expected
 
 
+def test_samtools_depth_command():
+    expected = '''path/to/samtools depth -a -a -q 0 -Q 0 /path/to/bam_file | '''\
+               '''awk -F "	" '{array[$1"	"$3]+=1} END{for (val in array){print val"	"array[val]}}' | '''\
+               '''sort -T /path/to/job -k 1,1 -nk 2,2 > /path/to/depth_file'''
+    assert bash_commands.samtools_depth_command('/path/to/job', '/path/to/bam_file', '/path/to/depth_file') == expected
+
+
 def test_md5sum():
     assert bash_commands.md5sum('in.txt') == 'path/to/md5sum in.txt > in.txt.md5'
 
