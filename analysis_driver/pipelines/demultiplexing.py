@@ -212,19 +212,29 @@ class DataOutput(DemultiplexingStage):
 
 
 class PostDemultiplexingStage(DemultiplexingStage):
+
+    _fastq_files = {}
+
     @property
     def alignment_dir(self):
         return join(self.job_dir, 'alignment')
 
     def fastq_pair(self, run_element):
-        fqs = util.find_fastqs(
-            self.fastq_dir,
+        re_id = (
             run_element.get(ELEMENT_PROJECT_ID),
             run_element.get(ELEMENT_SAMPLE_INTERNAL_ID),
             run_element.get(ELEMENT_LANE)
         )
-        fqs.sort()
-        return fqs
+        if re_id not in self._fastq_files:
+            fqs = util.find_fastqs(
+                self.fastq_dir,
+                run_element.get(ELEMENT_PROJECT_ID),
+                run_element.get(ELEMENT_SAMPLE_INTERNAL_ID),
+                run_element.get(ELEMENT_LANE)
+            )
+            fqs.sort()
+            self._fastq_files[re_id] = fqs
+        return self._fastq_files[re_id]
 
     def fastq_base(self, run_element):
         fastq_pair = self.fastq_pair(run_element)
@@ -244,21 +254,22 @@ class BwaAlignMulti(PostDemultiplexingStage):
         bwa_commands = []
         self.debug('Searching for fastqs in ' + self.fastq_dir)
         for run_element in self.dataset.run_elements:
-            # make sure the directory where the bam file will go exists
-            os.makedirs(dirname(self.bam_path(run_element)), exist_ok=True)
-            # get the reference genome
-            species = clarity.get_species_from_sample(run_element.get(ELEMENT_SAMPLE_INTERNAL_ID))
-            default_genome_version = cfg.query('species', species, 'default')
-            reference_genome = cfg.query('genomes', default_genome_version, 'fasta')
-            bwa_commands.append(
-                bash_commands.bwa_mem_biobambam(
-                    self.fastq_pair(run_element),
-                    reference_genome,
-                    self.bam_path(run_element),
-                    {'ID': '1', 'SM': run_element.get(ELEMENT_SAMPLE_INTERNAL_ID), 'PL': 'illumina'},
-                    thread=16
+            if self.fastq_pair(run_element):
+                # make sure the directory where the bam file will go exists
+                os.makedirs(dirname(self.bam_path(run_element)), exist_ok=True)
+                # get the reference genome
+                species = clarity.get_species_from_sample(run_element.get(ELEMENT_SAMPLE_INTERNAL_ID))
+                default_genome_version = cfg.query('species', species, 'default')
+                reference_genome = cfg.query('genomes', default_genome_version, 'fasta')
+                bwa_commands.append(
+                    bash_commands.bwa_mem_biobambam(
+                        self.fastq_pair(run_element),
+                        reference_genome,
+                        self.bam_path(run_element),
+                        {'ID': '1', 'SM': run_element.get(ELEMENT_SAMPLE_INTERNAL_ID), 'PL': 'illumina'},
+                        thread=16
+                    )
                 )
-            )
         return executor.execute(
             *bwa_commands,
             job_name='bwa_mem',
@@ -272,10 +283,11 @@ class SamtoolsStatsMulti(PostDemultiplexingStage):
     def _run(self):
         samtools_stats_cmds = []
         for run_element in self.dataset.run_elements:
-            samtools_stats_cmds.append(bash_commands.samtools_stats(
-                self.bam_path(run_element),
-                self.fastq_base(run_element) + '_samtools_stats.txt'
-            ))
+            if self.fastq_pair(run_element):
+                samtools_stats_cmds.append(bash_commands.samtools_stats(
+                    self.bam_path(run_element),
+                    self.fastq_base(run_element) + '_samtools_stats.txt'
+                ))
         return executor.execute(
             *samtools_stats_cmds,
             job_name='samtoolsstats',
@@ -291,11 +303,12 @@ class SamtoolsDepthMulti(PostDemultiplexingStage):
     def _run(self):
         samtools_depth_cmds = []
         for run_element in self.dataset.run_elements:
-            samtools_depth_cmds.append(bash_commands.samtools_depth_command(
-                self.job_dir,
-                self.bam_path(run_element),
-                self.fastq_base(run_element) + '_samtools.depth'
-            ))
+            if self.fastq_pair(run_element):
+                samtools_depth_cmds.append(bash_commands.samtools_depth_command(
+                    self.job_dir,
+                    self.bam_path(run_element),
+                    self.fastq_base(run_element) + '_samtools.depth'
+                ))
         return executor.execute(
             *samtools_depth_cmds,
             job_name='samtoolsdepth',
@@ -310,13 +323,14 @@ class PicardMarkDuplicateMulti(PostDemultiplexingStage):
     def _run(self):
         mark_dup_cmds = []
         for run_element in self.dataset.run_elements:
-            out_md_bam = self.bam_path(run_element)[:-len('.bam')] + '_markdup.bam'
-            metrics_file = self.fastq_base(run_element) + '_markdup.metrics'
-            mark_dup_cmds.append(bash_commands.picard_mark_dup_command(
-                self.bam_path(run_element),
-                out_md_bam,
-                metrics_file
-            ))
+            if self.fastq_pair(run_element):
+                out_md_bam = self.bam_path(run_element)[:-len('.bam')] + '_markdup.bam'
+                metrics_file = self.fastq_base(run_element) + '_markdup.metrics'
+                mark_dup_cmds.append(bash_commands.picard_mark_dup_command(
+                    self.bam_path(run_element),
+                    out_md_bam,
+                    metrics_file
+                ))
         return executor.execute(
             *mark_dup_cmds,
             job_name='picardMD',
@@ -330,13 +344,14 @@ class PicardInsertSizeMulti(PostDemultiplexingStage):
     def _run(self):
         insert_size_cmds = []
         for run_element in self.dataset.run_elements:
-            metrics_file = self.fastq_base(run_element) + '_insertsize.metrics'
-            histogram_file = self.fastq_base(run_element) + '_insertsize.png'
-            insert_size_cmds.append(bash_commands.picard_insert_size_command(
-                self.bam_path(run_element),
-                metrics_file,
-                histogram_file
-            ))
+            if self.fastq_pair(run_element):
+                metrics_file = self.fastq_base(run_element) + '_insertsize.metrics'
+                histogram_file = self.fastq_base(run_element) + '_insertsize.png'
+                insert_size_cmds.append(bash_commands.picard_insert_size_command(
+                    self.bam_path(run_element),
+                    metrics_file,
+                    histogram_file
+                ))
         return executor.execute(
             *insert_size_cmds,
             job_name='picardIS',
