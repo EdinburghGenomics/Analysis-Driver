@@ -38,7 +38,9 @@ class TestMD5Sum(TestAnalysisDriver):
         with patch('analysis_driver.segmentation.BasicStage.job_dir', new=os.path.join(self.assets_path, 'test_projects')):
             self.md5._run()
 
-        mocked_execute.assert_called_once_with(cpus=1,
+        program_versions = os.path.join(self.assets_path, 'test_projects', 'relatedness_outfiles', 'program_versions.yaml')
+        mocked_execute.assert_called_once_with('path/to/md5sum %s > %s' % (program_versions, program_versions + '.md5'),
+                                               cpus=1,
                                                job_name='md5sum',
                                                log_commands=False,
                                                mem=2,
