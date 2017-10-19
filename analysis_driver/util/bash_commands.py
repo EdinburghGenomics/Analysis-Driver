@@ -186,7 +186,7 @@ def picard_mark_dup_command(input_file, output_file, metrics_file):
     return cmd % (toolset['picard'], input_file, output_file, metrics_file)
 
 
-def picard_mark_dup_command(input_file, metrics_file, histogram_file):
+def picard_insert_size_command(input_file, metrics_file, histogram_file):
     cmd = '%s CollectInsertSizeMetrics INPUT=%s OUTPUT=%s HISTOGRAM_FILE=%s ASSUME_SORTED=true '\
           'VALIDATION_STRINGENCY=LENIENT'
     return cmd % (toolset['picard'], input_file, metrics_file, histogram_file)

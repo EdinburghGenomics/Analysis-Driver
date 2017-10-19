@@ -1,6 +1,8 @@
 import shutil
 from os import mkdir
-from os.path import join, exists, isdir, basename
+from os.path import join, exists, isdir, basename, dirname
+
+import os
 from egcg_core.config import cfg
 from egcg_core import executor, util, clarity
 from egcg_core.constants import ELEMENT_PROJECT_ID, ELEMENT_LANE, ELEMENT_SAMPLE_INTERNAL_ID
@@ -225,7 +227,7 @@ class PostDemultiplexingStage(DemultiplexingStage):
         return fqs
 
     def fastq_base(self, run_element):
-        fastq_pair = self._fastq_pair(run_element)
+        fastq_pair = self.fastq_pair(run_element)
         return fastq_pair[0][:-len('_R1_001.fastq.gz')]
 
     def bam_path(self, run_element):
@@ -233,7 +235,7 @@ class PostDemultiplexingStage(DemultiplexingStage):
             self.alignment_dir,
             run_element.get(ELEMENT_PROJECT_ID),
             run_element.get(ELEMENT_SAMPLE_INTERNAL_ID),
-            basename(self.fastq_base)
+            basename(self.fastq_base(run_element))
         ) + '.bam'
 
 
@@ -242,23 +244,17 @@ class BwaAlignMulti(PostDemultiplexingStage):
         bwa_commands = []
         self.debug('Searching for fastqs in ' + self.fastq_dir)
         for run_element in self.dataset.run_elements:
-            fastq_pair = util.find_fastqs(
-                self.fastq_dir,
-                run_element.get(ELEMENT_PROJECT_ID),
-                run_element.get(ELEMENT_SAMPLE_INTERNAL_ID),
-                run_element.get(ELEMENT_LANE)
-            )
-            fastq_pair.sort()
-
+            # make sure the directory where the bam file will go exists
+            os.makedirs(dirname(self.bam_path(run_element)), exist_ok=True)
+            # get the reference genome
             species = clarity.get_species_from_sample(run_element.get(ELEMENT_SAMPLE_INTERNAL_ID))
             default_genome_version = cfg.query('species', species, 'default')
             reference_genome = cfg.query('genomes', default_genome_version, 'fasta')
-
             bwa_commands.append(
                 bash_commands.bwa_mem_biobambam(
-                    fastq_pair,
+                    self.fastq_pair(run_element),
                     reference_genome,
-                    self._bam_path(run_element),
+                    self.bam_path(run_element),
                     {'ID': '1', 'SM': run_element.get(ELEMENT_SAMPLE_INTERNAL_ID), 'PL': 'illumina'},
                     thread=16
                 )
@@ -282,7 +278,7 @@ class SamtoolsStatsMulti(PostDemultiplexingStage):
             ))
         return executor.execute(
             *samtools_stats_cmds,
-            job_name='samtools',
+            job_name='samtoolsstats',
             working_dir=self.job_dir,
             cpus=1,
             mem=8,
@@ -291,12 +287,6 @@ class SamtoolsStatsMulti(PostDemultiplexingStage):
 
 
 class SamtoolsDepthMulti(PostDemultiplexingStage):
-    def _samtools_depth_command(self, bam_file, out_file):
-        return (
-                   '%s depth -a -a -q 0 -Q 0 %s | '
-                   'awk -F "\t" \'{array[$1"\t"$3]+=1} END{for (val in array){print val"\t"array[val]}}\' | '
-                   'sort -T %s -k 1,1 -nk 2,2 > %s'
-               ) % (toolset['samtools'], find_file(bam_file), self.job_dir, out_file)
 
     def _run(self):
         samtools_depth_cmds = []
@@ -311,7 +301,8 @@ class SamtoolsDepthMulti(PostDemultiplexingStage):
             job_name='samtoolsdepth',
             working_dir=self.job_dir,
             cpus=1,
-            mem=6
+            mem=6,
+            log_commands=False
         ).join()
 
 
@@ -319,7 +310,7 @@ class PicardMarkDuplicateMulti(PostDemultiplexingStage):
     def _run(self):
         mark_dup_cmds = []
         for run_element in self.dataset.run_elements:
-            out_md_bam = self.bam_path(run_element)[:-len('.bam')] + 'markdup.bam'
+            out_md_bam = self.bam_path(run_element)[:-len('.bam')] + '_markdup.bam'
             metrics_file = self.fastq_base(run_element) + '_markdup.metrics'
             mark_dup_cmds.append(bash_commands.picard_mark_dup_command(
                 self.bam_path(run_element),
@@ -331,7 +322,7 @@ class PicardMarkDuplicateMulti(PostDemultiplexingStage):
             job_name='picardMD',
             working_dir=self.job_dir,
             cpus=1,
-            mem=8
+            mem=12
         ).join()
 
 
@@ -341,7 +332,7 @@ class PicardInsertSizeMulti(PostDemultiplexingStage):
         for run_element in self.dataset.run_elements:
             metrics_file = self.fastq_base(run_element) + '_insertsize.metrics'
             histogram_file = self.fastq_base(run_element) + '_insertsize.png'
-            insert_size_cmds.append(bash_commands.picard_mark_dup_command(
+            insert_size_cmds.append(bash_commands.picard_insert_size_command(
                 self.bam_path(run_element),
                 metrics_file,
                 histogram_file
@@ -351,7 +342,7 @@ class PicardInsertSizeMulti(PostDemultiplexingStage):
             job_name='picardIS',
             working_dir=self.job_dir,
             cpus=1,
-            mem=8
+            mem=12
         ).join()
 
 

@@ -24,8 +24,9 @@ class SamtoolsDepth(Stage):
                 find_file(self.bam_file),
                 self.samtools_depth_out_file
             ),
-            job_name='samtoolsdepth',
+                job_name='samtoolsdepth',
             working_dir=self.job_dir,
             cpus=1,
-            mem=6
+            mem=6,
+            log_commands=False
         ).join()

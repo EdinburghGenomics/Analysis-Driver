@@ -29,7 +29,7 @@ class TestGenotypeValidation(QCTester):
             '<(path/to/bwa aln path/to/32_snps_600bp.fa {fq1}) '
             '<(path/to/bwa aln path/to/32_snps_600bp.fa {fq2}) '
             '{fq1} {fq2} | path/to/samblaster --removeDups | path/to/samtools view -F 4 -Sb - | '
-            'path/to/sambamba sort -t 16 -o path/to/jobs/test_sample/test_sample_geno_val.bam /dev/stdin'
+            'path/to/sambamba sort -t 16 -o tests/assets/jobs/test_sample/test_sample_geno_val.bam /dev/stdin'
         ).format(fq1=self.fastq_files[0], fq2=self.fastq_files[1])
         assert observed == expected
 
@@ -37,7 +37,7 @@ class TestGenotypeValidation(QCTester):
     @patched_execute
     def test_bwa_alignment(self, mocked_execute, mocked_bwa_aln):
         self.validator._bwa_alignment()
-        assert self.validator.output_bam == join('path/to/jobs/test_sample/test_sample_geno_val.bam')
+        assert self.validator.output_bam == join('tests/assets/jobs/test_sample/test_sample_geno_val.bam')
         assert mocked_execute.call_count == 1
         mocked_execute.assert_called_once_with(
             'long_bwa_command',
@@ -50,7 +50,7 @@ class TestGenotypeValidation(QCTester):
     @patched_execute
     def test_snp_calling(self, mocked_execute):
         bam_file = join('path/to/bam', self.sample_id, self.sample_id + '_geno_val.bam')
-        expected_vcf = join('path/to/jobs', self.sample_id, self.sample_id + '_genotype_validation.vcf.gz')
+        expected_vcf = join('tests/assets/jobs', self.sample_id, self.sample_id + '_genotype_validation.vcf.gz')
         self.validator._snp_calling(bam_file)
         assert self.validator.seq_vcf_file == expected_vcf
         command = (
@@ -80,7 +80,7 @@ class TestGenotypeValidation(QCTester):
         sample2genotype = {self.sample_id: vcf_file}
         with patch('os.path.isfile', side_effect=[True, False]):
             assert self.validator._vcf_validation(sample2genotype) == {
-                'test_sample': 'path/to/jobs/test_sample/test_sample_genotype_validation.txt'
+                'test_sample': 'tests/assets/jobs/test_sample/test_sample_genotype_validation.txt'
             }
 
         command_gatk = (
@@ -135,7 +135,7 @@ class TestGenotypeValidation(QCTester):
             with patch('builtins.open', mock_open_write):
                 self.validator._merge_validation_results(sample2genotype_validation)
                 calls = [
-                    call('path/to/jobs/test_sample/test_sample_genotype_validation.txt', 'w'),
+                    call('tests/assets/jobs/test_sample/test_sample_genotype_validation.txt', 'w'),
                     call().__enter__(),
                     call().write('#:GATKTable:GenotypeConcordance_Counts:Per-sample concordance tables: comparison counts\n'),
                     call().write(
@@ -163,7 +163,7 @@ class TestGenotypeValidation(QCTester):
 
     @patched_execute
     def test_rename_expected_genotype(self, mocked_execute):
-        genotype_vcf = join('path/to/jobs', self.sample_id, self.sample_id + '_genotype_validation.vcf.gz')
+        genotype_vcf = join('tests/assets/jobs', self.sample_id, self.sample_id + '_genotype_validation.vcf.gz')
         self.validator._rename_expected_genotype({self.sample_id: genotype_vcf})
         command = ('path/to/bcftools reheader -s <(echo test_sample) {genotype_vcf} > {genotype_vcf}.tmp; '
                    'mv {genotype_vcf}.tmp {genotype_vcf}').format(genotype_vcf=genotype_vcf)
@@ -195,7 +195,7 @@ class TestGenotypeValidation(QCTester):
                 self.validator._run()
 
         assert bwa.call_count == 1
-        snp.assert_called_with('path/to/jobs/test_sample/test_sample_geno_val.bam')
+        snp.assert_called_with('tests/assets/jobs/test_sample/test_sample_geno_val.bam')
 
         fake_sample2genotype = {k: 'test.vcf' for k in ('test_sample', 'a_sample', 'another_sample')}
         rename.assert_called_with(fake_sample2genotype)
