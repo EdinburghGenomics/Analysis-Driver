@@ -192,7 +192,7 @@ class TestPicardInsertSizeMulti(TestPostDemultiplexing):
                 cmds.append(bash_commands.picard_insert_size_command(
                     self.stage.bam_path(run_element),
                     self.stage.fastq_base(run_element) + '_insertsize.metrics',
-                    self.stage.fastq_base(run_element) + '_insertsize.pdf '
+                    self.stage.fastq_base(run_element) + '_insertsize.pdf'
                 ))
             mock_executor.assert_called_with(*cmds, cpus=1, job_name='picardIS', mem=12,
                                              working_dir='tests/assets/jobs/testrun')
