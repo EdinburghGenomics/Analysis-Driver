@@ -1,7 +1,7 @@
 import re
 import csv
 import yaml
-from collections import Counter
+from collections import Counter, defaultdict
 from egcg_core.constants import ELEMENT_NO_CALL_CHIP, ELEMENT_NO_CALL_SEQ, ELEMENT_MISMATCHING, ELEMENT_MATCHING
 
 
@@ -151,3 +151,51 @@ def parse_vcf_stats(input_file):
             key, val = line.split(':')
             all_vals[key.strip()] = val.strip().split()[0]
     return float(all_vals['SNP Transitions/Transversions']), float(all_vals['SNP Het/Hom ratio'])
+
+
+def parse_picard_mark_dup_metrics(input_file):
+    lines = []
+    with open(input_file) as open_file:
+        for line in open_file:
+            if line.startswith('#') or not line.strip():
+                continue
+            lines.append(line.rstrip())
+    headers = lines[0].split('\t')
+    library_to_metrics = defaultdict(dict)
+    for line in lines[2:]:
+        sp_line = line.split('\t')
+        library = sp_line[headers.index('LIBRARY')]
+        for header_val in headers[1:]:
+            if header_val == 'PERCENT_DUPLICATION':
+                library_to_metrics[library][header_val] = float(sp_line[headers.index(header_val)])
+            else:
+                library_to_metrics[library][header_val] = int(sp_line[headers.index(header_val)])
+    # Assume only one library was processed
+    lib_name, lib = library_to_metrics.popitem()
+    return (lib['UNPAIRED_READS_EXAMINED'] + lib['READ_PAIRS_EXAMINED'] * 2,
+            lib['UNPAIRED_READ_DUPLICATES'] + lib['READ_PAIR_DUPLICATES'] * 2,
+            lib['READ_PAIR_OPTICAL_DUPLICATES'] * 2 , lib['ESTIMATED_LIBRARY_SIZE'])
+
+
+def parse_picard_insert_size_metrics(input_file):
+    lines = []
+    with open(input_file) as open_file:
+        for line in open_file:
+            if line.startswith('## HISTOGRAM'):
+                # Stop when you get to the HISTOGRAM section
+                break
+            if line.startswith('#') or not line.strip():
+                continue
+            lines.append(line.rstrip())
+    assert len(lines) == 2 # There should only be reads in forward-reverse orientation
+    headers = lines[0].split('\t')
+    library_to_metrics = defaultdict(dict)
+
+    sp_line = lines[1].split('\t')
+    sp_line[headers.index('PAIR_ORIENTATION')] == 'FR'
+    return (
+        float(sp_line[headers.index('MEAN_INSERT_SIZE')]),
+        float(sp_line[headers.index('STANDARD_DEVIATION')]),
+        int(sp_line[headers.index('MEDIAN_INSERT_SIZE')]),
+        int(sp_line[headers.index('MEDIAN_ABSOLUTE_DEVIATION')]),
+    )

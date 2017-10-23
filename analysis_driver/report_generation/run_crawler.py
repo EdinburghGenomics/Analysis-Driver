@@ -3,7 +3,9 @@ from collections import defaultdict, Counter
 from egcg_core import util
 from egcg_core.constants import *
 from egcg_core.rest_communication import post_or_patch as pp
-from analysis_driver.reader import demultiplexing_parsers as dm
+from os.path import isfile
+
+from analysis_driver.reader import demultiplexing_parsers as dm, mapping_stats_parsers as mp
 from analysis_driver.exceptions import PipelineError
 from .crawler import Crawler
 
@@ -248,6 +250,64 @@ class RunCrawler(Crawler):
                 ELEMENT_BARCODE: barcode,
                 ELEMENT_NB_READS_PASS_FILTER: int(clust_count)
             }
+
+    def _populate_from_mapping_stats(self, run_dir):
+        for run_element_id in self.barcodes_info:
+            barcode_info = self.barcodes_info.get(run_element_id)
+            if ELEMENT_BARCODE in barcode_info and barcode_info[ELEMENT_BARCODE] == 'unknown':
+                # No mapping for unassigned run element
+                continue
+
+            fastq_file = util.find_files(
+                run_dir,
+                barcode_info[ELEMENT_PROJECT_ID],
+                barcode_info[ELEMENT_SAMPLE_INTERNAL_ID],
+                '*_S*_L00%s_R1_001.fastq.gz' % barcode_info[ELEMENT_LANE]
+            )
+            fastq_base = fastq_file[:-len('_R1_001.fastq.gz')]
+            samtools_stat = fastq_base + '_samtools_stats.txt'
+            if isfile(samtools_stat):
+                (total_reads, mapped_reads, duplicate_reads, proper_pairs) = mp.parse_samtools_stats(samtools_stat)
+                barcode_info[ELEMENT_MAPPING_STATISTICS] = {
+                    ELEMENT_NB_READS_IN_BAM: total_reads,
+                    ELEMENT_NB_MAPPED_READS: mapped_reads,
+                    ELEMENT_NB_DUPLICATE_READS: duplicate_reads,
+                    ELEMENT_NB_PROPERLY_MAPPED:proper_pairs
+                }
+
+            samtools_depth = fastq_base + '_samtools.depth'
+            if isfile(samtools_stat):
+                (mean, median, sd, coverage_percentiles, bases_at_coverage,
+                 genome_size, evenness) = dm.get_coverage_statistics(samtools_depth)
+                coverage_statistics = {
+                    ELEMENT_MEAN_COVERAGE: mean,
+                    ELEMENT_MEDIAN_COVERAGE_SAMTOOLS: median,
+                    ELEMENT_COVERAGE_SD: sd,
+                    ELEMENT_COVERAGE_PERCENTILES: coverage_percentiles,
+                    ELEMENT_BASES_AT_COVERAGE: bases_at_coverage,
+                    ELEMENT_SAMPLE_GENOME_SIZE: genome_size,
+                    ELEMENT_COVERAGE_EVENNESS: evenness
+                }
+                barcode_info[ELEMENT_COVERAGE_STATISTICS] = coverage_statistics
+
+            picard_mark_dup_metric = fastq_base + '_markdup.metrics'
+            if isfile(picard_mark_dup_metric):
+                mapped_reads, dup_reads, opt_dup_reads, est_library_size = mp.parse_picard_mark_dup_metrics(picard_mark_dup_metric)
+                barcode_info[ELEMENT_MAPPING_STATISTICS] = {
+                    ELEMENT_NB_PICARD_DUP_READS: dup_reads,
+                    ELEMENT_NB_PICARD_OPT_DUP_READS: opt_dup_reads,
+                    ELEMENT_PICARD_EST_LIB_SIZE: est_library_size,
+                }
+
+            picard_insert_size_metric = fastq_base + '_insertsize.metrics'
+            if isfile(picard_insert_size_metric):
+                mean_is, std_dev_is, median_is, med_abs_dev_is = mp.parse_picard_insert_size_metrics(picard_insert_size_metric)
+                barcode_info[ELEMENT_MAPPING_STATISTICS] = {
+                    ELEMENT_MEAN_INSERT_SIZE: mean_is,
+                    ELEMENT_STD_DEV_INSERT_SIZE: std_dev_is,
+                    ELEMENT_MEDIAN_INSERT_SIZE: median_is,
+                    ELEMENT_MEDIAN_ABS_DEV_INSERT_SIZE: med_abs_dev_is,
+                }
 
     def send_data(self):
         return all(

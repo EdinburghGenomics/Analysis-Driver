@@ -267,15 +267,16 @@ class BwaAlignMulti(PostDemultiplexingStage):
                         reference_genome,
                         self.bam_path(run_element),
                         {'ID': '1', 'SM': run_element.get(ELEMENT_SAMPLE_INTERNAL_ID), 'PL': 'illumina'},
-                        thread=16
+                        thread=6
                     )
                 )
         return executor.execute(
             *bwa_commands,
             job_name='bwa_mem',
             working_dir=self.job_dir,
-            cpus=16,
-            mem=64
+            cpus=4,
+            mem=24,
+            log_commands=False
         ).join()
 
 
@@ -346,7 +347,7 @@ class PicardInsertSizeMulti(PostDemultiplexingStage):
         for run_element in self.dataset.run_elements:
             if self.fastq_pair(run_element):
                 metrics_file = self.fastq_base(run_element) + '_insertsize.metrics'
-                histogram_file = self.fastq_base(run_element) + '_insertsize.png'
+                histogram_file = self.fastq_base(run_element) + '_insertsize.pdf'
                 insert_size_cmds.append(bash_commands.picard_insert_size_command(
                     self.bam_path(run_element),
                     metrics_file,
