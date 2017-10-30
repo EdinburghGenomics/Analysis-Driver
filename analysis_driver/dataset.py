@@ -225,6 +225,10 @@ class NoCommunicationDataset(Dataset):
 
 class NoCommuncationSampleDataset(NoCommunicationDataset):
 
+    def __init__(self, name):
+        super().__init__(name)
+        self._run_elements = None
+
     @property
     def run_elements(self):
         if self._run_elements is None:
