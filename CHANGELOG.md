@@ -1,10 +1,11 @@
 Changelog for Analysis-Driver
 =============================
 
-0.19 (unreleased)
------------------
+0.18.1 (unreleased)
+-------------------
 
-- Nothing changed yet.
+- bug fix in run_qc
+- buf fix in project process
 
 
 0.18 (2017-10-11)
