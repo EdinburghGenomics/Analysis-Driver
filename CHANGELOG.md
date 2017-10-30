@@ -1,7 +1,7 @@
 Changelog for Analysis-Driver
 =============================
 
-0.18.1 (unreleased)
+0.18.1 (2017-10-30)
 -------------------
 
 - bug fix in run_qc
