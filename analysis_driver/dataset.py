@@ -223,6 +223,31 @@ class NoCommunicationDataset(Dataset):
         return None
 
 
+class NoCommuncationSampleDataset(NoCommunicationDataset):
+
+    @property
+    def run_elements(self):
+        if self._run_elements is None:
+            self._run_elements = rest_communication.get_documents(
+                'run_elements', where={'sample_id': self.name, 'useable': 'yes'}
+            )
+        return self._run_elements
+
+    @property
+    def project_id(self):
+        return self.run_elements[0]['project_id']
+
+    def _pipeline_instruction(self):
+        instruction = rest_communication.get_document(
+            'projects', match={'project_id': self.project_id}
+        ).get('sample_pipeline')
+
+        if not instruction:
+            raise AnalysisDriverError('No instruction set in project %s' % self.project_id)
+
+        return instruction
+
+
 class RunDataset(Dataset):
     type = 'run'
     endpoint = 'runs'
