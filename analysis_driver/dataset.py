@@ -243,7 +243,7 @@ class NoCommuncationSampleDataset(NoCommunicationDataset):
 
     def _pipeline_instruction(self):
         instruction = rest_communication.get_document(
-            'projects', match={'project_id': self.project_id}
+            'projects', where={'project_id': self.project_id}
         ).get('sample_pipeline')
 
         if not instruction:
@@ -481,7 +481,7 @@ class SampleDataset(Dataset):
 
     def _pipeline_instruction(self):
         instruction = rest_communication.get_document(
-            'projects', match={'project_id': self.project_id}
+            'projects', where={'project_id': self.project_id}
         ).get('sample_pipeline')
 
         if not instruction:
