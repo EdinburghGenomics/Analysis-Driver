@@ -362,6 +362,11 @@ class PicardInsertSizeMulti(PostDemultiplexingStage):
         ).join()
 
 
+# Need to have a different name of class bcause the sage name is based on it.
+class QCOutput2(QCOutput):
+    pass
+
+
 def build_pipeline(dataset):
 
     def stage(cls, **params):
@@ -381,7 +386,8 @@ def build_pipeline(dataset):
     depth_output = stage(SamtoolsDepthMulti, previous_stages=[align_output])
     md_output = stage(PicardMarkDuplicateMulti, previous_stages=[align_output])
     is_output = stage(PicardInsertSizeMulti, previous_stages=[align_output])
-    data_output = stage(DataOutput, previous_stages=[stats_output, depth_output, md_output, is_output])
+    qc_output2 = stage(QCOutput2, previous_stages=[stats_output, depth_output, md_output, is_output])
+    data_output = stage(DataOutput, previous_stages=[qc_output2])
     _cleanup = stage(Cleanup, previous_stages=[data_output])
 
     return _cleanup
