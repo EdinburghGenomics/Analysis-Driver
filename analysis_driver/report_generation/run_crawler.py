@@ -27,6 +27,7 @@ class RunCrawler(Crawler):
                 self._populate_barcode_info_from_well_dup(welldup_files[0])
 
             self._populate_barcode_info_from_fastq_filterer_files(run_dir)
+            self._populate_from_mapping_stats(run_dir)
 
     @staticmethod
     def _update_doc_list(d, k, v):
