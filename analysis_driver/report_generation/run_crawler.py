@@ -265,7 +265,8 @@ class RunCrawler(Crawler):
                 barcode_info[ELEMENT_SAMPLE_INTERNAL_ID],
                 '*_S*_L00%s_R1_001.fastq.gz' % barcode_info[ELEMENT_LANE]
             )
-            fastq_base = fastq_file[:-len('_R1_001.fastq.gz')]
+            assert len(fastq_file) == 1
+            fastq_base = fastq_file[0][:-len('_R1_001.fastq.gz')]
             samtools_stat = fastq_base + '_samtools_stats.txt'
             if isfile(samtools_stat):
                 (total_reads, mapped_reads, duplicate_reads, proper_pairs) = mp.parse_samtools_stats(samtools_stat)
