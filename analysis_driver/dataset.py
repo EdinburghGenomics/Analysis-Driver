@@ -554,7 +554,7 @@ class ProjectDataset(Dataset):
                 if not self._number_of_samples:
                     self._number_of_samples = -1
             else:
-                raise AnalysisDriverError('Could not find number of quoted samples in LIMS for ' + self.name)
+                self._number_of_samples = -1
         return self._number_of_samples
 
     @property
