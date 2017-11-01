@@ -2,7 +2,7 @@ import shutil
 from os import mkdir
 from os.path import join, exists, isdir
 from egcg_core.config import cfg
-from egcg_core.rest_communication import post_entry
+from egcg_core import executor, util, rest_communication
 from analysis_driver import segmentation
 from analysis_driver.util import bash_commands, find_all_fastq_pairs_for_lane, get_trim_values_for_bad_cycles
 from analysis_driver.pipelines.common import Cleanup
@@ -208,7 +208,7 @@ class DataOutput(DemultiplexingStage):
 
 class RunReview(DemultiplexingStage):
     def _run(self):
-        post_entry('actions', {'action_type': 'automatic_run_review', 'run_id': self.dataset.name})
+        rest_communication.post_entry('actions', {'action_type': 'automatic_run_review', 'run_id': self.dataset.name})
         return 0
 
 
