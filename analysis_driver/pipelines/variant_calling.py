@@ -188,7 +188,7 @@ def build_pipeline(dataset):
     haplotype = stage(HaplotypeCaller, previous_stages=[realign])
     bgzip = stage(BGZip, previous_stages=[haplotype])
     tabix = stage(Tabix, previous_stages=[bgzip])
-
     output = stage(common.SampleDataOutput, previous_stages=[tabix], output_fileset='gatk_var_calling')
     _cleanup = stage(common.Cleanup, previous_stages=[output])
-    return _cleanup
+    review = stage(common.SampleReview, previous_stages=[_cleanup])
+    return review

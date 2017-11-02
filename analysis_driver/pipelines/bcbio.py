@@ -150,5 +150,6 @@ def build_pipeline(dataset):
 
     output = stage(common.SampleDataOutput, previous_stages=post_bcbio_qc, output_fileset='bcbio')
     cleanup = stage(common.Cleanup, previous_stages=[output])
+    review = stage(common.SampleReview, previous_stages=[cleanup])
 
-    return cleanup
+    return review

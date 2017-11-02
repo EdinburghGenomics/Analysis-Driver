@@ -3,7 +3,7 @@ import csv
 import time
 import shutil
 from luigi import Parameter
-from egcg_core import executor, clarity, util
+from egcg_core import executor, clarity, util, rest_communication
 from egcg_core.constants import ELEMENT_PROJECT_ID, ELEMENT_LANE, ELEMENT_NB_READS_CLEANED, ELEMENT_RUN_NAME
 from analysis_driver import segmentation, quality_control as qc
 from analysis_driver.util import bash_commands
@@ -189,3 +189,10 @@ class Cleanup(segmentation.Stage):
         self.info('Cleaning up job dir')
         shutil.rmtree(self.job_dir)
         return 0
+
+
+class SampleReview(segmentation.Stage):
+    def _run(self):
+        rest_communication.post_entry('actions', {'action_type': 'automatic_sample_review', 'sample_id': self.dataset.name})
+        return 0
+
