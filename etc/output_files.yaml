@@ -22,17 +22,17 @@ bcbio:
 
     bam:
         location: ['samples_{sample_id}-merged', 'final', '{user_sample_id}']
-        basename: '{user_sample_id}-ready.bam'
+        basename: '{user_sample_id}-ready_fixed.bam'
         new_name: '{user_sample_id}.bam'
 
     bam_bai:
         location: ['samples_{sample_id}-merged', 'final', '{user_sample_id}']
-        basename: '{user_sample_id}-ready.bam.bai'
+        basename: '{user_sample_id}-ready_fixed.bam.bai'
         new_name: '{user_sample_id}.bam.bai'
 
     depth_file:
         location: ['samples_{sample_id}-merged', 'final', '{user_sample_id}']
-        basename: '{user_sample_id}-ready.depth'
+        basename: '{user_sample_id}-ready_fixed.depth'
         new_name: '{user_sample_id}.depth'
 
     samtools_stats:
@@ -209,6 +209,10 @@ project_process:
         location: ['']
         basename: '{project_id}.ped_check.csv'
 
-    relatedness_output:
+    relatedness_output_egc:
         location: ['']
-        basename: '{project_id}.relatedness_output'
+        basename: '{project_id}.relatedness_output.egc'
+
+    relatedness_output_gel:
+        location: ['']
+        basename: '{project_id}.relatedness_output.gel'

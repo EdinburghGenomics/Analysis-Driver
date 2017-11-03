@@ -1,10 +1,36 @@
 Changelog for Analysis-Driver
 =============================
 
-0.17 (unreleased)
+0.19 (unreleased)
+-----------------
+
+- Nothing changed yet.
+
+
+0.18.1 (2017-10-30)
+-------------------
+
+- bug fix in run_qc
+- buf fix in project process
+
+
+0.18 (2017-10-11)
+-----------------
+
+- Fix bugs in project process
+- Rearrange outfile format of GEL relatedness file
+
+
+0.17 (2017-09-22)
 -----------------
 
 - Add Parser for Peddy and Relatedness
+- Improvements to integration_test, including more flexible checking of outputs and and retention of data/logs
+- Tools versioning: config can now list multiple tool path for multiple version. Toolset config file chose the appropriate version for specific pipeline
+- Add md5 files for project process output file
+- Original fastq files are now kept when fastq filtering is enabled
+- Duplicated unmapped read generated in bcbio are removed
+- Small fix to support userprepared libraries
 
 
 0.16 (2017-06-22)

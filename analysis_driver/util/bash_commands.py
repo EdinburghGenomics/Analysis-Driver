@@ -48,10 +48,10 @@ def seqtk_fqchk(fastq_file):
 def fq_filt_prelim_cmd():
     cmd = (
         'function run_filterer {{',  # double up { and } to escape them for str.format()
-        'i1=$1', 'i2=$2', 'o1=$3', 'o2=$4', 'fifo_1=$5', 'fifo_2=$6',
-
+        'strategy=$1', 'i1=$2', 'i2=$3', 'o1=$4', 'o2=$5', 'fifo_1=$6', 'fifo_2=$7', 'stats_file=$8',
+        'shift 7',
         'mkfifo $fifo_1', 'mkfifo $fifo_2',
-        '{ff} --i1 $i1 --i2 $i2 --o1 $fifo_1 --o2 $fifo_2 --threshold {threshold} $* &',
+        '{ff} --i1 $i1 --i2 $i2 --o1 $fifo_1 --o2 $fifo_2 --threshold {threshold} --stats_file $stats_file $* &',
         'fq_filt_pid=$!',
         '{pigz} -c -p {pzt} $fifo_1 > $o1 &',
         'pigz_r1_pid=$!',
@@ -66,7 +66,10 @@ def fq_filt_prelim_cmd():
         'wait $pigz_r2_pid',
         'exit_status=$[$exit_status + $?]',
         'rm $fifo_1 $fifo_2',
-        'if [ $exit_status == 0 ]; then mv $o1 $i1; mv $o2 $i2; fi',
+        'if [ $exit_status == 0 ]; then',
+        'if [ "$strategy" == "keep_originals" ]; then mv $i1 $i1.original; mv $i2 $i2.original; fi',
+        'mv $o1 $i1; mv $o2 $i2',
+        'fi',
         '(exit $exit_status)',
         '}}'
     )
@@ -78,7 +81,7 @@ def fq_filt_prelim_cmd():
     )
 
 
-def fastq_filterer_and_pigz_in_place(fastq_file_pair, tiles_to_filter=None, trim_r1=None, trim_r2=None):
+def fastq_filterer(fastq_file_pair, tiles_to_filter=None, trim_r1=None, trim_r2=None):
     """
     :param tuple[str,str] fastq_file_pair: Paired-end fastqs to filter
     :param list tiles_to_filter: Tile IDs for reads to remove regardless of length
@@ -101,18 +104,23 @@ def fastq_filterer_and_pigz_in_place(fastq_file_pair, tiles_to_filter=None, trim
 
     stats_file = base_1.replace('_R1_001', '') + '_fastqfilterer.stats'
 
-    fastq_filterer_cmd = 'run_filterer {0} {1} {2} {3} {4} {5} --stats_file {6}'.format(
-        i1, i2, o1, o2, fifo_1, fifo_2, stats_file
-    )
+    cmd = 'run_filterer'
+
+    if any((tiles_to_filter, trim_r1, trim_r2)):
+        cmd += ' keep_originals'
+    else:
+        cmd += ' in_place'
+
+    cmd += ' {0} {1} {2} {3} {4} {5} {6}'.format(i1, i2, o1, o2, fifo_1, fifo_2, stats_file)
 
     if tiles_to_filter:
-        fastq_filterer_cmd += ' --remove_tiles %s' % (','.join([str(t) for t in tiles_to_filter]))
+        cmd += ' --remove_tiles %s' % (','.join([str(t) for t in tiles_to_filter]))
     if trim_r1:
-        fastq_filterer_cmd += ' --trim_r1 %s' % trim_r1
+        cmd += ' --trim_r1 %s' % trim_r1
     if trim_r2:
-        fastq_filterer_cmd += ' --trim_r2 %s' % trim_r2
+        cmd += ' --trim_r2 %s' % trim_r2
 
-    return fastq_filterer_cmd
+    return cmd
 
 
 def bwa_mem_samblaster(fastq_pair, reference, expected_output_bam, read_group=None, thread=16):

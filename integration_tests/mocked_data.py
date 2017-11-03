@@ -103,6 +103,7 @@ def patch_pipeline(species='Homo sapiens', analysis_type='Variant Calling gatk')
     def _fake_get_sample(sample_name):
         return Mock(name=sample_name, udf={'Coverage': 1337, 'Analysis Type': analysis_type})
 
+    _patch('client.load_config')
     _patch('dataset.clarity.get_species_from_sample', new=species)
     _patch('dataset.clarity.get_user_sample_name', new=_fake_get_user_sample_id)
     _patch('dataset.clarity.get_run', return_value=mocked_clarity_run)
@@ -125,6 +126,13 @@ def patch_pipeline(species='Homo sapiens', analysis_type='Variant Calling gatk')
     _patch('quality_control.genotype_validation.clarity.get_sample_names_from_project', return_value=set())
     _patch('quality_control.genotype_validation.clarity.get_sample_genotype', return_value=set())
     _patch('quality_control.well_duplicates.WellDuplicates._welldups_cmd', new=_fake_welldups_cmd)
+    _patch(
+        'pipelines.demultiplexing.BadTileCycleDetector',
+        return_value=Mock(
+            detect_bad_cycles=Mock(return_value={5: [309, 310]}),
+            detect_bad_tiles=Mock(return_value={})
+        )
+    )
 
     yield
 

@@ -21,7 +21,7 @@ class SamtoolsDepth(Stage):
         ) % (toolset['samtools'], find_file(self.bam_file), self.job_dir, self.samtools_depth_out_file)
 
     def _run(self):
-        self.info('Generating depth file: %s', self.samtools_depth_out_file)
+        self.info('/Generating depth file: %s', self.samtools_depth_out_file)
         return executor.execute(
             self._samtools_depth_command(),
             job_name='samtoolsdepth',

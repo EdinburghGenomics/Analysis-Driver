@@ -223,6 +223,35 @@ class NoCommunicationDataset(Dataset):
         return None
 
 
+class NoCommuncationSampleDataset(NoCommunicationDataset):
+
+    def __init__(self, name):
+        super().__init__(name)
+        self._run_elements = None
+
+    @property
+    def run_elements(self):
+        if self._run_elements is None:
+            self._run_elements = rest_communication.get_documents(
+                'run_elements', where={'sample_id': self.name, 'useable': 'yes'}
+            )
+        return self._run_elements
+
+    @property
+    def project_id(self):
+        return self.run_elements[0]['project_id']
+
+    def _pipeline_instruction(self):
+        instruction = rest_communication.get_document(
+            'projects', where={'project_id': self.project_id}
+        ).get('sample_pipeline')
+
+        if not instruction:
+            raise AnalysisDriverError('No instruction set in project %s' % self.project_id)
+
+        return instruction
+
+
 class RunDataset(Dataset):
     type = 'run'
     endpoint = 'runs'
@@ -306,10 +335,7 @@ class RunDataset(Dataset):
                 artifacts = [flowcell.placements[lane]]
             for artifact in artifacts:
                 assert len(artifact.samples) == 1
-                assert len(artifact.reagent_labels) == 1
                 sample = artifact.samples[0]
-                reagent_label = artifact.reagent_labels[0]
-                match = re.match('(\w{4})-(\w{4}) \(([ATCG]{8})-([ATCG]{8})\)', reagent_label)
                 run_element = {
                     ELEMENT_PROJECT_ID: sample.project.name,
                     ELEMENT_SAMPLE_INTERNAL_ID: sample.name,
@@ -318,6 +344,9 @@ class RunDataset(Dataset):
                     ELEMENT_BARCODE: ''
                 }
                 if self.has_barcodes:
+                    assert len(artifact.reagent_labels) == 1
+                    reagent_label = artifact.reagent_labels[0]
+                    match = re.match('(\w{4})-(\w{4}) \(([ATCG]{8})-([ATCG]{8})\)', reagent_label)
                     run_element[ELEMENT_BARCODE] = match.group(3)
                 run_elements.append(run_element)
         return run_elements
@@ -459,7 +488,7 @@ class SampleDataset(Dataset):
 
     def _pipeline_instruction(self):
         instruction = rest_communication.get_document(
-            'projects', match={'project_id': self.project_id}
+            'projects', where={'project_id': self.project_id}
         ).get('sample_pipeline')
 
         if not instruction:
@@ -544,7 +573,7 @@ class ProjectDataset(Dataset):
                 if not self._number_of_samples:
                     self._number_of_samples = -1
             else:
-                raise AnalysisDriverError('Could not find number of quoted samples in LIMS for ' + self.name)
+                self._number_of_samples = -1
         return self._number_of_samples
 
     @property
@@ -576,7 +605,7 @@ class ProjectDataset(Dataset):
         return '%s  (%s samples / %s) ' % (super().__str__(), len(self.samples_processed), self.number_of_samples)
 
     def _default_pipeline(self):
-        return 'projects'
+        return 'project'
 
 
 class MostRecentProc:

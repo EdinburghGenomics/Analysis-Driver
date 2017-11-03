@@ -9,7 +9,7 @@ path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from analysis_driver import quality_control as qc
 from analysis_driver.config import default as cfg, load_config
 from analysis_driver.exceptions import AnalysisDriverError
-from analysis_driver.dataset import NoCommunicationDataset, RunDataset
+from analysis_driver.dataset import NoCommunicationDataset, RunDataset, NoCommuncationSampleDataset
 from analysis_driver.util.bash_commands import rsync_from_to
 from analysis_driver.reader.demultiplexing_parsers import parse_fastqscreen_file
 
@@ -76,6 +76,8 @@ def _parse_args():
 def run_genotype_validation(dataset, args):
     # Get the sample specific config
     cfg.merge(cfg['sample'])
+    dataset = NoCommuncationSampleDataset(dataset.name)
+    dataset.resolve_pipeline_and_toolset()
     os.makedirs(os.path.join(cfg['jobs_dir'], dataset.name), exist_ok=True)
 
     sample_output_dir = os.path.join(cfg['output_dir'], args.project_id, dataset.name)

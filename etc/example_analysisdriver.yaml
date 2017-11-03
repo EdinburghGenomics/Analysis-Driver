@@ -2,11 +2,20 @@
 ---
 default:
 
+    sample:
+        input_dir:       /path/to/input/dir
+        output_dir:      tests/assets/test_projects/
+        delivery_source: /path/to/delivery/source
+        delivery_dest:   /path/to/delivery/destination
+
+    project:
+        input_dir:       /path/to/input/dir
+
     rest_api:
         url: 'http://localhost:4999/api/0.1'
 
     input_dir: tests/assets/data_transfer/from/
-    jobs_dir : path/to/jobs
+    jobs_dir: path/to/jobs
     output_dir: path/to/output_data
 
     data_deletion:
@@ -51,6 +60,7 @@ default:
         vcftools: path/to/vcftools
         blastn: path/to/blastn
         peddy: path/to/peddy
+        fix_dup_unmapped: path/to/fix_dup_unmapped
 
     logging:
         format: '[%(asctime)s][%(name)s][%(levelname)s] %(message)s'
@@ -81,10 +91,14 @@ default:
       db_dir:           path/to/db/dir
       ete_db:           path/to/ete_db
 
-    well_duplicate:
+    well_duplicates:
       coord_file: path/to/coord_file
 
-    clarity:
-      baseuri: 'http://clarity.co.uk'
-      username: username
-      password: password
+    species:
+        'Homo sapiens':
+            default: genome_version
+
+    genomes:
+      genome_version:
+        fasta: /path/to/genome.fa
+        dbsnp: /path/to/dbsnp.vcf.gz

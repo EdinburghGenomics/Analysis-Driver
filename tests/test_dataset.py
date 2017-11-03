@@ -200,6 +200,9 @@ class TestDataset(TestAnalysisDriver):
             'toolset_version': 0
         }
 
+mocked_lane_user_prep_artifact1 = NamedMock(real_name='art1', reagent_labels=[], samples=[MockedSamples(real_name='sample1')])
+mocked_lane_user_prep_artifact2 = NamedMock(real_name='art2', reagent_labels=[], samples=[MockedSamples(real_name='sample2')])
+
 mocked_lane_artifact1 = NamedMock(real_name='art1', reagent_labels=['D701-D502 (ATTACTCG-ATAGAGGC)'], samples=[MockedSamples(real_name='sample1')])
 mocked_lane_artifact2 = NamedMock(real_name='art2', reagent_labels=['D702-D502 (TCCGGAGA-ATAGAGGC)'], samples=[MockedSamples(real_name='sample2')])
 mocked_lane_artifact3 = NamedMock(real_name='art3', reagent_labels=['D703-D502 (CGCTCATT-ATAGAGGC)'], samples=[MockedSamples(real_name='sample3')])
@@ -245,6 +248,17 @@ mocked_flowcell_pooling = Mock(placements={
     '8:1': mocked_lane_artifact_pool
 })
 
+mocked_flowcell_user_prepared = Mock(placements={
+    '1:1': mocked_lane_user_prep_artifact1,
+    '2:1': mocked_lane_user_prep_artifact2,
+    '3:1': mocked_lane_user_prep_artifact1,
+    '4:1': mocked_lane_user_prep_artifact2,
+    '5:1': mocked_lane_user_prep_artifact1,
+    '6:1': mocked_lane_user_prep_artifact2,
+    '7:1': mocked_lane_user_prep_artifact1,
+    '8:1': mocked_lane_user_prep_artifact2
+})
+
 
 class TestRunDataset(TestDataset):
     def test_is_ready(self):
@@ -267,7 +281,6 @@ class TestRunDataset(TestDataset):
 
     def test_run_elements_from_lims(self):
         d = RunDataset('test_dataset')
-
         with patch('analysis_driver.dataset.clarity.get_run', return_value=MockedRunProcess(container=mocked_flowcell_non_pooling)), \
              patch.object(RunDataset, 'has_barcodes', new_callable=PropertyMock(return_value=False)):
             run_elements = d._run_elements_from_lims()
@@ -278,7 +291,6 @@ class TestRunDataset(TestDataset):
             assert barcodes_len.pop() == 0
 
         d = RunDataset('test_dataset')
-
         with patch('egcg_core.clarity.get_run', return_value=MockedRunProcess(container=mocked_flowcell_pooling)), \
              patch.object(RunDataset, 'has_barcodes', new_callable=PropertyMock(return_value=True)):
             run_elements = d._run_elements_from_lims()
@@ -287,6 +299,16 @@ class TestRunDataset(TestDataset):
             barcodes_len = set(len(r[c.ELEMENT_BARCODE]) for r in run_elements)
             assert len(barcodes_len) == 1
             assert barcodes_len.pop() == 8
+
+        d = RunDataset('test_dataset')
+        with patch('analysis_driver.dataset.clarity.get_run', return_value=MockedRunProcess(container=mocked_flowcell_user_prepared)), \
+             patch.object(RunDataset, 'has_barcodes', new_callable=PropertyMock(return_value=False)):
+            run_elements = d._run_elements_from_lims()
+            assert len(set(r[c.ELEMENT_PROJECT_ID] for r in run_elements)) == 1
+            assert len(set(r[c.ELEMENT_SAMPLE_INTERNAL_ID] for r in run_elements)) == 2
+            barcodes_len = set(len(r[c.ELEMENT_BARCODE]) for r in run_elements)
+            assert len(barcodes_len) == 1
+            assert barcodes_len.pop() == 0
 
     @patch('builtins.open')
     def test_generate_samplesheet(self, mocked_open):
