@@ -1,6 +1,6 @@
 import os
 from shutil import rmtree
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, patch, call
 from tests.test_analysisdriver import TestAnalysisDriver, NamedMock
 from analysis_driver.config import OutputFileConfiguration, cfg
 from analysis_driver.pipelines import common
@@ -86,3 +86,13 @@ class TestMergeFastqs(TestCommon):
                 'test_R1.fastq,a_user_sample_id\n'
                 'test_R2.fastq,a_user_sample_id\n'
             )
+
+class TestSampleReview():
+    @patch('analysis_driver.pipelines.common.rest_communication.post_entry')
+    def test_sample_review(self, mock):
+        self.sample_id = 'test_dataset'
+        self.dataset = NamedMock(real_name=self.sample_id)
+        self.r = common.SampleReview(dataset=self.dataset)
+        review = self.r._run()
+        assert mock.mock_calls == [call('actions', {'action_type': 'automatic_sample_review', 'sample_id': 'test_dataset'})]
+        assert review == 0
