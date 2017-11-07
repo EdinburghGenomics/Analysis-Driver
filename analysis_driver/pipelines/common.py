@@ -193,6 +193,6 @@ class Cleanup(segmentation.Stage):
 
 class SampleReview(segmentation.Stage):
     def _run(self):
-        rest_communication.post_entry('actions', {'action_type': 'automatic_sample_review', 'sample_id': self.dataset.name})
+        rest_communication.post_entry('actions', {'action_type': 'automatic_sample_review', 'sample_id': self.dataset.name}, use_data=True)
         return 0
 

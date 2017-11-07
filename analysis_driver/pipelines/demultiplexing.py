@@ -208,7 +208,7 @@ class DataOutput(DemultiplexingStage):
 
 class RunReview(DemultiplexingStage):
     def _run(self):
-        rest_communication.post_entry('actions', {'action_type': 'automatic_run_review', 'run_id': self.dataset.name})
+        rest_communication.post_entry('actions', {'action_type': 'automatic_run_review', 'run_id': self.dataset.name}, use_data=True)
         return 0
 
 

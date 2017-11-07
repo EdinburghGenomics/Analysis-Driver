@@ -94,5 +94,5 @@ class TestSampleReview():
         self.dataset = NamedMock(real_name=self.sample_id)
         self.r = common.SampleReview(dataset=self.dataset)
         review = self.r._run()
-        assert mock.mock_calls == [call('actions', {'action_type': 'automatic_sample_review', 'sample_id': 'test_dataset'})]
+        assert mock.mock_calls == [call('actions', {'action_type': 'automatic_sample_review', 'sample_id': 'test_dataset'}, use_data=True)]
         assert review == 0
