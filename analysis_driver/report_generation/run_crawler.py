@@ -303,8 +303,10 @@ class RunCrawler(Crawler):
                 mapping_statistics.update({
                     ELEMENT_NB_PICARD_DUP_READS: dup_reads,
                     ELEMENT_NB_PICARD_OPT_DUP_READS: opt_dup_reads,
-                    ELEMENT_PICARD_EST_LIB_SIZE: est_library_size,
                 })
+                # Estimated library size can be missing if the number of read is too low
+                if est_library_size:
+                    mapping_statistics[ELEMENT_PICARD_EST_LIB_SIZE] = est_library_size
 
             picard_insert_size_metric = fastq_base + '_insertsize.metrics'
             if isfile(picard_insert_size_metric):

@@ -33,6 +33,7 @@ class TestMappingStats(TestAnalysisDriver):
         self.samtools_stats = join(self.assets_path, 'test_crawlers', 'samtools_stats.txt')
         self.vcf_stats_file = join(self.assets_path, 'test_crawlers', 'test_sample.vcf.stats')
         self.picard_markdup_file = join(self.assets_path, 'test_crawlers', 'test_picard_markdup.metrics')
+        self.picard_markdup_file2 = join(self.assets_path, 'test_crawlers', 'test_picard2_markdup.metrics')
         self.picard_insertsize_file = join(self.assets_path, 'test_crawlers', 'test_picard_insertsize.metrics')
 
     def test_parse_genotype_concordance(self):
@@ -69,6 +70,13 @@ class TestMappingStats(TestAnalysisDriver):
         assert duplicate_reads == 230832
         assert opt_duplicate_reads == 229948
         assert est_library_size == 15140319228
+
+        mapped_reads, duplicate_reads, opt_duplicate_reads, est_library_size = mp.parse_picard_mark_dup_metrics(self.picard_markdup_file2)
+        assert mapped_reads == 1077345
+        assert duplicate_reads == 182779
+        assert opt_duplicate_reads == 181980
+        assert est_library_size is None
+
 
     def test_parse_picard_insert_size_metrics(self):
         mean, std_dev, median, med_abs_dev = mp.parse_picard_insert_size_metrics(self.picard_insertsize_file)

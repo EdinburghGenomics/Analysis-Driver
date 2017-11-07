@@ -167,14 +167,16 @@ def parse_picard_mark_dup_metrics(input_file):
         library = sp_line[headers.index('LIBRARY')]
         for header_val in headers[1:]:
             if header_val == 'PERCENT_DUPLICATION':
-                library_to_metrics[library][header_val] = float(sp_line[headers.index(header_val)])
+                if len(sp_line) > headers.index(header_val):
+                    library_to_metrics[library][header_val] = float(sp_line[headers.index(header_val)])
             else:
-                library_to_metrics[library][header_val] = int(sp_line[headers.index(header_val)])
+                if len(sp_line) > headers.index(header_val):
+                    library_to_metrics[library][header_val] = int(sp_line[headers.index(header_val)])
     # Assume only one library was processed
     lib_name, lib = library_to_metrics.popitem()
-    return (lib['UNPAIRED_READS_EXAMINED'] + lib['READ_PAIRS_EXAMINED'] * 2,
-            lib['UNPAIRED_READ_DUPLICATES'] + lib['READ_PAIR_DUPLICATES'] * 2,
-            lib['READ_PAIR_OPTICAL_DUPLICATES'] * 2 , lib['ESTIMATED_LIBRARY_SIZE'])
+    return (lib.get('UNPAIRED_READS_EXAMINED') + lib.get('READ_PAIRS_EXAMINED') * 2,
+            lib.get('UNPAIRED_READ_DUPLICATES') + lib.get('READ_PAIR_DUPLICATES') * 2,
+            lib.get('READ_PAIR_OPTICAL_DUPLICATES') * 2 , lib.get('ESTIMATED_LIBRARY_SIZE'))
 
 
 def parse_picard_insert_size_metrics(input_file):
