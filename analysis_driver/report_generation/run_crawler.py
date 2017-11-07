@@ -266,19 +266,20 @@ class RunCrawler(Crawler):
                 '*_S*_L00%s_R1_001.fastq.gz' % barcode_info[ELEMENT_LANE]
             )
             assert len(fastq_file) == 1
+            mapping_statistics = {}
             fastq_base = fastq_file[0][:-len('_R1_001.fastq.gz')]
             samtools_stat = fastq_base + '_samtools_stats.txt'
             if isfile(samtools_stat):
                 (total_reads, mapped_reads, duplicate_reads, proper_pairs) = mp.parse_samtools_stats(samtools_stat)
-                barcode_info[ELEMENT_MAPPING_STATISTICS] = {
+                mapping_statistics.update({
                     ELEMENT_NB_READS_IN_BAM: total_reads,
                     ELEMENT_NB_MAPPED_READS: mapped_reads,
                     ELEMENT_NB_DUPLICATE_READS: duplicate_reads,
                     ELEMENT_NB_PROPERLY_MAPPED:proper_pairs
-                }
+                })
 
             samtools_depth = fastq_base + '_samtools.depth'
-            if isfile(samtools_stat):
+            if isfile(samtools_depth):
                 (mean, median, sd, coverage_percentiles, bases_at_coverage,
                  genome_size, evenness) = dm.get_coverage_statistics(samtools_depth)
                 coverage_statistics = {
@@ -295,21 +296,23 @@ class RunCrawler(Crawler):
             picard_mark_dup_metric = fastq_base + '_markdup.metrics'
             if isfile(picard_mark_dup_metric):
                 mapped_reads, dup_reads, opt_dup_reads, est_library_size = mp.parse_picard_mark_dup_metrics(picard_mark_dup_metric)
-                barcode_info[ELEMENT_MAPPING_STATISTICS] = {
+                mapping_statistics.update({
                     ELEMENT_NB_PICARD_DUP_READS: dup_reads,
                     ELEMENT_NB_PICARD_OPT_DUP_READS: opt_dup_reads,
                     ELEMENT_PICARD_EST_LIB_SIZE: est_library_size,
-                }
+                })
 
             picard_insert_size_metric = fastq_base + '_insertsize.metrics'
             if isfile(picard_insert_size_metric):
                 mean_is, std_dev_is, median_is, med_abs_dev_is = mp.parse_picard_insert_size_metrics(picard_insert_size_metric)
-                barcode_info[ELEMENT_MAPPING_STATISTICS] = {
+                mapping_statistics.update({
                     ELEMENT_MEAN_INSERT_SIZE: mean_is,
                     ELEMENT_STD_DEV_INSERT_SIZE: std_dev_is,
                     ELEMENT_MEDIAN_INSERT_SIZE: median_is,
                     ELEMENT_MEDIAN_ABS_DEV_INSERT_SIZE: med_abs_dev_is,
-                }
+                })
+            if mapping_statistics:
+                barcode_info[ELEMENT_MAPPING_STATISTICS] = mapping_statistics
 
     def send_data(self):
         return all(
