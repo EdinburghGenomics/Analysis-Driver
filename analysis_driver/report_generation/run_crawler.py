@@ -259,6 +259,10 @@ class RunCrawler(Crawler):
                 # No mapping for unassigned run element
                 continue
 
+            if barcode_info[ELEMENT_NB_READS_PASS_FILTER] == 0:
+                self.info('No reads for %s, Not expecting mapping stat file', run_element_id)
+                continue
+
             fastq_file = util.find_files(
                 run_dir,
                 barcode_info[ELEMENT_PROJECT_ID],
