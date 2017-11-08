@@ -32,13 +32,21 @@ class TestMD5Sum(TestAnalysisDriver):
                                                                                {'sample_id': '10015AT0003', 'user_sample_id': 'test_user_sample2'}])
         self.md5 = projects.MD5Sum(dataset=self.dataset)
 
+        relatedness_outfiles = os.path.join(self.assets_path, 'test_projects', 'relatedness_outfiles')
+        os.makedirs(relatedness_outfiles, exist_ok=True)
+        self.filename = os.path.join(relatedness_outfiles, 'an_output_file.txt')
+        open(self.filename, 'w').close()
+
+    def tearDown(self):
+        os.remove(self.filename)  # TODO: clean up the directory as well
 
     @patch('egcg_core.executor.execute')
     def test_run(self, mocked_execute):
         with patch('analysis_driver.segmentation.BasicStage.job_dir', new=os.path.join(self.assets_path, 'test_projects')):
             self.md5._run()
 
-        mocked_execute.assert_called_once_with(cpus=1,
+        mocked_execute.assert_called_once_with('path/to/md5sum %s > %s' % (self.filename, self.filename + '.md5'),
+                                               cpus=1,
                                                job_name='md5sum',
                                                log_commands=False,
                                                mem=2,
