@@ -102,3 +102,8 @@ default:
       genome_version:
         fasta: /path/to/genome.fa
         dbsnp: /path/to/dbsnp.vcf.gz
+
+    clarity:
+        baseuri: 'https://clarity.co.uk'
+        username: apiuser
+        password: apiuser
