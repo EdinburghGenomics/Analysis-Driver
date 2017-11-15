@@ -32,22 +32,22 @@ class TestBCBio(TestAnalysisDriver):
             pgetsample.assert_called_once_with('test')
             bcb_cmd = (
                 'path/to/bcbio/bin/bcbio_nextgen.py '
-                'path/to/jobs/test/samples_test-merged/config/samples_test-merged.yaml '
-                '-n 16 --workdir path/to/jobs/test/samples_test-merged/work'
+                'tests/assets/jobs/test/samples_test-merged/config/samples_test-merged.yaml '
+                '-n 16 --workdir tests/assets/jobs/test/samples_test-merged/work'
             )
             # test first bcbio command's first argument which is just to command
             pexecute.mock_calls[0][0] == ''.join(bcb_cmd)
             bcb_cmd = (
                 'path/to/bcbio/bin/bcbio_nextgen.py '
-                'path/to/jobs/test/samples_test-merged/config/samples_test-merged.yaml '
-                '-n 16 --workdir path/to/jobs/test/samples_test-merged/work'
+                'tests/assets/jobs/test/samples_test-merged/config/samples_test-merged.yaml '
+                '-n 16 --workdir tests/assets/jobs/test/samples_test-merged/work'
             )
             # test last bcbio command's first argument which is just to command
             pexecute.mock_calls[3][0] == ''.join(bcb_cmd)
             # assert reading
-            popen.assert_any_call('path/to/jobs/test/samples_test-merged/config/samples_test-merged.yaml', 'r')
+            popen.assert_any_call('tests/assets/jobs/test/samples_test-merged/config/samples_test-merged.yaml', 'r')
             # assert writing
-            popen.assert_called_with('path/to/jobs/test/samples_test-merged/config/samples_test-merged.yaml', 'w')
+            popen.assert_called_with('tests/assets/jobs/test/samples_test-merged/config/samples_test-merged.yaml', 'w')
             popen().write.assert_called_with('fc_name: usertest\n')
 
 
@@ -66,7 +66,7 @@ class TestFixUnmapped(TestAnalysisDriver):
             f._run()
             cmd = (
                 'path/to/fix_dup_unmapped '
-                 '-i path/to/jobs/test/samples_test-merged/final/usertest/usertest-ready.bam '
-                 '-o path/to/jobs/test/samples_test-merged/final/usertest/usertest-ready_fixed.bam'
+                 '-i tests/assets/jobs/test/samples_test-merged/final/usertest/usertest-ready.bam '
+                 '-o tests/assets/jobs/test/samples_test-merged/final/usertest/usertest-ready_fixed.bam'
             )
             assert pexecute.call_args[0][0] == ''.join(cmd)

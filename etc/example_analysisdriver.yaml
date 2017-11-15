@@ -15,7 +15,7 @@ default:
         url: 'http://localhost:4999/api/0.1'
 
     input_dir: tests/assets/data_transfer/from/
-    jobs_dir: path/to/jobs
+    jobs_dir: tests/assets/jobs/
     output_dir: path/to/output_data
 
     data_deletion:

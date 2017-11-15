@@ -27,7 +27,7 @@ class TestContaminationCheck(QCTester):
             self.c._run()
 
         mocked_execute.assert_called_once_with(
-            'a_cmd', working_dir='path/to/jobs/test_sample', mem=10, cpus=2, job_name='fastqscreen'
+            'a_cmd', working_dir='tests/assets/jobs/test_sample', mem=10, cpus=2, job_name='fastqscreen'
         )
 
 
@@ -42,23 +42,23 @@ class TestVerifyBamID(QCTester):
             self.vbi._run()
 
         mocked_execute.assert_any_call(
-            'path/to/samtools view -b test_bam_file.bam chr22 > path/to/jobs/test_sample/test_sample_chr22.bam',
+            'path/to/samtools view -b test_bam_file.bam chr22 > tests/assets/jobs/test_sample/test_sample_chr22.bam',
             mem=2,
             job_name='filter_bam22',
-            working_dir='path/to/jobs/test_sample',
+            working_dir='tests/assets/jobs/test_sample',
             cpus=1,
             log_commands=False
         )
         mocked_execute.assert_any_call(
-            'path/to/samtools index path/to/jobs/test_sample/test_sample_chr22.bam',
+            'path/to/samtools index tests/assets/jobs/test_sample/test_sample_chr22.bam',
             mem=2,
-            working_dir='path/to/jobs/test_sample',
+            working_dir='tests/assets/jobs/test_sample',
             cpus=1,
             job_name='index_bam22'
         )
         mocked_execute.assert_any_call(
-            'path/to/verifybamid --bam path/to/jobs/test_sample/test_sample_chr22.bam --vcf path/to/population_vcf --out path/to/jobs/test_sample/test_sample-chr22-vbi',
-            working_dir='path/to/jobs/test_sample',
+            'path/to/verifybamid --bam tests/assets/jobs/test_sample/test_sample_chr22.bam --vcf path/to/population_vcf --out tests/assets/jobs/test_sample/test_sample-chr22-vbi',
+            working_dir='tests/assets/jobs/test_sample',
             cpus=1,
             job_name='verify_bam_id',
             mem=4
@@ -113,14 +113,14 @@ class TestBlast(QCTester):
         with patch(ppath + 'util.find_file', new=self.fake_find_file):
             assert self.blast.sample_fastq_command() == (
                 'set -o pipefail; path/to/seqtk sample fastqFile1.fastq 3000 | '
-                'path/to/seqtk seq -a > path/to/jobs/test_run/fastqFile1_sample3000.fasta'
+                'path/to/seqtk seq -a > tests/assets/jobs/test_run/fastqFile1_sample3000.fasta'
             )
 
     def test_fasta_blast_command(self):
         assert self.blast.fasta_blast_command() == (
             'export PATH=$PATH:/path/to/db/dir; path/to/blastn '
-            '-query path/to/jobs/test_run/fastqFile1_sample3000.fasta -db path/to/db/dir/nt '
-            '-out path/to/jobs/test_run/fastqFile1_sample3000_blastn -num_threads 12 -max_target_seqs 1 -max_hsps 1 '
+            '-query tests/assets/jobs/test_run/fastqFile1_sample3000.fasta -db path/to/db/dir/nt '
+            '-out tests/assets/jobs/test_run/fastqFile1_sample3000_blastn -num_threads 12 -max_target_seqs 1 -max_hsps 1 '
             "-outfmt '6 qseqid sseqid length pident evalue sgi sacc staxids sscinames scomnames stitle'"
         )
 
@@ -190,8 +190,8 @@ class TestBlast(QCTester):
         with patch(ppath + 'util.find_file', new=self.fake_find_file):
             self.blast.run_sample_fastq()
         mocked_execute.assert_called_with(
-            'set -o pipefail; path/to/seqtk sample fastqFile1.fastq 3000 | path/to/seqtk seq -a > path/to/jobs/test_run/fastqFile1_sample3000.fasta',
-            working_dir='path/to/jobs/test_run',
+            'set -o pipefail; path/to/seqtk sample fastqFile1.fastq 3000 | path/to/seqtk seq -a > tests/assets/jobs/test_run/fastqFile1_sample3000.fasta',
+            working_dir='tests/assets/jobs/test_run',
             mem=10,
             cpus=2,
             job_name='sample_fastq'
@@ -203,10 +203,10 @@ class TestBlast(QCTester):
             self.blast.run_blast()
         mocked_execute.assert_called_with(
             ('export PATH=$PATH:/path/to/db/dir; path/to/blastn '
-             '-query path/to/jobs/test_run/fastqFile1_sample3000.fasta -db path/to/db/dir/nt '
-             '-out path/to/jobs/test_run/fastqFile1_sample3000_blastn -num_threads 12 -max_target_seqs 1 -max_hsps '
+             '-query tests/assets/jobs/test_run/fastqFile1_sample3000.fasta -db path/to/db/dir/nt '
+             '-out tests/assets/jobs/test_run/fastqFile1_sample3000_blastn -num_threads 12 -max_target_seqs 1 -max_hsps '
              "1 -outfmt '6 qseqid sseqid length pident evalue sgi sacc staxids sscinames scomnames stitle'"),
-            working_dir='path/to/jobs/test_run',
+            working_dir='tests/assets/jobs/test_run',
             mem=20,
             cpus=12,
             job_name='contamination_blast'

@@ -32,6 +32,9 @@ class TestMappingStats(TestAnalysisDriver):
         self.vbi_selfSM_file = join(self.assets_path, 'sample_data', 'test_sample-chr22-vbi.selfSM')
         self.samtools_stats = join(self.assets_path, 'test_crawlers', 'samtools_stats.txt')
         self.vcf_stats_file = join(self.assets_path, 'test_crawlers', 'test_sample.vcf.stats')
+        self.picard_markdup_file = join(self.assets_path, 'test_crawlers', 'test_picard_markdup.metrics')
+        self.picard_markdup_file2 = join(self.assets_path, 'test_crawlers', 'test_picard2_markdup.metrics')
+        self.picard_insertsize_file = join(self.assets_path, 'test_crawlers', 'test_picard_insertsize.metrics')
 
     def test_parse_genotype_concordance(self):
         table_type, headers, lines = mp.parse_genotype_concordance(self.geno_val_file)
@@ -60,3 +63,25 @@ class TestMappingStats(TestAnalysisDriver):
         ti_tv, het_hom = mp.parse_vcf_stats(self.vcf_stats_file)
         assert ti_tv == 2.01
         assert het_hom == 1.6
+
+    def test_picard_mark_dup(self):
+        mapped_reads, duplicate_reads, opt_duplicate_reads, est_library_size = mp.parse_picard_mark_dup_metrics(self.picard_markdup_file)
+        assert mapped_reads == 1278460
+        assert duplicate_reads == 230832
+        assert opt_duplicate_reads == 229948
+        assert est_library_size == 15140319228
+
+        mapped_reads, duplicate_reads, opt_duplicate_reads, est_library_size = mp.parse_picard_mark_dup_metrics(self.picard_markdup_file2)
+        assert mapped_reads == 1077345
+        assert duplicate_reads == 182779
+        assert opt_duplicate_reads == 181980
+        assert est_library_size is None
+
+
+    def test_parse_picard_insert_size_metrics(self):
+        mean, std_dev, median, med_abs_dev = mp.parse_picard_insert_size_metrics(self.picard_insertsize_file)
+        assert mean == 446.299806
+        assert std_dev == 113.966554
+        assert median == 439
+        assert med_abs_dev == 69
+
