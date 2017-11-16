@@ -18,7 +18,7 @@ class LimsNotification():
         self.lims.route_artifacts([self.artifact], stage_uri=self.data_processing_stage.uri)
 
     def create_step(self):
-        self.step = Step.create(self.lims, protocol_step=self.data_processing_stage.step, inputs=self.artifact)
+        self.step = Step.create(self.lims, protocol_step=self.data_processing_stage.step, inputs=[self.artifact])
         self.step.advance()
 
     def assign_next_and_advance_step(self):

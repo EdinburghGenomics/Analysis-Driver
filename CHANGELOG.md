@@ -19,7 +19,6 @@ Changelog for Analysis-Driver
 - bug fix in run_qc
 - buf fix in project process
 
-
 0.18 (2017-10-11)
 -----------------
 
