@@ -56,7 +56,7 @@ class TestLimsNotification(TestAnalysisDriver):
     def test_create_step(self, mocked_create_step, mocked_lims):
         self.n.step = Mock()
         self.n.create_step()
-        mocked_create_step.assert_called_with('LIMSconnection', inputs='LimsArtifact', protocol_step='stage_step')
+        mocked_create_step.assert_called_with('LIMSconnection', inputs=['LimsArtifact'], protocol_step='stage_step')
         self.n.step.advance.assert_called_once()
 
     def test_assign_next_and_advance_step(self):
