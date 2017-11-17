@@ -19,5 +19,5 @@ class TestWellDuplicates(QCTester):
             job_name='welldup',
             mem=2,
             log_commands=False,
-            working_dir='path/to/jobs/test_run'
+            working_dir='tests/assets/jobs/test_run'
         )

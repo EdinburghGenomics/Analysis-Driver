@@ -1,18 +1,23 @@
 Changelog for Analysis-Driver
 =============================
 
-0.19 (unreleased)
+0.20 (unreleased)
 -----------------
 
 - Nothing changed yet.
 
+
+0.19 (2017-11-16)
+-----------------
+
+- In demultiplexing pipeline align all run element to thei respective default genome. calculate duplicate rate and coverage
+- Each sample processing is recorded as a step in the LIMS
 
 0.18.1 (2017-10-30)
 -------------------
 
 - bug fix in run_qc
 - buf fix in project process
-
 
 0.18 (2017-10-11)
 -----------------

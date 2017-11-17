@@ -133,6 +133,8 @@ def patch_pipeline(species='Homo sapiens', analysis_type='Variant Calling gatk')
             detect_bad_tiles=Mock(return_value={})
         )
     )
+    _patch('dataset.LimsNotification')
+
 
     yield
 

@@ -20,10 +20,10 @@ class TestGenotypeGVCFs(QCTester):
     def test_gatk_genotype_gvcfs_cmd(self):
         with patch(ppath + 'util.find_file', new=self.fake_find_file):
             assert self.g.gatk_genotype_gvcfs_cmd() == (
-                'java -Djava.io.tmpdir=path/to/jobs/test_project_id -XX:+UseSerialGC -Xmx50G '
+                'java -Djava.io.tmpdir=tests/assets/jobs/test_project_id -XX:+UseSerialGC -Xmx50G '
                 '-jar path/to/gatk -T GenotypeGVCFs -nt 12 -R /path/to/reference.fa '
                 '--variant test_sample1.g.vcf.gz --variant test_sample2.g.vcf.gz '
-                '--variant test_sample3.g.vcf.gz -o path/to/jobs/test_project_id/test_project_id_genotype_gvcfs.vcf'
+                '--variant test_sample3.g.vcf.gz -o tests/assets/jobs/test_project_id/test_project_id_genotype_gvcfs.vcf'
             )
 
     @patch('egcg_core.executor.execute')
@@ -34,7 +34,7 @@ class TestGenotypeGVCFs(QCTester):
                 'test_command',
                 job_name='gatk_genotype_gvcfs',
                 cpus=12,
-                working_dir='path/to/jobs/test_project_id',
+                working_dir='tests/assets/jobs/test_project_id',
                 mem=50
             )
 
@@ -45,7 +45,7 @@ class TestRelatedness(QCTester):
         self.r = Relatedness(dataset=self.project_dataset)
 
     def test_vcftools_relatedness_cmd(self):
-        exp = 'path/to/vcftools --relatedness2 --vcf path/to/jobs/test_project_id/test_project_id_genotype_gvcfs.vcf --out test_project_id'
+        exp = 'path/to/vcftools --relatedness2 --vcf tests/assets/jobs/test_project_id/test_project_id_genotype_gvcfs.vcf --out test_project_id'
         assert self.r.vcftools_relatedness_cmd() == exp
 
     @patch('egcg_core.executor.execute')
@@ -55,7 +55,7 @@ class TestRelatedness(QCTester):
         mocked_execute.assert_called_with(
             'test_command',
             job_name='vcftools_relatedness',
-            working_dir='path/to/jobs/test_project_id',
+            working_dir='tests/assets/jobs/test_project_id',
             cpus=1,
             mem=10
         )
@@ -75,14 +75,14 @@ class TestPeddy(QCTester):
             mocked_peddy_command,
             job_name='peddy',
             cpus=1,
-            working_dir='path/to/jobs/test_project_id',
+            working_dir='tests/assets/jobs/test_project_id',
             mem=10
         )
 
     def test_peddy_command(self):
         assert self.p.peddy_command == ('path/to/peddy --plot --prefix test_project_id '
-                                        'path/to/jobs/test_project_id/test_project_id_genotype_gvcfs.vcf.gz '
-                                        'path/to/jobs/test_project_id/ped.fam')
+                                        'tests/assets/jobs/test_project_id/test_project_id_genotype_gvcfs.vcf.gz '
+                                        'tests/assets/jobs/test_project_id/ped.fam')
 
     @patch(ppath + 'Peddy.relationship')
     def test_relationships(self, mocked_relationship):
@@ -180,15 +180,15 @@ class TestPeddy(QCTester):
     def test_tabix_index(self, mocked_execute):
         self.p.tabix_index()
         mocked_execute.assert_called_with(
-            'path/to/tabix -f -p vcf path/to/jobs/test_project_id/test_project_id_genotype_gvcfs.vcf.gz',
+            'path/to/tabix -f -p vcf tests/assets/jobs/test_project_id/test_project_id_genotype_gvcfs.vcf.gz',
             job_name='tabix',
             cpus=1,
             mem=10,
-            working_dir='path/to/jobs/test_project_id'
+            working_dir='tests/assets/jobs/test_project_id'
         )
 
     def test_tabix_command(self):
-        assert self.p.tabix_command == 'path/to/tabix -f -p vcf path/to/jobs/test_project_id/test_project_id_genotype_gvcfs.vcf.gz'
+        assert self.p.tabix_command == 'path/to/tabix -f -p vcf tests/assets/jobs/test_project_id/test_project_id_genotype_gvcfs.vcf.gz'
 
 
 class TestParseRelatedness(QCTester):

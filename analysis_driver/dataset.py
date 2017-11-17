@@ -14,7 +14,7 @@ from egcg_core.constants import *  # pylint: disable=unused-import
 from egcg_core.exceptions import RestCommunicationError
 from analysis_driver import reader
 from analysis_driver.exceptions import AnalysisDriverError
-from analysis_driver.notification import NotificationCentre
+from analysis_driver.notification import NotificationCentre, LimsNotification
 from analysis_driver.pipelines import register as pipeline_register
 from analysis_driver.tool_versioning import toolset
 
@@ -420,6 +420,13 @@ class SampleDataset(Dataset):
         self._species = None
         self._genome_version = None
         self._user_sample_id = None
+        self._lims_ntf = None
+
+    @property
+    def lims_ntf(self):
+        if self._lims_ntf is None:
+            self._lims_ntf = LimsNotification(self.name)
+        return self._lims_ntf
 
     @property
     def species(self):
@@ -506,6 +513,18 @@ class SampleDataset(Dataset):
             s += '(no non useable run elements)'
         return s
 
+    def start(self):
+        super().start()
+        self.lims_ntf.start_sample_pipeline()
+
+    def succeed(self):
+        super().succeed()
+        self.lims_ntf.assign_next_and_advance_step()
+
+    def fail(self, exit_status):
+        super().fail(exit_status)
+        self.lims_ntf.remove_sample_from_workflow()
+
     def _default_pipeline(self):
         if self.species is None:
             raise AnalysisDriverError('No species information found in the LIMS for ' + self.name)
@@ -554,7 +573,7 @@ class ProjectDataset(Dataset):
                 if not self._number_of_samples:
                     self._number_of_samples = -1
             else:
-                raise AnalysisDriverError('Could not find number of quoted samples in LIMS for ' + self.name)
+                self._number_of_samples = -1
         return self._number_of_samples
 
     @property
