@@ -180,16 +180,27 @@ def md5sum(input_file):
     return cmd
 
 
+def picard_command(program, tmp_dir, memory):
+    return '{picard} -Djava.io.tmpdir={tmp_dir} -XX:+UseSerialGC -Xmx{memory}G {program}'.format(
+        picard=toolset['picard'],
+        tmp_dir=tmp_dir,
+        memory=memory,
+        program=program
+    )
+
+
 def picard_mark_dup_command(input_file, output_file, metrics_file):
+    tmp_dir = os.path.dirname(input_file)
     cmd = '%s MarkDuplicates INPUT=%s OUTPUT=%s METRICS_FILE=%s ASSUME_SORTED=true '\
           'OPTICAL_DUPLICATE_PIXEL_DISTANCE=100 VALIDATION_STRINGENCY=LENIENT'
-    return cmd % (toolset['picard'], input_file, output_file, metrics_file)
+    return cmd % (picard_command('MarkDuplicates', tmp_dir, 10), input_file, output_file, metrics_file)
 
 
 def picard_insert_size_command(input_file, metrics_file, histogram_file):
+    tmp_dir = os.path.dirname(input_file)
     cmd = '%s CollectInsertSizeMetrics INPUT=%s OUTPUT=%s HISTOGRAM_FILE=%s ASSUME_SORTED=true '\
           'VALIDATION_STRINGENCY=LENIENT'
-    return cmd % (toolset['picard'], input_file, metrics_file, histogram_file)
+    return cmd % (picard_command('CollectInsertSizeMetrics', tmp_dir, 8), input_file, metrics_file, histogram_file)
 
 
 def export_env_vars():

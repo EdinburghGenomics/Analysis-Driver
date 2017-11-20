@@ -10,7 +10,7 @@ Changelog for Analysis-Driver
 0.19 (2017-11-16)
 -----------------
 
-- In demultiplexing pipeline align all run element to thei respective default genome. calculate duplicate rate and coverage
+- In demultiplexing pipeline: align all run elements to their respective default genome. Calculate duplicate rate and coverage
 - Each sample processing is recorded as a step in the LIMS
 
 0.18.1 (2017-10-30)
