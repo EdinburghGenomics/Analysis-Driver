@@ -1,11 +1,10 @@
 Changelog for Analysis-Driver
 =============================
 
-0.20 (unreleased)
------------------
+0.19.1 (2017-11-22)
+-------------------
 
-- Nothing changed yet.
-
+- Fix temporary directories used by picard.
 
 0.19 (2017-11-16)
 -----------------
