@@ -15,7 +15,7 @@ class Crawler(AppLogger):
 
     @classmethod
     def get_sample_information_from_lims(cls, sample_name):
-        lims_sample = clarity.get_sample()
+        lims_sample = clarity.get_sample(sample_name)
         sample_info = {
             c.ELEMENT_SAMPLE_EXTERNAL_ID: clarity.get_user_sample_name(sample_name, lenient=True),
             c.ELEMENT_SAMPLE_PLATE: clarity.get_plate_id_and_well(sample_name)[0],  # returns [plate_id, well]
