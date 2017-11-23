@@ -25,7 +25,10 @@ class BCLValidator(Stage):
 
     def validate_expr(self, validation_log):
         return str_join(
-            'function check_bcl { gzip -t ', self.basecalls_dir, '/${1}; x=$?; echo "$1,$x" >> ', validation_log,
+            'function check_bcl { gzip -t ',
+            self.basecalls_dir,
+            '/${1}; x=$?; echo "$1,$x" >> ',
+            validation_log,
             '; }'
         )
 
@@ -50,12 +53,9 @@ class BCLValidator(Stage):
         all_cycles = self._all_cycles_from_interop()
         ncycles = sum(Reads.num_cycles(r) for r in self.dataset.run_info.reads.reads)
         if all_cycles and all_cycles[-1] > ncycles:
-            raise AnalysisDriverError(
-                'Number of cycles (%s) disagrees with RunInfo (%s)' % (all_cycles[-1], ncycles)
-            )
+            raise AnalysisDriverError('Number of cycles (%s) disagrees with RunInfo (%s)' % (all_cycles[-1], ncycles))
 
         tile_ids = self.dataset.run_info.tiles
-
         last_completed_cycle = 0
         for c in sorted(set(all_cycles), reverse=True):
             if all_cycles.count(c) >= len(tile_ids):
@@ -66,7 +66,6 @@ class BCLValidator(Stage):
             return []
 
         validated_bcls = self.read_valid_files()
-
         bcls_to_check = []
         for c in range(1, last_completed_cycle):
             cycle_id = 'C%s.1' % c
@@ -88,10 +87,11 @@ class BCLValidator(Stage):
         :param int slice_size: Group size for collapsing array jobs
         :param int max_job_number: Maximum number of bcls that will be processed for this method call
         """
-        max_nb_bcl = max_job_number * slice_size
         validation_log_tmp = os.path.join(self.job_dir, 'tmp_checked_bcls.csv')
         if os.path.isfile(validation_log_tmp):
             os.remove(validation_log_tmp)
+
+        max_nb_bcl = max_job_number * slice_size
         for i in range(0, len(bcls), max_nb_bcl):
             tmp_bcls = bcls[i:i + max_nb_bcl]
             sliced_job_array = [
@@ -120,9 +120,7 @@ class BCLValidator(Stage):
         self.info('Finished validation. Found %s invalid files' % len(self.read_invalid_files()))
 
     def read_check_bcl_files(self, validation_log=None):
-        if not validation_log:
-            validation_log = self.validation_log
-        with open(validation_log, 'r', newline='') as f:
+        with open(validation_log or self.validation_log, 'r', newline='') as f:
             return [i for i in csv.reader(f, delimiter=',')]
 
     def read_invalid_files(self):

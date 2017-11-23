@@ -1,6 +1,6 @@
-from unittest.mock import Mock, patch, call
-from analysis_driver.pipelines.demultiplexing import FastqFilter, RunReview
+from unittest.mock import Mock, patch
 from tests.test_analysisdriver import TestAnalysisDriver, NamedMock
+from analysis_driver.pipelines.demultiplexing import FastqFilter, RunReview
 
 
 class TestFastqFilter(TestAnalysisDriver):
@@ -55,13 +55,11 @@ class TestFastqFilter(TestAnalysisDriver):
             assert expected_call_l4 == pexecute.call_args[0][3]
 
 
-
-class TestRunReview():
+class TestRunReview(TestAnalysisDriver):
     @patch('analysis_driver.pipelines.demultiplexing.rest_communication.post_entry')
-    def test_run_review(self, mock):
-        self.run_id = 'test_dataset'
-        self.dataset = NamedMock(real_name=self.run_id)
-        r = RunReview(dataset=self.dataset)
-        review = r._run()
-        assert mock.mock_calls == [call('actions', {'action_type': 'automatic_run_review', 'run_id': 'test_dataset'}, use_data=True)]
-        assert review == 0
+    def test_run_review(self, mocked_post):
+        r = RunReview(dataset=NamedMock(real_name='test_dataset'))
+        assert r._run() == 0
+        mocked_post.assert_called_with(
+            'actions', {'action_type': 'automatic_run_review', 'run_id': 'test_dataset'}, use_data=True
+        )

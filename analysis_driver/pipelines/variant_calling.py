@@ -10,7 +10,6 @@ toolset_type = 'non_human_sample_processing'
 name = 'variant_calling'
 
 
-
 class GATKStage(segmentation.Stage):
     @property
     def gatk_run_dir(self):

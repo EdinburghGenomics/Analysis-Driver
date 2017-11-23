@@ -85,16 +85,15 @@ class FastqFilter(DemultiplexingStage):
 
         if exists(conversion_xml) and exists(adapter_trim_file):
             self.info('Found ConversionStats and AdaptorTrimming. Sending data.')
-            crawler = RunCrawler(
-                self.dataset, adapter_trim_file=adapter_trim_file,
-                conversion_xml_file=conversion_xml
-            )
+            crawler = RunCrawler(self.dataset, adapter_trim_file=adapter_trim_file, conversion_xml_file=conversion_xml)
             crawler.send_data()
+        else:
+            self.warning('ConversionStats and/or AdaptorTrimming not found')
 
         # Assess if the lanes need filtering
-        filter_lanes = {1: False, 2: False, 3: False, 4: False, 5: False, 6: False, 7: False, 8: False}
         q30_threshold = float(cfg.query('fastq_filterer', 'q30_threshold', ret_default=74))
         self.debug('Q30 threshold: %s', q30_threshold)
+        filter_lanes = {1: False, 2: False, 3: False, 4: False, 5: False, 6: False, 7: False, 8: False}
         for lane_metrics in self.dataset.lane_metrics:
             if q30_threshold > float(lane_metrics['pc_q30']) > 0:
                 self.warning(
@@ -114,7 +113,7 @@ class FastqFilter(DemultiplexingStage):
             bad_tiles = {}
             bad_cycles = {}
 
-        cmd_list = []
+        cmds = []
         for lane in filter_lanes:
             fq_pairs = find_all_fastq_pairs_for_lane(self.fastq_dir, lane)
             kwargs = {}
@@ -123,10 +122,10 @@ class FastqFilter(DemultiplexingStage):
                 kwargs = {'tiles_to_filter': bad_tiles.get(lane), 'trim_r2': trim_r2}
 
             for fqs in fq_pairs:
-                cmd_list.append(bash_commands.fastq_filterer(fqs, **kwargs))
+                cmds.append(bash_commands.fastq_filterer(fqs, **kwargs))
 
         return executor.execute(
-            *cmd_list,
+            *cmds,
             prelim_cmds=[bash_commands.fq_filt_prelim_cmd()],
             job_name='fastq_filterer',
             working_dir=self.job_dir,
@@ -190,13 +189,15 @@ class QCOutput(DemultiplexingStage):
         if exists(conversion_xml) and exists(adapter_trim_file):
             self.info('Found ConversionStats and AdaptorTrimming. Sending data.')
             crawler = RunCrawler(
-                self.dataset, adapter_trim_file=adapter_trim_file,
-                conversion_xml_file=conversion_xml, run_dir=self.fastq_dir
+                self.dataset,
+                adapter_trim_file=adapter_trim_file,
+                conversion_xml_file=conversion_xml,
+                run_dir=self.fastq_dir
             )
             crawler.send_data()
             return 0
         else:
-            self.error('ConversionStats or AdaptorTrimming not found.')
+            self.error('ConversionStats and/or AdaptorTrimming not found.')
             return 1
 
 
@@ -208,7 +209,11 @@ class DataOutput(DemultiplexingStage):
 
 class RunReview(DemultiplexingStage):
     def _run(self):
-        rest_communication.post_entry('actions', {'action_type': 'automatic_run_review', 'run_id': self.dataset.name}, use_data=True)
+        rest_communication.post_entry(
+            'actions',
+            {'action_type': 'automatic_run_review', 'run_id': self.dataset.name},
+            use_data=True
+        )
         return 0
 
 

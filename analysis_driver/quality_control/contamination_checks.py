@@ -103,21 +103,20 @@ class VCFStats(Stage):
 
         name, ext = os.path.splitext(vcf)
         stats_file = name + '.stats'
-        cmd = '%s vcfstats %s > %s' % (toolset['rtg'], vcf, stats_file)
-        exit_status = executor.execute(
-            cmd,
+        return executor.execute(
+            '%s vcfstats %s > %s' % (toolset['rtg'], vcf, stats_file),
             job_name='rtg_vcfstats',
             working_dir=self.job_dir,
             cpus=4,
             mem=32
         ).join()
-        return exit_status
 
 
 class Blast(Stage):
     fastq_file = Parameter()
     nb_reads = IntParameter(default=3000)
     _ncbi = None
+    translator = {}
 
     @property
     def fasta_outfile(self):
@@ -170,35 +169,47 @@ class Blast(Stage):
 
     def get_ranks(self, taxon):
         """Retrieve the rank of each of the taxa from that taxid's lineage"""
-        if taxon != 'N/A':
-            try:
-                l = self.ncbi.get_lineage(int(taxon))
-                rank = self.ncbi.get_rank(l)
-            except ValueError:
-                rank = {0: 'rank unavailable'}
-                self.warning('The taxid %s does not exist in the ETE TAXDB' % taxon)
-            return rank
+        if taxon == 'N/A':
+            return None
 
-    def get_all_taxa_identified(self, taxon_dict, taxon, taxids):
+        try:
+            l = self.ncbi.get_lineage(int(taxon))
+            return self.ncbi.get_rank(l)
+        except ValueError:
+            self.warning('Taxid %s does not exist in the ETE TAXDB', taxon)
+            return {0: 'rank unavailable'}
+
+    def update_taxon_dict(self, taxon_dict, taxon, taxids):
         num_reads = taxids[taxon]
         ranks = self.get_ranks(taxon)
-        required_ranks = ['superkingdom', 'kingdom', 'phylum', 'class',  'order', 'family', 'genus', 'species']
+        current_rank = taxon_dict  # pointer to the original dict passed
 
-        taxon_dict_for_current_rank = taxon_dict
-        for required_rank in required_ranks:
+        for required_rank in ('superkingdom', 'kingdom', 'phylum', 'class', 'order', 'family', 'genus', 'species'):
             taxid_for_rank = [i for i in ranks if ranks[i] == required_rank]
-            # list of one taxid for that rank because get_taxid_translator requires a list
             if taxid_for_rank:
-                taxon_for_rank = list(self.ncbi.get_taxid_translator(taxid_for_rank).values()).pop()
+                taxon_for_rank = self._translate_taxid(taxid_for_rank[0])
             else:
                 taxon_for_rank = 'Unavailable'
-            if taxon_for_rank and taxon_for_rank not in taxon_dict_for_current_rank:
-                taxon_dict_for_current_rank[taxon_for_rank] = {'reads': num_reads}
-            elif taxon_for_rank:
-                taxon_dict_for_current_rank[taxon_for_rank]['reads'] += num_reads
-            taxon_dict_for_current_rank = taxon_dict_for_current_rank[taxon_for_rank]
 
+            if taxon_for_rank not in current_rank:
+                current_rank[taxon_for_rank] = {'reads': num_reads}
+            else:
+                current_rank[taxon_for_rank]['reads'] += num_reads
+
+            # move the pointer down into the new rank we've just created/updated
+            current_rank = current_rank[taxon_for_rank]
+
+    def count_reads_for_taxa(self, taxids):
+        taxon_dict = {'Total': self.nb_reads}
+        for taxon in taxids:
+            self.update_taxon_dict(taxon_dict, taxon, taxids)
         return taxon_dict
+
+    def _translate_taxid(self, taxid):
+        taxid = int(taxid)
+        if taxid not in self.translator:
+            self.translator[taxid] = self.ncbi.get_taxid_translator([taxid])[taxid]
+        return self.translator[taxid]
 
     def run_sample_fastq(self):
         return executor.execute(
@@ -219,15 +230,12 @@ class Blast(Stage):
         ).join()
 
     def _run(self):
-        exit_status = self.run_sample_fastq()
-        exit_status += self.run_blast()
-        taxids = self.get_taxids(self.blast_outfile)
-        taxon_dict = {'Total': self.nb_reads}
-        for taxon in taxids:
-            taxon_dict = self.get_all_taxa_identified(taxon_dict, taxon, taxids)
+        exit_status = self.run_sample_fastq() + self.run_blast()
 
+        taxids = self.get_taxids(self.blast_outfile)
+        taxa = self.count_reads_for_taxa(taxids)
         outpath = os.path.join(self.job_dir, 'taxa_identified.json')
         with open(outpath, 'w') as outfile:
-            json.dump(taxon_dict, outfile, sort_keys=True, indent=4, separators=(',', ':'))
+            json.dump(taxa, outfile, sort_keys=True, indent=4, separators=(',', ':'))
 
         return exit_status

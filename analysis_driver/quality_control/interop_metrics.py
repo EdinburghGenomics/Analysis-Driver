@@ -104,6 +104,6 @@ class BadTileCycleDetector(AppLogger):
             for cycle in cycle_dict:
                 avg = self.average_from_list_hist(cycle_dict[cycle])
                 if avg < self.cycle_quality_threshold:
-                    self.info('lane %s cycle %s: average quality %s < %s', lane, cycle, avg, self.cycle_quality_threshold)
+                    self.info('Lane %s cycle %s: average quality %s < %s', lane, cycle, avg, self.cycle_quality_threshold)
                     bad_cycle_per_lanes[lane].append(cycle)
         return bad_cycle_per_lanes

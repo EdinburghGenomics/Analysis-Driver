@@ -5,7 +5,7 @@ from analysis_driver.tool_versioning import toolset
 from analysis_driver.exceptions import AnalysisDriverError
 
 
-app_logger = log_cfg.get_logger('bash_commands')
+app_logger = log_cfg.get_logger(__name__)
 
 
 def bcl2fastq(input_dir, fastq_path, sample_sheet=None, mask=None):

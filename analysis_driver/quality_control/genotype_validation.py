@@ -55,9 +55,7 @@ class GenotypeValidation(Stage):
 
         command_samblaster = '%s --removeDups' % toolset['samblaster']
         command_samtools = '%s view -F 4 -Sb -' % toolset['samtools']
-        command_sambamba = '%s sort -t 16 -o %s /dev/stdin' % (
-            toolset['sambamba'], self.output_bam
-        )
+        command_sambamba = '%s sort -t 16 -o %s /dev/stdin' % (toolset['sambamba'], self.output_bam)
 
         return ' | '.join([command_bwa, command_samblaster, command_samtools, command_sambamba])
 

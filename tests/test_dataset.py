@@ -4,7 +4,6 @@ import pytest
 from sys import modules
 from unittest.mock import patch, Mock, PropertyMock
 from egcg_core import constants as c
-
 from integration_tests.mocked_data import MockedSamples, MockedRunProcess
 from tests.test_analysisdriver import TestAnalysisDriver, NamedMock
 from analysis_driver.exceptions import AnalysisDriverError, SequencingRunError
