@@ -1,10 +1,10 @@
 Changelog for Analysis-Driver
 =============================
 
-0.20 (unreleased)
------------------
+0.19.2 (2017-11-27)
+-------------------
 
-- Nothing changed yet.
+- Update the field name for required yield/yieldq30/coverage.
 
 
 0.19.1 (2017-11-22)
