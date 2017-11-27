@@ -101,7 +101,13 @@ def patch_pipeline(species='Homo sapiens', analysis_type='Variant Calling gatk')
         patches.append(_p)
 
     def _fake_get_sample(sample_name):
-        return Mock(name=sample_name, udf={'Coverage': 1337, 'Analysis Type': analysis_type})
+        return Mock(name=sample_name, udf={
+            'Coverage': 1337,
+            'Analysis Type': analysis_type,
+            'Yield for Quoted Coverage (Gb)': 15,
+            'Required Yield (Gb)': 30,
+            'Coverage (X)': 15,
+        })
 
     _patch('client.load_config')
     _patch('dataset.clarity.get_species_from_sample', new=species)
