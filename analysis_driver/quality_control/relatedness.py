@@ -89,6 +89,7 @@ class ParseRelatedness(RelatednessStage):
         user_ids_to_interal = self.user_sample_ids()
         for relatedness_2_samples in values:
             if relatedness_2_samples['sample1'] != relatedness_2_samples['sample2']:
+                gel_line = None # --> no line
                 internal_id1 = user_ids_to_interal[relatedness_2_samples['sample1']]
                 internal_id2 = user_ids_to_interal[relatedness_2_samples['sample2']]
                 relationship1 = self.relationship(internal_id1)
@@ -115,9 +116,6 @@ class ParseRelatedness(RelatednessStage):
                             relationship1,
                             relatedness_2_samples['relatedness'][1]
                         ]
-                    else:
-                        # No proband --> no line
-                        gel_line = []
 
                 egc_line = [
                     internal_id1,  # internal sample name
@@ -193,7 +191,7 @@ class GenotypeGVCFs(RelatednessStage):
     def gatk_genotype_gvcfs_cmd(self):
         gvcf_variants = ' '. join(['--variant ' + util.find_file(i) for i in self.gVCFs])
         number_threads = 12
-        return java_command(memory=50, tmp_dir=self.job_dir, jar=toolset['gatk']) + \
+        return java_command(memory=90, tmp_dir=self.job_dir, jar=toolset['gatk']) + \
             '-T GenotypeGVCFs -nt %s -R %s %s -o %s' % (
                 number_threads, self.reference, gvcf_variants, self.gatk_outfile
             )
@@ -204,7 +202,7 @@ class GenotypeGVCFs(RelatednessStage):
             job_name='gatk_genotype_gvcfs',
             working_dir=self.job_dir,
             cpus=12,
-            mem=50
+            mem=96
         ).join()
 
 
