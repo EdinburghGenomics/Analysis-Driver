@@ -68,7 +68,7 @@ class IntegrationTest(TestCase):
         container_url = 'http://' + container_ip + ':' + container_port + '/api/0.1'
         rest_communication.default._baseurl = container_url
 
-        sleep(15)  # allow time for the container's database and API to start running
+        sleep(30)  # allow time for the container's database and API to start running
 
         run_elements = []
         for lane in range(1, 9):

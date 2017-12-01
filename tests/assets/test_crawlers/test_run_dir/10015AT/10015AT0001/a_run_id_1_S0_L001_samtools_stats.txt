@@ -1,0 +1,44 @@
+# This file was produced by samtools stats (1.3.1+htslib-1.3.1) and can be plotted using plot-bamstats
+# This file contains statistics for all reads.
+# The command line was:  stats path/to/test.bam
+# CHK, Checksum	[2]Read Names	[3]Sequences	[4]Qualities
+# CHK, CRC32 of reads which passed filtering followed by addition (32bit overflow)
+CHK	cded200f	6980fe89	02aca978
+# Summary Numbers. Use `grep ^SN | cut -f 2-` to extract this part.
+SN	raw total sequences:	1074198
+SN	filtered sequences:	0
+SN	sequences:	1074198
+SN	is sorted:	1
+SN	1st fragments:	537099
+SN	last fragments:	537099
+SN	reads mapped:	1025176
+SN	reads mapped and paired:	1025176	# paired-end technology bit set + both mates mapped
+SN	reads unmapped:	49022
+SN	reads properly paired:	958624	# proper-pair bit set
+SN	reads paired:	1074198	# paired-end technology bit set
+SN	reads duplicated:	156823	# PCR or optical duplicate bit set
+SN	reads MQ0:	56823	# mapped and MQ=0
+SN	reads QC failed:	0
+SN	non-primary alignments:	57079
+SN	total length:	1183556181	# ignores clipping
+SN	bases mapped:	1178154613	# ignores clipping
+SN	bases mapped (cigar):	1183634810	# more accurate
+SN	bases trimmed:	0
+SN	bases duplicated:	100839692
+SN	mismatches:	15392048	# from NM fields
+SN	error rate:	1.300405e-02	# mismatches / bases mapped (cigar)
+SN	average length:	149
+SN	maximum length:	150
+SN	average quality:	35.5
+SN	insert size average:	466.2
+SN	insert size standard deviation:	117.9
+SN	inward oriented pairs:	3895809
+SN	outward oriented pairs:	67981
+SN	pairs with other orientation:	13663
+SN	pairs on different chromosomes:	39840
+# First Fragment Qualitites. Use `grep ^FFQ | cut -f 2-` to extract this part.
+# Columns correspond to qualities and rows to cycles. First column is the cycle number.
+FFQ	1	0	0	16689	0	0	0	0	0	0	0	0	72734	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	191941	0	0	0	0	3682944	0	0	0	0	1	0	0	0	0	0	0
+FFQ	2	0	0	0	0	0	0	0	0	0	0	0	52359	0	0	0	0	0	0	0	0	0	0	0	0	0	0	0	174597	0	0	0	0	3726003	0	0	0	0	11350	0	0	0	0	0	0
+...
+...

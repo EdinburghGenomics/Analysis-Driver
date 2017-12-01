@@ -32,21 +32,21 @@ class TestBCBio(TestAnalysisDriver):
                 (
                     'path/to/bcbio/bin/bcbio_nextgen.py -w template',
                     etc_config('bcbio_alignment_hg38_gatk.yaml'),
-                    'path/to/jobs/test/samples_test-merged path/to/jobs/test/samples_test-merged.csv'
+                    'tests/assets/jobs/test/samples_test-merged tests/assets/jobs/test/samples_test-merged.csv'
                 )
             )
             assert obs == exp
 
             assert pexecute.call_args_list[1][0][0] == (
                 'path/to/bcbio/bin/bcbio_nextgen.py '
-                'path/to/jobs/test/samples_test-merged/config/samples_test-merged.yaml '
-                '-n 16 --workdir path/to/jobs/test/samples_test-merged/work'
+                'tests/assets/jobs/test/samples_test-merged/config/samples_test-merged.yaml '
+                '-n 16 --workdir tests/assets/jobs/test/samples_test-merged/work'
             )
 
             # assert reading
-            popen.assert_any_call('path/to/jobs/test/samples_test-merged/config/samples_test-merged.yaml', 'r')
+            popen.assert_any_call('tests/assets/jobs/test/samples_test-merged/config/samples_test-merged.yaml', 'r')
             # assert writing
-            popen.assert_called_with('path/to/jobs/test/samples_test-merged/config/samples_test-merged.yaml', 'w')
+            popen.assert_called_with('tests/assets/jobs/test/samples_test-merged/config/samples_test-merged.yaml', 'w')
             popen().write.assert_called_with('fc_name: usertest\n')
 
 
@@ -62,7 +62,7 @@ class TestFixUnmapped(TestAnalysisDriver):
         f._run()
         cmd = (
             'path/to/fix_dup_unmapped '
-            '-i path/to/jobs/test/samples_test-merged/final/usertest/usertest-ready.bam '
-            '-o path/to/jobs/test/samples_test-merged/final/usertest/usertest-ready_fixed.bam'
+            '-i tests/assets/jobs/test/samples_test-merged/final/usertest/usertest-ready.bam '
+            '-o tests/assets/jobs/test/samples_test-merged/final/usertest/usertest-ready_fixed.bam'
         )
         assert mocked_execute.call_args[0][0] == ''.join(cmd)

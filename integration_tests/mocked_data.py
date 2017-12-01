@@ -101,7 +101,16 @@ def patch_pipeline(species='Homo sapiens', analysis_type='Variant Calling gatk')
         patches.append(_p)
 
     def _fake_get_sample(sample_name):
-        return Mock(name=sample_name, udf={'Coverage': 1337, 'Analysis Type': analysis_type})
+        return Mock(
+            name=sample_name,
+            udf={
+                'Coverage': 1337,
+                'Analysis Type': analysis_type,
+                'Yield for Quoted Coverage (Gb)': 15,
+                'Required Yield (Gb)': 30,
+                'Coverage (X)': 15,
+            }
+        )
 
     _patch('client.load_config')
     _patch('dataset.clarity.get_species_from_sample', new=species)
@@ -109,6 +118,7 @@ def patch_pipeline(species='Homo sapiens', analysis_type='Variant Calling gatk')
     _patch('dataset.clarity.get_run', return_value=mocked_clarity_run)
     _patch('dataset.clarity.get_expected_yield_for_sample', return_value=0.9)
     _patch('dataset.clarity.get_sample', new=_fake_get_sample)
+    _patch('dataset.LimsNotification')
     _patch('dataset_scanner.get_list_of_samples', new=_fake_get_list_of_samples)
     _patch('pipelines.common.clarity.find_project_name_from_sample', return_value='10015AT')
     _patch('pipelines.common.clarity.get_sample', return_value=Mock(udf={}))

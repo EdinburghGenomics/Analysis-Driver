@@ -2,7 +2,6 @@ import os.path
 import json
 from unittest.mock import patch
 from egcg_core import constants as c
-
 from tests.test_analysisdriver import TestAnalysisDriver, NamedMock
 from analysis_driver import report_generation
 from analysis_driver.config import OutputFileConfiguration
@@ -19,8 +18,8 @@ class TestCrawler(TestAnalysisDriver):
     def compare_jsons(cls, observed, expected):
         cls._sort_lists(observed)
         cls._sort_lists(expected)
-        o = json.dumps(observed, sort_keys=True)
-        e = json.dumps(expected, sort_keys=True)
+        o = json.dumps(observed, indent=4, sort_keys=True)
+        e = json.dumps(expected, indent=4, sort_keys=True)
         if o != e:
             print('observed:')
             print(o)

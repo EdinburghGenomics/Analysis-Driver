@@ -165,10 +165,43 @@ def samtools_stats(bam_file, output_file):
     return cmd
 
 
+def samtools_depth_command(job_dir, bam_file, out_file):
+    cmd = '%s depth -a -a -q 0 -Q 0 %s | '\
+          'awk -F "\t" \'{array[$1"\t"$3]+=1} END{for (val in array){print val"\t"array[val]}}\' | '\
+          'sort -T %s -k 1,1 -nk 2,2 > %s' % (toolset['samtools'], bam_file, job_dir, out_file)
+    app_logger.debug('Writing: ' + cmd)
+    return cmd
+
+
 def md5sum(input_file):
     cmd = toolset['md5sum'] + ' %s > %s.md5' % (input_file, input_file)
     app_logger.debug('Writing: ' + cmd)
     return cmd
+
+
+def picard_command(program, tmp_dir, memory):
+    return '{picard} -Djava.io.tmpdir={tmp_dir} -XX:+UseSerialGC -Xmx{memory}G {program}'.format(
+        picard=toolset['picard'],
+        tmp_dir=tmp_dir,
+        memory=memory,
+        program=program
+    )
+
+
+def picard_mark_dup_command(input_file, output_file, metrics_file, memory=10, tmp_dir=None):
+    if not tmp_dir:
+        tmp_dir = os.path.dirname(input_file)
+    cmd = '%s INPUT=%s OUTPUT=%s METRICS_FILE=%s ASSUME_SORTED=true '\
+          'OPTICAL_DUPLICATE_PIXEL_DISTANCE=100 VALIDATION_STRINGENCY=LENIENT'
+    return cmd % (picard_command('MarkDuplicates', tmp_dir, memory), input_file, output_file, metrics_file)
+
+
+def picard_insert_size_command(input_file, metrics_file, histogram_file, memory=8, tmp_dir=None):
+    if not tmp_dir:
+        tmp_dir = os.path.dirname(input_file)
+    cmd = '%s INPUT=%s OUTPUT=%s HISTOGRAM_FILE=%s ASSUME_SORTED=true '\
+          'VALIDATION_STRINGENCY=LENIENT'
+    return cmd % (picard_command('CollectInsertSizeMetrics', tmp_dir, memory), input_file, metrics_file, histogram_file)
 
 
 def export_env_vars():

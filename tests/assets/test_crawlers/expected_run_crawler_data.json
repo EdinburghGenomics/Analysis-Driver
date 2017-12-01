@@ -214,7 +214,40 @@
             "lane_pc_optical_dups": 6.716,
             "tiles_filtered": "1102,2202",
             "trim_r1": "14",
-            "trim_r2": "16"
+            "trim_r2": "16",
+            "mapping_metrics": {
+                "bam_file_reads": 1074198,
+                "duplicate_reads": 156823,
+                "mapped_reads": 1025176,
+                "properly_mapped_reads": 958624,
+                "picard_dup_reads": 230832,
+                "picard_est_lib_size": 15140319228,
+                "picard_opt_dup_reads": 229948,
+                "median_abs_dev_insert_size": 69,
+                "median_insert_size": 439,
+                "mean_insert_size": 446.299806,
+                "std_dev_insert_size": 113.966554
+
+            },
+            "coverage": {
+                "bases_at_coverage": {
+                    "bases_at_15X": 100,
+                    "bases_at_30X": 99,
+                    "bases_at_5X": 100
+                },
+                "coverage_percentiles": {
+                    "percentile_25": 279,
+                    "percentile_5": 102,
+                    "percentile_50": 478,
+                    "percentile_75": 625,
+                    "percentile_95": 648
+                },
+                "evenness": 0.8139335573648481,
+                "genome_size": 101,
+                "mean": 438.8514851485148,
+                "median": 478,
+                "std_dev": 189.1911391390011
+            }
         }
     },
     "projects": {
