@@ -2,7 +2,6 @@ import os
 import csv
 import time
 import shutil
-from luigi import Parameter
 from egcg_core import executor, clarity, util, rest_communication
 from egcg_core.constants import ELEMENT_PROJECT_ID, ELEMENT_LANE, ELEMENT_NB_READS_CLEANED, ELEMENT_RUN_NAME
 from analysis_driver import segmentation, quality_control as qc
@@ -82,7 +81,7 @@ def build_bam_file_production(dataset):
 
 
 class SampleDataOutput(segmentation.Stage):
-    output_fileset = Parameter()
+    output_fileset = segmentation.Parameter()
 
     @property
     def output_cfg(self):

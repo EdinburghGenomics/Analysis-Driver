@@ -1,11 +1,11 @@
 import os
-from luigi import Parameter, BoolParameter, ListParameter
+from luigi import BoolParameter
 from egcg_core import executor, clarity, util
 from analysis_driver.exceptions import PipelineError
 from analysis_driver.util import bash_commands
 from analysis_driver.config import default as cfg
 from analysis_driver.reader.mapping_stats_parsers import parse_genotype_concordance
-from analysis_driver.segmentation import Stage
+from analysis_driver.segmentation import Parameter, ListParameter, Stage
 from analysis_driver.tool_versioning import toolset
 
 

@@ -8,7 +8,6 @@ from integration_tests.mocked_data import MockedSamples, MockedRunProcess
 from tests.test_analysisdriver import TestAnalysisDriver, NamedMock
 from analysis_driver.exceptions import AnalysisDriverError, SequencingRunError
 from analysis_driver.dataset import Dataset, RunDataset, SampleDataset, MostRecentProc
-from analysis_driver.notification import LimsNotification
 from analysis_driver.tool_versioning import Toolset
 
 ppath = 'analysis_driver.dataset.'

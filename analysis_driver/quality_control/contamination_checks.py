@@ -4,11 +4,11 @@ import json
 import os.path
 from collections import Counter
 from ete3 import NCBITaxa
-from luigi import Parameter, IntParameter
+from luigi import IntParameter
 from egcg_core import executor, util
 from analysis_driver.exceptions import AnalysisDriverError
 from analysis_driver.config import default as cfg
-from analysis_driver.segmentation import Stage
+from analysis_driver.segmentation import Parameter, Stage
 from analysis_driver.tool_versioning import toolset
 
 

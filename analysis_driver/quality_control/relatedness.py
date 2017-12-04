@@ -2,14 +2,13 @@ import os
 import csv
 from collections import Counter
 from egcg_core import executor, util, clarity
-from luigi import Parameter, ListParameter
 from analysis_driver.tool_versioning import toolset
-from analysis_driver import segmentation
 from analysis_driver.util.bash_commands import java_command
+from analysis_driver.segmentation import Stage, Parameter, ListParameter
 from analysis_driver.exceptions import PipelineError
 
 
-class RelatednessStage(segmentation.Stage):
+class RelatednessStage(Stage):
     _gender_aliases = {'female': ['f', 'female', 'girl', 'woman'], 'male': ['m', 'male', 'boy', 'man']}
 
     @property

@@ -208,7 +208,6 @@ class DataOutput(DemultiplexingStage):
 
 
 class PostDemultiplexingStage(DemultiplexingStage):
-
     _fastq_files = {}
 
     @property

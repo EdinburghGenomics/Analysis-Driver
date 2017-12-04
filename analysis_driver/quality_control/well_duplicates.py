@@ -1,8 +1,7 @@
 import os
-from luigi import Parameter
 from egcg_core import executor
 from analysis_driver.config import default as cfg
-from analysis_driver.segmentation import Stage
+from analysis_driver.segmentation import Parameter, Stage
 from analysis_driver.tool_versioning import toolset
 
 

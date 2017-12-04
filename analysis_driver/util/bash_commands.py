@@ -179,29 +179,31 @@ def md5sum(input_file):
     return cmd
 
 
-def picard_command(program, tmp_dir, memory):
-    return '{picard} -Djava.io.tmpdir={tmp_dir} -XX:+UseSerialGC -Xmx{memory}G {program}'.format(
-        picard=toolset['picard'],
-        tmp_dir=tmp_dir,
-        memory=memory,
-        program=program
+def picard_command(program, input_file, output_file, tmp_dir, memory, picard_params=None):
+    cmd = (
+        '{picard} -Djava.io.tmpdir={tmp_dir} -XX:+UseSerialGC -Xmx{memory}G {program} '
+        'INPUT={input} OUTPUT={output} ASSUME_SORTED=true VALIDATION_STRINGENCY=LENIENT'
     )
+    if picard_params:
+        for k in sorted(picard_params):
+            cmd += ' %s=%s' % (k, picard_params[k])
+
+    return cmd.format(picard=toolset['picard'], input=input_file, output=output_file,
+                      tmp_dir=tmp_dir or os.path.dirname(input_file), memory=memory, program=program)
 
 
 def picard_mark_dup_command(input_file, output_file, metrics_file, memory=10, tmp_dir=None):
-    if not tmp_dir:
-        tmp_dir = os.path.dirname(input_file)
-    cmd = '%s INPUT=%s OUTPUT=%s METRICS_FILE=%s ASSUME_SORTED=true '\
-          'OPTICAL_DUPLICATE_PIXEL_DISTANCE=100 VALIDATION_STRINGENCY=LENIENT'
-    return cmd % (picard_command('MarkDuplicates', tmp_dir, memory), input_file, output_file, metrics_file)
+    return picard_command(
+        'MarkDuplicates', input_file, output_file, tmp_dir, memory,
+        {'METRICS_FILE': metrics_file, 'OPTICAL_DUPLICATE_PIXEL_DISTANCE': '100'}
+    )
 
 
 def picard_insert_size_command(input_file, metrics_file, histogram_file, memory=8, tmp_dir=None):
-    if not tmp_dir:
-        tmp_dir = os.path.dirname(input_file)
-    cmd = '%s INPUT=%s OUTPUT=%s HISTOGRAM_FILE=%s ASSUME_SORTED=true '\
-          'VALIDATION_STRINGENCY=LENIENT'
-    return cmd % (picard_command('CollectInsertSizeMetrics', tmp_dir, memory), input_file, metrics_file, histogram_file)
+    return picard_command(
+        'CollectInsertSizeMetrics', input_file, metrics_file, tmp_dir, memory,
+        {'HISTOGRAM_FILE': histogram_file}
+    )
 
 
 def export_env_vars():

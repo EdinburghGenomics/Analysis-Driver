@@ -1,7 +1,6 @@
 import os
-from luigi import Parameter
 from egcg_core import executor, util
-from analysis_driver.segmentation import Stage
+from analysis_driver.segmentation import Parameter, Stage
 
 
 class GenderValidation(Stage):

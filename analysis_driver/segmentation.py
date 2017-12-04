@@ -6,7 +6,7 @@ from analysis_driver.exceptions import PipelineError
 from analysis_driver.config import default as cfg
 
 
-class EGCGParameter(luigi.Parameter):
+class Parameter(luigi.Parameter):
     """Parameter that does not call `warnings.warn` in self.serialize."""
     def serialize(self, x):
         if type(x) in (list, tuple, dict, set):
@@ -17,12 +17,12 @@ class EGCGParameter(luigi.Parameter):
     #     return getattr(self, item, None)
 
 
-class EGCGListParameter(luigi.ListParameter):
+class ListParameter(luigi.ListParameter):
     def serialize(self, x):
-        return json.dumps(x, cls=EGCGEncoder)
+        return json.dumps(x, cls=Encoder)
 
 
-class EGCGEncoder(json.JSONEncoder):
+class Encoder(json.JSONEncoder):
     def default(self, o):
         return str(o)
 
@@ -32,8 +32,8 @@ class BasicStage(luigi.Task, AppLogger):
     exit_status = None
     retry_count = 1  # turn off automatic retrying upon task failure
  
-    previous_stages = EGCGListParameter(default=[])
-    dataset = EGCGParameter()
+    previous_stages = ListParameter(default=[])
+    dataset = Parameter()
 
     def output(self):
         return [luigi.LocalTarget(join(self.job_dir, '.' + self.stage_name + '.stage'))]
