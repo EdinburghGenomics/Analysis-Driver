@@ -1,13 +1,12 @@
 import shutil
 from os import mkdir
 from os.path import join, exists, isdir, basename, dirname
-
 import os
 from egcg_core.config import cfg
 from egcg_core import executor, util, clarity
 from egcg_core.constants import ELEMENT_PROJECT_ID, ELEMENT_LANE, ELEMENT_SAMPLE_INTERNAL_ID
 from egcg_core.util import find_file
-
+from egcg_core import executor, util, rest_communication
 from analysis_driver import segmentation
 from analysis_driver.util import bash_commands, find_all_fastq_pairs_for_lane, get_trim_values_for_bad_cycles
 from analysis_driver.pipelines.common import Cleanup
@@ -211,6 +210,12 @@ class DataOutput(DemultiplexingStage):
         return output_data_and_archive(self.fastq_dir, join(cfg['output_dir'], self.dataset.name))
 
 
+class RunReview(DemultiplexingStage):
+    def _run(self):
+        rest_communication.post_entry('actions', {'action_type': 'automatic_run_review', 'run_id': self.dataset.name}, use_data=True)
+        return 0
+
+
 class PostDemultiplexingStage(DemultiplexingStage):
 
     _fastq_files = {}
@@ -389,5 +394,5 @@ def build_pipeline(dataset):
     qc_output2 = stage(QCOutput2, previous_stages=[stats_output, depth_output, md_output, is_output])
     data_output = stage(DataOutput, previous_stages=[qc_output2])
     _cleanup = stage(Cleanup, previous_stages=[data_output])
-
-    return _cleanup
+    review = stage(RunReview, previous_stages=[_cleanup])
+    return review

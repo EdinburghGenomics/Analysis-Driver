@@ -2,9 +2,9 @@ import os
 import shutil
 from os.path import join, dirname
 from unittest.mock import Mock, patch
-
 from egcg_core.constants import ELEMENT_PROJECT_ID, ELEMENT_LANE, ELEMENT_SAMPLE_INTERNAL_ID
-
+from unittest.mock import Mock, patch, call
+from analysis_driver.pipelines.demultiplexing import FastqFilter, RunReview
 from tests.test_analysisdriver import TestAnalysisDriver, NamedMock
 from analysis_driver.util import bash_commands
 from analysis_driver.pipelines.demultiplexing import FastqFilter, BwaAlignMulti, SamtoolsStatsMulti, SamtoolsDepthMulti, \
@@ -62,6 +62,18 @@ class TestFastqFilter(TestAnalysisDriver):
             assert expected_call_l2 == pexecute.call_args[0][1]
             assert expected_call_l3 == pexecute.call_args[0][2]
             assert expected_call_l4 == pexecute.call_args[0][3]
+
+
+
+class TestRunReview():
+    @patch('analysis_driver.pipelines.demultiplexing.rest_communication.post_entry')
+    def test_run_review(self, mock):
+        self.run_id = 'test_dataset'
+        self.dataset = NamedMock(real_name=self.run_id)
+        r = RunReview(dataset=self.dataset)
+        review = r._run()
+        assert mock.mock_calls == [call('actions', {'action_type': 'automatic_run_review', 'run_id': 'test_dataset'}, use_data=True)]
+        assert review == 0
 
 
 class TestPostDemultiplexing(TestAnalysisDriver):
