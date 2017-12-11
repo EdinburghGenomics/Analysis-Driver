@@ -43,7 +43,6 @@ bcbio:
     highdepth_stats:
         location: ['samples_{sample_id}-merged', 'work', 'align', '{user_sample_id}']
         basename: '*{user_sample_id}*-sort-highdepth-stats.yaml'
-        required: False
 
     sort_callable:
         location: ['samples_{sample_id}-merged', 'work', 'align', '{user_sample_id}']
@@ -84,7 +83,6 @@ bcbio:
     genoval:
         basename: '{sample_id}_genotype_validation.txt'
         new_name: '{user_sample_id}_genotype_validation.txt'
-        required: False
 
     genoval_vcf:
         basename: '{sample_id}_genotype_validation.vcf.gz'
