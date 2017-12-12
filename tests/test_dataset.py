@@ -382,8 +382,8 @@ class TestSampleDataset(TestDataset):
         self.dataset._data_threshold = None
         assert not self.dataset._is_ready()
         self.dataset._run_elements = [
-            {'clean_q30_bases_r1': 1200000000, 'clean_q30_bases_r2': 1150000000},
-            {'clean_q30_bases_r1': 1100000000, 'clean_q30_bases_r2': 1350000000}
+            {'clean_q30_bases_r1': 1200000000, 'clean_q30_bases_r2': 1150000000, 'q30_bases_r1': 180, 'q30_bases_r2': 170, 'bases_r1': 240, 'bases_r2': 220},
+            {'clean_q30_bases_r1': 1100000000, 'clean_q30_bases_r2': 1350000000, 'q30_bases_r1': 200, 'q30_bases_r2': 190, 'bases_r1': 260, 'bases_r2': 240}
         ]
         assert self.dataset._is_ready()
         assert mocked_instance.call_count == 1  # even after 2 calls to data_threshold
@@ -402,8 +402,8 @@ class TestSampleDataset(TestDataset):
                                   'dataset_name': 'None', 'dataset_type': 'None'}
             )
         self.dataset._run_elements = [
-            {'run_id': 'a_run_id', 'clean_q30_bases_r1': 120, 'clean_q30_bases_r2': 115},
-            {'run_id': 'another_run_id', 'clean_q30_bases_r1': 110, 'clean_q30_bases_r2': 135}
+            {'run_id': 'a_run_id', 'clean_q30_bases_r1': 120, 'clean_q30_bases_r2': 115, 'q30_bases_r1': 150, 'q30_bases_r2': 130, 'bases_r1': 200, 'bases_r2': 190},
+            {'run_id': 'another_run_id', 'clean_q30_bases_r1': 110, 'clean_q30_bases_r2': 135, 'q30_bases_r1': 170, 'q30_bases_r2': 150, 'bases_r1': 210, 'bases_r2': 205}
         ]
         self.dataset._data_threshold = 1000000000
 
