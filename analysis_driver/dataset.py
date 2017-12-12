@@ -415,6 +415,7 @@ class SampleDataset(Dataset):
     def __init__(self, name, most_recent_proc=None, data_threshold=None):
         super().__init__(name, most_recent_proc)
         self._run_elements = None
+        self._sample = None
         self._non_useable_run_elements = None
         self._data_threshold = data_threshold
         self._species = None
@@ -459,6 +460,14 @@ class SampleDataset(Dataset):
         return self._run_elements
 
     @property
+    def sample(self):
+        if self._sample is None:
+            self._sample = rest_communication.get_document(
+                'aggregate/samples', match={'sample_id': self.name}
+            )
+        return self._sample
+
+    @property
     def non_useable_run_elements(self):
         if self._non_useable_run_elements is None:
             self._non_useable_run_elements = rest_communication.get_documents(
@@ -471,12 +480,7 @@ class SampleDataset(Dataset):
         return self.run_elements[0]['project_id']
 
     def _amount_data(self):
-        return sum(
-            [
-                int(r.get(ELEMENT_NB_Q30_R1_CLEANED, 0)) + int(r.get(ELEMENT_NB_Q30_R2_CLEANED, 0))
-                for r in self.run_elements
-            ]
-        )
+        return self._sample.get('clean_yield_q30')
 
     @property
     def pc_q30(self):
@@ -489,7 +493,7 @@ class SampleDataset(Dataset):
         if self._data_threshold is None:
             self._data_threshold = rest_communication.get_document('samples', where={'sample_id': self.name}).get('required_yield')
         if not self._data_threshold:
-            raise AnalysisDriverError('Could not find data threshold in LIMS for ' + self.name)
+            raise AnalysisDriverError('Could not find data threshold for ' + self.name)
         return self._data_threshold
 
     def _pipeline_instruction(self):

@@ -8,7 +8,6 @@ from integration_tests.mocked_data import MockedSamples, MockedRunProcess
 from tests.test_analysisdriver import TestAnalysisDriver, NamedMock
 from analysis_driver.exceptions import AnalysisDriverError, SequencingRunError
 from analysis_driver.dataset import Dataset, RunDataset, SampleDataset, MostRecentProc
-from analysis_driver.notification import LimsNotification
 from analysis_driver.tool_versioning import Toolset
 
 ppath = 'analysis_driver.dataset.'
@@ -343,7 +342,7 @@ class TestSampleDataset(TestDataset):
         mocked_change_status.assert_called_with(c.DATASET_FORCE_READY)
 
     def test_amount_data(self):
-        assert self.dataset._amount_data() == 480
+        assert self.dataset._amount_data() == 1500000000
 
     @patched_required_yield()
     def test_data_threshold(self, mocked_exp_yield):
@@ -356,7 +355,7 @@ class TestSampleDataset(TestDataset):
         self.dataset._data_threshold = None
         with pytest.raises(AnalysisDriverError) as e:
             _ = self.dataset.data_threshold
-        assert 'Could not find data threshold in LIMS' in str(e)
+        assert 'Could not find data threshold' in str(e)
         mocked_exp_yield.assert_called_with('samples', where={'sample_id': 'test_dataset'})
 
     @patch(ppath + 'toolset', new=Toolset())
@@ -389,7 +388,7 @@ class TestSampleDataset(TestDataset):
         assert mocked_instance.call_count == 1  # even after 2 calls to data_threshold
 
     def test_report(self):
-        expected_str = 'test_dataset -- this, that, other  (480 / 1000000000  from a_run_id, another_run_id) (non useable run elements in a_run_id, another_run_id)'
+        expected_str = 'test_dataset -- this, that, other  (1500000000 / 1000000000  from a_run_id, another_run_id) (non useable run elements in a_run_id, another_run_id)'
         self.dataset._data_threshold = None
         with patched_get_docs(self.dataset.run_elements), patched_required_yield(), patched_stages:
             assert self.dataset.report() == expected_str
@@ -405,6 +404,7 @@ class TestSampleDataset(TestDataset):
             {'run_id': 'a_run_id', 'clean_q30_bases_r1': 120, 'clean_q30_bases_r2': 115, 'q30_bases_r1': 150, 'q30_bases_r2': 130, 'bases_r1': 200, 'bases_r2': 190},
             {'run_id': 'another_run_id', 'clean_q30_bases_r1': 110, 'clean_q30_bases_r2': 135, 'q30_bases_r1': 170, 'q30_bases_r2': 150, 'bases_r1': 210, 'bases_r2': 205}
         ]
+        self.dataset._sample = {'clean_yield_q30': 1500000000}
         self.dataset._data_threshold = 1000000000
 
     @patched_initialise
