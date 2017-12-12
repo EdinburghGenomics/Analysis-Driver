@@ -43,8 +43,8 @@ def patched_datetime(time='now'):
     return patch(ppath + 'now', return_value=time)
 
 
-def patched_expected_yield(y=1000000000):
-    return patch(ppath + 'clarity.get_expected_yield_for_sample', return_value=y)
+def patched_required_yield(y=1000000000):
+    return patch(ppath + 'rest_communication.get_document', return_value={'required_yield': y})
 
 
 class TestDataset(TestAnalysisDriver):
@@ -332,7 +332,7 @@ class TestRunDataset(TestDataset):
 
 class TestSampleDataset(TestDataset):
     def test_dataset_status(self):
-        with patched_expected_yield():
+        with patched_required_yield():
             super().test_dataset_status()
             del self.dataset.most_recent_proc.entity['status']
             assert self.dataset.dataset_status == c.DATASET_NEW
@@ -345,19 +345,19 @@ class TestSampleDataset(TestDataset):
     def test_amount_data(self):
         assert self.dataset._amount_data() == 480
 
-    @patched_expected_yield()
+    @patched_required_yield()
     def test_data_threshold(self, mocked_exp_yield):
         self.dataset._data_threshold = None
         assert self.dataset.data_threshold == 1000000000
-        mocked_exp_yield.assert_called_with('test_dataset')
+        mocked_exp_yield.assert_called_with('samples', where={'sample_id': 'test_dataset'})
 
-    @patched_expected_yield(None)
+    @patched_required_yield(None)
     def test_no_data_threshold(self, mocked_exp_yield):
         self.dataset._data_threshold = None
         with pytest.raises(AnalysisDriverError) as e:
             _ = self.dataset.data_threshold
         assert 'Could not find data threshold in LIMS' in str(e)
-        mocked_exp_yield.assert_called_with('test_dataset')
+        mocked_exp_yield.assert_called_with('samples', where={'sample_id': 'test_dataset'})
 
     @patch(ppath + 'toolset', new=Toolset())
     @patch(ppath + 'SampleDataset.project_id', new='a_project')
@@ -377,7 +377,7 @@ class TestSampleDataset(TestDataset):
             assert self.dataset._pipeline_instruction() == exp
             mocked_patch.assert_called_with('projects', {'sample_pipeline': exp}, 'project_id', 'a_project')
 
-    @patched_expected_yield()
+    @patched_required_yield()
     def test_is_ready(self, mocked_instance):
         self.dataset._data_threshold = None
         assert not self.dataset._is_ready()
@@ -391,7 +391,7 @@ class TestSampleDataset(TestDataset):
     def test_report(self):
         expected_str = 'test_dataset -- this, that, other  (480 / 1000000000  from a_run_id, another_run_id) (non useable run elements in a_run_id, another_run_id)'
         self.dataset._data_threshold = None
-        with patched_get_docs(self.dataset.run_elements), patched_expected_yield(), patched_stages:
+        with patched_get_docs(self.dataset.run_elements), patched_required_yield(), patched_stages:
             assert self.dataset.report() == expected_str
 
     def setup_dataset(self):

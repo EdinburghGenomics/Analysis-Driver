@@ -479,7 +479,7 @@ class SampleDataset(Dataset):
         )
 
     @property
-    def pc_Q30(self):
+    def pc_q30(self):
         total_reads_q30 = sum([r.get(ELEMENT_NB_Q30_R1) + r.get(ELEMENT_NB_Q30_R2) for r in self.run_elements])
         total_number_of_reads = sum([r.get(ELEMENT_NB_BASE_R1) + r.get(ELEMENT_NB_BASE_R2) for r in self.run_elements])
         return (total_reads_q30/total_number_of_reads) * 100
@@ -487,7 +487,7 @@ class SampleDataset(Dataset):
     @property
     def data_threshold(self):
         if self._data_threshold is None:
-            self._data_threshold = clarity.get_expected_yield_for_sample(self.name)
+            self._data_threshold = rest_communication.get_document('samples', where={'sample_id': self.name}).get('required_yield')
         if not self._data_threshold:
             raise AnalysisDriverError('Could not find data threshold in LIMS for ' + self.name)
         return self._data_threshold
@@ -504,7 +504,7 @@ class SampleDataset(Dataset):
         return instruction
 
     def _is_ready(self):
-        return self.data_threshold and self.pc_Q30 > 75 and int(self._amount_data()) > int(self.data_threshold)
+        return self.data_threshold and self.pc_q30 > 75 and int(self._amount_data()) > int(self.data_threshold)
 
     def report(self):
         runs = sorted(set(r.get(ELEMENT_RUN_NAME) for r in self.run_elements))
