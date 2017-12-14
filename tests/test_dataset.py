@@ -331,10 +331,9 @@ class TestRunDataset(TestDataset):
 
 class TestSampleDataset(TestDataset):
     def test_dataset_status(self):
-        with patched_required_yield():
-            super().test_dataset_status()
-            del self.dataset.most_recent_proc.entity['status']
-            assert self.dataset.dataset_status == c.DATASET_NEW
+        super().test_dataset_status()
+        del self.dataset.most_recent_proc.entity['status']
+        assert self.dataset.dataset_status == c.DATASET_READY
 
     @patch(ppath + 'MostRecentProc.change_status')
     def test_force(self, mocked_change_status):
@@ -344,19 +343,16 @@ class TestSampleDataset(TestDataset):
     def test_amount_data(self):
         assert self.dataset._amount_data() == 1500000000
 
-    @patched_required_yield()
-    def test_data_threshold(self, mocked_exp_yield):
+    def test_data_threshold(self):
         self.dataset._data_threshold = None
         assert self.dataset.data_threshold == 1000000000
-        mocked_exp_yield.assert_called_with('samples', where={'sample_id': 'test_dataset'})
 
-    @patched_required_yield(None)
-    def test_no_data_threshold(self, mocked_exp_yield):
+    def test_no_data_threshold(self):
         self.dataset._data_threshold = None
         with pytest.raises(AnalysisDriverError) as e:
+            self.dataset._sample.pop('required_yield')
             _ = self.dataset.data_threshold
         assert 'Could not find data threshold' in str(e)
-        mocked_exp_yield.assert_called_with('samples', where={'sample_id': 'test_dataset'})
 
     @patch(ppath + 'toolset', new=Toolset())
     @patch(ppath + 'SampleDataset.project_id', new='a_project')
@@ -376,21 +372,16 @@ class TestSampleDataset(TestDataset):
             assert self.dataset._pipeline_instruction() == exp
             mocked_patch.assert_called_with('projects', {'sample_pipeline': exp}, 'project_id', 'a_project')
 
-    @patched_required_yield()
-    def test_is_ready(self, mocked_instance):
-        self.dataset._data_threshold = None
+    def test_is_ready(self):
+        self.dataset._data_threshold = 20000000000
         assert not self.dataset._is_ready()
-        self.dataset._run_elements = [
-            {'clean_q30_bases_r1': 1200000000, 'clean_q30_bases_r2': 1150000000, 'q30_bases_r1': 180, 'q30_bases_r2': 170, 'bases_r1': 240, 'bases_r2': 220},
-            {'clean_q30_bases_r1': 1100000000, 'clean_q30_bases_r2': 1350000000, 'q30_bases_r1': 200, 'q30_bases_r2': 190, 'bases_r1': 260, 'bases_r2': 240}
-        ]
+        self.dataset._data_threshold = 100
         assert self.dataset._is_ready()
-        assert mocked_instance.call_count == 1  # even after 2 calls to data_threshold
 
     def test_report(self):
         expected_str = 'test_dataset -- this, that, other  (1500000000 / 1000000000  from a_run_id, another_run_id) (non useable run elements in a_run_id, another_run_id)'
         self.dataset._data_threshold = None
-        with patched_get_docs(self.dataset.run_elements), patched_required_yield(), patched_stages:
+        with patched_required_yield(), patched_stages:
             assert self.dataset.report() == expected_str
 
     def setup_dataset(self):
@@ -404,7 +395,23 @@ class TestSampleDataset(TestDataset):
             {'run_id': 'a_run_id', 'clean_q30_bases_r1': 120, 'clean_q30_bases_r2': 115, 'q30_bases_r1': 150, 'q30_bases_r2': 130, 'bases_r1': 200, 'bases_r2': 190},
             {'run_id': 'another_run_id', 'clean_q30_bases_r1': 110, 'clean_q30_bases_r2': 135, 'q30_bases_r1': 170, 'q30_bases_r2': 150, 'bases_r1': 210, 'bases_r2': 205}
         ]
-        self.dataset._sample = {'clean_yield_q30': 1500000000}
+
+
+        self.dataset._non_useable_run_elements = [
+            {'run_id': 'a_run_id', 'clean_q30_bases_r1': 120, 'clean_q30_bases_r2': 115, 'q30_bases_r1': 150, 'q30_bases_r2': 130, 'bases_r1': 200, 'bases_r2': 190},
+            {'run_id': 'another_run_id', 'clean_q30_bases_r1': 110, 'clean_q30_bases_r2': 135, 'q30_bases_r1': 170, 'q30_bases_r2': 150, 'bases_r1': 210, 'bases_r2': 205}
+        ]
+
+        self.dataset._sample = {
+                                'aggregated': {'clean_yield_q30_in_gb': 1500000000},
+                                'required_yield': 1000000000,
+                                'q30_bases_r1': 60000,
+                                'q30_bases_r2': 50000,
+                                'bases_r1': 70000,
+                                'bases_r2': 70000,
+                                'run_ids': ['a_run_id', 'another_run_id']
+                                }
+
         self.dataset._data_threshold = 1000000000
 
     @patched_initialise

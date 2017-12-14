@@ -414,7 +414,6 @@ class SampleDataset(Dataset):
 
     def __init__(self, name, most_recent_proc=None, data_threshold=None):
         super().__init__(name, most_recent_proc)
-        self._run_elements = None
         self._sample = None
         self._non_useable_run_elements = None
         self._data_threshold = data_threshold
@@ -452,19 +451,9 @@ class SampleDataset(Dataset):
         return self._user_sample_id
 
     @property
-    def run_elements(self):
-        if self._run_elements is None:
-            self._run_elements = rest_communication.get_documents(
-                'run_elements', where={'sample_id': self.name, 'useable': 'yes'}
-            )
-        return self._run_elements
-
-    @property
     def sample(self):
         if self._sample is None:
-            self._sample = rest_communication.get_document(
-                'aggregate/samples', match={'sample_id': self.name}
-            )
+            self._sample = rest_communication.get_document('samples', match={'sample_id': self.name})
         return self._sample
 
     @property
@@ -477,21 +466,22 @@ class SampleDataset(Dataset):
 
     @property
     def project_id(self):
-        return self.run_elements[0]['project_id']
+        return self.sample['project_id']
 
     def _amount_data(self):
-        return self._sample.get('clean_yield_q30')
+        return self._sample['aggregated'].get('clean_yield_q30_in_gb')
 
     @property
     def pc_q30(self):
-        total_reads_q30 = sum([r.get(ELEMENT_NB_Q30_R1) + r.get(ELEMENT_NB_Q30_R2) for r in self.run_elements])
-        total_number_of_reads = sum([r.get(ELEMENT_NB_BASE_R1) + r.get(ELEMENT_NB_BASE_R2) for r in self.run_elements])
-        return (total_reads_q30/total_number_of_reads) * 100
+        s = self.sample
+        reads_q30 = s.get(ELEMENT_NB_Q30_R1) + s.get(ELEMENT_NB_Q30_R2)
+        number_of_reads = s.get(ELEMENT_NB_BASE_R1) + s.get(ELEMENT_NB_BASE_R2)
+        return (reads_q30/number_of_reads) * 100
 
     @property
     def data_threshold(self):
         if self._data_threshold is None:
-            self._data_threshold = rest_communication.get_document('samples', where={'sample_id': self.name}).get('required_yield')
+            self._data_threshold = self.sample.get('required_yield')
         if not self._data_threshold:
             raise AnalysisDriverError('Could not find data threshold for ' + self.name)
         return self._data_threshold
@@ -511,7 +501,7 @@ class SampleDataset(Dataset):
         return self.data_threshold and self.pc_q30 > 75 and int(self._amount_data()) > int(self.data_threshold)
 
     def report(self):
-        runs = sorted(set(r.get(ELEMENT_RUN_NAME) for r in self.run_elements))
+        runs = self.sample.get('run_ids')
         non_useable_runs = sorted(set(r.get(ELEMENT_RUN_NAME) for r in self.non_useable_run_elements))
 
         s = '%s  (%s / %s  from %s) ' % (
