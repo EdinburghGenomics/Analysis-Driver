@@ -453,7 +453,7 @@ class SampleDataset(Dataset):
     @property
     def sample(self):
         if self._sample is None:
-            self._sample = rest_communication.get_document('samples', match={'sample_id': self.name})
+            self._sample = rest_communication.get_document('samples', where={'sample_id': self.name})
         return self._sample
 
     @property
@@ -469,7 +469,7 @@ class SampleDataset(Dataset):
         return self.sample['project_id']
 
     def _amount_data(self):
-        return self._sample['aggregated'].get('clean_yield_q30_in_gb')
+        return int(self._sample['aggregated'].get('clean_yield_q30_in_gb')*1000000000)
 
     @property
     def pc_q30(self):
@@ -512,6 +512,7 @@ class SampleDataset(Dataset):
         else:
             s += '(no non useable run elements)'
         return s
+
 
     def start(self):
         super().start()

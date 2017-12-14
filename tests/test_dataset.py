@@ -403,7 +403,7 @@ class TestSampleDataset(TestDataset):
         ]
 
         self.dataset._sample = {
-                                'aggregated': {'clean_yield_q30_in_gb': 1500000000},
+                                'aggregated': {'clean_yield_q30_in_gb': 1.5},
                                 'required_yield': 1000000000,
                                 'q30_bases_r1': 60000,
                                 'q30_bases_r2': 50000,
