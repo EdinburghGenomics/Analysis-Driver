@@ -54,7 +54,6 @@ class TestLimsNotification(TestAnalysisDriver):
     @patch('egcg_core.clarity.connection', return_value='LIMSconnection')
     @patch.object(Step, 'create')
     def test_create_step(self, mocked_create_step, mocked_lims):
-        self.n.step = Mock()
         self.n.create_step()
         mocked_create_step.assert_called_with('LIMSconnection', inputs=['LimsArtifact'], protocol_step='stage_step')
         self.n.step.advance.assert_called_once()
@@ -65,7 +64,7 @@ class TestLimsNotification(TestAnalysisDriver):
         self.n.step.actions.put.assert_called_once()
         self.n.step.advance.assert_called_once()
         assert self.n.step.actions.next_actions[0]['action'] == 'nextstep'
-        assert self.n.step.actions.next_actions[0]['step-uri'] == 'stage_uri'
+        assert self.n.step.actions.next_actions[0]['step'] == 'stage_step'
         self.n.step = Mock(current_state='Incorrect State', actions=Mock(next_actions=[{}]))
         with pytest.raises(AssertionError):
             self.n.assign_next_and_advance_step()
