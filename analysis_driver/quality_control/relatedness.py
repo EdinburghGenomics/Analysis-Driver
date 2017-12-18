@@ -157,7 +157,7 @@ class GenotypeGVCFs(RelatednessStage):
     def gatk_genotype_gvcfs_cmd(self):
         gvcf_variants = ' '. join(['--variant ' + util.find_file(i) for i in self.gVCFs])
         number_threads = 12
-        return java_command(memory=50, tmp_dir=self.job_dir, jar=toolset['gatk']) + \
+        return java_command(memory=90, tmp_dir=self.job_dir, jar=toolset['gatk']) + \
             '-T GenotypeGVCFs -nt %s -R %s %s -o %s' % (
                 number_threads, self.reference, gvcf_variants, self.gatk_outfile
             )
@@ -168,7 +168,7 @@ class GenotypeGVCFs(RelatednessStage):
             job_name='gatk_genotype_gvcfs',
             working_dir=self.job_dir,
             cpus=12,
-            mem=50
+            mem=96
         ).join()
 
 
