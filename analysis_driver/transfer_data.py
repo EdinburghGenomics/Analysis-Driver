@@ -1,6 +1,7 @@
 import os
 from egcg_core import util, archive_management
 from egcg_core.app_logging import logging_default as log_cfg
+from analysis_driver.exceptions import AnalysisDriverError
 
 app_logger = log_cfg.get_logger(__name__)
 
@@ -33,7 +34,7 @@ def create_output_links(input_dir, output_cfg, link_dir, **kwargs):
     if exit_status == 0:
         return links
     else:
-        app_logger.error('link creation failed with exit status ' + str(exit_status))
+        raise AnalysisDriverError('link creation failed with exit status ' + str(exit_status))
 
 
 def output_data_and_archive(source_dir, output_dir):
