@@ -469,14 +469,11 @@ class SampleDataset(Dataset):
         return self.sample['project_id']
 
     def _amount_data(self):
-        return int(self._sample['aggregated'].get('clean_yield_q30_in_gb')*1000000000)
+        return int(self.sample.get('aggregated').get('clean_yield_in_gb')*1000000000)
 
     @property
     def pc_q30(self):
-        s = self.sample
-        reads_q30 = s.get(ELEMENT_NB_Q30_R1) + s.get(ELEMENT_NB_Q30_R2)
-        number_of_reads = s.get(ELEMENT_NB_BASE_R1) + s.get(ELEMENT_NB_BASE_R2)
-        return (reads_q30/number_of_reads) * 100
+        return self.sample.get('aggregated').get('pc_q30')
 
     @property
     def data_threshold(self):
@@ -501,7 +498,7 @@ class SampleDataset(Dataset):
         return self.data_threshold and self.pc_q30 > 75 and int(self._amount_data()) > int(self.data_threshold)
 
     def report(self):
-        runs = self.sample.get('run_ids')
+        runs = self.sample.get('aggregated').get('run_ids')
         non_useable_runs = sorted(set(r.get(ELEMENT_RUN_NAME) for r in self.non_useable_run_elements))
 
         s = '%s  (%s / %s  from %s) ' % (
