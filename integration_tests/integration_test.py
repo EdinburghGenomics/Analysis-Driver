@@ -76,7 +76,8 @@ class IntegrationTest(TestCase):
                 {'run_id': self.run_id, 'project_id': self.project_id, 'sample_id': self.sample_id,
                  'library_id': self.library_id, 'run_element_id': '%s_%s_%s' % (self.run_id, lane, self.barcode),
                  'useable': 'yes', 'barcode': self.barcode, 'lane': lane, 'clean_q30_bases_r1': 57000000,
-                 'clean_q30_bases_r2': 57000000, 'clean_reads': 1}
+                 'clean_q30_bases_r2': 57000000, 'clean_reads': 1, 'q30_bases_r1': 60000000, 'q30_bases_r2': 60000000,
+                 'bases_r1': 70000000, 'bases_r2': 70000000}
             )
         for e in run_elements:
             rest_communication.post_entry('run_elements', e)
@@ -84,7 +85,7 @@ class IntegrationTest(TestCase):
         rest_communication.post_entry(
             'samples',
             {'library_id': self.library_id, 'project_id': self.project_id, 'sample_id': self.sample_id,
-             'run_elements': [e['run_element_id'] for e in run_elements]}
+             'run_elements': [e['run_element_id'] for e in run_elements], 'required_yield': 100000000}
         )
         rest_communication.post_entry(
             'projects',
