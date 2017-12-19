@@ -403,13 +403,10 @@ class TestSampleDataset(TestDataset):
         ]
 
         self.dataset._sample = {
-                                'aggregated': {'clean_yield_q30_in_gb': 1.5,
-                                               'run_ids': ['a_run_id', 'another_run_id']},
+                                'aggregated': {'clean_yield_in_gb': 1.5,
+                                               'run_ids': ['a_run_id', 'another_run_id'],
+                                               'pc_q30': 85},
                                 'required_yield': 1000000000,
-                                'q30_bases_r1': 60000,
-                                'q30_bases_r2': 50000,
-                                'bases_r1': 70000,
-                                'bases_r2': 70000,
                                 }
 
         self.dataset._data_threshold = 1000000000
