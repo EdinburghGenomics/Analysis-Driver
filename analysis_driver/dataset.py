@@ -473,7 +473,7 @@ class SampleDataset(Dataset):
 
     @property
     def pc_q30(self):
-        return self.sample.get('aggregated').get('pc_q30')
+        return self.sample.get('aggregated').get('clean_pc_q30')
 
     @property
     def data_threshold(self):
