@@ -405,7 +405,7 @@ class TestSampleDataset(TestDataset):
         self.dataset._sample = {
                                 'aggregated': {'clean_yield_in_gb': 1.5,
                                                'run_ids': ['a_run_id', 'another_run_id'],
-                                               'pc_q30': 85},
+                                               'clean_pc_q30': 85},
                                 'required_yield': 1000000000,
                                 }
 
