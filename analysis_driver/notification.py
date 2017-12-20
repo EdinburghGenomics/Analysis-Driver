@@ -23,8 +23,7 @@ class LimsNotification():
 
     def assign_next_and_advance_step(self):
         assert self.step.current_state == 'Assign Next Steps'
-        next_step_uri = self.sample_review_stage.uri
-        self.step.actions.next_actions[0]['step-uri'] = next_step_uri
+        self.step.actions.next_actions[0]['step'] = self.sample_review_stage.step
         self.step.actions.next_actions[0]['action'] = 'nextstep'
         self.step.actions.put()
         self.step.advance()

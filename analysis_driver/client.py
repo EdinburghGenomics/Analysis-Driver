@@ -134,6 +134,12 @@ def _process_dataset(d):
         exit_status = pipelines.pipeline(d)
         app_logger.info('Done')
 
+        if exit_status == 0:
+            d.succeed()
+        else:
+            d.fail(exit_status)
+        app_logger.info('Finished with exit status ' + str(exit_status))
+
     except exceptions.SequencingRunError as e:
         app_logger.info('Bad sequencing run: %s. Aborting this dataset', str(e))
         exit_status = 2  # TODO: we should send a notification of the run status found
@@ -141,13 +147,6 @@ def _process_dataset(d):
 
     except Exception as e:
         _handle_exception(e)
-
-    else:
-        if exit_status == 0:
-            d.succeed()
-        else:
-            d.fail(exit_status)
-        app_logger.info('Finished with exit status ' + str(exit_status))
 
     finally:
         return exit_status
