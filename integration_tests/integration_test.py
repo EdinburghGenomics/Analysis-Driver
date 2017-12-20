@@ -85,7 +85,8 @@ class IntegrationTest(TestCase):
         rest_communication.post_entry(
             'samples',
             {'library_id': self.library_id, 'project_id': self.project_id, 'sample_id': self.sample_id,
-             'run_elements': [e['run_element_id'] for e in run_elements], 'required_yield': 100000000}
+             'run_elements': [e['run_element_id'] for e in run_elements], 'required_yield': 100000000,
+             'aggregated': {'clean_yield_in_gb': 114000000.0, 'pc_q30': 85.0}}
         )
         rest_communication.post_entry(
             'projects',

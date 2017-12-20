@@ -495,7 +495,7 @@ class SampleDataset(Dataset):
         return instruction
 
     def _is_ready(self):
-        return self.data_threshold and self.pc_q30 > 75 and int(self._amount_data()) > int(self.data_threshold)
+        return self.data_threshold and self.pc_q30 > 75 and int(self._amount_data()) > self.data_threshold
 
     def report(self):
         runs = self.sample.get('aggregated').get('run_ids')
@@ -509,7 +509,6 @@ class SampleDataset(Dataset):
         else:
             s += '(no non useable run elements)'
         return s
-
 
     def start(self):
         super().start()
