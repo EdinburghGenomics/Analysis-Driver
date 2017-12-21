@@ -414,6 +414,7 @@ class SampleDataset(Dataset):
 
     def __init__(self, name, most_recent_proc=None, data_threshold=None):
         super().__init__(name, most_recent_proc)
+        self._run_elements = None
         self._sample = None
         self._non_useable_run_elements = None
         self._data_threshold = data_threshold
@@ -449,6 +450,14 @@ class SampleDataset(Dataset):
         if self._user_sample_id is None:
             self._user_sample_id = clarity.get_user_sample_name(self.name)
         return self._user_sample_id
+
+    @property
+    def run_elements(self):
+        if self._run_elements is None:
+            self._run_elements = rest_communication.get_documents(
+                'run_elements', where={'sample_id': self.name, 'useable': 'yes'}
+            )
+        return self._run_elements
 
     @property
     def sample(self):
