@@ -8,7 +8,6 @@ from integration_tests.mocked_data import MockedSamples, MockedRunProcess
 from tests.test_analysisdriver import TestAnalysisDriver, NamedMock
 from analysis_driver.exceptions import AnalysisDriverError, SequencingRunError
 from analysis_driver.dataset import Dataset, RunDataset, SampleDataset, MostRecentProc
-from analysis_driver.notification import LimsNotification
 from analysis_driver.tool_versioning import Toolset
 
 ppath = 'analysis_driver.dataset.'
@@ -43,8 +42,8 @@ def patched_datetime(time='now'):
     return patch(ppath + 'now', return_value=time)
 
 
-def patched_expected_yield(y=1000000000):
-    return patch(ppath + 'clarity.get_expected_yield_for_sample', return_value=y)
+def patched_required_yield(y=1000000000):
+    return patch(ppath + 'rest_communication.get_document', return_value={'required_yield': y})
 
 
 class TestDataset(TestAnalysisDriver):
@@ -332,10 +331,9 @@ class TestRunDataset(TestDataset):
 
 class TestSampleDataset(TestDataset):
     def test_dataset_status(self):
-        with patched_expected_yield():
-            super().test_dataset_status()
-            del self.dataset.most_recent_proc.entity['status']
-            assert self.dataset.dataset_status == c.DATASET_NEW
+        super().test_dataset_status()
+        del self.dataset.most_recent_proc.entity['status']
+        assert self.dataset.dataset_status == c.DATASET_READY
 
     @patch(ppath + 'MostRecentProc.change_status')
     def test_force(self, mocked_change_status):
@@ -343,21 +341,18 @@ class TestSampleDataset(TestDataset):
         mocked_change_status.assert_called_with(c.DATASET_FORCE_READY)
 
     def test_amount_data(self):
-        assert self.dataset._amount_data() == 480
+        assert self.dataset._amount_data() == 1500000000
 
-    @patched_expected_yield()
-    def test_data_threshold(self, mocked_exp_yield):
+    def test_data_threshold(self):
         self.dataset._data_threshold = None
         assert self.dataset.data_threshold == 1000000000
-        mocked_exp_yield.assert_called_with('test_dataset')
 
-    @patched_expected_yield(None)
-    def test_no_data_threshold(self, mocked_exp_yield):
+    def test_no_data_threshold(self):
         self.dataset._data_threshold = None
         with pytest.raises(AnalysisDriverError) as e:
+            self.dataset._sample.pop('required_yield')
             _ = self.dataset.data_threshold
-        assert 'Could not find data threshold in LIMS' in str(e)
-        mocked_exp_yield.assert_called_with('test_dataset')
+        assert 'Could not find data threshold' in str(e)
 
     @patch(ppath + 'toolset', new=Toolset())
     @patch(ppath + 'SampleDataset.project_id', new='a_project')
@@ -377,21 +372,16 @@ class TestSampleDataset(TestDataset):
             assert self.dataset._pipeline_instruction() == exp
             mocked_patch.assert_called_with('projects', {'sample_pipeline': exp}, 'project_id', 'a_project')
 
-    @patched_expected_yield()
-    def test_is_ready(self, mocked_instance):
-        self.dataset._data_threshold = None
+    def test_is_ready(self):
+        self.dataset._data_threshold = 20000000000
         assert not self.dataset._is_ready()
-        self.dataset._run_elements = [
-            {'clean_q30_bases_r1': 1200000000, 'clean_q30_bases_r2': 1150000000},
-            {'clean_q30_bases_r1': 1100000000, 'clean_q30_bases_r2': 1350000000}
-        ]
+        self.dataset._data_threshold = 100
         assert self.dataset._is_ready()
-        assert mocked_instance.call_count == 1  # even after 2 calls to data_threshold
 
     def test_report(self):
-        expected_str = 'test_dataset -- this, that, other  (480 / 1000000000  from a_run_id, another_run_id) (non useable run elements in a_run_id, another_run_id)'
+        expected_str = 'test_dataset -- this, that, other  (1500000000 / 1000000000  from a_run_id, another_run_id) (non useable run elements in a_run_id, another_run_id)'
         self.dataset._data_threshold = None
-        with patched_get_docs(self.dataset.run_elements), patched_expected_yield(), patched_stages:
+        with patched_required_yield(), patched_stages:
             assert self.dataset.report() == expected_str
 
     def setup_dataset(self):
@@ -402,9 +392,23 @@ class TestSampleDataset(TestDataset):
                                   'dataset_name': 'None', 'dataset_type': 'None'}
             )
         self.dataset._run_elements = [
-            {'run_id': 'a_run_id', 'clean_q30_bases_r1': 120, 'clean_q30_bases_r2': 115},
-            {'run_id': 'another_run_id', 'clean_q30_bases_r1': 110, 'clean_q30_bases_r2': 135}
+            {'run_id': 'a_run_id', 'clean_q30_bases_r1': 120, 'clean_q30_bases_r2': 115, 'q30_bases_r1': 150, 'q30_bases_r2': 130, 'bases_r1': 200, 'bases_r2': 190},
+            {'run_id': 'another_run_id', 'clean_q30_bases_r1': 110, 'clean_q30_bases_r2': 135, 'q30_bases_r1': 170, 'q30_bases_r2': 150, 'bases_r1': 210, 'bases_r2': 205}
         ]
+
+
+        self.dataset._non_useable_run_elements = [
+            {'run_id': 'a_run_id', 'clean_q30_bases_r1': 120, 'clean_q30_bases_r2': 115, 'q30_bases_r1': 150, 'q30_bases_r2': 130, 'bases_r1': 200, 'bases_r2': 190},
+            {'run_id': 'another_run_id', 'clean_q30_bases_r1': 110, 'clean_q30_bases_r2': 135, 'q30_bases_r1': 170, 'q30_bases_r2': 150, 'bases_r1': 210, 'bases_r2': 205}
+        ]
+
+        self.dataset._sample = {
+                                'aggregated': {'clean_yield_in_gb': 1.5,
+                                               'run_ids': ['a_run_id', 'another_run_id'],
+                                               'clean_pc_q30': 85},
+                                'required_yield': 1000000000,
+                                }
+
         self.dataset._data_threshold = 1000000000
 
     @patched_initialise
