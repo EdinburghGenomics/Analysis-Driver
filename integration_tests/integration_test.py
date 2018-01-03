@@ -177,7 +177,7 @@ class IntegrationTest(TestCase):
                 i = v
         return v
 
-    def test_demultiplexing(self):
+    def _test_demultiplexing(self):
         self.setup_test('run', 'test_demultiplexing')
         with patch_pipeline():
             exit_status = client.main(['--run'])
@@ -229,7 +229,7 @@ class IntegrationTest(TestCase):
 
         assert self._test_success
 
-    def test_var_calling(self):
+    def _test_var_calling(self):
         self.setup_test('sample', 'test_var_calling')
         with patch_pipeline(species='Canis lupus familiaris', analysis_type='Variant Calling'):
             exit_status = client.main(['--sample'])
@@ -248,7 +248,7 @@ class IntegrationTest(TestCase):
 
         assert self._test_success
 
-    def test_qc(self):
+    def _test_qc(self):
         self.setup_test('sample', 'test_qc')
         with patch_pipeline(species='Canis lupus familiaris', analysis_type='Not Variant Calling'):
             exit_status = client.main(['--sample'])

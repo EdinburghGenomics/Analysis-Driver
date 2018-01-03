@@ -149,7 +149,7 @@ def build_pipeline(dataset):
     post_bcbio_qc = [gender_val, vcfstats, verify_bam_id, samtools_depth]
 
     output = stage(common.SampleDataOutput, previous_stages=post_bcbio_qc, output_fileset='bcbio')
-    cleanup = stage(common.Cleanup, previous_stages=[output])
-    review = stage(common.SampleReview, previous_stages=[cleanup])
+    #cleanup = stage(common.Cleanup, previous_stages=[output])
+    review = stage(common.SampleReview, previous_stages=[output])
 
     return review
