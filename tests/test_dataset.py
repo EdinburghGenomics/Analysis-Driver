@@ -391,24 +391,14 @@ class TestSampleDataset(TestDataset):
                 most_recent_proc={'proc_id': 'a_proc_id', 'date_started': 'now',
                                   'dataset_name': 'None', 'dataset_type': 'None'}
             )
-        self.dataset._run_elements = [
+        self.dataset._run_elements = self.dataset._non_useable_run_elements = [
             {'run_id': 'a_run_id', 'clean_q30_bases_r1': 120, 'clean_q30_bases_r2': 115, 'q30_bases_r1': 150, 'q30_bases_r2': 130, 'bases_r1': 200, 'bases_r2': 190},
             {'run_id': 'another_run_id', 'clean_q30_bases_r1': 110, 'clean_q30_bases_r2': 135, 'q30_bases_r1': 170, 'q30_bases_r2': 150, 'bases_r1': 210, 'bases_r2': 205}
         ]
-
-
-        self.dataset._non_useable_run_elements = [
-            {'run_id': 'a_run_id', 'clean_q30_bases_r1': 120, 'clean_q30_bases_r2': 115, 'q30_bases_r1': 150, 'q30_bases_r2': 130, 'bases_r1': 200, 'bases_r2': 190},
-            {'run_id': 'another_run_id', 'clean_q30_bases_r1': 110, 'clean_q30_bases_r2': 135, 'q30_bases_r1': 170, 'q30_bases_r2': 150, 'bases_r1': 210, 'bases_r2': 205}
-        ]
-
         self.dataset._sample = {
-                                'aggregated': {'clean_yield_in_gb': 1.5,
-                                               'run_ids': ['a_run_id', 'another_run_id'],
-                                               'clean_pc_q30': 85},
-                                'required_yield': 1000000000,
-                                }
-
+            'aggregated': {'clean_yield_in_gb': 1.5, 'run_ids': ['a_run_id', 'another_run_id'], 'clean_pc_q30': 85},
+            'required_yield': 1000000000
+        }
         self.dataset._data_threshold = 1000000000
 
     @patched_initialise
