@@ -4,7 +4,7 @@ from egcg_core.constants import DATASET_READY, DATASET_NEW, DATASET_ABORTED
 from analysis_driver.dataset import RunDataset, SampleDataset
 from analysis_driver.dataset_scanner import DatasetScanner, RunScanner, SampleScanner
 from tests.test_analysisdriver import TestAnalysisDriver, NamedMock
-from tests.test_dataset import patched_expected_yield, fake_proc
+from tests.test_dataset import patched_required_yield, fake_proc
 
 
 class FakeRunDataset(RunDataset):
@@ -123,15 +123,12 @@ class TestSampleScanner(TestScanner):
     def _setup_scanner(self):
         self.scanner = SampleScanner({'input_dir': self.base_dir})
 
-    @patch('analysis_driver.dataset.rest_communication.get_documents', return_value=[fake_proc])
-    def test_get_dataset(self, mocked_get):
-        with patched_expected_yield():
+    def test_get_dataset(self):
+        with patched_required_yield():
             observed = self.scanner.get_dataset('test_dataset')
             expected = SampleDataset('test_dataset')
             assert observed.name == expected.name
             assert observed.data_threshold == expected.data_threshold
-            assert observed.run_elements == [fake_proc]
-            mocked_get.assert_called_with('run_elements', where={'sample_id': 'test_dataset', 'useable': 'yes'})
 
     @patched_get([{'sample_id': 'a_sample_id'}])
     def test_get_dataset_records_for_statuses(self, mocked_get):

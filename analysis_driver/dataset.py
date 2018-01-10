@@ -415,6 +415,7 @@ class SampleDataset(Dataset):
     def __init__(self, name, most_recent_proc=None, data_threshold=None):
         super().__init__(name, most_recent_proc)
         self._run_elements = None
+        self._sample = None
         self._non_useable_run_elements = None
         self._data_threshold = data_threshold
         self._species = None
@@ -459,6 +460,12 @@ class SampleDataset(Dataset):
         return self._run_elements
 
     @property
+    def sample(self):
+        if self._sample is None:
+            self._sample = rest_communication.get_document('samples', where={'sample_id': self.name})
+        return self._sample
+
+    @property
     def non_useable_run_elements(self):
         if self._non_useable_run_elements is None:
             self._non_useable_run_elements = rest_communication.get_documents(
@@ -468,22 +475,21 @@ class SampleDataset(Dataset):
 
     @property
     def project_id(self):
-        return self.run_elements[0]['project_id']
+        return self.sample['project_id']
 
     def _amount_data(self):
-        return sum(
-            [
-                int(r.get(ELEMENT_NB_Q30_R1_CLEANED, 0)) + int(r.get(ELEMENT_NB_Q30_R2_CLEANED, 0))
-                for r in self.run_elements
-            ]
-        )
+        return int(self.sample.get('aggregated').get('clean_yield_in_gb')*1000000000)
+
+    @property
+    def pc_q30(self):
+        return self.sample.get('aggregated').get('clean_pc_q30')
 
     @property
     def data_threshold(self):
         if self._data_threshold is None:
-            self._data_threshold = clarity.get_expected_yield_for_sample(self.name)
+            self._data_threshold = self.sample.get('required_yield')
         if not self._data_threshold:
-            raise AnalysisDriverError('Could not find data threshold in LIMS for ' + self.name)
+            raise AnalysisDriverError('Could not find data threshold for ' + self.name)
         return self._data_threshold
 
     def _pipeline_instruction(self):
@@ -498,10 +504,10 @@ class SampleDataset(Dataset):
         return instruction
 
     def _is_ready(self):
-        return self.data_threshold and int(self._amount_data()) > int(self.data_threshold)
+        return self.data_threshold and self.pc_q30 > 75 and self._amount_data() > self.data_threshold
 
     def report(self):
-        runs = sorted(set(r.get(ELEMENT_RUN_NAME) for r in self.run_elements))
+        runs = self.sample.get('aggregated').get('run_ids')
         non_useable_runs = sorted(set(r.get(ELEMENT_RUN_NAME) for r in self.non_useable_run_elements))
 
         s = '%s  (%s / %s  from %s) ' % (
