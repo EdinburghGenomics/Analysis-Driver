@@ -1,8 +1,12 @@
 import os
+from shutil import rmtree
 from unittest.mock import patch
 from tests.test_analysisdriver import TestAnalysisDriver, NamedMock
 from analysis_driver.pipelines import projects
 from analysis_driver.exceptions import PipelineError
+
+test_projects = os.path.join(TestAnalysisDriver.assets_path, 'test_projects')
+relatedness_outfiles = os.path.join(test_projects, 'relatedness_outfiles')
 
 
 class TestProjects(TestAnalysisDriver):
@@ -29,15 +33,15 @@ class TestProjects(TestAnalysisDriver):
 
 class TestMD5Sum(TestAnalysisDriver):
     def setUp(self):
-        relatedness_outfiles = os.path.join(self.assets_path, 'test_projects', 'relatedness_outfiles')
         os.makedirs(relatedness_outfiles, exist_ok=True)
         self.filename = os.path.join(relatedness_outfiles, 'an_output_file.txt')
         open(self.filename, 'w').close()
 
     def tearDown(self):
-        os.remove(self.filename)  # TODO: clean up the directory as well
+        os.remove(self.filename)
+        rmtree(relatedness_outfiles)
 
-    @patch.object(projects.MD5Sum, 'job_dir', new=os.path.join(TestAnalysisDriver.assets_path, 'test_projects'))
+    @patch.object(projects.MD5Sum, 'job_dir', new=test_projects)
     @patch('egcg_core.executor.execute')
     def test_run(self, mocked_execute):
         dataset = NamedMock(
@@ -57,7 +61,7 @@ class TestMD5Sum(TestAnalysisDriver):
             mem=2,
             job_name='md5sum',
             log_commands=False,
-            working_dir=os.path.join(self.assets_path, 'test_projects')
+            working_dir=test_projects
         )
 
 
@@ -76,15 +80,12 @@ class TestOutput(TestAnalysisDriver):
     @patch('analysis_driver.pipelines.projects.output_data_and_archive')
     @patch('analysis_driver.pipelines.projects.OutputFileConfiguration', return_value='OutfileConfig')
     def test_run(self, mocked_outfile_config, mocked_output_archive, mocked_output_links):
-        with patch('analysis_driver.segmentation.BasicStage.job_dir', new=os.path.join(self.assets_path, 'test_projects')):
+        with patch('analysis_driver.segmentation.BasicStage.job_dir', new=test_projects):
             self.o._run()
-            mocked_output_archive.assert_called_with(
-                os.path.join(self.assets_path, 'test_projects/relatedness_outfiles'),
-                '/path/to/input/dir/test_dataset'
-            )
+            mocked_output_archive.assert_called_with(relatedness_outfiles, '/path/to/input/dir/test_dataset')
             mocked_output_links.assert_called_with(
-                os.path.join(self.assets_path, 'test_projects'),
+                test_projects,
                 'OutfileConfig',
-                os.path.join(self.assets_path, 'test_projects/relatedness_outfiles'),
+                relatedness_outfiles,
                 project_id='test_dataset'
             )
