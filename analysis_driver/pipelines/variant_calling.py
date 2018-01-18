@@ -11,7 +11,7 @@ name = 'variant_calling'
 
 
 
-class GATKStage(segmentation.Stage):
+class GATKStageHuman(segmentation.Stage):
     @property
     def gatk_run_dir(self):
         d = os.path.join(self.job_dir, 'gatk_var_calling')
@@ -73,7 +73,7 @@ class GATKStage(segmentation.Stage):
         return cfg.query('genomes', self.dataset.genome_version, 'known_indels')
 
 
-class BaseRecal(GATKStage):
+class BaseRecal(GATKStageHuman):
     def _run(self):
         return executor.execute(
             self.gatk_cmd('BaseRecalibrator', self.sorted_bam, self.output_grp, xmx=48, ext='--knownSites ' + self.dbsnp),
@@ -84,7 +84,7 @@ class BaseRecal(GATKStage):
         ).join()
 
 
-class PrintReads(GATKStage):
+class PrintReads(GATKStageHuman):
     def _run(self):
         return executor.execute(
             self.gatk_cmd('PrintReads', self.sorted_bam, self.recal_bam, xmx=48, ext=' -BQSR ' + self.output_grp),
@@ -95,7 +95,7 @@ class PrintReads(GATKStage):
         ).join()
 
 
-class RealignTarget(GATKStage):
+class RealignTarget(GATKStageHuman):
     def _run(self):
         realign_target_cmd = self.gatk_cmd('RealignerTargetCreator', self.recal_bam, self.output_intervals, nct=1)
         if self.known_indels:
@@ -109,7 +109,7 @@ class RealignTarget(GATKStage):
         ).join()
 
 
-class Realign(GATKStage):
+class Realign(GATKStageHuman):
     def _run(self):
         realign_cmd = self.gatk_cmd(
             'IndelRealigner',
@@ -128,7 +128,7 @@ class Realign(GATKStage):
         ).join()
 
 
-class HaplotypeCaller(GATKStage):
+class HaplotypeCaller(GATKStageHuman):
     def _run(self):
         haplotype_cmd = self.gatk_cmd(
             'HaplotypeCaller',
@@ -152,7 +152,7 @@ class HaplotypeCaller(GATKStage):
         ).join()
 
 
-class BGZip(GATKStage):
+class BGZip(GATKStageHuman):
     def _run(self):
         return executor.execute(
             '%s %s' % (toolset['bgzip'], self.sample_gvcf),
@@ -163,7 +163,7 @@ class BGZip(GATKStage):
         ).join()
 
 
-class Tabix(GATKStage):
+class Tabix(GATKStageHuman):
     def _run(self):
         return executor.execute(
             '%s -p vcf %s' % (toolset['tabix'], self.sample_gvcf + '.gz'),
