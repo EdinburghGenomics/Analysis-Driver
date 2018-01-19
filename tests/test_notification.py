@@ -5,8 +5,8 @@ from tests.test_analysisdriver import TestAnalysisDriver
 from pyclarity_lims.lims import Lims
 from pyclarity_lims.entities import Step
 
-class TestNotificationCentre(TestAnalysisDriver):
 
+class TestNotificationCentre(TestAnalysisDriver):
     def setUp(self):
         self.n = notification.NotificationCentre('name')
 

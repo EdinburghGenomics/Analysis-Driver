@@ -1,14 +1,12 @@
 import os
 import shutil
-from os.path import join, dirname
+from os.path import join
 from unittest.mock import Mock, patch
 from egcg_core.constants import ELEMENT_PROJECT_ID, ELEMENT_LANE, ELEMENT_SAMPLE_INTERNAL_ID
-from unittest.mock import Mock, patch, call
-from analysis_driver.pipelines.demultiplexing import FastqFilter, RunReview
 from tests.test_analysisdriver import TestAnalysisDriver, NamedMock
 from analysis_driver.util import bash_commands
 from analysis_driver.pipelines.demultiplexing import FastqFilter, BwaAlignMulti, SamtoolsStatsMulti, SamtoolsDepthMulti, \
-    PicardMarkDuplicateMulti, PicardInsertSizeMulti
+    PicardMarkDuplicateMulti, PicardInsertSizeMulti, RunReview
 
 patch_executor = patch('analysis_driver.pipelines.demultiplexing.executor.execute')
 
@@ -64,26 +62,12 @@ class TestFastqFilter(TestAnalysisDriver):
             assert expected_call_l4 == pexecute.call_args[0][3]
 
 
-
-class TestRunReview():
-    @patch('analysis_driver.pipelines.demultiplexing.rest_communication.post_entry')
-    def test_run_review(self, mock):
-        self.run_id = 'test_dataset'
-        self.dataset = NamedMock(real_name=self.run_id)
-        r = RunReview(dataset=self.dataset)
-        review = r._run()
-        assert mock.mock_calls == [call('actions', {'action_type': 'automatic_run_review', 'run_id': 'test_dataset'}, use_data=True)]
-        assert review == 0
-
-
 class TestPostDemultiplexing(TestAnalysisDriver):
-
     @staticmethod
     def _touch(input_file):
         open(input_file, 'w').close()
 
     def setup_stage(self, stage_class):
-        os.chdir(dirname(dirname(self.assets_path)))
         self.run_elements = [
             {ELEMENT_PROJECT_ID: 'project1', ELEMENT_SAMPLE_INTERNAL_ID: 'testsample1', ELEMENT_LANE: 1},
             {ELEMENT_PROJECT_ID: 'project1', ELEMENT_SAMPLE_INTERNAL_ID: 'testsample2', ELEMENT_LANE: 2}
@@ -112,7 +96,6 @@ class TestPostDemultiplexing(TestAnalysisDriver):
 
 
 class TestBwaAlignMulti(TestPostDemultiplexing):
-
     def setUp(self):
         self.setup_stage(BwaAlignMulti)
 
@@ -129,11 +112,12 @@ class TestBwaAlignMulti(TestPostDemultiplexing):
                     {'ID': '1', 'SM': run_element.get(ELEMENT_SAMPLE_INTERNAL_ID), 'PL': 'illumina'},
                     thread=6
                 ))
-            mock_executor.assert_called_with(*cmds, cpus=4, job_name='bwa_mem', mem=24,
-                                             working_dir='tests/assets/jobs/testrun', log_commands=False)
+            mock_executor.assert_called_with(
+                *cmds, cpus=4, job_name='bwa_mem', mem=24, working_dir='tests/assets/jobs/testrun', log_commands=False
+            )
+
 
 class TestSamtoolsStatsMulti(TestPostDemultiplexing):
-
     def setUp(self):
         self.setup_stage(SamtoolsStatsMulti)
         self.setup_post_alignment()
@@ -147,11 +131,17 @@ class TestSamtoolsStatsMulti(TestPostDemultiplexing):
                     self.stage.bam_path(run_element),
                     self.stage.fastq_base(run_element) + '_samtools_stats.txt'
                 ))
-            mock_executor.assert_called_with(*cmds, cpus=1, job_name='samtoolsstats', mem=8,
-                                             working_dir='tests/assets/jobs/testrun', log_commands=False)
+            mock_executor.assert_called_with(
+                *cmds,
+                cpus=1,
+                job_name='samtoolsstats',
+                mem=8,
+                working_dir='tests/assets/jobs/testrun',
+                log_commands=False
+            )
+
 
 class TestSamtoolsDepthMulti(TestPostDemultiplexing):
-
     def setUp(self):
         self.setup_stage(SamtoolsDepthMulti)
         self.setup_post_alignment()
@@ -166,12 +156,17 @@ class TestSamtoolsDepthMulti(TestPostDemultiplexing):
                     self.stage.bam_path(run_element),
                     self.stage.fastq_base(run_element) + '_samtools.depth'
                 ))
-            mock_executor.assert_called_with(*cmds, cpus=1, job_name='samtoolsdepth', mem=6,
-                                             working_dir='tests/assets/jobs/testrun', log_commands=False)
+            mock_executor.assert_called_with(
+                *cmds,
+                cpus=1,
+                job_name='samtoolsdepth',
+                mem=6,
+                working_dir='tests/assets/jobs/testrun',
+                log_commands=False
+            )
 
 
 class TestPicardMarkDuplicateMulti(TestPostDemultiplexing):
-
     def setUp(self):
         self.setup_stage(PicardMarkDuplicateMulti)
         self.setup_post_alignment()
@@ -186,12 +181,12 @@ class TestPicardMarkDuplicateMulti(TestPostDemultiplexing):
                     self.stage.bam_path(run_element)[:-len('.bam')] + '_markdup.bam',
                     self.stage.fastq_base(run_element) + '_markdup.metrics'
                 ))
-            mock_executor.assert_called_with(*cmds, cpus=1, job_name='picardMD', mem=12,
-                                             working_dir='tests/assets/jobs/testrun')
+            mock_executor.assert_called_with(
+                *cmds, cpus=1, job_name='picardMD', mem=12, working_dir='tests/assets/jobs/testrun'
+            )
 
 
 class TestPicardInsertSizeMulti(TestPostDemultiplexing):
-
     def setUp(self):
         self.setup_stage(PicardInsertSizeMulti)
         self.setup_post_alignment()
@@ -206,5 +201,16 @@ class TestPicardInsertSizeMulti(TestPostDemultiplexing):
                     self.stage.fastq_base(run_element) + '_insertsize.metrics',
                     self.stage.fastq_base(run_element) + '_insertsize.pdf'
                 ))
-            mock_executor.assert_called_with(*cmds, cpus=1, job_name='picardIS', mem=12,
-                                             working_dir='tests/assets/jobs/testrun')
+            mock_executor.assert_called_with(
+                *cmds, cpus=1, job_name='picardIS', mem=12, working_dir='tests/assets/jobs/testrun'
+            )
+
+
+class TestRunReview(TestAnalysisDriver):
+    @patch('analysis_driver.pipelines.demultiplexing.rest_communication.post_entry')
+    def test_run_review(self, mocked_post):
+        r = RunReview(dataset=NamedMock(real_name='test_dataset'))
+        assert r._run() == 0
+        mocked_post.assert_called_with(
+            'actions', {'action_type': 'automatic_run_review', 'run_id': 'test_dataset'}, use_data=True
+        )

@@ -77,11 +77,9 @@ class TestMappingStats(TestAnalysisDriver):
         assert opt_duplicate_reads == 181980
         assert est_library_size is None
 
-
     def test_parse_picard_insert_size_metrics(self):
         mean, std_dev, median, med_abs_dev = mp.parse_picard_insert_size_metrics(self.picard_insertsize_file)
         assert mean == 446.299806
         assert std_dev == 113.966554
         assert median == 439
         assert med_abs_dev == 69
-

@@ -13,6 +13,7 @@ from analysis_driver.tool_versioning import toolset
 toolset_type = 'project_processing'
 name = 'project'
 
+
 def build_pipeline(dataset):
     sample_ids = [sample['sample_id'] for sample in dataset.samples_processed]
     project_source = os.path.join(cfg.query('sample', 'output_dir'), dataset.name)
@@ -24,8 +25,8 @@ def build_pipeline(dataset):
         gvcf_files.append(gvcf_file)
     if len(gvcf_files) < 2:
         raise PipelineError('Incorrect number of gVCF files: require at least two')
-    reference = dataset.reference_genome
-    genotype_gvcfs = GenotypeGVCFs(dataset=dataset, gVCFs=gvcf_files, reference=reference)
+
+    genotype_gvcfs = GenotypeGVCFs(dataset=dataset, gVCFs=gvcf_files, reference=dataset.reference_genome)
     relatedness = Relatedness(dataset=dataset, previous_stages=[genotype_gvcfs])
     peddy = Peddy(dataset=dataset, ids=sample_ids, previous_stages=[genotype_gvcfs])
     parse = ParseRelatedness(dataset=dataset, ids=sample_ids, parse_method='parse_both', previous_stages=[relatedness, peddy])

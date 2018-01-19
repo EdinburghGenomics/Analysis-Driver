@@ -1,12 +1,8 @@
 import shutil
-from os import mkdir
-from os.path import join, exists, isdir, basename, dirname
-import os
+from os import makedirs
+from os.path import join, exists, isdir, dirname, basename
 from egcg_core.config import cfg
-from egcg_core import executor, util, clarity
-from egcg_core.constants import ELEMENT_PROJECT_ID, ELEMENT_LANE, ELEMENT_SAMPLE_INTERNAL_ID
-from egcg_core.util import find_file
-from egcg_core import executor, util, rest_communication
+from egcg_core import executor, util, rest_communication, clarity, constants as c
 from analysis_driver import segmentation
 from analysis_driver.util import bash_commands, find_all_fastq_pairs_for_lane, get_trim_values_for_bad_cycles
 from analysis_driver.pipelines.common import Cleanup
@@ -33,7 +29,7 @@ class Setup(DemultiplexingStage):
         self.info('Fastq dir: ' + self.fastq_dir)
 
         if not isdir(self.fastq_dir):
-            mkdir(self.fastq_dir)
+            makedirs(self.fastq_dir)
 
         # Send the information about the run to the rest API
         crawler = RunCrawler(self.dataset)
@@ -89,16 +85,15 @@ class FastqFilter(DemultiplexingStage):
 
         if exists(conversion_xml) and exists(adapter_trim_file):
             self.info('Found ConversionStats and AdaptorTrimming. Sending data.')
-            crawler = RunCrawler(
-                self.dataset, adapter_trim_file=adapter_trim_file,
-                conversion_xml_file=conversion_xml
-            )
+            crawler = RunCrawler(self.dataset, adapter_trim_file=adapter_trim_file, conversion_xml_file=conversion_xml)
             crawler.send_data()
+        else:
+            self.warning('ConversionStats and/or AdaptorTrimming not found')
 
         # Assess if the lanes need filtering
-        filter_lanes = {1: False, 2: False, 3: False, 4: False, 5: False, 6: False, 7: False, 8: False}
         q30_threshold = float(cfg.query('fastq_filterer', 'q30_threshold', ret_default=74))
         self.debug('Q30 threshold: %s', q30_threshold)
+        filter_lanes = {1: False, 2: False, 3: False, 4: False, 5: False, 6: False, 7: False, 8: False}
         for lane_metrics in self.dataset.lane_metrics:
             if q30_threshold > float(lane_metrics['pc_q30']) > 0:
                 self.warning(
@@ -118,7 +113,7 @@ class FastqFilter(DemultiplexingStage):
             bad_tiles = {}
             bad_cycles = {}
 
-        cmd_list = []
+        cmds = []
         for lane in filter_lanes:
             fq_pairs = find_all_fastq_pairs_for_lane(self.fastq_dir, lane)
             kwargs = {}
@@ -127,10 +122,10 @@ class FastqFilter(DemultiplexingStage):
                 kwargs = {'tiles_to_filter': bad_tiles.get(lane), 'trim_r2': trim_r2}
 
             for fqs in fq_pairs:
-                cmd_list.append(bash_commands.fastq_filterer(fqs, **kwargs))
+                cmds.append(bash_commands.fastq_filterer(fqs, **kwargs))
 
         return executor.execute(
-            *cmd_list,
+            *cmds,
             prelim_cmds=[bash_commands.fq_filt_prelim_cmd()],
             job_name='fastq_filterer',
             working_dir=self.job_dir,
@@ -194,13 +189,15 @@ class QCOutput(DemultiplexingStage):
         if exists(conversion_xml) and exists(adapter_trim_file):
             self.info('Found ConversionStats and AdaptorTrimming. Sending data.')
             crawler = RunCrawler(
-                self.dataset, adapter_trim_file=adapter_trim_file,
-                conversion_xml_file=conversion_xml, run_dir=self.fastq_dir
+                self.dataset,
+                adapter_trim_file=adapter_trim_file,
+                conversion_xml_file=conversion_xml,
+                run_dir=self.fastq_dir
             )
             crawler.send_data()
             return 0
         else:
-            self.error('ConversionStats or AdaptorTrimming not found.')
+            self.error('ConversionStats and/or AdaptorTrimming not found.')
             return 1
 
 
@@ -210,14 +207,7 @@ class DataOutput(DemultiplexingStage):
         return output_data_and_archive(self.fastq_dir, join(cfg['output_dir'], self.dataset.name))
 
 
-class RunReview(DemultiplexingStage):
-    def _run(self):
-        rest_communication.post_entry('actions', {'action_type': 'automatic_run_review', 'run_id': self.dataset.name}, use_data=True)
-        return 0
-
-
 class PostDemultiplexingStage(DemultiplexingStage):
-
     _fastq_files = {}
 
     @property
@@ -226,16 +216,16 @@ class PostDemultiplexingStage(DemultiplexingStage):
 
     def fastq_pair(self, run_element):
         re_id = (
-            run_element.get(ELEMENT_PROJECT_ID),
-            run_element.get(ELEMENT_SAMPLE_INTERNAL_ID),
-            run_element.get(ELEMENT_LANE)
+            run_element.get(c.ELEMENT_PROJECT_ID),
+            run_element.get(c.ELEMENT_SAMPLE_INTERNAL_ID),
+            run_element.get(c.ELEMENT_LANE)
         )
         if re_id not in self._fastq_files:
             fqs = util.find_fastqs(
                 self.fastq_dir,
-                run_element.get(ELEMENT_PROJECT_ID),
-                run_element.get(ELEMENT_SAMPLE_INTERNAL_ID),
-                run_element.get(ELEMENT_LANE)
+                run_element.get(c.ELEMENT_PROJECT_ID),
+                run_element.get(c.ELEMENT_SAMPLE_INTERNAL_ID),
+                run_element.get(c.ELEMENT_LANE)
             )
             fqs.sort()
             self._fastq_files[re_id] = fqs
@@ -248,8 +238,8 @@ class PostDemultiplexingStage(DemultiplexingStage):
     def bam_path(self, run_element):
         return join(
             self.alignment_dir,
-            run_element.get(ELEMENT_PROJECT_ID),
-            run_element.get(ELEMENT_SAMPLE_INTERNAL_ID),
+            run_element.get(c.ELEMENT_PROJECT_ID),
+            run_element.get(c.ELEMENT_SAMPLE_INTERNAL_ID),
             basename(self.fastq_base(run_element))
         ) + '.bam'
 
@@ -261,9 +251,9 @@ class BwaAlignMulti(PostDemultiplexingStage):
         for run_element in self.dataset.run_elements:
             if self.fastq_pair(run_element):
                 # make sure the directory where the bam file will go exists
-                os.makedirs(dirname(self.bam_path(run_element)), exist_ok=True)
+                makedirs(dirname(self.bam_path(run_element)), exist_ok=True)
                 # get the reference genome
-                species = clarity.get_species_from_sample(run_element.get(ELEMENT_SAMPLE_INTERNAL_ID))
+                species = clarity.get_species_from_sample(run_element.get(c.ELEMENT_SAMPLE_INTERNAL_ID))
                 default_genome_version = cfg.query('species', species, 'default')
                 reference_genome = cfg.query('genomes', default_genome_version, 'fasta')
                 bwa_commands.append(
@@ -271,7 +261,7 @@ class BwaAlignMulti(PostDemultiplexingStage):
                         self.fastq_pair(run_element),
                         reference_genome,
                         self.bam_path(run_element),
-                        {'ID': '1', 'SM': run_element.get(ELEMENT_SAMPLE_INTERNAL_ID), 'PL': 'illumina'},
+                        {'ID': '1', 'SM': run_element.get(c.ELEMENT_SAMPLE_INTERNAL_ID), 'PL': 'illumina'},
                         thread=6
                     )
                 )
@@ -372,6 +362,16 @@ class QCOutput2(QCOutput):
     pass
 
 
+class RunReview(DemultiplexingStage):
+    def _run(self):
+        rest_communication.post_entry(
+            'actions',
+            {'action_type': 'automatic_run_review', 'run_id': self.dataset.name},
+            use_data=True
+        )
+        return 0
+
+
 def build_pipeline(dataset):
 
     def stage(cls, **params):
@@ -386,7 +386,7 @@ def build_pipeline(dataset):
     seqtk = stage(SeqtkFQChk, previous_stages=[fastq_filter])
     md5 = stage(MD5Sum, previous_stages=[fastq_filter])
     qc_output = stage(QCOutput, previous_stages=[welldups, integrity_check, fastqc, seqtk, md5])
-    align_output  = stage(BwaAlignMulti, previous_stages=[qc_output])
+    align_output = stage(BwaAlignMulti, previous_stages=[qc_output])
     stats_output = stage(SamtoolsStatsMulti, previous_stages=[align_output])
     depth_output = stage(SamtoolsDepthMulti, previous_stages=[align_output])
     md_output = stage(PicardMarkDuplicateMulti, previous_stages=[align_output])

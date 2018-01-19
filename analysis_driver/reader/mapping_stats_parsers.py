@@ -176,7 +176,7 @@ def parse_picard_mark_dup_metrics(input_file):
     lib_name, lib = library_to_metrics.popitem()
     return (lib.get('UNPAIRED_READS_EXAMINED') + lib.get('READ_PAIRS_EXAMINED') * 2,
             lib.get('UNPAIRED_READ_DUPLICATES') + lib.get('READ_PAIR_DUPLICATES') * 2,
-            lib.get('READ_PAIR_OPTICAL_DUPLICATES') * 2 , lib.get('ESTIMATED_LIBRARY_SIZE'))
+            lib.get('READ_PAIR_OPTICAL_DUPLICATES') * 2, lib.get('ESTIMATED_LIBRARY_SIZE'))
 
 
 def parse_picard_insert_size_metrics(input_file):
@@ -189,12 +189,10 @@ def parse_picard_insert_size_metrics(input_file):
             if line.startswith('#') or not line.strip():
                 continue
             lines.append(line.rstrip())
-    assert len(lines) == 2 # There should only be reads in forward-reverse orientation
+    assert len(lines) == 2  # There should only be reads in forward-reverse orientation
     headers = lines[0].split('\t')
-    library_to_metrics = defaultdict(dict)
-
     sp_line = lines[1].split('\t')
-    sp_line[headers.index('PAIR_ORIENTATION')] == 'FR'
+    assert sp_line[headers.index('PAIR_ORIENTATION')] == 'FR'
     return (
         float(sp_line[headers.index('MEAN_INSERT_SIZE')]),
         float(sp_line[headers.index('STANDARD_DEVIATION')]),

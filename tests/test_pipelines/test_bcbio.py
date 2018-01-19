@@ -1,11 +1,8 @@
-from unittest.mock import Mock, patch, mock_open
-
 import yaml
-
-from analysis_driver.pipelines.bcbio import FixUnmapped, BCBio
-from analysis_driver.pipelines.demultiplexing import FastqFilter
+from unittest.mock import Mock, patch, mock_open
 from tests.test_analysisdriver import TestAnalysisDriver, NamedMock
-
+from analysis_driver.pipelines.bcbio import FixUnmapped, BCBio
+from analysis_driver.config import etc_config
 
 
 class TestBCBio(TestAnalysisDriver):
@@ -18,32 +15,34 @@ class TestBCBio(TestAnalysisDriver):
         b = BCBio(dataset=dataset)
 
         patch_executor = patch('analysis_driver.pipelines.bcbio.executor.execute')
-        patch_get_sample = patch('analysis_driver.pipelines.bcbio.clarity.get_sample', return_value=Mock(udf={
-            'Analysis Type': 'gatk'
-        }))
+        patch_get_sample = patch(
+            'analysis_driver.pipelines.bcbio.clarity.get_sample', return_value=Mock(udf={'Analysis Type': 'gatk'})
+        )
         patch_chdir = patch('os.chdir')
         yaml_content = {'fc_name': 'fc1'}
         # FIXME: have to patch the builtins to get 3.4 support patch directly in the file in 3.6
-        # patch_open = patch('analysis_driver.pipelines.bcbio.open', new=mock_open(read_data=yaml.safe_dump(yaml_content)))
         patch_open = patch('builtins.open', new=mock_open(read_data=yaml.safe_dump(yaml_content)))
 
         with patch_executor as pexecute, patch_get_sample as pgetsample, patch_chdir, patch_open as popen:
             b._run()
             pgetsample.assert_called_once_with('test')
-            bcb_cmd = (
+
+            obs = pexecute.call_args_list[0][0][0]
+            exp = ' '.join(
+                (
+                    'path/to/bcbio/bin/bcbio_nextgen.py -w template',
+                    etc_config('bcbio_alignment_hg38_gatk.yaml'),
+                    'tests/assets/jobs/test/samples_test-merged tests/assets/jobs/test/samples_test-merged.csv'
+                )
+            )
+            assert obs == exp
+
+            assert pexecute.call_args_list[1][0][0] == (
                 'path/to/bcbio/bin/bcbio_nextgen.py '
                 'tests/assets/jobs/test/samples_test-merged/config/samples_test-merged.yaml '
                 '-n 16 --workdir tests/assets/jobs/test/samples_test-merged/work'
             )
-            # test first bcbio command's first argument which is just to command
-            pexecute.mock_calls[0][0] == ''.join(bcb_cmd)
-            bcb_cmd = (
-                'path/to/bcbio/bin/bcbio_nextgen.py '
-                'tests/assets/jobs/test/samples_test-merged/config/samples_test-merged.yaml '
-                '-n 16 --workdir tests/assets/jobs/test/samples_test-merged/work'
-            )
-            # test last bcbio command's first argument which is just to command
-            pexecute.mock_calls[3][0] == ''.join(bcb_cmd)
+
             # assert reading
             popen.assert_any_call('tests/assets/jobs/test/samples_test-merged/config/samples_test-merged.yaml', 'r')
             # assert writing
@@ -52,21 +51,18 @@ class TestBCBio(TestAnalysisDriver):
 
 
 class TestFixUnmapped(TestAnalysisDriver):
-    def test_run(self):
-
-        dataset = NamedMock(
-            real_name='test',
-            user_sample_id='usertest'
-        )
-        f = FixUnmapped(dataset=dataset)
-
-        patch_executor = patch('analysis_driver.pipelines.bcbio.executor.execute')
-
-        with patch_executor as pexecute:
-            f._run()
-            cmd = (
-                'path/to/fix_dup_unmapped '
-                 '-i tests/assets/jobs/test/samples_test-merged/final/usertest/usertest-ready.bam '
-                 '-o tests/assets/jobs/test/samples_test-merged/final/usertest/usertest-ready_fixed.bam'
+    @patch('analysis_driver.pipelines.bcbio.executor.execute')
+    def test_run(self, mocked_execute):
+        f = FixUnmapped(
+            dataset=NamedMock(
+                real_name='test',
+                user_sample_id='usertest'
             )
-            assert pexecute.call_args[0][0] == ''.join(cmd)
+        )
+        f._run()
+        cmd = (
+            'path/to/fix_dup_unmapped '
+            '-i tests/assets/jobs/test/samples_test-merged/final/usertest/usertest-ready.bam '
+            '-o tests/assets/jobs/test/samples_test-merged/final/usertest/usertest-ready_fixed.bam'
+        )
+        assert mocked_execute.call_args[0][0] == ''.join(cmd)

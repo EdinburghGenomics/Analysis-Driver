@@ -1,11 +1,7 @@
 import os
-from luigi import Parameter
 from egcg_core import executor
 from egcg_core.util import find_file
-from luigi.parameter import ListParameter
-
-from analysis_driver.tool_versioning import toolset
-from analysis_driver.segmentation import Stage
+from analysis_driver.segmentation import Parameter, Stage
 from analysis_driver.util import bash_commands
 
 
@@ -24,7 +20,7 @@ class SamtoolsDepth(Stage):
                 find_file(self.bam_file),
                 self.samtools_depth_out_file
             ),
-                job_name='samtoolsdepth',
+            job_name='samtoolsdepth',
             working_dir=self.job_dir,
             cpus=1,
             mem=6,

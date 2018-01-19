@@ -2,6 +2,7 @@ import os
 import yaml
 from egcg_core import executor, clarity, util
 from analysis_driver import segmentation, quality_control as qc
+from analysis_driver.config import etc_config
 from analysis_driver.exceptions import PipelineError
 from analysis_driver.pipelines import common
 from analysis_driver.util import bash_commands
@@ -61,14 +62,9 @@ class BCBio(BCBioStage):
             self.error('Unknown Analysis type %s' % analysis_type)
             return 1
 
-        run_template = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)),
-            '..', '..', 'etc', 'bcbio_alignment_%s_%s.yaml' % (self.dataset.genome_version, analysis_type)
-        )
+        run_template = etc_config('bcbio_alignment_%s_%s.yaml' % (self.dataset.genome_version, analysis_type))
         if not os.path.isfile(run_template):
-            raise PipelineError(
-                'Could not find BCBio run template ' + run_template + '. Is the correct genome set?'
-            )
+            raise PipelineError('Could not find BCBio run template ' + run_template + '. Is the correct genome set?')
 
         original_dir = os.getcwd()
         os.chdir(self.job_dir)
@@ -84,14 +80,11 @@ class BCBio(BCBioStage):
             bcbio_dir + '.csv'
         ] + util.find_files(self.fastq_pair)
 
-        run_yaml = os.path.join(bcbio_dir, 'config', 'samples_' + self.dataset.name + '-merged.yaml')
-        bcbio_cmd = bash_commands.bcbio(run_yaml, os.path.join(bcbio_dir, 'work'), threads=16)
-
         prep_status = executor.execute(' '.join(sample_prep), env='local').join()
         self.info('BCBio sample prep exit status: ' + str(prep_status))
 
+        run_yaml = os.path.join(bcbio_dir, 'config', 'samples_' + self.dataset.name + '-merged.yaml')
         ext_sample_id = self.dataset.user_sample_id or self.dataset.name
-
         with open(run_yaml, 'r') as i:
             run_config = yaml.load(i)
         run_config['fc_name'] = ext_sample_id
@@ -99,7 +92,7 @@ class BCBio(BCBioStage):
             o.write(yaml.safe_dump(run_config, default_flow_style=False))
 
         bcbio_executor = executor.execute(
-            bcbio_cmd,
+            bash_commands.bcbio(run_yaml, os.path.join(bcbio_dir, 'work'), threads=16),
             prelim_cmds=bash_commands.export_env_vars(),
             job_name='bcb%s' % self.dataset.name,
             working_dir=self.job_dir,
@@ -111,13 +104,9 @@ class BCBio(BCBioStage):
 
 
 class FixUnmapped(BCBioStage):
-
     def _run(self):
         return executor.execute(
-            toolset['fix_dup_unmapped'] + ' -i %s -o %s' % (
-                self.bam_path,
-                self.bam_path_fixed,
-            ),
+            toolset['fix_dup_unmapped'] + ' -i %s -o %s' % (self.bam_path, self.bam_path_fixed),
             job_name='fixunmmaped',
             working_dir=self.job_dir,
             cpus=1,
@@ -137,7 +126,6 @@ def build_pipeline(dataset):
     contam_check = stage(qc.FastqScreen, fq_pattern=bcbio.fastq_pair, previous_stages=[fastqc])
     blast = stage(qc.Blast, fastq_file=bcbio.fastq_pair.replace('?', '1'), previous_stages=[fastqc])
     geno_val = stage(qc.GenotypeValidation, fq_pattern=bcbio.fastq_pair, previous_stages=[fastqc])
-
     fix_unmapped = stage(FixUnmapped, previous_stages=[bcbio])
 
     bcbio_and_qc = [fix_unmapped, fastqc, contam_check, blast, geno_val]

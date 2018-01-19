@@ -478,11 +478,14 @@ class SampleDataset(Dataset):
         return self.sample['project_id']
 
     def _amount_data(self):
-        return int(self.sample.get('aggregated').get('clean_yield_in_gb')*1000000000)
+        # TODO: drill down properly with EGCG-Core
+        y = self.sample.get('aggregated', {}).get('clean_yield_in_gb')
+        if y:
+            return int(y * 1000000000)
 
     @property
     def pc_q30(self):
-        return self.sample.get('aggregated').get('clean_pc_q30')
+        return self.sample.get('aggregated', {}).get('clean_pc_q30')
 
     @property
     def data_threshold(self):
@@ -507,7 +510,7 @@ class SampleDataset(Dataset):
         return self.data_threshold and self.pc_q30 > 75 and self._amount_data() > self.data_threshold
 
     def report(self):
-        runs = self.sample.get('aggregated').get('run_ids')
+        runs = self.sample.get('aggregated', {}).get('run_ids')
         non_useable_runs = sorted(set(r.get(ELEMENT_RUN_NAME) for r in self.non_useable_run_elements))
 
         s = '%s  (%s / %s  from %s) ' % (
