@@ -559,7 +559,7 @@ class ProjectDataset(Dataset):
         self._genome_version = None
 
     def _is_ready(self):
-        if self.number_of_samples > 0 and self.number_of_samples > len(self.samples_processed):
+        if self.number_of_samples > 0 and len(self.samples_processed) >= self.number_of_samples:
             return True
         else:
             return False
