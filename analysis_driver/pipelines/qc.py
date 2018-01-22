@@ -11,7 +11,7 @@ def build_pipeline(dataset):
         return cls(dataset=dataset, **params)
 
     bam_file_production = common.build_bam_file_production(dataset)
-    haplotype = stage(v.HaplotypeCaller, previous_stages=[bam_file_production])
+    haplotype = stage(v.HaplotypeCaller, previous_stages=bam_file_production)
     genotype = stage(v.GenotypeGVCFs, previous_stages=[haplotype])
     select_snp = stage(v.SelectVariants, command=v.GATKStage.select_snp_command, previous_stages=[genotype])
     filter_snp = stage(v.VariantFiltration, command=v.GATKStage.filter_snp_command, previous_stages=[select_snp])

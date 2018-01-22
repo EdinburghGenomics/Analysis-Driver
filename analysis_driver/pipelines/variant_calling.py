@@ -171,13 +171,16 @@ class HaplotypeCaller(GATKStage):
             input_bam=self.indel_realigned_bam,
             xmx=48,
             ext=('--pair_hmm_implementation VECTOR_LOGLESS_CACHING -ploidy 2 --emitRefConfidence GVCF '
-                 '--variant_index_type LINEAR --variant_index_parameter 128000 --dbsnp ' + self.dbsnp)
+                 '--variant_index_type LINEAR --variant_index_parameter 128000 ')
         )
         for annot in ('BaseQualityRankSumTest', 'FisherStrand', 'GCContent', 'HaplotypeScore',
                       'HomopolymerRun', 'MappingQualityRankSumTest', 'MappingQualityZero', 'QualByDepth',
                       'ReadPosRankSumTest', 'RMSMappingQuality', 'DepthPerAlleleBySample', 'Coverage',
                       'ClippingRankSumTest', 'DepthPerSampleHC'):
             haplotype_cmd += ' --annotation ' + annot
+            if self.dbsnp:
+                haplotype_cmd += ' --dbsnp ' + self.dbsnp
+
         return executor.execute(
             haplotype_cmd,
             job_name='gatk_haplotype_call',
