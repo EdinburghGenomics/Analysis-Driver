@@ -20,7 +20,7 @@ class TestGenotypeGVCFs(QCTester):
     def test_gatk_genotype_gvcfs_cmd(self):
         with patch(ppath + 'util.find_file', new=self.fake_find_file):
             assert self.g.gatk_genotype_gvcfs_cmd() == (
-                'java -Djava.io.tmpdir=tests/assets/jobs/test_project_id -XX:+UseSerialGC -Xmx90G '
+                'java -Djava.io.tmpdir=tests/assets/jobs/test_project_id -XX:+UseSerialGC -Xmx50G '
                 '-jar path/to/gatk -T GenotypeGVCFs -nt 12 -R /path/to/reference.fa '
                 '--variant test_sample1.g.vcf.gz --variant test_sample2.g.vcf.gz '
                 '--variant test_sample3.g.vcf.gz -o tests/assets/jobs/test_project_id/test_project_id_genotype_gvcfs.vcf'
@@ -35,7 +35,7 @@ class TestGenotypeGVCFs(QCTester):
                 job_name='gatk_genotype_gvcfs',
                 cpus=12,
                 working_dir='tests/assets/jobs/test_project_id',
-                mem=96
+                mem=50
             )
 
 
