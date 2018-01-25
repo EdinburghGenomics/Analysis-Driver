@@ -164,11 +164,12 @@ class Realign(GATKStage):
 
 
 class HaplotypeCaller(GATKStage):
+    input_bam = Parameter()
     def _run(self):
         haplotype_cmd = self.gatk_cmd(
             'HaplotypeCaller',
             self.sample_gvcf,
-            input_bam=self.indel_realigned_bam,
+            input_bam=self.input_bam,
             xmx=48,
             ext=('--pair_hmm_implementation VECTOR_LOGLESS_CACHING -ploidy 2 --emitRefConfidence GVCF '
                  '--variant_index_type LINEAR --variant_index_parameter 128000 ')
@@ -256,7 +257,7 @@ def build_pipeline(dataset):
     print_reads = stage(PrintReads, previous_stages=[base_recal])
     realign_target = stage(RealignTarget, previous_stages=[print_reads])
     realign = stage(Realign, previous_stages=[realign_target])
-    haplotype = stage(HaplotypeCaller, previous_stages=[realign])
+    haplotype = stage(HaplotypeCaller, input_bam=GATKStage.indel_realigned_bam, previous_stages=[realign])
     genotype = stage(GenotypeGVCFs, previous_stages=[haplotype])
     select_snp = stage(SelectVariants, command=GATKStage.select_snp_command, previous_stages=[genotype])
     filter_snp = stage(VariantFiltration, command=GATKStage.filter_snp_command, previous_stages=[select_snp])
