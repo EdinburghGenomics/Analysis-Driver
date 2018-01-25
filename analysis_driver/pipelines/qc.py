@@ -10,7 +10,7 @@ def build_pipeline(dataset):
     def stage(cls, **params):
         return cls(dataset=dataset, **params)
 
-    g = v.GATKStage()
+    g = v.GATKStage(dataset=dataset)
     bam_file_production = common.build_bam_file_production(dataset)
     haplotype = stage(v.HaplotypeCaller, input_bam=g.sorted_bam, previous_stages=bam_file_production)
     genotype = stage(v.GenotypeGVCFs, previous_stages=[haplotype])

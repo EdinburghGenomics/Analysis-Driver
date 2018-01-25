@@ -92,6 +92,10 @@ class GATKStage(segmentation.Stage):
         return self.basename + '.g.vcf'
 
     @property
+    def genotyped_vcf(self):
+        return self.basename + '.vcf'
+
+    @property
     def raw_snp_vcf(self):
         return 'raw_snp_' + self.basename + '.vcf'
 
@@ -252,7 +256,7 @@ def build_pipeline(dataset):
     def stage(cls, **params):
         return cls(dataset=dataset, **params)
 
-    g = GATKStage()
+    g = GATKStage(dataset=dataset)
     bam_file_production = common.build_bam_file_production(dataset)
     base_recal = stage(BaseRecal, previous_stages=bam_file_production)
     print_reads = stage(PrintReads, previous_stages=[base_recal])
