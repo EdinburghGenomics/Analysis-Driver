@@ -44,7 +44,7 @@ class GATKStage(segmentation.Stage):
 
     @property
     def select_snp_command(self):
-        command = self.gatk_cmd('SelectVariants', self.raw_snp_vcf, nct=16)
+        command = self.gatk_cmd('SelectVariants', self.raw_snp_vcf, nct=16, nt=1)
         command += ' -V ' + self.genotyped_vcf
         command += ' -selectType SNP '
         return command
@@ -59,7 +59,7 @@ class GATKStage(segmentation.Stage):
             'ReadPosRankSum < -8.0'
         ]
         filter = ' || '.join(filter)
-        command = self.gatk_cmd('VariantFiltration', self.filter_snp_vcf, nct=16)
+        command = self.gatk_cmd('VariantFiltration', self.filter_snp_vcf, nct=16, nt=1)
         command += ' -V ' + self.raw_snp_vcf
         command += ' --filterExpression ' + filter
         command += ' --filterName "SNP_FILTER"'
@@ -117,7 +117,7 @@ class GATKStage(segmentation.Stage):
 class BaseRecal(GATKStage):
     def _run(self):
         return executor.execute(
-            self.gatk_cmd('BaseRecalibrator', self.output_grp, input_bam=self.sorted_bam, xmx=48, ext='--knownSites ' + self.dbsnp),
+            self.gatk_cmd('BaseRecalibrator', self.output_grp, input_bam=self.sorted_bam, xmx=48, nt=1, ext='--knownSites ' + self.dbsnp),
             job_name='gatk_base_recal',
             working_dir=self.gatk_run_dir,
             cpus=16,
@@ -128,7 +128,7 @@ class BaseRecal(GATKStage):
 class PrintReads(GATKStage):
     def _run(self):
         return executor.execute(
-            self.gatk_cmd('PrintReads', self.recal_bam, input_bam=self.sorted_bam, xmx=48, ext=' -BQSR ' + self.output_grp),
+            self.gatk_cmd('PrintReads', self.recal_bam, input_bam=self.sorted_bam, xmx=48, nt=1, ext=' -BQSR ' + self.output_grp),
             job_name='gatk_print_reads',
             working_dir=self.gatk_run_dir,
             cpus=16,
@@ -138,7 +138,7 @@ class PrintReads(GATKStage):
 
 class RealignTarget(GATKStage):
     def _run(self):
-        realign_target_cmd = self.gatk_cmd('RealignerTargetCreator', self.output_intervals, input_bam=self.recal_bam, nct=1)
+        realign_target_cmd = self.gatk_cmd('RealignerTargetCreator', self.output_intervals, input_bam=self.recal_bam, nct=1, nt=1)
         if self.known_indels:
             realign_target_cmd += ' --known ' + self.known_indels
 
@@ -157,6 +157,7 @@ class Realign(GATKStage):
             self.indel_realigned_bam,
             input_bam=self.recal_bam,
             nct=1,
+            nt=1,
             ext='-targetIntervals ' + self.output_intervals
         )
         if self.known_indels:
@@ -177,6 +178,7 @@ class HaplotypeCaller(GATKStage):
             self.sample_gvcf,
             input_bam=self.input_bam,
             xmx=48,
+            nt=1,
             ext=('--pair_hmm_implementation VECTOR_LOGLESS_CACHING -ploidy 2 --emitRefConfidence GVCF '
                  '--variant_index_type LINEAR --variant_index_parameter 128000 ')
         )
@@ -200,7 +202,7 @@ class HaplotypeCaller(GATKStage):
 
 class GenotypeGVCFs(GATKStage):
     def _run(self):
-        genotype_gvcfs_cmd = self.gatk_cmd('GenotypeGVCFs', self.genotyped_vcf, nct=1, nt=16, ext=' --variant ' + self.sample_gvcf)
+        genotype_gvcfs_cmd = self.gatk_cmd('GenotypeGVCFs', self.genotyped_vcf, nct=1, ext=' --variant ' + self.sample_gvcf)
         return executor.execute(
             genotype_gvcfs_cmd,
             job_name='gatk_genotype_gvcfs',
