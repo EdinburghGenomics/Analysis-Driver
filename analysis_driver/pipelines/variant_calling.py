@@ -20,7 +20,7 @@ class GATKStage(segmentation.Stage):
         os.makedirs(d, exist_ok=True)
         return d
 
-    def gatk_cmd(self, run_cls, output, input_bam=None, xmx=16, nct=16, ext=None):
+    def gatk_cmd(self, run_cls, output, input_bam=None, xmx=16, nct=16, nt=16, ext=None):
 
         base_cmd = java_command(memory=xmx, tmp_dir=self.gatk_run_dir, jar=toolset['gatk']) + (
                     '-R {ref} -T {run_cls} --read_filter BadCigar --read_filter NotPrimaryAlignment '
@@ -32,6 +32,8 @@ class GATKStage(segmentation.Stage):
             base_cmd += ext
         if nct > 1:
             base_cmd += ' -nct %s' % nct
+        if nt > 1:
+            base_cmd += ' -nt %s' % nt
 
         return base_cmd.format(
             ref=self.dataset.reference_genome,
@@ -186,6 +188,7 @@ class HaplotypeCaller(GATKStage):
             if self.dbsnp:
                 haplotype_cmd += ' --dbsnp ' + self.dbsnp
 
+
         return executor.execute(
             haplotype_cmd,
             job_name='gatk_haplotype_call',
@@ -197,14 +200,13 @@ class HaplotypeCaller(GATKStage):
 
 class GenotypeGVCFs(GATKStage):
     def _run(self):
-        genotype_gvcfs_cmd = self.gatk_cmd('GenotypeGVCFs', self.genotyped_vcf, nct=16, ext=' --variant ' + self.sample_gvcf)
+        genotype_gvcfs_cmd = self.gatk_cmd('GenotypeGVCFs', self.genotyped_vcf, nct=1, nt=16, ext=' --variant ' + self.sample_gvcf)
         return executor.execute(
             genotype_gvcfs_cmd,
             job_name='gatk_genotype_gvcfs',
             working_dir=self.gatk_run_dir,
             mem=16
         ).join()
-
 
 
 class SelectVariants(GATKStage):
