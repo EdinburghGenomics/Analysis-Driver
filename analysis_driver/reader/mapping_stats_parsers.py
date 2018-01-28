@@ -199,7 +199,7 @@ def parse_picard_insert_size_metrics(input_file):
         insert_types[sp_line[headers.index('PAIR_ORIENTATION')]] = {
             ELEMENT_MEAN_INSERT_SIZE: float(sp_line[headers.index('MEAN_INSERT_SIZE')]),
             ELEMENT_STD_DEV_INSERT_SIZE: float(sp_line[headers.index('STANDARD_DEVIATION')]),
-            ELEMENT_MEDIAN_INSERT_SIZE: float(sp_line[headers.index('MEDIAN_INSERT_SIZE')]),
-            ELEMENT_MEDIAN_ABS_DEV_INSERT_SIZE: float(sp_line[headers.index('MEDIAN_ABSOLUTE_DEVIATION')]),
+            ELEMENT_MEDIAN_INSERT_SIZE: int(round(sp_line[headers.index('MEDIAN_INSERT_SIZE')])),
+            ELEMENT_MEDIAN_ABS_DEV_INSERT_SIZE: int(round(sp_line[headers.index('MEDIAN_ABSOLUTE_DEVIATION')])),
         }
     return insert_types
