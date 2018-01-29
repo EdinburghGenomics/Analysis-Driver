@@ -44,7 +44,7 @@ class GATKStage(segmentation.Stage):
 
     @property
     def select_snp_command(self):
-        command = self.gatk_cmd('SelectVariants', self.raw_snp_vcf, nct=16, nt=1)
+        command = self.gatk_cmd('SelectVariants', self.raw_snp_vcf, nct=1, nt=16)
         command += ' -V ' + self.genotyped_vcf
         command += ' -selectType SNP '
         return command
@@ -59,7 +59,7 @@ class GATKStage(segmentation.Stage):
             'ReadPosRankSum < -8.0'
         ]
         filter = ' || '.join(filter)
-        command = self.gatk_cmd('VariantFiltration', self.filter_snp_vcf, nct=16, nt=1)
+        command = self.gatk_cmd('VariantFiltration', self.filter_snp_vcf, nct=1, nt=16)
         command += ' -V ' + self.raw_snp_vcf
         command += ' --filterExpression ' + filter
         command += ' --filterName "SNP_FILTER"'
