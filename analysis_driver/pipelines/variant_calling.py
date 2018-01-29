@@ -99,11 +99,11 @@ class GATKStage(segmentation.Stage):
 
     @property
     def raw_snp_vcf(self):
-        return 'raw_snp_' + self.basename + '.vcf'
+        return self.basename + '_raw_snp.vcf'
 
     @property
     def filter_snp_vcf(self):
-        return 'filter_snp_' + self.basename + '.vcf'
+        return self.basename + '_filter_snp.vcf'
 
     @property
     def dbsnp(self):
