@@ -1,7 +1,7 @@
 Changelog for Analysis-Driver
 =============================
 
-0.20 (unreleased)
+0.20 (2018-01-30)
 -----------------
 
 - Trigger automatic review after sample finishes processing
