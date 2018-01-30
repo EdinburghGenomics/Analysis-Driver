@@ -307,13 +307,8 @@ class RunCrawler(Crawler):
 
             picard_insert_size_metric = fastq_base + '_insertsize.metrics'
             if isfile(picard_insert_size_metric):
-                mean_is, std_dev_is, median_is, med_abs_dev_is = mp.parse_picard_insert_size_metrics(picard_insert_size_metric)
-                mapping_statistics.update({
-                    ELEMENT_MEAN_INSERT_SIZE: mean_is,
-                    ELEMENT_STD_DEV_INSERT_SIZE: std_dev_is,
-                    ELEMENT_MEDIAN_INSERT_SIZE: median_is,
-                    ELEMENT_MEDIAN_ABS_DEV_INSERT_SIZE: med_abs_dev_is,
-                })
+                insert_types = mp.parse_picard_insert_size_metrics(picard_insert_size_metric)
+                mapping_statistics.update(insert_types.get('FR'))
             if mapping_statistics:
                 barcode_info[ELEMENT_MAPPING_STATISTICS] = mapping_statistics
 
