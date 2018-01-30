@@ -58,11 +58,11 @@ class GATKStage(segmentation.Stage):
             'MQRankSum < -12.5',
             'ReadPosRankSum < -8.0'
         ]
-        filter = ' || '.join(filter)
-        command = self.gatk_cmd('VariantFiltration', self.filter_snp_vcf, nct=1, nt=16)
-        command += ' -V ' + self.raw_snp_vcf
-        command += ' --filterExpression ' + filter
-        command += ' --filterName "SNP_FILTER"'
+        filter = "'" + ' || '.join(filter) + "'"
+        command = self.gatk_cmd('VariantFiltration', self.filter_snp_vcf, nct=1, nt=1)
+        command += " -V " + self.raw_snp_vcf
+        command += " --filterExpression " + filter
+        command += " --filterName 'SNP_FILTER'"
         return command
 
     @property
