@@ -4,7 +4,10 @@ Changelog for Analysis-Driver
 0.20 (unreleased)
 -----------------
 
-- Nothing changed yet.
+- Trigger automatic review after sample finishes processing
+- Project process duplicated line bugfix
+- Update requirements for sample to be ready for processing
+- prevent different insert sizes from causing pipeline to crash
 
 
 0.19.2 (2017-11-27)
