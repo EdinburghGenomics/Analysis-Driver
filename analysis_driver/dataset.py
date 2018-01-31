@@ -479,13 +479,13 @@ class SampleDataset(Dataset):
 
     def _amount_data(self):
         # TODO: drill down properly with EGCG-Core
-        y = self.sample.get('aggregated', {}).get('clean_yield_in_gb')
+        y = self.sample.get('aggregated', {}).get('clean_yield_in_gb', 0)
         if y:
             return int(y * 1000000000)
 
     @property
     def pc_q30(self):
-        return self.sample.get('aggregated', {}).get('clean_pc_q30')
+        return self.sample.get('aggregated', {}).get('clean_pc_q30', 0)
 
     @property
     def data_threshold(self):
