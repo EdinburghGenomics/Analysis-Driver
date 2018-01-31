@@ -144,6 +144,9 @@ non_human_qc:
     taxa_identified:
         basename: 'taxa_identified.json'
 
+    vcf_stats:
+        location: ['gatk_var_calling']
+        basename: ['{user_sample_id}.vcf.stats']
 
 
 gatk_var_calling:
