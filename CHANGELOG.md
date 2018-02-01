@@ -1,10 +1,11 @@
 Changelog for Analysis-Driver
 =============================
 
-0.21 (unreleased)
------------------
+0.20.1 (2018-02-01)
+-------------------
 
-- Nothing changed yet.
+- Add default value for sample that do not have any data
+- Fix bug where the sample data threshold was set to be required yield q30 instead of required yield
 
 
 0.20 (2018-01-30)
