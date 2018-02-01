@@ -482,10 +482,12 @@ class SampleDataset(Dataset):
         y = self.sample.get('aggregated', {}).get('clean_yield_in_gb')
         if y:
             return int(y * 1000000000)
+        else:
+            return 0
 
     @property
     def pc_q30(self):
-        return self.sample.get('aggregated', {}).get('clean_pc_q30')
+        return self.sample.get('aggregated', {}).get('clean_pc_q30') or 0
 
     @property
     def data_threshold(self):
