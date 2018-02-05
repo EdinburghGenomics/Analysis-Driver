@@ -5,15 +5,17 @@ from egcg_core.app_logging import AppLogger
 from egcg_core.clarity import get_list_of_samples, sanitize_user_id
 from analysis_driver.dataset import RunDataset, SampleDataset, ProjectDataset
 from egcg_core.constants import DATASET_NEW, DATASET_READY, DATASET_FORCE_READY, DATASET_PROCESSING,\
-    DATASET_PROCESSED_SUCCESS, DATASET_PROCESSED_FAIL, DATASET_ABORTED, DATASET_REPROCESS, DATASET_DELETED
+    DATASET_PROCESSED_SUCCESS, DATASET_PROCESSED_FAIL, DATASET_ABORTED, DATASET_REPROCESS, DATASET_DELETED,\
+    DATASET_RESUME
 
 
 class DatasetScanner(AppLogger):
     endpoint = None
     item_id = None
 
-    status_visible = (DATASET_NEW, DATASET_REPROCESS, DATASET_READY, DATASET_FORCE_READY, DATASET_PROCESSING)
     status_hidden = (DATASET_PROCESSED_SUCCESS, DATASET_PROCESSED_FAIL, DATASET_ABORTED, DATASET_DELETED)
+    status_visible = (DATASET_NEW, DATASET_REPROCESS, DATASET_RESUME,
+                      DATASET_READY, DATASET_FORCE_READY, DATASET_PROCESSING)
 
     def __init__(self, config):
         self.input_dir = config.get('input_dir')

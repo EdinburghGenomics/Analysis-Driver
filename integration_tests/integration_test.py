@@ -13,6 +13,7 @@ from egcg_core import rest_communication, notifications, util
 from egcg_core.config import cfg, Configuration
 from egcg_core.app_logging import logging_default
 from unittest import TestCase
+from unittest.mock import patch
 from analysis_driver import client
 from analysis_driver.config import load_config
 from integration_tests.mocked_data import patch_pipeline
@@ -84,7 +85,7 @@ class IntegrationTest(TestCase):
         rest_communication.post_entry(
             'samples',
             {'library_id': self.library_id, 'project_id': self.project_id, 'sample_id': self.sample_id,
-             'run_elements': [e['run_element_id'] for e in run_elements], 'required_yield': 100000000}
+             'run_elements': [e['run_element_id'] for e in run_elements], 'required_yield_q30': 900000000}
         )
         rest_communication.post_entry('projects', {'project_id': self.project_id, 'samples': [self.sample_id]})
 
@@ -95,12 +96,7 @@ class IntegrationTest(TestCase):
         execute('docker', 'stop', self.container_id)
         execute('docker', 'rm', self.container_id)
 
-        for logger in logging_default.loggers.values():
-            for handler in logger.handlers:
-                logger.removeHandler(handler)
-
-        logging_default.handlers = set()
-        logging_default.loggers = {}
+        self._reset_logging()
 
         cfg.content['jobs_dir'] = self.original_job_dir
         cfg.content['run']['output_dir'] = self.original_run_output
@@ -112,6 +108,15 @@ class IntegrationTest(TestCase):
         cfg.content[test_type]['output_dir'] = os.path.join(cfg[test_type]['output_dir'], test_name)
         os.mkdir(cfg['jobs_dir'])
         os.mkdir(cfg[test_type]['output_dir'])
+
+    @staticmethod
+    def _reset_logging():
+        for logger in logging_default.loggers.values():
+            for handler in logger.handlers:
+                logger.removeHandler(handler)
+
+        logging_default.handlers = set()
+        logging_default.loggers = {}
 
     def expect_equal(self, obs, exp, name=''):
         if name:
@@ -139,7 +144,7 @@ class IntegrationTest(TestCase):
 
     def expect_stage_data(self, stage_names):
         stages = rest_communication.get_documents('analysis_driver_stages')
-        obs = {s['stage_name']: s['exit_status'] for s in stages}
+        obs = {s['stage_name']: s.get('exit_status') for s in stages}
         self.expect_equal(obs, {s: 0 for s in stage_names}, 'stages')
 
     @staticmethod
@@ -264,18 +269,68 @@ class IntegrationTest(TestCase):
 
         assert self._test_success
 
+    def test_resume(self):
+        self.setup_test('sample', 'test_resume')
+        with patch_pipeline(species='Canis lupus familiaris', analysis_type='Not Variant Calling'):
+            with patch('analysis_driver.pipelines.common.BWAMem._run', return_value=1):
+                exit_status = client.main(['--sample'])
+                self.assertEqual(exit_status, 9)
+
+            procs = rest_communication.get_documents('analysis_driver_procs')
+            self.assertEqual(len(procs), 1)
+            self.assertEqual(procs[0]['status'], 'failed')
+            self.assertEqual(
+                sorted(s['stage_name'] for s in rest_communication.get_documents('analysis_driver_stages')),
+                ['bwamem', 'fastqc', 'mergefastqs']
+            )
+            self.assertEqual(rest_communication.get_document('analysis_driver_stages', where={'stage_name': 'bwamem'})['exit_status'], 1)
+
+            self._reset_logging()
+            client.main(['--sample', '--resume', '10015AT0004'])
+            self.assertEqual(rest_communication.get_document('analysis_driver_procs')['status'], 'resume')
+            
+            self._reset_logging()
+            exit_status = client.main(['--sample'])
+            self.assertEqual(exit_status, 0)
+
+            self.expect_qc_data(
+                rest_communication.get_document('samples', where={'sample_id': self.sample_id}),
+                integration_cfg['qc']['qc']
+            )
+
+            exp_files = integration_cfg['qc']['files'].copy()
+            exp_files.update(integration_cfg['resume']['files'])
+            self.expect_output_files(
+                exp_files,
+                base_dir=os.path.join(cfg['sample']['output_dir'], self.project_id, self.sample_id)
+            )
+            self.expect_stage_data(integration_cfg['qc']['stages'])
+
+            procs = rest_communication.get_documents('analysis_driver_procs')
+            self.assertEqual(len(procs), 1)
+            self.assertEqual(procs[0]['status'], 'finished')
+
+        assert self._test_success
+
 
 def main():
     a = argparse.ArgumentParser()
     a.add_argument('--stdout', action='store_true')
     a.add_argument('--email', action='store_true')
     a.add_argument('--log_repo')
+    a.add_argument('--ls', action='store_true')
+    a.add_argument('--test', nargs='+', default=[])
     args = a.parse_args()
+
+    if args.ls:
+        tests = [a for a in sorted(dir(IntegrationTest)) if a.startswith('test')]
+        print('Available tests: ' + ', '.join(tests))
+        return 0
 
     start_time = now()
     s = StringIO()
     with redirect_stdout(s):
-        exit_status = pytest.main([__file__])
+        exit_status = pytest.main([__file__, '-k', ' or '.join(args.test)])
     end_time = now()
 
     test_output = util.str_join(
