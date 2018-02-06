@@ -187,8 +187,8 @@ class HaplotypeCaller(GATKStage):
                       'ReadPosRankSumTest', 'RMSMappingQuality', 'DepthPerAlleleBySample', 'Coverage',
                       'ClippingRankSumTest', 'DepthPerSampleHC'):
             haplotype_cmd += ' --annotation ' + annot
-            if self.dbsnp:
-                haplotype_cmd += ' --dbsnp ' + self.dbsnp
+        if self.dbsnp:
+            haplotype_cmd += ' --dbsnp ' + self.dbsnp
 
 
         return executor.execute(
