@@ -1,10 +1,9 @@
 import copy
+from os.path import isfile
 from collections import defaultdict, Counter
 from egcg_core import util
 from egcg_core.constants import *
 from egcg_core.rest_communication import post_or_patch as pp
-from os.path import isfile
-
 from analysis_driver.reader import demultiplexing_parsers as dm, mapping_stats_parsers as mp
 from analysis_driver.exceptions import PipelineError
 from .crawler import Crawler
@@ -144,8 +143,7 @@ class RunCrawler(Crawler):
             barcode_info = self.barcodes_info.get(run_element_id)
             if ELEMENT_BARCODE in barcode_info and barcode_info[ELEMENT_BARCODE] == 'unknown':
                 fq_chk_files = util.find_files(
-                    run_dir,
-                    'Undetermined_S0_L00%s_R*_001.fastq.gz.fqchk' % barcode_info[ELEMENT_LANE]
+                    run_dir, 'Undetermined_S0_L00%s_R*_001.fastq.gz.fqchk' % barcode_info[ELEMENT_LANE]
                 )
             else:
                 fq_chk_files = util.find_files(
@@ -182,8 +180,7 @@ class RunCrawler(Crawler):
             barcode_info = self.barcodes_info.get(run_element_id)
             if ELEMENT_BARCODE in barcode_info and barcode_info[ELEMENT_BARCODE] == 'unknown':
                 fastqfilter_stats_file = util.find_file(
-                    run_dir,
-                    'Undetermined_S0_L00%s_fastqfilterer.stats' % barcode_info[ELEMENT_LANE]
+                    run_dir, 'Undetermined_S0_L00%s_fastqfilterer.stats' % barcode_info[ELEMENT_LANE]
                 )
             else:
                 fastqfilter_stats_file = util.find_file(
@@ -279,7 +276,7 @@ class RunCrawler(Crawler):
                     ELEMENT_NB_READS_IN_BAM: total_reads,
                     ELEMENT_NB_MAPPED_READS: mapped_reads,
                     ELEMENT_NB_DUPLICATE_READS: duplicate_reads,
-                    ELEMENT_NB_PROPERLY_MAPPED:proper_pairs
+                    ELEMENT_NB_PROPERLY_MAPPED: proper_pairs
                 })
 
             samtools_depth = fastq_base + '_samtools.depth'
@@ -310,24 +307,15 @@ class RunCrawler(Crawler):
 
             picard_insert_size_metric = fastq_base + '_insertsize.metrics'
             if isfile(picard_insert_size_metric):
-                mean_is, std_dev_is, median_is, med_abs_dev_is = mp.parse_picard_insert_size_metrics(picard_insert_size_metric)
-                mapping_statistics.update({
-                    ELEMENT_MEAN_INSERT_SIZE: mean_is,
-                    ELEMENT_STD_DEV_INSERT_SIZE: std_dev_is,
-                    ELEMENT_MEDIAN_INSERT_SIZE: median_is,
-                    ELEMENT_MEDIAN_ABS_DEV_INSERT_SIZE: med_abs_dev_is,
-                })
+                insert_types = mp.parse_picard_insert_size_metrics(picard_insert_size_metric)
+                mapping_statistics.update(insert_types.get('FR'))
             if mapping_statistics:
                 barcode_info[ELEMENT_MAPPING_STATISTICS] = mapping_statistics
 
     def send_data(self):
-        return all(
-            (
-                pp('run_elements', self.barcodes_info.values(), ELEMENT_RUN_ELEMENT_ID),
-                pp('unexpected_barcodes', self.unexpected_barcodes.values(), ELEMENT_RUN_ELEMENT_ID),
-                pp('lanes', self.lanes.values(), ELEMENT_LANE_ID),
-                pp('runs', [self.run], ELEMENT_RUN_NAME),
-                pp('samples', self.libraries.values(), ELEMENT_SAMPLE_INTERNAL_ID, ['run_elements']),
-                pp('projects', self.projects.values(), ELEMENT_PROJECT_ID, ['samples'])
-            )
-        )
+        pp('run_elements', self.barcodes_info.values(), ELEMENT_RUN_ELEMENT_ID)
+        pp('unexpected_barcodes', self.unexpected_barcodes.values(), ELEMENT_RUN_ELEMENT_ID)
+        pp('lanes', self.lanes.values(), ELEMENT_LANE_ID)
+        pp('runs', [self.run], ELEMENT_RUN_NAME)
+        pp('samples', self.libraries.values(), ELEMENT_SAMPLE_INTERNAL_ID, ['run_elements'])
+        pp('projects', self.projects.values(), ELEMENT_PROJECT_ID, ['samples'])

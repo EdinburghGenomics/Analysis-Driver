@@ -1,4 +1,8 @@
 from os.path import join
+
+from egcg_core.constants import ELEMENT_MEAN_INSERT_SIZE, ELEMENT_STD_DEV_INSERT_SIZE, ELEMENT_MEDIAN_INSERT_SIZE, \
+    ELEMENT_MEDIAN_ABS_DEV_INSERT_SIZE
+
 from tests.test_analysisdriver import TestAnalysisDriver
 from analysis_driver.reader import mapping_stats_parsers as mp
 
@@ -77,11 +81,10 @@ class TestMappingStats(TestAnalysisDriver):
         assert opt_duplicate_reads == 181980
         assert est_library_size is None
 
-
     def test_parse_picard_insert_size_metrics(self):
-        mean, std_dev, median, med_abs_dev = mp.parse_picard_insert_size_metrics(self.picard_insertsize_file)
-        assert mean == 446.299806
-        assert std_dev == 113.966554
-        assert median == 439
-        assert med_abs_dev == 69
-
+        insert_types = mp.parse_picard_insert_size_metrics(self.picard_insertsize_file)
+        assert 'FR' in insert_types
+        assert insert_types['FR'][ELEMENT_MEAN_INSERT_SIZE] == 446.299806
+        assert insert_types['FR'][ELEMENT_STD_DEV_INSERT_SIZE] == 113.966554
+        assert insert_types['FR'][ELEMENT_MEDIAN_INSERT_SIZE] == 439
+        assert insert_types['FR'][ELEMENT_MEDIAN_ABS_DEV_INSERT_SIZE] == 69

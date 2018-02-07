@@ -5,7 +5,7 @@ from egcg_core.exceptions import EGCGError
 from analysis_driver.reader.run_info import Reads
 from . import bash_commands
 
-app_logger = log_cfg.get_logger('util')
+app_logger = log_cfg.get_logger(__name__)
 
 
 def find_all_fastq_pairs_for_lane(location, lane):

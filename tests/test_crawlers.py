@@ -1,9 +1,7 @@
 import os.path
 import json
-from pprint import pprint
 from unittest.mock import patch
 from egcg_core import constants as c
-
 from tests.test_analysisdriver import TestAnalysisDriver, NamedMock
 from analysis_driver import report_generation
 from analysis_driver.config import OutputFileConfiguration

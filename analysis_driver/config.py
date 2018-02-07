@@ -2,7 +2,7 @@ import os.path
 from egcg_core.config import Configuration, cfg
 
 
-def _etc_config(config_file):
+def etc_config(config_file):
     return os.path.join(os.path.dirname(os.path.abspath(os.path.dirname(__file__))), 'etc', config_file)
 
 
@@ -16,7 +16,7 @@ def load_config():
 
 class OutputFileConfiguration(Configuration):
     def __init__(self, pipeline_type):
-        super().__init__(_etc_config('output_files.yaml'))
+        super().__init__(etc_config('output_files.yaml'))
         self.content = self.content[pipeline_type]
 
     def job_dir_file(self, outfile_id):
@@ -32,5 +32,5 @@ class OutputFileConfiguration(Configuration):
 
 
 default = cfg  # backward compatibility
-sample_sheet_config = Configuration(_etc_config('sample_sheet_cfg.yaml'))
-tool_versioning_cfg = Configuration(_etc_config('tool_versioning.yaml'))
+sample_sheet_config = Configuration(etc_config('sample_sheet_cfg.yaml'))
+tool_versioning_cfg = Configuration(etc_config('tool_versioning.yaml'))

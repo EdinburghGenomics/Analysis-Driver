@@ -1,11 +1,11 @@
 import os
-from luigi import Parameter, BoolParameter, ListParameter
+from luigi import BoolParameter
 from egcg_core import executor, clarity, util
 from analysis_driver.exceptions import PipelineError
 from analysis_driver.util import bash_commands
 from analysis_driver.config import default as cfg
 from analysis_driver.reader.mapping_stats_parsers import parse_genotype_concordance
-from analysis_driver.segmentation import Stage
+from analysis_driver.segmentation import Parameter, ListParameter, Stage
 from analysis_driver.tool_versioning import toolset
 
 
@@ -55,9 +55,7 @@ class GenotypeValidation(Stage):
 
         command_samblaster = '%s --removeDups' % toolset['samblaster']
         command_samtools = '%s view -F 4 -Sb -' % toolset['samtools']
-        command_sambamba = '%s sort -t 16 -o %s /dev/stdin' % (
-            toolset['sambamba'], self.output_bam
-        )
+        command_sambamba = '%s sort -t 16 -o %s /dev/stdin' % (toolset['sambamba'], self.output_bam)
 
         return ' | '.join([command_bwa, command_samblaster, command_samtools, command_sambamba])
 

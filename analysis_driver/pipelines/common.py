@@ -2,7 +2,6 @@ import os
 import csv
 import time
 import shutil
-from luigi import Parameter
 from egcg_core import executor, clarity, util, rest_communication
 from egcg_core.constants import ELEMENT_PROJECT_ID, ELEMENT_LANE, ELEMENT_NB_READS_CLEANED, ELEMENT_RUN_NAME
 from analysis_driver import segmentation, quality_control as qc
@@ -67,7 +66,6 @@ class SamtoolsStats(VarCallingStage):
 
 
 def build_bam_file_production(dataset):
-
     def stage(cls, **params):
         return cls(dataset=dataset, **params)
 
@@ -83,7 +81,7 @@ def build_bam_file_production(dataset):
 
 
 class SampleDataOutput(segmentation.Stage):
-    output_fileset = Parameter()
+    output_fileset = segmentation.Parameter()
 
     @property
     def output_cfg(self):
@@ -168,18 +166,15 @@ class MergeFastqs(VarCallingStage):
         fastq_files = self.find_fastqs_for_sample()
         bcbio_csv_file = self._write_bcbio_csv(fastq_files)
         self.info('Setting up BCBio samples from ' + bcbio_csv_file)
-        cmd = bash_commands.bcbio_prepare_samples(
-            self.job_dir, bcbio_csv_file
-        )
 
-        exit_status = executor.execute(cmd, job_name='bcbio_prepare_samples', working_dir=self.job_dir).join()
+        exit_status = executor.execute(
+            bash_commands.bcbio_prepare_samples(self.job_dir, bcbio_csv_file),
+            job_name='bcbio_prepare_samples',
+            working_dir=self.job_dir
+        ).join()
+
         sample_fastqs = util.find_files(self.job_dir, 'merged', self.dataset.user_sample_id + '_R?.fastq.gz')
-
-        self.info(
-            'bcbio_prepare_samples finished with exit status %s. Merged fastqs: %s',
-            exit_status,
-            sample_fastqs
-        )
+        self.info('bcbio_prepare_samples finished with exit status %s. Merged fastqs: %s', exit_status, sample_fastqs)
         return exit_status
 
 
@@ -193,6 +188,9 @@ class Cleanup(segmentation.Stage):
 
 class SampleReview(segmentation.Stage):
     def _run(self):
-        rest_communication.post_entry('actions', {'action_type': 'automatic_sample_review', 'sample_id': self.dataset.name}, use_data=True)
+        rest_communication.post_entry(
+            'actions',
+            {'action_type': 'automatic_sample_review', 'sample_id': self.dataset.name},
+            use_data=True
+        )
         return 0
-

@@ -1,12 +1,11 @@
 import os.path
 from egcg_core.app_logging import logging_default as log_cfg
-
 from analysis_driver.config import default as cfg
 from analysis_driver.tool_versioning import toolset
 from analysis_driver.exceptions import AnalysisDriverError
 
 
-app_logger = log_cfg.get_logger('bash_commands')
+app_logger = log_cfg.get_logger(__name__)
 
 
 def bcl2fastq(input_dir, fastq_path, sample_sheet=None, mask=None):
@@ -152,8 +151,9 @@ def bwa_mem_biobambam(fastq_pair, reference, expected_output_bam, read_group=Non
         command_bwa += ' -R \'%s\'' % read_group_str
 
     command_bwa += ' %s %s' % (reference, ' '.join(fastq_pair))
-    command_bambam = '%s inputformat=sam SO=coordinate tmpfile=%s threads=%s indexfilename=%s > %s'
-    command_bambam = command_bambam % (toolset['biobambam_sortmapdup'], tmp_file, thread, index, expected_output_bam)
+    command_bambam = '%s inputformat=sam SO=coordinate tmpfile=%s threads=%s indexfilename=%s > %s' % (
+        toolset['biobambam_sortmapdup'], tmp_file, thread, index, expected_output_bam
+    )
 
     cmd = 'set -o pipefail; ' + ' | '.join([command_bwa, command_bambam])
     app_logger.debug('Writing: ' + cmd)
@@ -180,29 +180,31 @@ def md5sum(input_file):
     return cmd
 
 
-def picard_command(program, tmp_dir, memory):
-    return '{picard} -Djava.io.tmpdir={tmp_dir} -XX:+UseSerialGC -Xmx{memory}G {program}'.format(
-        picard=toolset['picard'],
-        tmp_dir=tmp_dir,
-        memory=memory,
-        program=program
+def picard_command(program, input_file, output_file, tmp_dir, memory, picard_params=None):
+    cmd = (
+        '{picard} -Djava.io.tmpdir={tmp_dir} -XX:+UseSerialGC -Xmx{memory}G {program} '
+        'INPUT={input} OUTPUT={output} ASSUME_SORTED=true VALIDATION_STRINGENCY=LENIENT'
     )
+    if picard_params:
+        for k in sorted(picard_params):
+            cmd += ' %s=%s' % (k, picard_params[k])
+
+    return cmd.format(picard=toolset['picard'], input=input_file, output=output_file,
+                      tmp_dir=tmp_dir or os.path.dirname(input_file), memory=memory, program=program)
 
 
 def picard_mark_dup_command(input_file, output_file, metrics_file, memory=10, tmp_dir=None):
-    if not tmp_dir:
-        tmp_dir = os.path.dirname(input_file)
-    cmd = '%s INPUT=%s OUTPUT=%s METRICS_FILE=%s ASSUME_SORTED=true '\
-          'OPTICAL_DUPLICATE_PIXEL_DISTANCE=100 VALIDATION_STRINGENCY=LENIENT'
-    return cmd % (picard_command('MarkDuplicates', tmp_dir, memory), input_file, output_file, metrics_file)
+    return picard_command(
+        'MarkDuplicates', input_file, output_file, tmp_dir, memory,
+        {'METRICS_FILE': metrics_file, 'OPTICAL_DUPLICATE_PIXEL_DISTANCE': '100'}
+    )
 
 
 def picard_insert_size_command(input_file, metrics_file, histogram_file, memory=8, tmp_dir=None):
-    if not tmp_dir:
-        tmp_dir = os.path.dirname(input_file)
-    cmd = '%s INPUT=%s OUTPUT=%s HISTOGRAM_FILE=%s ASSUME_SORTED=true '\
-          'VALIDATION_STRINGENCY=LENIENT'
-    return cmd % (picard_command('CollectInsertSizeMetrics', tmp_dir, memory), input_file, metrics_file, histogram_file)
+    return picard_command(
+        'CollectInsertSizeMetrics', input_file, metrics_file, tmp_dir, memory,
+        {'HISTOGRAM_FILE': histogram_file}
+    )
 
 
 def export_env_vars():
@@ -261,11 +263,9 @@ def rsync_from_to(source, dest, exclude=None, size_only=False):
     return command
 
 
-
 def java_command(memory, tmp_dir, jar):
     return 'java -Djava.io.tmpdir={tmp_dir} -XX:+UseSerialGC -Xmx{memory}G -jar {jar} '.format(
         memory=memory,
         tmp_dir=tmp_dir,
         jar=jar
     )
-

@@ -2,7 +2,9 @@ import re
 import csv
 import yaml
 from collections import Counter, defaultdict
-from egcg_core.constants import ELEMENT_NO_CALL_CHIP, ELEMENT_NO_CALL_SEQ, ELEMENT_MISMATCHING, ELEMENT_MATCHING
+from egcg_core.constants import ELEMENT_NO_CALL_CHIP, ELEMENT_NO_CALL_SEQ, ELEMENT_MISMATCHING, ELEMENT_MATCHING, \
+    ELEMENT_MEAN_INSERT_SIZE, ELEMENT_STD_DEV_INSERT_SIZE, ELEMENT_MEDIAN_INSERT_SIZE, \
+    ELEMENT_MEDIAN_ABS_DEV_INSERT_SIZE
 
 
 def parse_samtools_stats(samtools_stats):
@@ -176,7 +178,7 @@ def parse_picard_mark_dup_metrics(input_file):
     lib_name, lib = library_to_metrics.popitem()
     return (lib.get('UNPAIRED_READS_EXAMINED') + lib.get('READ_PAIRS_EXAMINED') * 2,
             lib.get('UNPAIRED_READ_DUPLICATES') + lib.get('READ_PAIR_DUPLICATES') * 2,
-            lib.get('READ_PAIR_OPTICAL_DUPLICATES') * 2 , lib.get('ESTIMATED_LIBRARY_SIZE'))
+            lib.get('READ_PAIR_OPTICAL_DUPLICATES') * 2, lib.get('ESTIMATED_LIBRARY_SIZE'))
 
 
 def parse_picard_insert_size_metrics(input_file):
@@ -189,15 +191,15 @@ def parse_picard_insert_size_metrics(input_file):
             if line.startswith('#') or not line.strip():
                 continue
             lines.append(line.rstrip())
-    assert len(lines) == 2 # There should only be reads in forward-reverse orientation
-    headers = lines[0].split('\t')
-    library_to_metrics = defaultdict(dict)
 
-    sp_line = lines[1].split('\t')
-    sp_line[headers.index('PAIR_ORIENTATION')] == 'FR'
-    return (
-        float(sp_line[headers.index('MEAN_INSERT_SIZE')]),
-        float(sp_line[headers.index('STANDARD_DEVIATION')]),
-        int(sp_line[headers.index('MEDIAN_INSERT_SIZE')]),
-        int(sp_line[headers.index('MEDIAN_ABSOLUTE_DEVIATION')]),
-    )
+    headers = lines[0].split('\t')
+    insert_types = {}
+    for line in lines[1:]:
+        sp_line = line.split('\t')
+        insert_types[sp_line[headers.index('PAIR_ORIENTATION')]] = {
+            ELEMENT_MEAN_INSERT_SIZE: float(sp_line[headers.index('MEAN_INSERT_SIZE')]),
+            ELEMENT_STD_DEV_INSERT_SIZE: float(sp_line[headers.index('STANDARD_DEVIATION')]),
+            ELEMENT_MEDIAN_INSERT_SIZE: int(round(float(sp_line[headers.index('MEDIAN_INSERT_SIZE')]))),
+            ELEMENT_MEDIAN_ABS_DEV_INSERT_SIZE: int(round(float(sp_line[headers.index('MEDIAN_ABSOLUTE_DEVIATION')]))),
+        }
+    return insert_types

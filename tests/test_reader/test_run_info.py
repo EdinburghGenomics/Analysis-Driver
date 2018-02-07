@@ -61,9 +61,3 @@ class TestMask(TestAnalysisDriver):
         assert self.barcoded_run_info.reads.generate_mask(8) == 'y150n,i8,y150n'
         assert self.barcoded_run_info.reads.generate_mask(6) == 'y150n,i6nn,y150n'
         assert self.barcodeless_run_info.reads.generate_mask(8) == 'y150n,y150n'
-
-    # def test_validate_barcoded(self):
-    #     assert self.barcoded_run_info.reads.validate_barcoded()
-    #
-    # def test_validate_barcodeless(self):
-    #     assert self.barcodeless_run_info.reads.validate_barcodeless()

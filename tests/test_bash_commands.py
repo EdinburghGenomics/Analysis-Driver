@@ -92,9 +92,9 @@ def test_samtools_stats():
 
 
 def test_samtools_depth_command():
-    expected = '''path/to/samtools depth -a -a -q 0 -Q 0 /path/to/bam_file | '''\
-               '''awk -F "	" '{array[$1"	"$3]+=1} END{for (val in array){print val"	"array[val]}}' | '''\
-               '''sort -T /path/to/job -k 1,1 -nk 2,2 > /path/to/depth_file'''
+    expected = 'path/to/samtools depth -a -a -q 0 -Q 0 /path/to/bam_file | '\
+               'awk -F "	" \'{array[$1"	"$3]+=1} END{for (val in array){print val"	"array[val]}}\' | '\
+               'sort -T /path/to/job -k 1,1 -nk 2,2 > /path/to/depth_file'
     assert bash_commands.samtools_depth_command('/path/to/job', '/path/to/bam_file', '/path/to/depth_file') == expected
 
 
@@ -140,42 +140,41 @@ def test_fastq_filterer():
 
 def test_picard_mark_dup_command():
     cmd = bash_commands.picard_mark_dup_command(
-        input_file='directory/test.bam',
-        output_file='directory/test_out.bam',
-        metrics_file='directory/test_out.metrics'
+        'directory/test.bam',
+        'directory/test_out.bam',
+        'directory/test_out.metrics'
     )
-    exp_out = 'path/to/picard -Djava.io.tmpdir={tmpdir} -XX:+UseSerialGC -Xmx{mem}G MarkDuplicates ' \
-              'INPUT=directory/test.bam OUTPUT=directory/test_out.bam METRICS_FILE=directory/test_out.metrics ' \
-              'ASSUME_SORTED=true OPTICAL_DUPLICATE_PIXEL_DISTANCE=100 VALIDATION_STRINGENCY=LENIENT'
-    assert cmd == exp_out.format(tmpdir='directory', mem=10)
+    exp = ('path/to/picard -Djava.io.tmpdir={tmpdir} -XX:+UseSerialGC -Xmx{mem}G MarkDuplicates '
+           'INPUT=directory/test.bam OUTPUT=directory/test_out.bam ASSUME_SORTED=true VALIDATION_STRINGENCY=LENIENT '
+           'METRICS_FILE=directory/test_out.metrics OPTICAL_DUPLICATE_PIXEL_DISTANCE=100')
+    assert cmd == exp.format(tmpdir='directory', mem=10)
 
     cmd = bash_commands.picard_mark_dup_command(
-        input_file='directory/test.bam',
-        output_file='directory/test_out.bam',
-        metrics_file='directory/test_out.metrics',
+        'directory/test.bam',
+        'directory/test_out.bam',
+        'directory/test_out.metrics',
         tmp_dir='directory2',
         memory=20
     )
-    assert cmd == exp_out.format(tmpdir='directory2', mem=20)
+    assert cmd == exp.format(tmpdir='directory2', mem=20)
 
 
 def test_picard_insert_size_command():
     cmd = bash_commands.picard_insert_size_command(
-        input_file='directory/test.bam',
-        metrics_file='directory/test_out.metrics',
-        histogram_file='directory/test_out.histogram'
+        'directory/test.bam',
+        'directory/test_out.metrics',
+        'directory/test_out.histogram'
     )
-    exp_out = 'path/to/picard -Djava.io.tmpdir={tmpdir} -XX:+UseSerialGC -Xmx{mem}G CollectInsertSizeMetrics ' \
-              'INPUT=directory/test.bam OUTPUT=directory/test_out.metrics ' \
-              'HISTOGRAM_FILE=directory/test_out.histogram ASSUME_SORTED=true VALIDATION_STRINGENCY=LENIENT'
-    assert cmd == exp_out.format(tmpdir='directory', mem=8)
+    exp = ('path/to/picard -Djava.io.tmpdir={tmpdir} -XX:+UseSerialGC -Xmx{mem}G CollectInsertSizeMetrics '
+           'INPUT=directory/test.bam OUTPUT=directory/test_out.metrics ASSUME_SORTED=true '
+           'VALIDATION_STRINGENCY=LENIENT HISTOGRAM_FILE=directory/test_out.histogram')
+    assert cmd == exp.format(tmpdir='directory', mem=8)
 
     cmd = bash_commands.picard_insert_size_command(
-        input_file='directory/test.bam',
-        metrics_file='directory/test_out.metrics',
-        histogram_file='directory/test_out.histogram',
+        'directory/test.bam',
+        'directory/test_out.metrics',
+        'directory/test_out.histogram',
         tmp_dir='directory2',
         memory=10
     )
-    assert cmd == exp_out.format(tmpdir='directory2', mem=10)
-
+    assert cmd == exp.format(tmpdir='directory2', mem=10)

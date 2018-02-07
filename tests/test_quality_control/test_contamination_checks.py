@@ -142,26 +142,28 @@ class TestBlast(QCTester):
         assert self.blast.get_ranks('9960') == {0: 'rank unavailable'}
 
     @patch('analysis_driver.quality_control.Blast.get_ranks')
-    def test_get_all_taxa_identified1(self, mocked_rank):
+    def test_update_taxon_dict_1(self, mocked_rank):
         mocked_rank.return_value = {
             9604: 'family', 9605: 'genus', 9606: 'species', 2759: 'superkingdom', 376913: 'suborder',
             314146: 'superorder', 7711: 'phylum', 40674: 'class', 9443: 'order', 207598: 'subfamily',
             314293: 'infraorder', 9526: 'parvorder', 314295: 'superfamily', 33208: 'kingdom',
             89593: 'subphylum'
         }
-        observed = self.blast.get_all_taxa_identified(taxon_dict={}, taxon='9606', taxids={'9606': 197})
+        observed = {}
+        self.blast.update_taxon_dict(observed, taxon='9606', taxids={'9606': 197})
         assert observed == homo_sapiens_tree
 
     @patch('analysis_driver.quality_control.Blast.get_ranks')
-    def test_get_all_taxa_identified2(self, mocked_rank):
+    def test_update_taxon_dict_2(self, mocked_rank):
         mocked_rank.return_value = {
             99802: 'species', 1: 'no rank', 33154: 'no rank', 2759: 'superkingdom', 28843: 'family',
             6157: 'phylum', 131567: 'no rank', 6072: 'no rank', 46580: 'genus', 6199: 'class',
             33208: 'kingdom', 6200: 'subclass', 33213: 'no rank', 1224679: 'order'
         }
 
-        test_spirometra_and_human = self.blast.get_all_taxa_identified(
-            taxon_dict=homo_sapiens_tree, taxon='99802', taxids={'99802': 2}
+        test_spirometra_and_human = homo_sapiens_tree.copy()
+        self.blast.update_taxon_dict(
+            test_spirometra_and_human, taxon='99802', taxids={'99802': 2}
         )
 
         expected = homo_sapiens_tree.copy()

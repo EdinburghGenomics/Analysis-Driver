@@ -1,7 +1,8 @@
 from egcg_core import notifications, clarity
 from pyclarity_lims.entities import Step
 
-class LimsNotification():
+
+class LimsNotification:
     def __init__(self, name):
         self.name = name
         self.sample = clarity.get_sample(self.name)
