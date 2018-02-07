@@ -134,10 +134,11 @@ class TestSampleScanner(TestScanner):
     def test_get_dataset_records_for_statuses(self, mocked_get):
         assert self.scanner._get_dataset_records_for_statuses([DATASET_NEW]) == [{'sample_id': 'a_sample_id'}]
         mocked_get.assert_any_call(
-            'aggregate/samples',
-            match={'proc_status': None},
-            paginate=False,
-            quiet=True
+            'samples',
+            where={'aggregated.most_recent_proc.status': None},
+            all_pages=True,
+            quiet=True,
+            max_results=100
         )
 
     @patched_get([{'sample_id': 'a_sample_id'}])
@@ -149,8 +150,13 @@ class TestSampleScanner(TestScanner):
         with patched_list_samples:
             d = self.scanner._get_datasets_for_statuses([DATASET_NEW])[0]
         assert d.name == 'a_sample_id'
-        assert d._data_threshold == 1000000000
-        mocked_get.assert_any_call('aggregate/samples', match={'proc_status': None}, paginate=False, quiet=True)
+        mocked_get.assert_any_call(
+            'samples',
+            where={'aggregated.most_recent_proc.status': None},
+            all_pages=True,
+            quiet=True,
+            max_results=100
+        )
 
     def test_scan_datasets(self):
         fake_datasets = {DATASET_NEW: []}

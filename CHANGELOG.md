@@ -1,10 +1,26 @@
 Changelog for Analysis-Driver
 =============================
 
-0.20 (unreleased)
+0.21 (unreleased)
 -----------------
 
 - Nothing changed yet.
+
+
+0.20.1 (2018-02-01)
+-------------------
+
+- Add default value for sample that do not have any data
+- Fix bug where the sample data threshold was set to be required yield q30 instead of required yield
+
+
+0.20 (2018-01-30)
+-----------------
+
+- Trigger automatic review after sample finishes processing
+- Project process duplicated line bugfix
+- Update requirements for sample to be ready for processing
+- prevent different insert sizes from causing pipeline to crash
 
 
 0.19.2 (2017-11-27)
