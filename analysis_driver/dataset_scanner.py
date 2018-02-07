@@ -50,18 +50,18 @@ class DatasetScanner(AppLogger):
             statuses.remove(DATASET_NEW)
             statuses.append(None)
         if len(statuses) > 1:
-            match = {'$or': [{'proc_status': status} for status in statuses]}
+            where = {'$or': [{'aggregated.most_recent_proc.status': status} for status in statuses]}
         else:
-            match = {'proc_status': statuses[0]}
+            where = {'aggregated.most_recent_proc.status': statuses[0]}
         return [
-            d for d in get_documents(self.endpoint, match=match, paginate=False, quiet=True)
+            d for d in get_documents(self.endpoint, where=where, all_pages=True, quiet=True, max_results=100)
             if d[self.item_id] not in self._triggerignore
         ]
 
     def _get_datasets_for_statuses(self, statuses):
         self.debug('Creating Datasets for status %s', ', '.join(statuses))
         return [
-            self.get_dataset(d[self.item_id], d.get('most_recent_proc'))
+            self.get_dataset(d[self.item_id], d.get('aggregated', {}).get('most_recent_proc'))
             for d in self._get_dataset_records_for_statuses(statuses)
         ]
 
@@ -93,7 +93,7 @@ class DatasetScanner(AppLogger):
 
 
 class RunScanner(DatasetScanner):
-    endpoint = 'aggregate/all_runs'
+    endpoint = 'runs'
     item_id = 'run_id'
     expected_bcl_subdirs = ('RunInfo.xml', 'Data')
 
@@ -131,33 +131,15 @@ class RunScanner(DatasetScanner):
 
 
 class SampleScanner(DatasetScanner):
-    endpoint = 'aggregate/samples'
+    endpoint = 'samples'
     item_id = 'sample_id'
 
-    def get_dataset(self, name, most_recent_proc=None, data_threshold=None):
-        return SampleDataset(name, most_recent_proc, data_threshold)
-
-    def _get_datasets_for_statuses(self, statuses):
-        self.debug('Creating Datasets for status %s', ', '.join(statuses))
-        datasets = {}
-        for r in self._get_dataset_records_for_statuses(statuses):
-            datasets[r[self.item_id]] = {'record': r}
-
-        if datasets:
-            self.debug('Querying Lims for %s samples', len(datasets))
-            for sample in get_list_of_samples(list(datasets)):
-                req_yield = sample.udf.get('Yield for Quoted Coverage (Gb)') * 1000000000
-                datasets[sanitize_user_id(sample.name)]['threshold'] = req_yield
-            self.debug('Lims query complete')
-
-        return [
-            self.get_dataset(k, v['record'].get('most_recent_proc'), v.get('threshold'))
-            for k, v in datasets.items()
-        ]
+    def get_dataset(self, name, most_recent_proc=None):
+        return SampleDataset(name, most_recent_proc)
 
 
 class ProjectScanner(DatasetScanner):
-    endpoint = 'aggregate/projects'
+    endpoint = 'projects'
     item_id = 'project_id'
 
     def get_dataset(self, name, most_recent_proc=None):
