@@ -96,8 +96,6 @@ class TestRunCrawler(TestCrawler):
         with patched_lims_info, patched_data:
             self.crawler = report_generation.RunCrawler(
                 dataset,
-                os.path.join(self.test_data, 'AdapterTrimming.txt'),
-                os.path.join(self.test_data, 'ConversionStats.xml'),
                 os.path.join(self.test_data, 'test_run_dir')
             )
 

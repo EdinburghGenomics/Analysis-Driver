@@ -36,8 +36,8 @@ class TestFastqFilter(TestAnalysisDriver):
         patch_detector = patch('analysis_driver.pipelines.demultiplexing.BadTileCycleDetector')
         patch_find = patch('analysis_driver.pipelines.demultiplexing.find_all_fastq_pairs_for_lane',
                            side_effect=fake_fastq_pairs + fake_fastq_pairs)
-
-        with patch_find, patch_executor as pexecute, patch_detector as pdetector:
+        patch_run_crawler = patch('analysis_driver.pipelines.demultiplexing.RunCrawler', autospec=True)
+        with patch_find, patch_executor as pexecute, patch_detector as pdetector, patch_run_crawler as prun_crawler:
             instance = pdetector.return_value
             instance.detect_bad_tiles.return_value = {3: [1101]}
             instance.detect_bad_cycles.return_value = {4: [310, 308, 307, 309]}
@@ -60,6 +60,8 @@ class TestFastqFilter(TestAnalysisDriver):
             assert expected_call_l2 == pexecute.call_args[0][1]
             assert expected_call_l3 == pexecute.call_args[0][2]
             assert expected_call_l4 == pexecute.call_args[0][3]
+
+            prun_crawler.assert_called_with(dataset, run_dir='tests/assets/jobs/test/fastq')
 
 
 class TestPostDemultiplexing(TestAnalysisDriver):

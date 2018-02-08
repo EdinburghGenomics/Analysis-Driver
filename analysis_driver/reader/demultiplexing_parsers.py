@@ -380,3 +380,63 @@ def parse_fastq_filterer_stats(filterer_stats):
                 if sp_line and len(sp_line) > 1:
                     content[sp_line[0]] = sp_line[1]
     return content
+
+
+def parse_interop_summary(summary_file):
+
+    def grab_sections(open_file):
+        sections = defaultdict(list)
+        in_section = False
+        for line in open_file:
+            if line.startswith('#'):
+                continue
+            sp_line = [s.strip() for s in line.strip().split(',')]
+            if sp_line == ['']:
+                in_section = False
+            elif not in_section:
+                section_name = sp_line[0]
+                in_section = True
+            elif sp_line[0].startswith('Read'):
+                section_name = sp_line[0]
+            else:
+                sections[section_name].append(sp_line)
+        return sections
+
+    def parse_read_section(lines):
+        values_per_lane = {}
+        header = lines[0]
+        for sp_line in lines[1:]:
+            if sp_line[0].isdigit() and sp_line[1] == '-':
+                lane = {
+                    'pc_clust_pf': float(sp_line[4].split()[0]),  # avg Cluster PF
+                    'pc_clust_pf_stdev': float(sp_line[4].split()[2]),  # std dev Cluster PF
+                    'phasing': float(sp_line[5].split('/')[0].strip()),  # Phasing
+                    'prephasing': float(sp_line[5].split('/')[1].strip()),  # Prephasing
+                    'pc_q30': float(sp_line[10]),  # '%>=Q30'
+                    'pc_aligned': float(sp_line[13].split()[0]),  # avg %aligned'
+                    'pc_aligned_stdev': float(sp_line[13].split()[2]),  # std dev %aligned '
+                    'pc_error': float(sp_line[14].split()[0]),  # 'avg %error'
+                    'pc_error_stdev': float(sp_line[14].split()[2]),  # 'std dev %error'
+                    'intensity_c1': float(sp_line[18].split()[0]),  # ' avg Intensity C1'
+                    'intensity_c1_stdev': float(sp_line[18].split()[2]),  # 'std dev Intensity C1'
+                }
+                values_per_lane[sp_line[0]] = lane
+        return values_per_lane
+
+    with open(summary_file) as open_file:
+        sections = grab_sections(open_file)
+    metrics_per_lane = defaultdict(dict)
+    if 'Read 1' not in sections or ('Read 2' not in sections and 'Read 3' not in sections):
+        return metrics_per_lane
+    for lane, metrics in parse_read_section(sections.pop('Read 1')).items():
+        for metric in metrics:
+            metrics_per_lane[lane][metric + '_r1'] = metrics[metric]
+
+    if 'Read 2' in sections:
+        read2_petrics_per_lane = parse_read_section(sections.pop('Read 2'))
+    else:
+        read2_petrics_per_lane = parse_read_section(sections.pop('Read 3'))
+    for lane, metrics in read2_petrics_per_lane.items():
+        for metric in metrics:
+            metrics_per_lane[lane][metric + '_r2'] = metrics[metric]
+    return dict(metrics_per_lane)
