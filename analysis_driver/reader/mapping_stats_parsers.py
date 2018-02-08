@@ -180,6 +180,7 @@ def parse_picard_mark_dup_metrics(input_file):
             lib.get('UNPAIRED_READ_DUPLICATES') + lib.get('READ_PAIR_DUPLICATES') * 2,
             lib.get('READ_PAIR_OPTICAL_DUPLICATES') * 2, lib.get('ESTIMATED_LIBRARY_SIZE'))
 
+ELEMENT_PC_INSERT_SIZE = 'pc_insert_size'
 
 def parse_picard_insert_size_metrics(input_file):
     lines = []
@@ -194,12 +195,18 @@ def parse_picard_insert_size_metrics(input_file):
 
     headers = lines[0].split('\t')
     insert_types = {}
+    read_pairs = []
+    for line in lines[1:]:
+        sp_line = line.split('\t')
+        read_pairs.append(int(sp_line[headers.index('READ_PAIRS')]))
+
     for line in lines[1:]:
         sp_line = line.split('\t')
         insert_types[sp_line[headers.index('PAIR_ORIENTATION')]] = {
             ELEMENT_MEAN_INSERT_SIZE: float(sp_line[headers.index('MEAN_INSERT_SIZE')]),
             ELEMENT_STD_DEV_INSERT_SIZE: float(sp_line[headers.index('STANDARD_DEVIATION')]),
-            ELEMENT_MEDIAN_INSERT_SIZE: int(round(float(sp_line[headers.index('MEDIAN_INSERT_SIZE')]))),
-            ELEMENT_MEDIAN_ABS_DEV_INSERT_SIZE: int(round(float(sp_line[headers.index('MEDIAN_ABSOLUTE_DEVIATION')]))),
+            ELEMENT_MEDIAN_INSERT_SIZE: float(sp_line[headers.index('MEDIAN_INSERT_SIZE')]),
+            ELEMENT_MEDIAN_ABS_DEV_INSERT_SIZE: float(sp_line[headers.index('MEDIAN_ABSOLUTE_DEVIATION')]),
+            ELEMENT_PC_INSERT_SIZE: float(sp_line[headers.index('READ_PAIRS')]) / sum(read_pairs) * 100
         }
     return insert_types

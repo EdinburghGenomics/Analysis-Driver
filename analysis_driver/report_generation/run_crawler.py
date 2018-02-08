@@ -310,7 +310,7 @@ class RunCrawler(Crawler):
                 insert_types = mp.parse_picard_insert_size_metrics(picard_insert_size_metric)
                 mapping_statistics.update(insert_types.pop('FR'))
                 if insert_types:
-                    mapping_statistics['other_insert_type'] = insert_types
+                    mapping_statistics['non_fr_inserts'] = insert_types
             if mapping_statistics:
                 barcode_info[ELEMENT_MAPPING_STATISTICS] = mapping_statistics
 
