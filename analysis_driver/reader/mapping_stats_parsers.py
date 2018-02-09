@@ -4,7 +4,7 @@ import yaml
 from collections import Counter, defaultdict
 from egcg_core.constants import ELEMENT_NO_CALL_CHIP, ELEMENT_NO_CALL_SEQ, ELEMENT_MISMATCHING, ELEMENT_MATCHING, \
     ELEMENT_MEAN_INSERT_SIZE, ELEMENT_STD_DEV_INSERT_SIZE, ELEMENT_MEDIAN_INSERT_SIZE, \
-    ELEMENT_MEDIAN_ABS_DEV_INSERT_SIZE
+    ELEMENT_MEDIAN_ABS_DEV_INSERT_SIZE, ELEMENT_PC_INSERT_SIZE
 
 
 def parse_samtools_stats(samtools_stats):
@@ -180,7 +180,6 @@ def parse_picard_mark_dup_metrics(input_file):
             lib.get('UNPAIRED_READ_DUPLICATES') + lib.get('READ_PAIR_DUPLICATES') * 2,
             lib.get('READ_PAIR_OPTICAL_DUPLICATES') * 2, lib.get('ESTIMATED_LIBRARY_SIZE'))
 
-ELEMENT_PC_INSERT_SIZE = 'pc_insert_size'
 
 def parse_picard_insert_size_metrics(input_file):
     lines = []
