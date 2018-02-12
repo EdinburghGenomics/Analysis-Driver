@@ -191,9 +191,6 @@ gatk_var_calling:
         location: ['gatk_var_calling']
         basename: '{user_sample_id}.g.vcf.gz'
 
-    vcfstats:
-        basename: ['filter_snp_{user_sample_id}.stats']
-
     gvcf_tbi:
         location: ['gatk_var_calling']
         basename: '{user_sample_id}.g.vcf.gz.tbi'
