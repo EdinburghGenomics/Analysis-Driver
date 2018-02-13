@@ -100,43 +100,19 @@ class TestGATKStage():
         assert known_intervals == '/path/to/known/indels'
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-class TestBaseRecal(TestAnalysisDriver):
-
-
-    def setUp(self):
-        dataset = NamedMock(
+class TestVariantCalling(TestAnalysisDriver):
+    dataset = NamedMock(
             real_name='test_dataset',
             user_sample_id='test_user_sample_id',
             genome_version='genome_version',
             reference_genome='reference_genome'
         )
-        self.b = BaseRecal(dataset=dataset)
+
+
+class TestBaseRecal(TestVariantCalling):
+
+    def setUp(self):
+        self.b = BaseRecal(dataset=self.dataset)
 
     def test_run(self):
         with patch_executor as e:
@@ -162,16 +138,10 @@ class TestBaseRecal(TestAnalysisDriver):
                                  working_dir='tests/assets/jobs/test_dataset/gatk_var_calling')
 
 
-class TestPrintReads(TestAnalysisDriver):
+class TestPrintReads(TestVariantCalling):
 
     def setUp(self):
-        dataset = NamedMock(
-            real_name='test_dataset',
-            user_sample_id='test_user_sample_id',
-            genome_version='genome_version',
-            reference_genome='reference_genome'
-        )
-        self.p = PrintReads(dataset=dataset)
+        self.p = PrintReads(dataset=self.dataset)
 
     def test_run(self):
         with patch_executor as e:
@@ -196,15 +166,9 @@ class TestPrintReads(TestAnalysisDriver):
                                  working_dir='tests/assets/jobs/test_dataset/gatk_var_calling')
 
 
-class TestRealignTarget(TestAnalysisDriver):
+class TestRealignTarget(TestVariantCalling):
     def setUp(self):
-        dataset = NamedMock(
-            real_name='test_dataset',
-            user_sample_id='test_user_sample_id',
-            genome_version='genome_version',
-            reference_genome='reference_genome'
-        )
-        self.p = RealignTarget(dataset=dataset)
+        self.p = RealignTarget(dataset=self.dataset)
 
     def test_run(self):
         with patch_executor as e:
@@ -228,21 +192,9 @@ class TestRealignTarget(TestAnalysisDriver):
                                  working_dir='tests/assets/jobs/test_dataset/gatk_var_calling')
 
 
-
-
-
-
-
-
-class TestRealign(TestAnalysisDriver):
+class TestRealign(TestVariantCalling):
     def setUp(self):
-        dataset = NamedMock(
-            real_name='test_dataset',
-            user_sample_id='test_user_sample_id',
-            genome_version='genome_version',
-            reference_genome='reference_genome'
-        )
-        self.p = Realign(dataset=dataset)
+        self.p = Realign(dataset=self.dataset)
 
     def test_run(self):
         with patch_executor as e:
@@ -266,16 +218,9 @@ class TestRealign(TestAnalysisDriver):
                                  working_dir='tests/assets/jobs/test_dataset/gatk_var_calling')
 
 
-
-class TestHaplotypeCaller(TestAnalysisDriver):
+class TestHaplotypeCaller(TestVariantCalling):
     def setUp(self):
-        dataset = NamedMock(
-            real_name='test_dataset',
-            user_sample_id='test_user_sample_id',
-            genome_version='genome_version',
-            reference_genome='reference_genome'
-        )
-        self.p = HaplotypeCaller(dataset=dataset, input_bam='test_bam')
+        self.p = HaplotypeCaller(dataset=self.dataset, input_bam='test_bam')
 
     def test_run(self):
         with patch_executor as e:
@@ -319,17 +264,9 @@ class TestHaplotypeCaller(TestAnalysisDriver):
                                  working_dir='tests/assets/jobs/test_dataset/gatk_var_calling')
 
 
-
-
-class TestGenotypeGVCFs(TestAnalysisDriver):
+class TestGenotypeGVCFs(TestVariantCalling):
     def setUp(self):
-        dataset = NamedMock(
-            real_name='test_dataset',
-            user_sample_id='test_user_sample_id',
-            genome_version='genome_version',
-            reference_genome='reference_genome'
-        )
-        self.p = GenotypeGVCFs(dataset=dataset)
+        self.p = GenotypeGVCFs(dataset=self.dataset)
 
     def test_run(self):
         with patch_executor as e:
@@ -353,16 +290,9 @@ class TestGenotypeGVCFs(TestAnalysisDriver):
                                  working_dir='tests/assets/jobs/test_dataset/gatk_var_calling')
 
 
-
-class TestSelectVariants(TestAnalysisDriver):
+class TestSelectVariants(TestVariantCalling):
     def setUp(self):
-        dataset = NamedMock(
-            real_name='test_dataset',
-            user_sample_id='test_user_sample_id',
-            genome_version='genome_version',
-            reference_genome='reference_genome'
-        )
-        self.p = SelectVariants(dataset=dataset)
+        self.p = SelectVariants(dataset=self.dataset)
 
     def test_run(self):
         with patch_executor as e:
@@ -386,15 +316,9 @@ class TestSelectVariants(TestAnalysisDriver):
                                  working_dir='tests/assets/jobs/test_dataset/gatk_var_calling')
 
 
-class TestVariantFiltration(TestAnalysisDriver):
+class TestVariantFiltration(TestVariantCalling):
     def setUp(self):
-        dataset = NamedMock(
-            real_name='test_dataset',
-            user_sample_id='test_user_sample_id',
-            genome_version='genome_version',
-            reference_genome='reference_genome'
-        )
-        self.p = VariantFiltration(dataset=dataset)
+        self.p = VariantFiltration(dataset=self.dataset)
 
     def test_run(self):
         with patch_executor as e:
@@ -419,16 +343,9 @@ class TestVariantFiltration(TestAnalysisDriver):
                                  working_dir='tests/assets/jobs/test_dataset/gatk_var_calling')
 
 
-
-class TestBGZip(TestAnalysisDriver):
+class TestBGZip(TestVariantCalling):
     def setUp(self):
-        dataset = NamedMock(
-            real_name='test_dataset',
-            user_sample_id='test_user_sample_id',
-            genome_version='genome_version',
-            reference_genome='reference_genome'
-        )
-        self.p = BGZip(dataset=dataset)
+        self.p = BGZip(dataset=self.dataset)
 
     def test_run(self):
         with patch_executor as e:
@@ -443,15 +360,9 @@ class TestBGZip(TestAnalysisDriver):
 
 
 
-class TestTabix(TestAnalysisDriver):
+class TestTabix(TestVariantCalling):
     def setUp(self):
-        dataset = NamedMock(
-            real_name='test_dataset',
-            user_sample_id='test_user_sample_id',
-            genome_version='genome_version',
-            reference_genome='reference_genome'
-        )
-        self.p = Tabix(dataset=dataset)
+        self.p = Tabix(dataset=self.dataset)
 
     def test_run(self):
         with patch_executor as e:
