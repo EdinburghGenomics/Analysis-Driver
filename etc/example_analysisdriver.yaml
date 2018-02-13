@@ -102,6 +102,7 @@ default:
       genome_version:
         fasta: /path/to/genome.fa
         dbsnp: /path/to/dbsnp.vcf.gz
+        known_indels: /path/to/known/indels
 
     clarity:
         baseuri: 'https://clarity.co.uk'

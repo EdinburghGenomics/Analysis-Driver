@@ -536,7 +536,7 @@ class SampleDataset(Dataset):
         super().fail(exit_status)
         self.lims_ntf.remove_sample_from_workflow()
 
-    def default_pipeline(self):
+    def _default_pipeline(self):
         if self.species is None:
             raise AnalysisDriverError('No species information found in the LIMS for ' + self.name)
 

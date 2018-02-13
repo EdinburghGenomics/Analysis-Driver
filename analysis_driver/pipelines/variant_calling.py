@@ -24,10 +24,10 @@ class GATKStage(segmentation.Stage):
 
         base_cmd = java_command(memory=xmx, tmp_dir=self.gatk_run_dir, jar=toolset['gatk']) + (
                     '-R {ref} -T {run_cls} --read_filter BadCigar --read_filter NotPrimaryAlignment '
-                    '-o {output} -l INFO -U LENIENT_VCF_PROCESSING ')
+                    '-o {output} -l INFO -U LENIENT_VCF_PROCESSING')
 
         if input_bam:
-            base_cmd += '-I {input_bam} '
+            base_cmd += ' -I {input_bam}'
         if ext:
             base_cmd += ext
         if nct > 1:
@@ -82,9 +82,10 @@ class GATKStage(segmentation.Stage):
     def filter_snp_vcf(self):
         return self.basename + '_filter_snp.vcf'
 
+    @property
     def dbsnp(self):
         dbsnp = cfg.query('genomes', self.dataset.genome_version, 'dbsnp')
-        if not dbsnp and self.dataset.default_pipeline == 'variant_calling':
+        if not dbsnp and self.dataset.pipeline.name == 'variant_calling':
             raise AnalysisDriverError('Could not find dbsnp file for %s' % self.dataset.name)
         return dbsnp
 
@@ -93,10 +94,24 @@ class GATKStage(segmentation.Stage):
         return cfg.query('genomes', self.dataset.genome_version, 'known_indels')
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 class BaseRecal(GATKStage):
     def _run(self):
         return executor.execute(
-            self.gatk_cmd('BaseRecalibrator', self.output_grp, input_bam=self.sorted_bam, xmx=48, nt=1, ext='--knownSites ' + self.dbsnp),
+            self.gatk_cmd('BaseRecalibrator', self.output_grp, input_bam=self.sorted_bam, xmx=48, nt=1, ext=' --knownSites ' + self.dbsnp),
             job_name='gatk_base_recal',
             working_dir=self.gatk_run_dir,
             cpus=16,
@@ -137,7 +152,7 @@ class Realign(GATKStage):
             input_bam=self.recal_bam,
             nct=1,
             nt=1,
-            ext='-targetIntervals ' + self.output_intervals
+            ext=' -targetIntervals ' + self.output_intervals
         )
         if self.known_indels:
             realign_cmd += ' --knownAlleles ' + self.known_indels
@@ -158,7 +173,7 @@ class HaplotypeCaller(GATKStage):
             input_bam=self.input_bam,
             xmx=48,
             nt=1,
-            ext=('--pair_hmm_implementation VECTOR_LOGLESS_CACHING -ploidy 2 --emitRefConfidence GVCF '
+            ext=(' --pair_hmm_implementation VECTOR_LOGLESS_CACHING -ploidy 2 --emitRefConfidence GVCF '
                  '--variant_index_type LINEAR --variant_index_parameter 128000 ')
         )
         for annot in ('BaseQualityRankSumTest', 'FisherStrand', 'GCContent', 'HaplotypeScore',
@@ -166,7 +181,7 @@ class HaplotypeCaller(GATKStage):
                       'ReadPosRankSumTest', 'RMSMappingQuality', 'DepthPerAlleleBySample', 'Coverage',
                       'ClippingRankSumTest', 'DepthPerSampleHC'):
             haplotype_cmd += ' --annotation ' + annot
-        if self.dbsnp():
+        if self.dbsnp:
             haplotype_cmd += ' --dbsnp ' + self.dbsnp
 
 
@@ -196,7 +211,7 @@ class SelectVariants(GATKStage):
         select_var_command += ' -V ' + self.genotyped_vcf
         select_var_command += ' -selectType SNP '
         return executor.execute(
-            self.select_var_command,
+            select_var_command,
             job_name='var_filtration',
             working_dir=self.gatk_run_dir,
             mem=16
@@ -218,7 +233,7 @@ class VariantFiltration(GATKStage):
         var_filter_command += " --filterExpression " + filter
         var_filter_command += " --filterName 'SNP_FILTER'"
         return executor.execute(
-            self.var_filter_command,
+            var_filter_command,
             job_name='var_filtration',
             working_dir=self.gatk_run_dir,
             mem=16
