@@ -6,6 +6,7 @@ from analysis_driver.pipelines import common
 from analysis_driver.config import default as cfg
 from analysis_driver.util.bash_commands import java_command
 from analysis_driver.tool_versioning import toolset
+from analysis_driver.exceptions import AnalysisDriverError
 from luigi import Parameter
 
 toolset_type = 'non_human_sample_processing'
@@ -40,29 +41,6 @@ class GATKStage(segmentation.Stage):
             input_bam=input_bam,
             output=output
         )
-
-    @property
-    def select_snp_command(self):
-        command = self.gatk_cmd('SelectVariants', self.raw_snp_vcf, nct=1, nt=16)
-        command += ' -V ' + self.genotyped_vcf
-        command += ' -selectType SNP '
-        return command
-
-    @property
-    def filter_snp_command(self):
-        filter = [
-            'QD < 2.0',
-            'FS > 60.0',
-            'MQ < 40.0',
-            'MQRankSum < -12.5',
-            'ReadPosRankSum < -8.0'
-        ]
-        filter = "'" + ' || '.join(filter) + "'"
-        command = self.gatk_cmd('VariantFiltration', self.filter_snp_vcf, nct=1, nt=1)
-        command += " -V " + self.raw_snp_vcf
-        command += " --filterExpression " + filter
-        command += " --filterName 'SNP_FILTER'"
-        return command
 
     @property
     def basename(self):
@@ -104,9 +82,11 @@ class GATKStage(segmentation.Stage):
     def filter_snp_vcf(self):
         return self.basename + '_filter_snp.vcf'
 
-    @property
     def dbsnp(self):
-        return cfg.query('genomes', self.dataset.genome_version, 'dbsnp')
+        dbsnp = cfg.query('genomes', self.dataset.genome_version, 'dbsnp')
+        if not dbsnp and self.dataset.default_pipeline == 'variant_calling':
+            raise AnalysisDriverError('Could not find dbsnp file for %s' % self.dataset.name)
+        return dbsnp
 
     @property
     def known_indels(self):
@@ -186,7 +166,7 @@ class HaplotypeCaller(GATKStage):
                       'ReadPosRankSumTest', 'RMSMappingQuality', 'DepthPerAlleleBySample', 'Coverage',
                       'ClippingRankSumTest', 'DepthPerSampleHC'):
             haplotype_cmd += ' --annotation ' + annot
-        if self.dbsnp:
+        if self.dbsnp():
             haplotype_cmd += ' --dbsnp ' + self.dbsnp
 
 
@@ -211,10 +191,12 @@ class GenotypeGVCFs(GATKStage):
 
 
 class SelectVariants(GATKStage):
-    command = Parameter()
     def _run(self):
+        select_var_command = self.gatk_cmd('SelectVariants', self.raw_snp_vcf, nct=1, nt=16)
+        select_var_command += ' -V ' + self.genotyped_vcf
+        select_var_command += ' -selectType SNP '
         return executor.execute(
-            self.command,
+            self.select_var_command,
             job_name='var_filtration',
             working_dir=self.gatk_run_dir,
             mem=16
@@ -222,10 +204,21 @@ class SelectVariants(GATKStage):
 
 
 class VariantFiltration(GATKStage):
-    command = Parameter()
     def _run(self):
+        filter = [
+            'QD < 2.0',
+            'FS > 60.0',
+            'MQ < 40.0',
+            'MQRankSum < -12.5',
+            'ReadPosRankSum < -8.0'
+        ]
+        filter = "'" + ' || '.join(filter) + "'"
+        var_filter_command = self.gatk_cmd('VariantFiltration', self.filter_snp_vcf, nct=1, nt=1)
+        var_filter_command += " -V " + self.raw_snp_vcf
+        var_filter_command += " --filterExpression " + filter
+        var_filter_command += " --filterName 'SNP_FILTER'"
         return executor.execute(
-            self.command,
+            self.var_filter_command,
             job_name='var_filtration',
             working_dir=self.gatk_run_dir,
             mem=16
@@ -259,17 +252,16 @@ def build_pipeline(dataset):
     def stage(cls, **params):
         return cls(dataset=dataset, **params)
 
-    g = GATKStage(dataset=dataset)
     bam_file_production = common.build_bam_file_production(dataset)
     base_recal = stage(BaseRecal, previous_stages=bam_file_production)
     print_reads = stage(PrintReads, previous_stages=[base_recal])
     realign_target = stage(RealignTarget, previous_stages=[print_reads])
     realign = stage(Realign, previous_stages=[realign_target])
-    haplotype = stage(HaplotypeCaller, input_bam=g.indel_realigned_bam, previous_stages=[realign])
+    haplotype = stage(HaplotypeCaller, input_bam=realign.indel_realigned_bam, dbsnp_file=realign.dbsnp, previous_stages=[realign])
     genotype = stage(GenotypeGVCFs, previous_stages=[haplotype])
-    select_snp = stage(SelectVariants, command=g.select_snp_command, previous_stages=[genotype])
-    filter_snp = stage(VariantFiltration, command=g.filter_snp_command, previous_stages=[select_snp])
-    vcfstats = stage(qc.VCFStats, vcf_file=g.filter_snp_vcf, previous_stages=[filter_snp])
+    select_snp = stage(SelectVariants, previous_stages=[genotype])
+    filter_snp = stage(VariantFiltration, previous_stages=[select_snp])
+    vcfstats = stage(qc.VCFStats, vcf_file=filter_snp.filter_snp_vcf, previous_stages=[filter_snp])
     bgzip = stage(BGZip, previous_stages=[vcfstats])
     tabix = stage(Tabix, previous_stages=[bgzip])
     output = stage(common.SampleDataOutput, previous_stages=[tabix], output_fileset='gatk_var_calling')
