@@ -94,20 +94,6 @@ class GATKStage(segmentation.Stage):
         return cfg.query('genomes', self.dataset.genome_version, 'known_indels')
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 class BaseRecal(GATKStage):
     def _run(self):
         return executor.execute(
