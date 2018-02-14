@@ -1,4 +1,4 @@
-EGCG-Core==0.8
+EGCG-Core==0.8.1
 luigi==2.5.0
 ete3==3.0.0b35
 illuminate==0.6.4

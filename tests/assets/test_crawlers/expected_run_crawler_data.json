@@ -223,10 +223,11 @@
                 "picard_dup_reads": 230832,
                 "picard_est_lib_size": 15140319228,
                 "picard_opt_dup_reads": 229948,
-                "median_abs_dev_insert_size": 69,
-                "median_insert_size": 439,
+                "median_abs_dev_insert_size": 69.0,
+                "median_insert_size": 439.0,
                 "mean_insert_size": 446.299806,
-                "std_dev_insert_size": 113.966554
+                "std_dev_insert_size": 113.966554,
+                "pc_insert_size": 100.0
 
             },
             "coverage": {
