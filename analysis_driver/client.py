@@ -61,7 +61,7 @@ def main(argv=None):
             scanner.report(all_datasets=True)
         return 0
 
-    processable_statuses = (DATASET_FORCE_READY, DATASET_READY, DATASET_RESUME)
+    processable_statuses = (DATASET_FORCE_READY, DATASET_RESUME, DATASET_READY)
     datasets = scanner.scan_datasets(DATASET_NEW, DATASET_REPROCESS, *processable_statuses)
     ready_datasets = []
     for s in processable_statuses:

@@ -85,7 +85,7 @@ class IntegrationTest(TestCase):
         rest_communication.post_entry(
             'samples',
             {'library_id': self.library_id, 'project_id': self.project_id, 'sample_id': self.sample_id,
-             'run_elements': [e['run_element_id'] for e in run_elements], 'required_yield_q30': 900000000}
+             'run_elements': [e['run_element_id'] for e in run_elements], 'required_yield': 900000000}
         )
         rest_communication.post_entry('projects', {'project_id': self.project_id, 'samples': [self.sample_id]})
 
@@ -142,7 +142,7 @@ class IntegrationTest(TestCase):
             [exp[e] for e in sorted(exp)]
         )
 
-    def expect_stage_data(self, stage_names):
+    def expect_stage_data(self, *stage_names):
         stages = rest_communication.get_documents('analysis_driver_stages')
         obs = {s['stage_name']: s.get('exit_status') for s in stages}
         self.expect_equal(obs, {s: 0 for s in stage_names}, 'stages')
@@ -208,7 +208,16 @@ class IntegrationTest(TestCase):
                 ),
                 integration_cfg['demultiplexing']['qc']
             )
-            self.expect_stage_data(integration_cfg['demultiplexing']['stages'])
+
+            self.expect_stage_data('setup', 'wellduplicates', 'bcl2fastq', 'fastqfilter', 'seqtkfqchk',
+                                   'md5sum', 'fastqc', 'integritycheck', 'qcoutput', 'dataoutput', 'cleanup',
+                                   'samtoolsdepthmulti', 'picardinsertsizemulti', 'qcoutput2', 'runreview',
+                                   'picardmarkduplicatemulti', 'samtoolsstatsmulti', 'bwaalignmulti')
+
+            self.expect_equal(
+                rest_communication.get_document('analysis_driver_procs')['pipeline_used'],
+                {'name': 'demultiplexing', 'toolset_version': 0, 'toolset_type': 'run_processing'}
+            )
 
         assert self._test_success
 
@@ -227,7 +236,19 @@ class IntegrationTest(TestCase):
                 integration_cfg['bcbio']['files'],
                 base_dir=os.path.join(cfg['sample']['output_dir'], self.project_id, self.sample_id)
             )
-            self.expect_stage_data(integration_cfg['bcbio']['stages'])
+
+            self.expect_stage_data('mergefastqs', 'fastqc', 'genotypevalidation', 'bcbio', 'fastqscreen',
+                                   'fixunmapped', 'blast', 'gendervalidation', 'vcfstats', 'samtoolsdepth',
+                                   'verifybamid', 'sampledataoutput', 'md5sum', 'cleanup', 'samplereview')
+
+            self.expect_equal(
+                rest_communication.get_document('analysis_driver_procs')['pipeline_used'],
+                {
+                    'toolset_type': 'human_sample_processing',
+                    'name': 'bcbio',
+                    'toolset_version': 0
+                }
+            )
 
         assert self._test_success
 
@@ -246,26 +267,52 @@ class IntegrationTest(TestCase):
                 integration_cfg['var_calling']['files'],
                 base_dir=os.path.join(cfg['sample']['output_dir'], self.project_id, self.sample_id)
             )
-            self.expect_stage_data(integration_cfg['var_calling']['stages'])
+
+            self.expect_stage_data('mergefastqs', 'bwamem', 'fastqc', 'samtoolsdepth', 'samplereview', 'blast',
+                                   'fastqscreen', 'samtoolsstats', 'baserecal', 'printreads', 'realigntarget',
+                                   'realign', 'haplotypecaller', 'bgzip', 'tabix', 'sampledataoutput', 'md5sum',
+                                   'cleanup')
+
+            self.expect_equal(
+                rest_communication.get_document('analysis_driver_procs')['pipeline_used'],
+                {
+                    'toolset_type': 'non_human_sample_processing',
+                    'name': 'variant_calling',
+                    'toolset_version': 0
+                }
+            )
 
         assert self._test_success
 
-    def test_qc(self):
-        self.setup_test('sample', 'test_qc')
+    def _run_qc_test(self):
         with patch_pipeline(species='Canis lupus familiaris', analysis_type='Not Variant Calling'):
             exit_status = client.main(['--sample'])
-            self.assertEqual(exit_status, 0)
 
-            self.expect_qc_data(
-                rest_communication.get_document('samples', where={'sample_id': self.sample_id}),
-                integration_cfg['qc']['qc']
-            )
+        self.assertEqual(exit_status, 0)
+        self.expect_qc_data(
+            rest_communication.get_document('samples', where={'sample_id': self.sample_id}),
+            integration_cfg['qc']['qc']
+        )
+        self.expect_stage_data('mergefastqs', 'bwamem', 'fastqc', 'samtoolsdepth', 'blast', 'fastqscreen',
+                               'samtoolsstats', 'sampledataoutput', 'md5sum', 'samplereview', 'cleanup')
 
-            self.expect_output_files(
-                integration_cfg['qc']['files'],
-                base_dir=os.path.join(cfg['sample']['output_dir'], self.project_id, self.sample_id)
-            )
-            self.expect_stage_data(integration_cfg['qc']['stages'])
+        self.expect_equal(
+            rest_communication.get_document('analysis_driver_procs')['pipeline_used'],
+            {
+                'toolset_type': 'non_human_sample_processing',
+                'name': 'qc',
+                'toolset_version': 0
+            }
+        )
+
+    def test_qc(self):
+        self.setup_test('sample', 'test_qc')
+
+        self._run_qc_test()
+        self.expect_output_files(
+            integration_cfg['qc']['files'],
+            base_dir=os.path.join(cfg['sample']['output_dir'], self.project_id, self.sample_id)
+        )
 
         assert self._test_success
 
@@ -277,38 +324,31 @@ class IntegrationTest(TestCase):
                 self.assertEqual(exit_status, 9)
 
             procs = rest_communication.get_documents('analysis_driver_procs')
-            self.assertEqual(len(procs), 1)
-            self.assertEqual(procs[0]['status'], 'failed')
-            self.assertEqual(
+            self.expect_equal(len(procs), 1)
+            self.expect_equal(procs[0]['status'], 'failed')
+            self.expect_equal(
                 sorted(s['stage_name'] for s in rest_communication.get_documents('analysis_driver_stages')),
                 ['bwamem', 'fastqc', 'mergefastqs']
             )
-            self.assertEqual(rest_communication.get_document('analysis_driver_stages', where={'stage_name': 'bwamem'})['exit_status'], 1)
+            self.expect_equal(rest_communication.get_document('analysis_driver_stages', where={'stage_name': 'bwamem'})['exit_status'], 1)
 
             self._reset_logging()
             client.main(['--sample', '--resume', '10015AT0004'])
-            self.assertEqual(rest_communication.get_document('analysis_driver_procs')['status'], 'resume')
-            
+            self.expect_equal(rest_communication.get_document('analysis_driver_procs')['status'], 'resume')
             self._reset_logging()
-            exit_status = client.main(['--sample'])
-            self.assertEqual(exit_status, 0)
 
-            self.expect_qc_data(
-                rest_communication.get_document('samples', where={'sample_id': self.sample_id}),
-                integration_cfg['qc']['qc']
-            )
+        self._run_qc_test()
 
-            exp_files = integration_cfg['qc']['files'].copy()
-            exp_files.update(integration_cfg['resume']['files'])
-            self.expect_output_files(
-                exp_files,
-                base_dir=os.path.join(cfg['sample']['output_dir'], self.project_id, self.sample_id)
-            )
-            self.expect_stage_data(integration_cfg['qc']['stages'])
+        exp_files = integration_cfg['qc']['files'].copy()
+        exp_files.update(integration_cfg['resume']['files'])
+        self.expect_output_files(
+            exp_files,
+            base_dir=os.path.join(cfg['sample']['output_dir'], self.project_id, self.sample_id)
+        )
 
-            procs = rest_communication.get_documents('analysis_driver_procs')
-            self.assertEqual(len(procs), 1)
-            self.assertEqual(procs[0]['status'], 'finished')
+        procs = rest_communication.get_documents('analysis_driver_procs')
+        self.expect_equal(len(procs), 1)  # should have used the existing proc
+        self.expect_equal(procs[0]['status'], 'finished')
 
         assert self._test_success
 
