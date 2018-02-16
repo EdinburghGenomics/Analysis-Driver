@@ -193,7 +193,7 @@ class MD5Sum(DemultiplexingStage):
 
 class QCOutput(DemultiplexingStage):
     def _run(self):
-        crawler = RunCrawler(self.dataset, run_dir=self.fastq_dir )
+        crawler = RunCrawler(self.dataset, run_dir=self.fastq_dir, stage=RunCrawler.STAGE_CONVERSION)
         crawler.send_data()
         return 0
 

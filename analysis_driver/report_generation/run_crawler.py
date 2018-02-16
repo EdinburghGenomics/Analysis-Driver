@@ -10,18 +10,21 @@ from .crawler import Crawler
 
 
 class RunCrawler(Crawler):
-    def __init__(self, dataset, run_dir=None):
+    STAGE_CONVERSION = 2
+
+    def __init__(self, dataset, run_dir=None, stage=0):
         self.dataset = dataset
         self._populate_barcode_info_from_dataset(dataset)
         self._populate_from_lims()
         if run_dir:
             self._populate_lane_info_from_interop_metrics(run_dir)
-            self._populate_barcode_info_from_conversion_file(run_dir)
-            self._populate_barcode_info_from_adapter_file(run_dir)
-            self._populate_barcode_info_from_well_dup(run_dir)
-            self._populate_barcode_info_from_fastq_filterer_files(run_dir)
-            self._populate_barcode_info_from_seqtk_fqchk_files(run_dir)
-            self._populate_from_mapping_stats(run_dir)
+            if stage >= self.STAGE_CONVERSION:
+                self._populate_barcode_info_from_conversion_file(run_dir)
+                self._populate_barcode_info_from_adapter_file(run_dir)
+                self._populate_barcode_info_from_well_dup(run_dir)
+                self._populate_barcode_info_from_fastq_filterer_files(run_dir)
+                self._populate_barcode_info_from_seqtk_fqchk_files(run_dir)
+                self._populate_from_mapping_stats(run_dir)
 
     @staticmethod
     def _update_doc_list(d, k, v):
