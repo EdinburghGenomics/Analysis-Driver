@@ -427,7 +427,7 @@ def parse_interop_summary(summary_file):
         sections = grab_sections(open_file)
     metrics_per_lane = defaultdict(dict)
     if 'Read 1' not in sections or ('Read 2' not in sections and 'Read 3' not in sections):
-        return metrics_per_lane
+        return dict(metrics_per_lane)
     for lane, metrics in parse_read_section(sections.pop('Read 1')).items():
         for metric in metrics:
             metrics_per_lane[lane][metric + '_r1'] = metrics[metric]

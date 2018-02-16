@@ -325,7 +325,7 @@ class RunCrawler(Crawler):
             for lane_id in self.lanes:
                 lane_info = self.lanes.get(lane_id)
                 lane = int(lane_info.get(ELEMENT_LANE_NUMBER))
-                lane_info['interop_metrics'] = interop_metrics_per_lane.get(str(lane))
+                lane_info['interop_metrics'] = interop_metrics_per_lane.get(str(lane), {})
 
 
     def send_data(self):

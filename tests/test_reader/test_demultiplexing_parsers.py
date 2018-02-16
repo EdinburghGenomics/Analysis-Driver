@@ -170,7 +170,6 @@ class TestDemultiplexingStats(TestAnalysisDriver):
         }
         assert dm.parse_fastq_filterer_stats(fastqfilterer_stats) == expected_dict
 
-
     def test_parse_interop_summary(self):
         interop_summary = os.path.join(self.assets_path, 'interop_summary.txt')
 
@@ -185,3 +184,5 @@ class TestDemultiplexingStats(TestAnalysisDriver):
         }
         assert res['1'] == expected_metrics
 
+        interop_summary = os.path.join(self.assets_path, 'interop_summary_empty.txt')
+        assert dm.parse_interop_summary(interop_summary) == {}
