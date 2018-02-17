@@ -570,8 +570,8 @@ class ProjectDataset(Dataset):
     def samples_processed(self):
         if not self._samples_processed:
             self._samples_processed = rest_communication.get_documents(
-                'aggregate/samples',
-                match={'project_id': self.name, 'proc_status': 'finished'}
+                'samples',
+                where={'project_id': self.name, 'aggregated.most_recent_proc.status': 'finished'}
             )
         return self._samples_processed
 

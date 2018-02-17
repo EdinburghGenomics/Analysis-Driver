@@ -98,7 +98,7 @@ class FastqFilter(DemultiplexingStage):
     def _run(self):
 
         # Send the results of BCL2fastq to the rest API
-        crawler = RunCrawler(self.dataset, run_dir=self.fastq_dir)
+        crawler = RunCrawler(self.dataset, run_dir=self.fastq_dir, stage=RunCrawler.STAGE_CONVERSION)
         crawler.send_data()
 
         # Assess if the lanes need filtering
