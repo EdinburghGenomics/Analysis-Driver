@@ -193,7 +193,7 @@ class MD5Sum(DemultiplexingStage):
 
 class QCOutput(DemultiplexingStage):
     def _run(self):
-        crawler = RunCrawler(self.dataset, run_dir=self.fastq_dir, stage=RunCrawler.STAGE_CONVERSION)
+        crawler = RunCrawler(self.dataset, run_dir=self.fastq_dir, stage=RunCrawler.STAGE_FILTER)
         crawler.send_data()
         return 0
 
@@ -355,8 +355,11 @@ class PicardInsertSizeMulti(PostDemultiplexingStage):
 
 
 # Need to have a different name of class bcause the sage name is based on it.
-class QCOutput2(QCOutput):
-    pass
+class QCOutput2(DemultiplexingStage):
+    def _run(self):
+        crawler = RunCrawler(self.dataset, run_dir=self.fastq_dir, stage=RunCrawler.STAGE_MAPPING)
+        crawler.send_data()
+        return 0
 
 
 class RunReview(DemultiplexingStage):

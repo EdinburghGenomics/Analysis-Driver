@@ -3,6 +3,8 @@ import shutil
 from os.path import join
 from unittest.mock import Mock, patch
 from egcg_core.constants import ELEMENT_PROJECT_ID, ELEMENT_LANE, ELEMENT_SAMPLE_INTERNAL_ID
+
+from analysis_driver.report_generation.run_crawler import RunCrawler
 from tests.test_analysisdriver import TestAnalysisDriver, NamedMock
 from analysis_driver.util import bash_commands
 from analysis_driver.pipelines.demultiplexing import FastqFilter, BwaAlignMulti, SamtoolsStatsMulti, SamtoolsDepthMulti, \
@@ -61,7 +63,7 @@ class TestFastqFilter(TestAnalysisDriver):
             assert expected_call_l3 == pexecute.call_args[0][2]
             assert expected_call_l4 == pexecute.call_args[0][3]
 
-            prun_crawler.assert_called_with(dataset, run_dir='tests/assets/jobs/test/fastq')
+            prun_crawler.assert_called_with(dataset, run_dir='tests/assets/jobs/test/fastq', stage=prun_crawler.STAGE_CONVERSION)
 
 
 class TestPostDemultiplexing(TestAnalysisDriver):

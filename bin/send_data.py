@@ -53,7 +53,7 @@ def run_crawler(args):
 
     dataset = RunDataset(args.run_id)
 
-    c = RunCrawler(dataset, run_dir=run_dir, stage=RunCrawler.STAGE_CONVERSION)
+    c = RunCrawler(dataset, run_dir=run_dir, stage=RunCrawler.STAGE_MAPPING)
     if args.test:
         print(
             json.dumps(

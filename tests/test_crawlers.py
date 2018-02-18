@@ -97,7 +97,7 @@ class TestRunCrawler(TestCrawler):
             self.crawler = report_generation.RunCrawler(
                 dataset,
                 os.path.join(self.test_data, 'test_run_dir'),
-                stage=report_generation.RunCrawler.STAGE_CONVERSION
+                stage=report_generation.RunCrawler.STAGE_MAPPING
             )
         with patched_lims_info, patched_data:
             self.crawler_start = report_generation.RunCrawler(
