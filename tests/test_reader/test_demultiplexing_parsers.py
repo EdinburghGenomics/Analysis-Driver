@@ -1,7 +1,5 @@
 import os
 
-import egcg_core
-
 from analysis_driver.reader import demultiplexing_parsers as dm
 from tests.test_analysisdriver import TestAnalysisDriver
 from egcg_core.constants import ELEMENT_CONTAMINANT_UNIQUE_MAP, ELEMENT_PCNT_UNMAPPED_FOCAL,\
@@ -171,7 +169,7 @@ class TestDemultiplexingStats(TestAnalysisDriver):
         assert dm.parse_fastq_filterer_stats(fastqfilterer_stats) == expected_dict
 
     def test_parse_interop_summary(self):
-        interop_summary = os.path.join(self.assets_path, 'interop_summary.txt')
+        interop_summary = os.path.join(self.assets_path, 'test_crawlers','test_run_dir', 'interop_summary.txt')
 
         res = dm.parse_interop_summary(interop_summary)
         expected_metrics = {
