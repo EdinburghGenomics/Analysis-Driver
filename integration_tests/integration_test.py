@@ -47,6 +47,7 @@ class IntegrationTest(TestCase):
         load_config()
         cls.original_job_dir = cfg['jobs_dir']
         cls.original_run_output = cfg['run']['output_dir']
+        cls.original_run_input = cfg['run']['input_dir']
         cls.original_sample_output = cfg['sample']['output_dir']
 
         # clean up any previous tests
@@ -107,9 +108,11 @@ class IntegrationTest(TestCase):
         cfg.content['sample']['output_dir'] = self.original_sample_output
 
     @staticmethod
-    def setup_test(test_type, test_name):
+    def setup_test(test_type, test_name, integration_section):
         cfg.content['jobs_dir'] = os.path.join(cfg['jobs_dir'], test_name)
         cfg.content[test_type]['output_dir'] = os.path.join(cfg[test_type]['output_dir'], test_name)
+        if 'input_dir' in integration_cfg[integration_section]:
+            cfg.content[test_type]['input_dir'] = integration_cfg[integration_section]['input_dir']
         os.mkdir(cfg['jobs_dir'])
         os.mkdir(cfg[test_type]['output_dir'])
 
@@ -175,7 +178,7 @@ class IntegrationTest(TestCase):
         return v
 
     def test_demultiplexing(self):
-        self.setup_test('run', 'test_demultiplexing')
+        self.setup_test('run', 'test_demultiplexing', 'demultiplexing')
         with patch_pipeline():
             exit_status = client.main(['--run'])
             self.assertEqual(exit_status, 0)
@@ -191,7 +194,7 @@ class IntegrationTest(TestCase):
             )
             output_dir = os.path.join(cfg['run']['output_dir'], self.run_id)
             output_fastqs = util.find_all_fastqs(output_dir)
-            self.expect_equal(len(output_fastqs), 126, '# fastqs')  # 14 undetermined + 112 samples
+            self.expect_equal(len(output_fastqs), integration_cfg['demultiplexing']['nb_fastq'], '# fastqs')
             self.expect_output_files(
                 integration_cfg['demultiplexing']['files'],
                 base_dir=output_dir
@@ -201,14 +204,22 @@ class IntegrationTest(TestCase):
                     'run_elements',
                     where={'run_element_id': self.run_id + '_1_' + self.barcode}
                 ),
-                integration_cfg['demultiplexing']['qc']
+                integration_cfg['demultiplexing']['run_element_qc']
             )
+            if 'lane_qc' in integration_cfg['demultiplexing']:
+                self.expect_qc_data(
+                    rest_communication.get_document(
+                        'lanes',
+                        where={'lane_id': self.run_id + '_1'}
+                    ),
+                    integration_cfg['demultiplexing']['lane_qc']
+                )
             self.expect_stage_data(integration_cfg['demultiplexing']['stages'])
 
         assert self._test_success
 
-    def test_bcbio(self):
-        self.setup_test('sample', 'test_bcbio')
+    def _test_bcbio(self):
+        self.setup_test('sample', 'test_bcbio', 'bcbio')
         with patch_pipeline():
             exit_status = client.main(['--sample'])
             self.assertEqual(exit_status, 0)
@@ -227,7 +238,7 @@ class IntegrationTest(TestCase):
         assert self._test_success
 
     def test_var_calling(self):
-        self.setup_test('sample', 'test_var_calling')
+        self.setup_test('sample', 'test_var_calling', 'var_calling')
         with patch_pipeline(species='Canis lupus familiaris', analysis_type='Variant Calling'):
             exit_status = client.main(['--sample'])
             self.assertEqual(exit_status, 0)
@@ -246,7 +257,7 @@ class IntegrationTest(TestCase):
         assert self._test_success
 
     def test_qc(self):
-        self.setup_test('sample', 'test_qc')
+        self.setup_test('sample', 'test_qc', 'qc')
         with patch_pipeline(species='Canis lupus familiaris', analysis_type='Not Variant Calling'):
             exit_status = client.main(['--sample'])
             self.assertEqual(exit_status, 0)
