@@ -218,7 +218,7 @@ class IntegrationTest(TestCase):
 
         assert self._test_success
 
-    def _test_bcbio(self):
+    def test_bcbio(self):
         self.setup_test('sample', 'test_bcbio', 'bcbio')
         with patch_pipeline():
             exit_status = client.main(['--sample'])
