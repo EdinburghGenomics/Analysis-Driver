@@ -104,6 +104,7 @@ class IntegrationTest(TestCase):
         logging_default.loggers = {}
 
         cfg.content['jobs_dir'] = self.original_job_dir
+        cfg.content['run']['input_dir'] = self.original_run_input
         cfg.content['run']['output_dir'] = self.original_run_output
         cfg.content['sample']['output_dir'] = self.original_sample_output
 
