@@ -19,7 +19,7 @@ def build_pipeline(dataset):
     vcfstats = stage(qc.VCFStats, vcf_file=g.filter_snp_vcf, previous_stages=[filter_snp])
     bgzip = stage(v.BGZip, previous_stages=[vcfstats])
     tabix = stage(v.Tabix, previous_stages=[bgzip])
-    data_output = stage(common.SampleDataOutput, dataset=dataset, previous_stages=[tabix], output_fileset='non_human_qc')
-    cleanup = stage(common.Cleanup, dataset=dataset, previous_stages=[data_output])
-    review = stage(common.SampleReview, dataset=dataset, previous_stages=[cleanup])
+    data_output = stage(common.SampleDataOutput, previous_stages=[tabix], output_fileset='non_human_qc')
+    cleanup = stage(common.Cleanup, previous_stages=[data_output])
+    review = stage(common.SampleReview, previous_stages=[cleanup])
     return review
