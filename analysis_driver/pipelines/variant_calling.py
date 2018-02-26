@@ -258,7 +258,7 @@ def build_pipeline(dataset):
     print_reads = stage(PrintReads, previous_stages=[base_recal])
     realign_target = stage(RealignTarget, previous_stages=[print_reads])
     realign = stage(Realign, previous_stages=[realign_target])
-    haplotype = stage(HaplotypeCaller, input_bam=realign.indel_realigned_bam, dbsnp_file=realign.dbsnp, previous_stages=[realign])
+    haplotype = stage(HaplotypeCaller, input_bam=realign.indel_realigned_bam, previous_stages=[realign])
     genotype = stage(GenotypeGVCFs, previous_stages=[haplotype])
     select_snp = stage(SelectVariants, previous_stages=[genotype])
     filter_snp = stage(VariantFiltration, previous_stages=[select_snp])
