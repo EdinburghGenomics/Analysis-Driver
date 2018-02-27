@@ -327,7 +327,7 @@ class IntegrationTest(TestCase):
         assert self._test_success
 
     def test_resume(self):
-        self.setup_test('sample', 'test_resume')
+        self.setup_test('sample', 'test_resume', 'qc')
         with patch_pipeline(species='Canis lupus familiaris', analysis_type='Not Variant Calling'):
             with patch('analysis_driver.pipelines.common.BWAMem._run', return_value=1):
                 exit_status = client.main(['--sample'])
