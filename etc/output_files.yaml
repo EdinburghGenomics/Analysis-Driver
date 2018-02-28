@@ -189,11 +189,11 @@ gatk_var_calling:
 
     gvcf:
         location: ['gatk_var_calling']
-        basename: '{user_sample_id}.g.vcf.gz'
+        basename: '{user_sample_id}_filter_snp.vcf.gz'
 
     gvcf_tbi:
         location: ['gatk_var_calling']
-        basename: '{user_sample_id}.g.vcf.gz.tbi'
+        basename: '{user_sample_id}_filter_snp.vcf.gz.tbi'
 
     taxa_identified:
         basename: 'taxa_identified.json'
