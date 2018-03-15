@@ -1,10 +1,17 @@
 Changelog for Analysis-Driver
 =============================
 
-0.21 (unreleased)
+0.21 (2018-03-15)
 -----------------
 
-- Nothing changed yet.
+- Fixed `--resume` option
+- Using new Reporting-App aggregation in `ProjectDataset`
+- Fixed the toolset_type in `pipelines.demultiplexing`
+- New metrics parsed and uploaded:
+  - InterOp metrics
+  - non-facing read pairs
+- Refactored report crawlers to take a single input dir
+- Made `relatedness.GenotypeGVCFs` allocate memory dynamically
 
 
 0.20.1 (2018-02-01)
