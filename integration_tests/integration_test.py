@@ -278,10 +278,11 @@ class IntegrationTest(TestCase):
                 base_dir=os.path.join(cfg['sample']['output_dir'], self.project_id, self.sample_id)
             )
 
-            self.expect_stage_data('mergefastqs', 'bwamem', 'fastqc', 'samtoolsdepth', 'samplereview', 'blast',
-                                   'fastqscreen', 'samtoolsstats', 'baserecal', 'printreads', 'realigntarget',
-                                   'realign', 'haplotypecaller', 'bgzip', 'tabix', 'sampledataoutput', 'md5sum',
-                                   'cleanup')
+            self.expect_stage_data('mergefastqs', 'samplereview', 'bgzip', 'fastqscreen', 'printreads', 'blast',
+                                   'baserecal', 'samtoolsdepth', 'vcfstats', 'tabix', 'selectvariants', 'fastqc',
+                                   'variantfiltration', 'cleanup', 'realign', 'realigntarget', 'samtoolsstats',
+                                   'haplotypecaller', 'md5sum', 'bwamem', 'sampledataoutput', 'genotypegvcfs')
+
 
             self.expect_equal(
                 rest_communication.get_document('analysis_driver_procs')['pipeline_used'],
@@ -303,8 +304,10 @@ class IntegrationTest(TestCase):
             rest_communication.get_document('samples', where={'sample_id': self.sample_id}),
             integration_cfg['qc']['qc']
         )
-        self.expect_stage_data('mergefastqs', 'bwamem', 'fastqc', 'samtoolsdepth', 'blast', 'fastqscreen',
-                               'samtoolsstats', 'sampledataoutput', 'md5sum', 'samplereview', 'cleanup')
+        self.expect_stage_data('vcfstats', 'tabix', 'selectvariants', 'fastqc', 'variantfiltration',
+                               'samtoolsdepth', 'mergefastqs', 'samtoolsstats', 'samplereview', 'bgzip',
+                               'haplotypecaller', 'cleanup', 'fastqscreen', 'md5sum', 'bwamem',
+                               'sampledataoutput', 'genotypegvcfs', 'blast')
 
         self.expect_equal(
             rest_communication.get_document('analysis_driver_procs')['pipeline_used'],
