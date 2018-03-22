@@ -96,9 +96,13 @@ class TestRunCrawler(TestCrawler):
         with patched_lims_info, patched_data:
             self.crawler = report_generation.RunCrawler(
                 dataset,
-                os.path.join(self.test_data, 'AdapterTrimming.txt'),
-                os.path.join(self.test_data, 'ConversionStats.xml'),
-                os.path.join(self.test_data, 'test_run_dir')
+                os.path.join(self.test_data, 'test_run_dir'),
+                stage=report_generation.RunCrawler.STAGE_MAPPING
+            )
+        with patched_lims_info, patched_data:
+            self.crawler_start = report_generation.RunCrawler(
+                dataset,
+                os.path.join(self.test_data, 'test_run_dir_start')
             )
 
     def test_barcodes_info(self):
@@ -112,6 +116,7 @@ class TestRunCrawler(TestCrawler):
 
     def test_lanes(self):
         self.compare_jsons(dict(self.crawler.lanes), self.expected_output['lanes'])
+        self.compare_jsons(dict(self.crawler_start.lanes), self.expected_output['lanes'])
 
     def test_run(self):
         self.compare_jsons(dict(self.crawler.run), self.expected_output['run'])

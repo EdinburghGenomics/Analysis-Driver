@@ -10,23 +10,25 @@ from .crawler import Crawler
 
 
 class RunCrawler(Crawler):
-    def __init__(self, dataset, adapter_trim_file=None, conversion_xml_file=None, run_dir=None):
+    STAGE_CONVERSION = 20
+    STAGE_FILTER = 30
+    STAGE_MAPPING = 40
+
+    def __init__(self, dataset, run_dir=None, stage=0):
         self.dataset = dataset
-        self.adapter_trim_file = adapter_trim_file
         self._populate_barcode_info_from_dataset(dataset)
         self._populate_from_lims()
-        if adapter_trim_file:
-            self._populate_barcode_info_from_adapter_file(adapter_trim_file)
-        if conversion_xml_file:
-            self._populate_barcode_info_from_conversion_file(conversion_xml_file)
         if run_dir:
-            self._populate_barcode_info_from_seqtk_fqchk_files(run_dir)
-            welldup_files = util.find_files(run_dir, self.dataset.name + '.wellduplicate')
-            if welldup_files:
-                self._populate_barcode_info_from_well_dup(welldup_files[0])
-
-            self._populate_barcode_info_from_fastq_filterer_files(run_dir)
-            self._populate_from_mapping_stats(run_dir)
+            self._populate_lane_info_from_interop_metrics(run_dir)
+            if stage >= self.STAGE_CONVERSION:
+                self._populate_barcode_info_from_conversion_file(run_dir)
+                self._populate_barcode_info_from_adapter_file(run_dir)
+                self._populate_barcode_info_from_well_dup(run_dir)
+            if stage >= self.STAGE_FILTER:
+                self._populate_barcode_info_from_fastq_filterer_files(run_dir)
+                self._populate_barcode_info_from_seqtk_fqchk_files(run_dir)
+            if stage >= self.STAGE_MAPPING:
+                self._populate_from_mapping_stats(run_dir)
 
     @staticmethod
     def _update_doc_list(d, k, v):
@@ -131,12 +133,14 @@ class RunCrawler(Crawler):
             run_element_adapters_trimmed[run_element_id] = adapters_trimmed_by_id[adapter_id]
         return run_element_adapters_trimmed
 
-    def _populate_barcode_info_from_adapter_file(self, adapter_trim_file):
-        parsed_trimmed_adapters = dm.parse_adapter_trim_file(adapter_trim_file, self.dataset.name)
-        run_element_adapters_trimmed = self._run_sample_lane_to_barcode(parsed_trimmed_adapters)
-        for run_element_id in self.barcodes_info:
-            self.barcodes_info[run_element_id][ELEMENT_ADAPTER_TRIM_R1] = run_element_adapters_trimmed[run_element_id]['read_1_trimmed_bases']
-            self.barcodes_info[run_element_id][ELEMENT_ADAPTER_TRIM_R2] = run_element_adapters_trimmed[run_element_id]['read_2_trimmed_bases']
+    def _populate_barcode_info_from_adapter_file(self, run_dir):
+        adapter_trim_files = util.find_files(run_dir, 'Stats', 'AdapterTrimming.txt')
+        if adapter_trim_files:
+            parsed_trimmed_adapters = dm.parse_adapter_trim_file(adapter_trim_files[0], self.dataset.name)
+            run_element_adapters_trimmed = self._run_sample_lane_to_barcode(parsed_trimmed_adapters)
+            for run_element_id in self.barcodes_info:
+                self.barcodes_info[run_element_id][ELEMENT_ADAPTER_TRIM_R1] = run_element_adapters_trimmed[run_element_id]['read_1_trimmed_bases']
+                self.barcodes_info[run_element_id][ELEMENT_ADAPTER_TRIM_R2] = run_element_adapters_trimmed[run_element_id]['read_2_trimmed_bases']
 
     def _populate_barcode_info_from_seqtk_fqchk_files(self, run_dir):
         for run_element_id in self.barcodes_info:
@@ -200,54 +204,58 @@ class RunCrawler(Crawler):
             else:
                 raise PipelineError('Cannot find fastqfilter file in %s for %s' % (run_dir, run_element_id))
 
-    def _populate_barcode_info_from_well_dup(self, welldup_file):
-        dup_per_lane = dm.parse_welldup_file(welldup_file)
-        for run_element_id in self.barcodes_info:
-            barcode_info = self.barcodes_info.get(run_element_id)
-            lane = int(barcode_info.get(ELEMENT_LANE))
-            if lane in dup_per_lane:
-                barcode_info[ELEMENT_LANE_PC_OPT_DUP] = dup_per_lane[lane]
+    def _populate_barcode_info_from_well_dup(self, run_dir):
+        welldup_files = util.find_files(run_dir, self.dataset.name + '.wellduplicate')
+        if welldup_files:
+            dup_per_lane = dm.parse_welldup_file(welldup_files[0])
+            for run_element_id in self.barcodes_info:
+                barcode_info = self.barcodes_info.get(run_element_id)
+                lane = int(barcode_info.get(ELEMENT_LANE))
+                if lane in dup_per_lane:
+                    barcode_info[ELEMENT_LANE_PC_OPT_DUP] = dup_per_lane[lane]
 
-    def _populate_barcode_info_from_conversion_file(self, conversion_xml):
-        all_barcodes, top_unknown_barcodes, all_barcodeless = dm.parse_conversion_stats(conversion_xml, self.dataset.has_barcodes)
-        reads_per_lane = Counter()
-        if self.dataset.has_barcodes:
-            barcodes = all_barcodes
-        else:
-            barcodes = all_barcodeless
-
-        for (project, library, lane, barcode, clust_count,
-             clust_count_pf, nb_bases, nb_bases_r1_q30, nb_bases_r2_q30) in barcodes:
-            reads_per_lane[lane] += clust_count_pf
-            # For the moment, assume that nb_bases for r1 and r2 are the same.
-            # TODO: remove this assumption by parsing ConversionStats.xml
-            if not self.dataset.has_barcodes:
-                barcode_info = self.barcodes_info.get('%s_%s' % (self.dataset.name, lane))
+    def _populate_barcode_info_from_conversion_file(self, run_dir):
+        conversion_xmls = util.find_files(run_dir, 'Stats', 'ConversionStats.xml')
+        if conversion_xmls:
+            all_barcodes, top_unknown_barcodes, all_barcodeless = dm.parse_conversion_stats(conversion_xmls[0], self.dataset.has_barcodes)
+            reads_per_lane = Counter()
+            if self.dataset.has_barcodes:
+                barcodes = all_barcodes
             else:
-                barcode_info = self.barcodes_info.get('%s_%s_%s' % (self.dataset.name, lane, barcode))
+                barcodes = all_barcodeless
 
-            barcode_info[ELEMENT_NB_READS_SEQUENCED] = clust_count
-            barcode_info[ELEMENT_NB_READS_PASS_FILTER] = clust_count_pf
-            barcode_info[ELEMENT_NB_BASE_R1] = nb_bases
-            barcode_info[ELEMENT_NB_BASE_R2] = nb_bases
-            barcode_info[ELEMENT_NB_Q30_R1] = nb_bases_r1_q30
-            barcode_info[ELEMENT_NB_Q30_R2] = nb_bases_r2_q30
-        for run_element_id in self.barcodes_info:
-            barcode = self.barcodes_info[run_element_id]
-            reads_for_lane = reads_per_lane.get(barcode[ELEMENT_LANE])
-            if reads_for_lane > 0:
-                barcode[ELEMENT_PC_READ_IN_LANE] = barcode[ELEMENT_NB_READS_PASS_FILTER] / reads_for_lane
+            for (project, library, lane, barcode, clust_count,
+                 clust_count_pf, nb_bases, nb_bases_r1_q30, nb_bases_r2_q30) in barcodes:
+                reads_per_lane[lane] += clust_count_pf
+                # For the moment, assume that nb_bases for r1 and r2 are the same.
+                # TODO: remove this assumption by parsing ConversionStats.xml
+                if not self.dataset.has_barcodes:
+                    barcode_info = self.barcodes_info.get('%s_%s' % (self.dataset.name, lane))
+                else:
+                    barcode_info = self.barcodes_info.get('%s_%s_%s' % (self.dataset.name, lane, barcode))
 
-        for lane, barcode, clust_count in top_unknown_barcodes:
-            unknown_element_id = '%s_%s_%s' % (self.dataset.name, lane, barcode)
-            self.unexpected_barcodes[unknown_element_id] = {
-                ELEMENT_RUN_ELEMENT_ID: unknown_element_id,
-                ELEMENT_RUN_NAME: self.dataset.name,
-                ELEMENT_LANE: lane,
-                ELEMENT_PC_READ_IN_LANE: int(clust_count) / reads_per_lane.get(lane),
-                ELEMENT_BARCODE: barcode,
-                ELEMENT_NB_READS_PASS_FILTER: int(clust_count)
-            }
+                barcode_info[ELEMENT_NB_READS_SEQUENCED] = clust_count
+                barcode_info[ELEMENT_NB_READS_PASS_FILTER] = clust_count_pf
+                barcode_info[ELEMENT_NB_BASE_R1] = nb_bases
+                barcode_info[ELEMENT_NB_BASE_R2] = nb_bases
+                barcode_info[ELEMENT_NB_Q30_R1] = nb_bases_r1_q30
+                barcode_info[ELEMENT_NB_Q30_R2] = nb_bases_r2_q30
+            for run_element_id in self.barcodes_info:
+                barcode = self.barcodes_info[run_element_id]
+                reads_for_lane = reads_per_lane.get(barcode[ELEMENT_LANE])
+                if reads_for_lane > 0:
+                    barcode[ELEMENT_PC_READ_IN_LANE] = barcode[ELEMENT_NB_READS_PASS_FILTER] / reads_for_lane
+
+            for lane, barcode, clust_count in top_unknown_barcodes:
+                unknown_element_id = '%s_%s_%s' % (self.dataset.name, lane, barcode)
+                self.unexpected_barcodes[unknown_element_id] = {
+                    ELEMENT_RUN_ELEMENT_ID: unknown_element_id,
+                    ELEMENT_RUN_NAME: self.dataset.name,
+                    ELEMENT_LANE: lane,
+                    ELEMENT_PC_READ_IN_LANE: int(clust_count) / reads_per_lane.get(lane),
+                    ELEMENT_BARCODE: barcode,
+                    ELEMENT_NB_READS_PASS_FILTER: int(clust_count)
+                }
 
     def _populate_from_mapping_stats(self, run_dir):
         for run_element_id in self.barcodes_info:
@@ -313,6 +321,16 @@ class RunCrawler(Crawler):
                     mapping_statistics[ELEMENT_NON_FR_INSERTS] = insert_types
             if mapping_statistics:
                 barcode_info[ELEMENT_MAPPING_STATISTICS] = mapping_statistics
+
+    def _populate_lane_info_from_interop_metrics(self, run_dir):
+        interop_files = util.find_files(run_dir, 'interop_summary.txt')
+        if interop_files:
+            interop_metrics_per_lane = dm.parse_interop_summary(interop_files[0])
+            for lane_id in self.lanes:
+                lane_info = self.lanes.get(lane_id)
+                lane = int(lane_info.get(ELEMENT_LANE_NUMBER))
+                lane_info['interop_metrics'] = interop_metrics_per_lane.get(str(lane), {})
+
 
     def send_data(self):
         pp('run_elements', self.barcodes_info.values(), ELEMENT_RUN_ELEMENT_ID)
