@@ -7,7 +7,7 @@ from egcg_core import constants as c
 from integration_tests.mocked_data import MockedSamples, MockedRunProcess
 from tests.test_analysisdriver import TestAnalysisDriver, NamedMock
 from analysis_driver.exceptions import AnalysisDriverError, SequencingRunError
-from analysis_driver.dataset import Dataset, RunDataset, SampleDataset, MostRecentProc
+from analysis_driver.dataset import Dataset, RunDataset, SampleDataset, ProjectDataset, MostRecentProc
 from analysis_driver.tool_versioning import Toolset
 
 ppath = 'analysis_driver.dataset.'
@@ -328,6 +328,10 @@ class TestRunDataset(TestDataset):
             self.dataset._generate_samplesheet('a_samplesheet')
             mocked_open.return_value.__enter__.return_value.write.assert_called_with('\n'.join(exp))
 
+    def test_data_source(self):
+        with pytest.raises(NotImplementedError):
+            data_source = self.dataset.data_source
+
 
 class TestSampleDataset(TestDataset):
     def test_dataset_status(self):
@@ -392,8 +396,8 @@ class TestSampleDataset(TestDataset):
                                   'dataset_name': 'None', 'dataset_type': 'None'}
             )
         self.dataset._run_elements = self.dataset._non_useable_run_elements = [
-            {'run_id': 'a_run_id', 'clean_q30_bases_r1': 120, 'clean_q30_bases_r2': 115, 'q30_bases_r1': 150, 'q30_bases_r2': 130, 'bases_r1': 200, 'bases_r2': 190},
-            {'run_id': 'another_run_id', 'clean_q30_bases_r1': 110, 'clean_q30_bases_r2': 135, 'q30_bases_r1': 170, 'q30_bases_r2': 150, 'bases_r1': 210, 'bases_r2': 205}
+            {'run_element_id': 'run_element1', 'run_id': 'a_run_id', 'clean_q30_bases_r1': 120, 'clean_q30_bases_r2': 115, 'q30_bases_r1': 150, 'q30_bases_r2': 130, 'bases_r1': 200, 'bases_r2': 190},
+            {'run_element_id': 'run_element2', 'run_id': 'another_run_id', 'clean_q30_bases_r1': 110, 'clean_q30_bases_r2': 135, 'q30_bases_r1': 170, 'q30_bases_r2': 150, 'bases_r1': 210, 'bases_r2': 205}
         ]
         self.dataset._sample = {
             'aggregated': {'clean_yield_in_gb': 1.5, 'run_ids': ['a_run_id', 'another_run_id'], 'clean_pc_q30': 85},
@@ -428,12 +432,15 @@ class TestSampleDataset(TestDataset):
         self.assertTrue(mocked_lims_ntf.called)
         mocked_lims_ntf.assert_has_calls([call(), call().remove_sample_from_workflow()])
 
+    def test_data_source(self):
+        data_source = self.dataset.data_source
+        assert data_source == ['run_element1', 'run_element2']
 
 class TestMostRecentProc(TestAnalysisDriver):
     def setUp(self):
         with patched_get_docs():
             self.proc = MostRecentProc(
-                NamedMock(type='test', real_name='test', pipeline_type='some kind of variant calling')
+                NamedMock(type='test', real_name='test', pipeline_type='some kind of variant calling', data_source=None)
             )
         self.proc._entity = fake_proc.copy()
         self.proc.proc_id = 'a_proc_id'
@@ -464,6 +471,33 @@ class TestMostRecentProc(TestAnalysisDriver):
             sort='-_created'
         )
         assert mocked_initialise.call_count == 0
+
+    @patched_post
+    @patched_get_docs()
+    @patched_patch
+    def test_data_source(self, mocked_patch, mocked_get, mocked_post):
+        sample_proc = MostRecentProc(NamedMock(type='sample', real_name='sample1', pipeline_type='some kind of variant calling', data_source=['run_element1', 'run_element2']))
+        sample_proc._entity = None
+        entity = sample_proc.entity
+        with patched_datetime():
+
+            sample_proc.initialise_entity()
+            mocked_post.assert_called_with('analysis_driver_procs',
+                                           {'dataset_type': 'sample',
+                                            'dataset_name': 'sample1',
+                                            'data_source': ['run_element1', 'run_element2'],
+                                            'proc_id': 'sample_sample1_now'})
+
+        project_proc = MostRecentProc(NamedMock(type='project', real_name='project1', pipeline_type='project pipeline', data_source=['sample_1', 'sample_2']))
+        project_proc._entity = None
+        entity = project_proc.entity
+        with patched_datetime():
+            project_proc.initialise_entity()
+            mocked_post.assert_called_with('analysis_driver_procs',
+                                           {'data_source': ['sample_1', 'sample_2'],
+                                            'dataset_name': 'project1',
+                                            'proc_id': 'project_project1_now',
+                                            'dataset_type': 'project'})
 
     @patched_post
     @patched_patch
