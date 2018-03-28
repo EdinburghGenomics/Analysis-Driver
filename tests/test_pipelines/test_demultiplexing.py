@@ -3,10 +3,11 @@ import shutil
 from os.path import join
 from unittest.mock import Mock, patch
 from egcg_core.constants import ELEMENT_PROJECT_ID, ELEMENT_LANE, ELEMENT_SAMPLE_INTERNAL_ID
+
+from analysis_driver.report_generation.run_crawler import RunCrawler
 from tests.test_analysisdriver import TestAnalysisDriver, NamedMock
 from analysis_driver.util import bash_commands
-from analysis_driver.pipelines.demultiplexing import FastqFilter, BwaAlignMulti, SamtoolsStatsMulti, SamtoolsDepthMulti, \
-    PicardMarkDuplicateMulti, PicardInsertSizeMulti, RunReview
+from analysis_driver.pipelines import demultiplexing as dm
 
 patch_executor = patch('analysis_driver.pipelines.demultiplexing.executor.execute')
 
@@ -25,7 +26,7 @@ class TestFastqFilter(TestAnalysisDriver):
             lane_metrics=[{'pc_q30': 73, 'lane_number': 3}, {'pc_q30': 73, 'lane_number': 4}],
             run_info=run_info
         )
-        f = FastqFilter(dataset=dataset)
+        f = dm.FastqFilter(dataset=dataset)
 
         fake_fastq_pairs = [
             [('L1_R1_001.fastq.gz', 'L1_R2_001.fastq.gz')], [('L2_R1_001.fastq.gz', 'L2_R2_001.fastq.gz')],
@@ -36,8 +37,8 @@ class TestFastqFilter(TestAnalysisDriver):
         patch_detector = patch('analysis_driver.pipelines.demultiplexing.BadTileCycleDetector')
         patch_find = patch('analysis_driver.pipelines.demultiplexing.find_all_fastq_pairs_for_lane',
                            side_effect=fake_fastq_pairs + fake_fastq_pairs)
-
-        with patch_find, patch_executor as pexecute, patch_detector as pdetector:
+        patch_run_crawler = patch('analysis_driver.pipelines.demultiplexing.RunCrawler', autospec=True)
+        with patch_find, patch_executor as pexecute, patch_detector as pdetector, patch_run_crawler as prun_crawler:
             instance = pdetector.return_value
             instance.detect_bad_tiles.return_value = {3: [1101]}
             instance.detect_bad_cycles.return_value = {4: [310, 308, 307, 309]}
@@ -60,6 +61,8 @@ class TestFastqFilter(TestAnalysisDriver):
             assert expected_call_l2 == pexecute.call_args[0][1]
             assert expected_call_l3 == pexecute.call_args[0][2]
             assert expected_call_l4 == pexecute.call_args[0][3]
+
+            prun_crawler.assert_called_with(dataset, run_dir='tests/assets/jobs/test/fastq', stage=prun_crawler.STAGE_CONVERSION)
 
 
 class TestPostDemultiplexing(TestAnalysisDriver):
@@ -97,7 +100,7 @@ class TestPostDemultiplexing(TestAnalysisDriver):
 
 class TestBwaAlignMulti(TestPostDemultiplexing):
     def setUp(self):
-        self.setup_stage(BwaAlignMulti)
+        self.setup_stage(dm.BwaAlignMulti)
 
     def test_run(self):
         patch_get_sample = patch('egcg_core.clarity.get_species_from_sample', return_value='Homo sapiens')
@@ -119,7 +122,7 @@ class TestBwaAlignMulti(TestPostDemultiplexing):
 
 class TestSamtoolsStatsMulti(TestPostDemultiplexing):
     def setUp(self):
-        self.setup_stage(SamtoolsStatsMulti)
+        self.setup_stage(dm.SamtoolsStatsMulti)
         self.setup_post_alignment()
 
     def test_run(self):
@@ -143,7 +146,7 @@ class TestSamtoolsStatsMulti(TestPostDemultiplexing):
 
 class TestSamtoolsDepthMulti(TestPostDemultiplexing):
     def setUp(self):
-        self.setup_stage(SamtoolsDepthMulti)
+        self.setup_stage(dm.SamtoolsDepthMulti)
         self.setup_post_alignment()
 
     def test_run(self):
@@ -168,7 +171,7 @@ class TestSamtoolsDepthMulti(TestPostDemultiplexing):
 
 class TestPicardMarkDuplicateMulti(TestPostDemultiplexing):
     def setUp(self):
-        self.setup_stage(PicardMarkDuplicateMulti)
+        self.setup_stage(dm.PicardMarkDuplicateMulti)
         self.setup_post_alignment()
 
     def test_run(self):
@@ -188,7 +191,7 @@ class TestPicardMarkDuplicateMulti(TestPostDemultiplexing):
 
 class TestPicardInsertSizeMulti(TestPostDemultiplexing):
     def setUp(self):
-        self.setup_stage(PicardInsertSizeMulti)
+        self.setup_stage(dm.PicardInsertSizeMulti)
         self.setup_post_alignment()
 
     def test_run(self):
@@ -209,7 +212,7 @@ class TestPicardInsertSizeMulti(TestPostDemultiplexing):
 class TestRunReview(TestAnalysisDriver):
     @patch('analysis_driver.pipelines.demultiplexing.rest_communication.post_entry')
     def test_run_review(self, mocked_post):
-        r = RunReview(dataset=NamedMock(real_name='test_dataset'))
+        r = dm.RunReview(dataset=NamedMock(real_name='test_dataset'))
         assert r._run() == 0
         mocked_post.assert_called_with(
             'actions', {'action_type': 'automatic_run_review', 'run_id': 'test_dataset'}, use_data=True

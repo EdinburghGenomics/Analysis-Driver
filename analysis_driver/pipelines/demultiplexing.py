@@ -12,7 +12,7 @@ from analysis_driver.report_generation import RunCrawler
 from analysis_driver.transfer_data import output_data_and_archive
 from analysis_driver.tool_versioning import toolset
 
-toolset_type = 'non_human_sample_processing'
+toolset_type = 'run_processing'
 name = 'demultiplexing'
 
 
@@ -37,6 +37,24 @@ class Setup(DemultiplexingStage):
 
         b = BCLValidator(self.job_dir, self.dataset)
         b.check_bcls()
+
+        # Run is finished now so get the interop summary
+        summary_file = join(self.fastq_dir, 'interop_summary.txt')
+        cmd = '%s %s > %s' % (toolset['interop_summary'], self.input_dir, summary_file)
+        summary_exit_status = executor.execute(
+            cmd,
+            job_name='summary',
+            working_dir=self.job_dir,
+            cpus=1,
+            mem=4
+        ).join()
+
+        if summary_exit_status != 0:
+            # Failure to generate the metrics is a sign of file corruptions which will be picked up after
+            self.warning('Interop Summary generation failed')
+        else:
+            # Send the results of interop summary to the rest API
+            RunCrawler(self.dataset, run_dir=self.fastq_dir).send_data()
 
         # make sure the run is not aborted or errored before checking the bcl files
         run_status = self.dataset.lims_run.udf.get('Run Status')
@@ -79,16 +97,9 @@ class Bcl2Fastq(DemultiplexingStage):
 class FastqFilter(DemultiplexingStage):
     def _run(self):
 
-        # Find conversion xml file and adapter file, and send the results to the rest API
-        conversion_xml = join(self.fastq_dir, 'Stats', 'ConversionStats.xml')
-        adapter_trim_file = join(self.fastq_dir, 'Stats', 'AdapterTrimming.txt')
-
-        if exists(conversion_xml) and exists(adapter_trim_file):
-            self.info('Found ConversionStats and AdaptorTrimming. Sending data.')
-            crawler = RunCrawler(self.dataset, adapter_trim_file=adapter_trim_file, conversion_xml_file=conversion_xml)
-            crawler.send_data()
-        else:
-            self.warning('ConversionStats and/or AdaptorTrimming not found')
+        # Send the results of BCL2fastq to the rest API
+        crawler = RunCrawler(self.dataset, run_dir=self.fastq_dir, stage=RunCrawler.STAGE_CONVERSION)
+        crawler.send_data()
 
         # Assess if the lanes need filtering
         q30_threshold = float(cfg.query('fastq_filterer', 'q30_threshold', ret_default=74))
@@ -182,23 +193,9 @@ class MD5Sum(DemultiplexingStage):
 
 class QCOutput(DemultiplexingStage):
     def _run(self):
-        # Find conversion xml file and adapter file, and send the results to the rest API
-        conversion_xml = join(self.fastq_dir, 'Stats', 'ConversionStats.xml')
-        adapter_trim_file = join(self.fastq_dir, 'Stats', 'AdapterTrimming.txt')
-
-        if exists(conversion_xml) and exists(adapter_trim_file):
-            self.info('Found ConversionStats and AdaptorTrimming. Sending data.')
-            crawler = RunCrawler(
-                self.dataset,
-                adapter_trim_file=adapter_trim_file,
-                conversion_xml_file=conversion_xml,
-                run_dir=self.fastq_dir
-            )
-            crawler.send_data()
-            return 0
-        else:
-            self.error('ConversionStats and/or AdaptorTrimming not found.')
-            return 1
+        crawler = RunCrawler(self.dataset, run_dir=self.fastq_dir, stage=RunCrawler.STAGE_FILTER)
+        crawler.send_data()
+        return 0
 
 
 class DataOutput(DemultiplexingStage):
@@ -358,8 +355,11 @@ class PicardInsertSizeMulti(PostDemultiplexingStage):
 
 
 # Need to have a different name of class bcause the sage name is based on it.
-class QCOutput2(QCOutput):
-    pass
+class QCOutput2(DemultiplexingStage):
+    def _run(self):
+        crawler = RunCrawler(self.dataset, run_dir=self.fastq_dir, stage=RunCrawler.STAGE_MAPPING)
+        crawler.send_data()
+        return 0
 
 
 class RunReview(DemultiplexingStage):

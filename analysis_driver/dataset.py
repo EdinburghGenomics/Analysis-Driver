@@ -70,7 +70,9 @@ class Dataset(AppLogger):
 
     def start(self):
         self._assert_status(DATASET_READY, DATASET_FORCE_READY, DATASET_NEW, DATASET_RESUME)
-        if self.dataset_status != DATASET_RESUME:
+        if self.dataset_status == DATASET_RESUME:
+            self.most_recent_proc.retrieve_entity()
+        else:
             self.most_recent_proc.initialise_entity()  # take a new entity
         self.most_recent_proc.start()
         self.ntf.start_pipeline()
@@ -582,8 +584,8 @@ class ProjectDataset(Dataset):
     def samples_processed(self):
         if not self._samples_processed:
             self._samples_processed = rest_communication.get_documents(
-                'aggregate/samples',
-                match={'project_id': self.name, 'proc_status': 'finished'}
+                'samples',
+                where={'project_id': self.name, 'aggregated.most_recent_proc.status': 'finished'}
             )
         return self._samples_processed
 
@@ -650,6 +652,7 @@ class MostRecentProc:
         if procs:
             # remove the private (starting with '_') fields from the dict
             self._entity = {k: v for k, v in procs[0].items() if not k.startswith('_')}
+            self.proc_id = self.entity['proc_id']
         else:
             self._entity = {}
 

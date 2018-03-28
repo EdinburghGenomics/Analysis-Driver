@@ -9,7 +9,7 @@ from egcg_core.app_logging import logging_default as log_cfg
 from analysis_driver import exceptions
 from analysis_driver.config import default as cfg, load_config
 from analysis_driver.dataset_scanner import RunScanner, SampleScanner, ProjectScanner, DATASET_READY,\
-    DATASET_FORCE_READY, DATASET_NEW, DATASET_REPROCESS
+    DATASET_FORCE_READY, DATASET_NEW, DATASET_REPROCESS, DATASET_RESUME
 
 app_logger = log_cfg.get_logger('client')
 
@@ -39,7 +39,7 @@ def main(argv=None):
             cfg.merge(cfg['project'])
         scanner = ProjectScanner(cfg)
 
-    if any([args.abort, args.skip, args.reset, args.force, args.report, args.report_all, args.stop]):
+    if any([args.abort, args.skip, args.reset, args.resume, args.force, args.report, args.report_all, args.stop]):
         for d in args.abort:
             scanner.get_dataset(d).abort()
         for d in args.skip:
@@ -61,8 +61,12 @@ def main(argv=None):
             scanner.report(all_datasets=True)
         return 0
 
-    datasets = scanner.scan_datasets(DATASET_NEW, DATASET_REPROCESS, DATASET_READY, DATASET_FORCE_READY)
-    ready_datasets = datasets.get(DATASET_FORCE_READY, []) + datasets.get(DATASET_READY, [])
+    processable_statuses = (DATASET_FORCE_READY, DATASET_RESUME, DATASET_READY)
+    datasets = scanner.scan_datasets(DATASET_NEW, DATASET_REPROCESS, *processable_statuses)
+    ready_datasets = []
+    for s in processable_statuses:
+        ready_datasets += datasets.get(s, [])
+
     if not ready_datasets:
         return 0
     else:

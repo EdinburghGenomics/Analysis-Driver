@@ -1,4 +1,5 @@
 import os
+
 from analysis_driver.reader import demultiplexing_parsers as dm
 from tests.test_analysisdriver import TestAnalysisDriver
 from egcg_core.constants import ELEMENT_CONTAMINANT_UNIQUE_MAP, ELEMENT_PCNT_UNMAPPED_FOCAL,\
@@ -166,3 +167,20 @@ class TestDemultiplexingStats(TestAnalysisDriver):
             'trim_r1': '14', 'trim_r2': '16'
         }
         assert dm.parse_fastq_filterer_stats(fastqfilterer_stats) == expected_dict
+
+    def test_parse_interop_summary(self):
+        interop_summary = os.path.join(self.assets_path, 'test_crawlers','test_run_dir', 'interop_summary.txt')
+
+        res = dm.parse_interop_summary(interop_summary)
+        expected_metrics = {
+            'pc_clust_pf_r1': 74.36, 'pc_clust_pf_stdev_r1': 3.41, 'phasing_r1': 0.091, 'prephasing_r1': 0.06,
+            'pc_q30_r1': 93.12, 'pc_aligned_r1': 0.51, 'pc_aligned_stdev_r1': 0.02, 'pc_error_r1': 0.38,
+            'pc_error_stdev_r1': 0.13, 'intensity_c1_r1': 201.0, 'intensity_c1_stdev_r1': 7.0, 'pc_clust_pf_r2': 74.36,
+            'pc_clust_pf_stdev_r2': 3.41, 'phasing_r2': 0.158, 'prephasing_r2': 0.07, 'pc_q30_r2': 80.67,
+            'pc_aligned_r2': 0.51, 'pc_aligned_stdev_r2': 0.03, 'pc_error_r2': 0.61, 'pc_error_stdev_r2': 0.28,
+            'intensity_c1_r2': 158.0, 'intensity_c1_stdev_r2': 10.0
+        }
+        assert res['1'] == expected_metrics
+
+        interop_summary = os.path.join(self.assets_path, 'interop_summary_empty.txt')
+        assert dm.parse_interop_summary(interop_summary) == {}

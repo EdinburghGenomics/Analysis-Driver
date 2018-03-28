@@ -50,18 +50,10 @@ def run_crawler(args):
         run_dir = args.run_dir
     else:
         run_dir = os.path.join(cfg.query('output_dir'), args.run_id)
-    if args.conversion_stats:
-        conversion_stats = args.conversion_stats
-    else:
-        conversion_stats = os.path.join(run_dir, 'Stats', 'ConversionStats.xml')
-    if args.adapter_trim_file:
-        adapter_trim_file = args.adapter_trim_file
-    else:
-        adapter_trim_file = os.path.join(run_dir, 'Stats', 'AdapterTrimming.txt')
 
     dataset = RunDataset(args.run_id)
 
-    c = RunCrawler(dataset, adapter_trim_file=adapter_trim_file, conversion_xml_file=conversion_stats, run_dir=run_dir)
+    c = RunCrawler(dataset, run_dir=run_dir, stage=RunCrawler.STAGE_MAPPING)
     if args.test:
         print(
             json.dumps(

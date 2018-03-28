@@ -66,15 +66,6 @@ class MockedRunProcess(Mock):
 mocked_clarity_run = MockedRunProcess(udf={'Run Status': 'RunCompleted'}, container=mocked_flowcell_pooling)
 
 
-def _fake_get_list_of_samples(sample_names):
-    samples = []
-    for n in sample_names:
-        m = Mock(udf={'Yield for Quoted Coverage (Gb)': 0.9})
-        m.name = n
-        samples.append(m)
-    return samples
-
-
 def _fake_get_user_sample_id(sample_name, lenient=False):
     return 'uid_' + sample_name
 
@@ -96,7 +87,7 @@ def patch_pipeline(species='Homo sapiens', analysis_type='Variant Calling gatk')
     patches = []
 
     def _patch(ppath, **kwargs):
-        _p = patch('analysis_driver.' + ppath, **kwargs)
+        _p = patch(ppath, **kwargs)
         _p.start()
         patches.append(_p)
 
@@ -112,32 +103,24 @@ def patch_pipeline(species='Homo sapiens', analysis_type='Variant Calling gatk')
             }
         )
 
-    _patch('client.load_config')
-    _patch('dataset.clarity.get_species_from_sample', new=species)
-    _patch('dataset.clarity.get_user_sample_name', new=_fake_get_user_sample_id)
-    _patch('dataset.clarity.get_run', return_value=mocked_clarity_run)
-    _patch('dataset.clarity.get_expected_yield_for_sample', return_value=0.9)
-    _patch('dataset.clarity.get_sample', new=_fake_get_sample)
-    _patch('dataset.LimsNotification')
-    _patch('dataset_scanner.get_list_of_samples', new=_fake_get_list_of_samples)
-    _patch('pipelines.common.clarity.find_project_name_from_sample', return_value='10015AT')
-    _patch('pipelines.common.clarity.get_sample', return_value=Mock(udf={}))
-    _patch('pipelines.common.clarity.get_user_sample_name', new=_fake_get_user_sample_id)
-    _patch('report_generation.sample_crawler.clarity.get_species_from_sample', return_value=species)
-    _patch('report_generation.sample_crawler.clarity.get_sample', new=_fake_get_sample)
-    _patch('report_generation.sample_crawler.clarity.get_expected_yield_for_sample', return_value=0.9)
-    _patch('report_generation.sample_crawler.clarity.get_user_sample_name', new=_fake_get_user_sample_id)
-    _patch('report_generation.sample_crawler.clarity.get_plate_id_and_well', new=_fake_get_plate_id_and_well)
-    _patch('report_generation.sample_crawler.clarity.get_sample_gender')
-    _patch('quality_control.genotype_validation.clarity.find_project_name_from_sample', return_value='10015AT')
-    _patch('quality_control.genotype_validation.clarity.get_samples_arrived_with', return_value=set())
-    _patch('quality_control.genotype_validation.clarity.get_samples_genotyped_with', return_value=set())
-    _patch('quality_control.genotype_validation.clarity.get_samples_sequenced_with', return_value=set())
-    _patch('quality_control.genotype_validation.clarity.get_sample_names_from_project', return_value=set())
-    _patch('quality_control.genotype_validation.clarity.get_sample_genotype', return_value=set())
-    _patch('quality_control.well_duplicates.WellDuplicates._welldups_cmd', new=_fake_welldups_cmd)
+    _patch('analysis_driver.client.load_config')
+    _patch('egcg_core.clarity.find_project_name_from_sample', return_value='10015AT')
+    _patch('egcg_core.clarity.get_expected_yield_for_sample', return_value=0.9)
+    _patch('egcg_core.clarity.get_plate_id_and_well', new=_fake_get_plate_id_and_well)
+    _patch('egcg_core.clarity.get_run', return_value=mocked_clarity_run)
+    _patch('egcg_core.clarity.get_sample', new=_fake_get_sample)
+    _patch('egcg_core.clarity.get_sample_gender')
+    _patch('egcg_core.clarity.get_sample_genotype', return_value=set())
+    _patch('egcg_core.clarity.get_sample_names_from_project', return_value=set())
+    _patch('egcg_core.clarity.get_samples_arrived_with', return_value=set())
+    _patch('egcg_core.clarity.get_samples_genotyped_with', return_value=set())
+    _patch('egcg_core.clarity.get_samples_sequenced_with', return_value=set())
+    _patch('egcg_core.clarity.get_species_from_sample', return_value=species)
+    _patch('egcg_core.clarity.get_user_sample_name', new=_fake_get_user_sample_id)
+    _patch('analysis_driver.dataset.LimsNotification')
+    _patch('analysis_driver.quality_control.well_duplicates.WellDuplicates._welldups_cmd', new=_fake_welldups_cmd)
     _patch(
-        'pipelines.demultiplexing.BadTileCycleDetector',
+        'analysis_driver.pipelines.demultiplexing.BadTileCycleDetector',
         return_value=Mock(
             detect_bad_cycles=Mock(return_value={5: [309, 310]}),
             detect_bad_tiles=Mock(return_value={})
