@@ -328,9 +328,6 @@ class TestRunDataset(TestDataset):
             self.dataset._generate_samplesheet('a_samplesheet')
             mocked_open.return_value.__enter__.return_value.write.assert_called_with('\n'.join(exp))
 
-    def test_data_source(self):
-        with pytest.raises(NotImplementedError):
-            data_source = self.dataset.data_source
 
 
 class TestSampleDataset(TestDataset):

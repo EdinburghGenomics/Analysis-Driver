@@ -387,6 +387,10 @@ class RunDataset(Dataset):
         return len(previous_r[ELEMENT_BARCODE])
 
     @property
+    def data_source(self):
+        return None
+
+    @property
     def lims_run(self):
         if not self._lims_run:
             self._lims_run = clarity.get_run(self.name)
@@ -670,7 +674,7 @@ class MostRecentProc:
             'dataset_name': self.dataset.name
         }
 
-        if self.dataset.type in ['project', 'sample']:
+        if self.dataset.data_source:
             entity.update({'data_source': self.dataset.data_source})
 
         rest_communication.post_entry('analysis_driver_procs', entity)
