@@ -262,7 +262,7 @@ class IntegrationTest(TestCase):
 
             self.expect_equal(
                 rest_communication.get_document('analysis_driver_procs')['data_source'],
-                [self.run_id + '_1_' + self.barcode]
+                ['_'.join([self.run_id, str(i), self.barcode]) for i in range(1,9)]
             )
 
         assert self._test_success
@@ -299,7 +299,7 @@ class IntegrationTest(TestCase):
 
             self.expect_equal(
                 rest_communication.get_document('analysis_driver_procs')['data_source'],
-                [self.run_id + '_1_' + self.barcode]
+                ['_'.join([self.run_id, str(i), self.barcode]) for i in range(1,9)]
             )
 
         assert self._test_success
@@ -327,7 +327,7 @@ class IntegrationTest(TestCase):
 
         self.expect_equal(
                 rest_communication.get_document('analysis_driver_procs')['data_source'],
-                [self.run_id + '_1_' + self.barcode]
+                ['_'.join([self.run_id, str(i), self.barcode]) for i in range(1,9)]
             )
 
     def test_qc(self):
