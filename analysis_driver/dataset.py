@@ -50,6 +50,10 @@ class Dataset(AppLogger):
             return db_proc_status
 
     @property
+    def data_source(self):
+        raise NotImplementedError
+
+    @property
     def running_stages(self):
         stages = rest_communication.get_documents(
             'analysis_driver_stages',
@@ -383,6 +387,10 @@ class RunDataset(Dataset):
         return len(previous_r[ELEMENT_BARCODE])
 
     @property
+    def data_source(self):
+        return None
+
+    @property
     def lims_run(self):
         if not self._lims_run:
             self._lims_run = clarity.get_run(self.name)
@@ -446,6 +454,10 @@ class SampleDataset(Dataset):
     @property
     def reference_genome(self):
         return cfg['genomes'][self.genome_version]['fasta']
+
+    @property
+    def data_source(self):
+        return [r.get('run_element_id') for r in self.run_elements]
 
     @property
     def user_sample_id(self):
@@ -569,6 +581,10 @@ class ProjectDataset(Dataset):
             return False
 
     @property
+    def data_source(self):
+        return [i.get('sample_id') for i in self.samples_processed]
+
+    @property
     def samples_processed(self):
         if not self._samples_processed:
             self._samples_processed = rest_communication.get_documents(
@@ -657,6 +673,10 @@ class MostRecentProc:
             'dataset_type': self.dataset.type,
             'dataset_name': self.dataset.name
         }
+
+        if self.dataset.data_source:
+            entity.update({'data_source': self.dataset.data_source})
+
         rest_communication.post_entry('analysis_driver_procs', entity)
         rest_communication.patch_entry(
             self.dataset.type + 's',

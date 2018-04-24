@@ -260,6 +260,11 @@ class IntegrationTest(TestCase):
                 }
             )
 
+            self.expect_equal(
+                rest_communication.get_document('analysis_driver_procs')['data_source'],
+                ['_'.join([self.run_id, str(i), self.barcode]) for i in range(1,9)]
+            )
+
         assert self._test_success
 
     def test_var_calling(self):
@@ -293,6 +298,11 @@ class IntegrationTest(TestCase):
                 }
             )
 
+            self.expect_equal(
+                rest_communication.get_document('analysis_driver_procs')['data_source'],
+                ['_'.join([self.run_id, str(i), self.barcode]) for i in range(1,9)]
+            )
+
         assert self._test_success
 
     def _run_qc_test(self):
@@ -317,6 +327,11 @@ class IntegrationTest(TestCase):
                 'toolset_version': 0
             }
         )
+
+        self.expect_equal(
+                rest_communication.get_document('analysis_driver_procs')['data_source'],
+                ['_'.join([self.run_id, str(i), self.barcode]) for i in range(1,9)]
+            )
 
     def test_qc(self):
         self.setup_test('sample', 'test_qc', 'qc')
