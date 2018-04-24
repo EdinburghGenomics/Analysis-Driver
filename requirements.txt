@@ -1,9 +1,10 @@
 EGCG-Core==0.8.1
 luigi==2.5.0
 ete3==3.0.0b35
-numpy>=1.12.1
+pandas<0.21
 illuminate==0.6.4
 pip>=9.0.1
 scipy
+numpy>=1.12.1
 -f https://github.com/Illumina/interop/releases/tag/v1.0.25
 interop==1.0.25
