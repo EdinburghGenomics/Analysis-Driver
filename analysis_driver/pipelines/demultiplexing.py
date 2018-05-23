@@ -94,12 +94,29 @@ class Bcl2Fastq(DemultiplexingStage):
         return bcl2fastq_exit_status
 
 
-class FastqFilter(DemultiplexingStage):
-    def _run(self):
+class PhixDetection(DemultiplexingStage):
 
+    def _run(self):
         # Send the results of BCL2fastq to the rest API
         crawler = RunCrawler(self.dataset, run_dir=self.fastq_dir, stage=RunCrawler.STAGE_CONVERSION)
         crawler.send_data()
+
+        cmds = []
+        for fq1, fq2 in util.find_all_fastq_pairs(self.fastq_dir):
+            read_name_list = fq1[:-len('_R1_001.fastq.gz')] + '_phix_read_name.list'
+            cmds.append(bash_commands.bwa_mem_phix(fq1, read_name_list))
+        return executor.execute(
+            *cmds,
+            job_name='phix_detection',
+            working_dir=self.job_dir,
+            cpus=16,
+            mem=10
+        ).join()
+
+
+class FastqFilter(DemultiplexingStage):
+
+    def _run(self):
 
         # Assess if the lanes need filtering
         q30_threshold = float(cfg.query('fastq_filterer', 'q30_threshold', ret_default=74))
@@ -133,7 +150,8 @@ class FastqFilter(DemultiplexingStage):
                 kwargs = {'tiles_to_filter': bad_tiles.get(lane), 'trim_r2': trim_r2}
 
             for fqs in fq_pairs:
-                cmds.append(bash_commands.fastq_filterer(fqs, **kwargs))
+                read_name_list = fqs[0][:-len('_R1_001.fastq.gz')] + '_phix_read_name.list'
+                cmds.append(bash_commands.fastq_filterer(fqs, read_name_list, **kwargs))
 
         return executor.execute(
             *cmds,
@@ -379,7 +397,8 @@ def build_pipeline(dataset):
 
     setup = stage(Setup)
     bcl2fastq = stage(Bcl2Fastq, previous_stages=[setup])
-    fastq_filter = stage(FastqFilter, previous_stages=[bcl2fastq])
+    phix_detection = stage(PhixDetection, previous_stages=[bcl2fastq])
+    fastq_filter = stage(FastqFilter, previous_stages=[phix_detection])
     welldups = stage(well_duplicates.WellDuplicates, run_directory=bcl2fastq.input_dir, output_directory=bcl2fastq.fastq_dir, previous_stages=[setup])
     integrity_check = stage(IntegrityCheck, previous_stages=[fastq_filter])
     fastqc = stage(FastQC, previous_stages=[fastq_filter])

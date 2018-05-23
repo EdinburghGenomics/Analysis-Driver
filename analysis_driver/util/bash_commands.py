@@ -48,10 +48,12 @@ def seqtk_fqchk(fastq_file):
 def fq_filt_prelim_cmd():
     cmd = (
         'function run_filterer {{',  # double up { and } to escape them for str.format()
-        'strategy=$1', 'i1=$2', 'i2=$3', 'o1=$4', 'o2=$5', 'fifo_1=$6', 'fifo_2=$7', 'stats_file=$8',
-        'shift 7',
+        'strategy=$1', 'i1=$2', 'i2=$3', 'o1=$4', 'o2=$5', 'fifo_1=$6', 'fifo_2=$7', 'stats_file=$8', 'read_name_file=$9' ,
+        'out_phix1=$10', 'out_phix2=$11',
+        'shift 10',
         'mkfifo $fifo_1', 'mkfifo $fifo_2',
-        '{ff} --i1 $i1 --i2 $i2 --o1 $fifo_1 --o2 $fifo_2 --threshold {threshold} --stats_file $stats_file $* &',
+        '{ff} --i1 $i1 --i2 $i2 --o1 $fifo_1 --o2 $fifo_2 --threshold {threshold} '  # no comma means concatenation
+        '--stats_file $stats_file --read_name $read_name_file --out_phix1 out_phix1 --out_phix2 out_phix2 $* &',
         'fq_filt_pid=$!',
         '{pigz} -c -p {pzt} $fifo_1 > $o1 &',
         'pigz_r1_pid=$!',
@@ -65,6 +67,17 @@ def fq_filt_prelim_cmd():
         'exit_status=$[$exit_status + $?]',
         'wait $pigz_r2_pid',
         'exit_status=$[$exit_status + $?]',
+
+        '{pigz} -c -p {pzt} $out_phix1 &'
+        'pigz_phix1_pid=$!',
+        '{pigz} -c -p {pzt} $out_phix2 &'
+        'pigz_phix2_pid=$!',
+
+        'wait pigz_phix1_pid',
+        'exit_status=$[$exit_status + $?]',
+        'wait pigz_phix2_pid',
+        'exit_status=$[$exit_status + $?]',
+
         'rm $fifo_1 $fifo_2',
         'if [ $exit_status == 0 ]; then',
         'if [ "$strategy" == "keep_originals" ]; then mv $i1 $i1.original; mv $i2 $i2.original; fi',
@@ -81,7 +94,7 @@ def fq_filt_prelim_cmd():
     )
 
 
-def fastq_filterer(fastq_file_pair, tiles_to_filter=None, trim_r1=None, trim_r2=None):
+def fastq_filterer(fastq_file_pair, read_name_file, tiles_to_filter=None, trim_r1=None, trim_r2=None):
     """
     :param tuple[str,str] fastq_file_pair: Paired-end fastqs to filter
     :param list tiles_to_filter: Tile IDs for reads to remove regardless of length
@@ -95,10 +108,12 @@ def fastq_filterer(fastq_file_pair, tiles_to_filter=None, trim_r1=None, trim_r2=
     i1, i2 = sorted(fastq_file_pair)
 
     base_1 = i1.replace('.fastq.gz', '')
+    phix1 = base_1 + '_phix.fastq'
     fifo_1 = base_1 + '_filtered.fastq'
     o1 = fifo_1 + '.gz'
 
     base_2 = i2.replace('.fastq.gz', '')
+    phix2 = base_2 + '_phix.fastq'
     fifo_2 = base_2 + '_filtered.fastq'
     o2 = fifo_2 + '.gz'
 
@@ -111,7 +126,9 @@ def fastq_filterer(fastq_file_pair, tiles_to_filter=None, trim_r1=None, trim_r2=
     else:
         cmd += ' in_place'
 
-    cmd += ' {0} {1} {2} {3} {4} {5} {6}'.format(i1, i2, o1, o2, fifo_1, fifo_2, stats_file)
+    cmd += ' {0} {1} {2} {3} {4} {5} {6} {7} {8} {9}'.format(
+        i1, i2, o1, o2, fifo_1, fifo_2, stats_file, read_name_file, phix1, phix2
+    )
 
     if tiles_to_filter:
         cmd += ' --remove_tiles %s' % (','.join([str(t) for t in tiles_to_filter]))
@@ -137,6 +154,14 @@ def bwa_mem_samblaster(fastq_pair, reference, expected_output_bam, read_group=No
         toolset['sambamba'], tmp_dir, thread, expected_output_bam
     )
     cmd = 'set -o pipefail; ' + ' | '.join([command_bwa, toolset['samblaster'], command_samtools, command_sambamba])
+    app_logger.debug('Writing: ' + cmd)
+    return cmd
+
+
+def bwa_mem_phix(fastq1, read_name_list, thread=16):
+    command_bwa = '%s mem -t %s %s %s' % (toolset['bwa'], thread, cfg.query('genomes', 'phix174', 'fasta'), fastq1)
+    command_samtools = '%s -F 4  | sort -u > %s' % (toolset['samtools'], read_name_list)
+    cmd = 'set -o pipefail; ' + ' | '.join([command_bwa, command_samtools])
     app_logger.debug('Writing: ' + cmd)
     return cmd
 
