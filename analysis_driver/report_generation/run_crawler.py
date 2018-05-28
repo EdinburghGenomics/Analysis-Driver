@@ -157,8 +157,11 @@ class RunCrawler(Crawler):
                     barcode_info[ELEMENT_SAMPLE_INTERNAL_ID],
                     '*_S*_L00%s_phix_read_name.list' % barcode_info[ELEMENT_LANE]
                 )
-            with open(read_name_files) as open_file:
-                barcode_info[ELEMENT_NB_READS_PHIX] = sum(1 for _ in open_file)
+            if len(read_name_files) == 1:
+                with open(read_name_files[0]) as open_file:
+                    barcode_info[ELEMENT_NB_READS_PHIX] = sum(1 for _ in open_file)
+            else:
+                raise PipelineError('No Phix read_name file found in %s for %s' % (run_dir, run_element_id))
 
     def _populate_barcode_info_from_seqtk_fqchk_files(self, run_dir):
         for run_element_id in self.barcodes_info:

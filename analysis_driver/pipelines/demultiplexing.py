@@ -97,21 +97,23 @@ class Bcl2Fastq(DemultiplexingStage):
 class PhixDetection(DemultiplexingStage):
 
     def _run(self):
-        # Send the results of BCL2fastq to the rest API
-        crawler = RunCrawler(self.dataset, run_dir=self.fastq_dir, stage=RunCrawler.STAGE_CONVERSION)
-        crawler.send_data()
 
         cmds = []
         for fq1, fq2 in util.find_all_fastq_pairs(self.fastq_dir):
             read_name_list = fq1[:-len('_R1_001.fastq.gz')] + '_phix_read_name.list'
             cmds.append(bash_commands.bwa_mem_phix(fq1, read_name_list))
-        return executor.execute(
+        exit_status = executor.execute(
             *cmds,
             job_name='phix_detection',
             working_dir=self.job_dir,
             cpus=16,
             mem=10
         ).join()
+        if exit_status == 0 :
+            # Send the results of BCL2fastq to the rest API
+            crawler = RunCrawler(self.dataset, run_dir=self.fastq_dir, stage=RunCrawler.STAGE_CONVERSION)
+            crawler.send_data()
+        return exit_status
 
 
 class FastqFilter(DemultiplexingStage):

@@ -9,7 +9,10 @@ from tests.test_analysisdriver import TestAnalysisDriver, NamedMock
 from analysis_driver.util import bash_commands
 from analysis_driver.pipelines import demultiplexing as dm
 
-patch_executor = patch('analysis_driver.pipelines.demultiplexing.executor.execute')
+patch_executor = patch(
+    'analysis_driver.pipelines.demultiplexing.executor.execute',
+    return_value=Mock(join=Mock(return_value=0))
+)
 
 
 class TestPhixDetection(TestAnalysisDriver):
@@ -26,10 +29,14 @@ class TestPhixDetection(TestAnalysisDriver):
 
         with patch_find, patch_executor as pexecute, patch_run_crawler as prun_crawler:
             f._run()
-            print(pexecute.mock_calls)
 
-
-            prun_crawler.assert_called_with(dataset, run_dir='tests/assets/jobs/test/fastq', stage=prun_crawler.STAGE_CONVERSION)
+            expected_call = (
+            'set -o pipefail; path/to/bwa mem -t 16 /path/to/phix.fa L1_R1_001.fastq.gz | path/to/samtools -F 4  |'
+            ' sort -u > L1_phix_read_name.list'
+            )
+            assert expected_call == pexecute.call_args[0][0]
+            prun_crawler.assert_called_with(dataset, run_dir='tests/assets/jobs/test/fastq',
+                                            stage=prun_crawler.STAGE_CONVERSION)
 
 
 class TestFastqFilter(TestAnalysisDriver):
