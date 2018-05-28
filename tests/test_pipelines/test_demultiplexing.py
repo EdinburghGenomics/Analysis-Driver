@@ -31,8 +31,8 @@ class TestPhixDetection(TestAnalysisDriver):
             f._run()
 
             expected_call = (
-            'set -o pipefail; path/to/bwa mem -t 16 /path/to/phix.fa L1_R1_001.fastq.gz | path/to/samtools -F 4  |'
-            ' sort -u > L1_phix_read_name.list'
+            'set -o pipefail; path/to/bwa mem -t 16 /path/to/phix.fa L1_R1_001.fastq.gz | path/to/samtools view -F 4 |'
+            ' cut -f 1 | sort -u > L1_phix_read_name.list'
             )
             assert expected_call == pexecute.call_args[0][0]
             prun_crawler.assert_called_with(dataset, run_dir='tests/assets/jobs/test/fastq',

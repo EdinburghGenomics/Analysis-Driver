@@ -107,7 +107,8 @@ class PhixDetection(DemultiplexingStage):
             job_name='phix_detection',
             working_dir=self.job_dir,
             cpus=16,
-            mem=10
+            mem=10,
+            log_commands=False
         ).join()
         if exit_status == 0 :
             # Send the results of BCL2fastq to the rest API

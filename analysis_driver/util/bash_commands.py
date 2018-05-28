@@ -160,7 +160,7 @@ def bwa_mem_samblaster(fastq_pair, reference, expected_output_bam, read_group=No
 
 def bwa_mem_phix(fastq1, read_name_list, thread=16):
     command_bwa = '%s mem -t %s %s %s' % (toolset['bwa'], thread, cfg.query('genomes', 'phix174', 'fasta'), fastq1)
-    command_samtools = '%s -F 4  | sort -u > %s' % (toolset['samtools'], read_name_list)
+    command_samtools = '%s view -F 4 | cut -f 1 | sort -u > %s' % (toolset['samtools'], read_name_list)
     cmd = 'set -o pipefail; ' + ' | '.join([command_bwa, command_samtools])
     app_logger.debug('Writing: ' + cmd)
     return cmd
