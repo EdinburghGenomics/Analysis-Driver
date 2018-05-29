@@ -8,9 +8,8 @@ from egcg_core import executor, util, rest_communication
 from egcg_core.app_logging import logging_default as log_cfg
 from egcg_core import constants as c
 
-from analysis_driver.util import bash_commands
-
 path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from analysis_driver.util import bash_commands
 from analysis_driver.config import default as cfg, load_config
 from analysis_driver.exceptions import PipelineError
 from analysis_driver.dataset import NoCommuncationSampleDataset

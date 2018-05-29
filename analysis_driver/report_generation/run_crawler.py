@@ -162,9 +162,9 @@ class RunCrawler(Crawler):
                     barcode_info[ELEMENT_NB_READS_PHIX] = sum(1 for _ in open_file)
             elif barcode_info[ELEMENT_NB_READS_PASS_FILTER] == 0:
                 self.info('No reads for %s, Not expecting Phix filtered file', run_element_id)
-                continue
             else:
-                raise PipelineError('No Phix read_name file found in %s for %s' % (run_dir, run_element_id))
+                # TODO: Not mandatory for now as there will be lots of old runs without it
+                self.warning('No Phix read_name file found in %s for %s' % (run_dir, run_element_id))
 
     def _populate_barcode_info_from_seqtk_fqchk_files(self, run_dir):
         for run_element_id in self.barcodes_info:
