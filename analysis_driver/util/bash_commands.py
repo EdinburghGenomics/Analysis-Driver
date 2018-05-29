@@ -53,7 +53,7 @@ def fq_filt_prelim_cmd():
         'shift 10',
         'mkfifo $fifo_1', 'mkfifo $fifo_2',
         '{ff} --i1 $i1 --i2 $i2 --o1 $fifo_1 --o2 $fifo_2 --threshold {threshold} '  # no comma means concatenation
-        '--stats_file $stats_file --read_name $read_name_file --f1 $out_phix1 --f2 $out_phix2 $* &',
+        '--stats_file $stats_file --remove_reads $read_name_file --f1 $out_phix1 --f2 $out_phix2 $* &',
         'fq_filt_pid=$!',
         '{pigz} -c -p {pzt} $fifo_1 > $o1 &',
         'pigz_r1_pid=$!',

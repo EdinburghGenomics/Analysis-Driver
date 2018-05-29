@@ -160,6 +160,9 @@ class RunCrawler(Crawler):
             if len(read_name_files) == 1:
                 with open(read_name_files[0]) as open_file:
                     barcode_info[ELEMENT_NB_READS_PHIX] = sum(1 for _ in open_file)
+            elif barcode_info[ELEMENT_NB_READS_PASS_FILTER] == 0:
+                self.info('No reads for %s, Not expecting Phix filtered file', run_element_id)
+                continue
             else:
                 raise PipelineError('No Phix read_name file found in %s for %s' % (run_dir, run_element_id))
 
