@@ -220,7 +220,7 @@ class IntegrationTest(TestCase):
                     ),
                     integration_cfg['demultiplexing']['lane_qc']
                 )
-            self.expect_stage_data('setup', 'wellduplicates', 'bcl2fastq', 'fastqfilter', 'seqtkfqchk',
+            self.expect_stage_data('setup', 'wellduplicates', 'bcl2fastq', 'PhixDetection', 'fastqfilter', 'seqtkfqchk',
                                    'md5sum', 'fastqc', 'integritycheck', 'qcoutput', 'dataoutput', 'cleanup',
                                    'samtoolsdepthmulti', 'picardinsertsizemulti', 'qcoutput2', 'runreview',
                                    'picardmarkduplicatemulti', 'samtoolsstatsmulti', 'bwaalignmulti')

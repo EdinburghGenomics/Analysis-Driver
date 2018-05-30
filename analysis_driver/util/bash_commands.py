@@ -49,7 +49,7 @@ def fq_filt_prelim_cmd():
     cmd = (
         'function run_filterer {{',  # double up { and } to escape them for str.format()
         'strategy=$1', 'i1=$2', 'i2=$3', 'o1=$4', 'o2=$5', 'fifo_1=$6', 'fifo_2=$7', 'stats_file=$8', 'read_name_file=$9' ,
-        'out_phix1=$10', 'out_phix2=$11',
+        'out_phix1=${{10}}', 'out_phix2=${{11}}',
         'shift 10',
         'mkfifo $fifo_1', 'mkfifo $fifo_2',
         '{ff} --i1 $i1 --i2 $i2 --o1 $fifo_1 --o2 $fifo_2 --threshold {threshold} '  # no comma means concatenation
@@ -108,12 +108,12 @@ def fastq_filterer(fastq_file_pair, read_name_file, tiles_to_filter=None, trim_r
     i1, i2 = sorted(fastq_file_pair)
 
     base_1 = i1.replace('.fastq.gz', '')
-    phix1 = base_1 + '_phix.fastq'
+    phix1 = base_1 + '.fastq_discarded'
     fifo_1 = base_1 + '_filtered.fastq'
     o1 = fifo_1 + '.gz'
 
     base_2 = i2.replace('.fastq.gz', '')
-    phix2 = base_2 + '_phix.fastq'
+    phix2 = base_2 + '.fastq_discarded'  # add suffix to avoid collision with find_fastq functions
     fifo_2 = base_2 + '_filtered.fastq'
     o2 = fifo_2 + '.gz'
 
