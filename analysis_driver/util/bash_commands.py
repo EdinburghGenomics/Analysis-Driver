@@ -68,9 +68,9 @@ def fq_filt_prelim_cmd():
         'wait $pigz_r2_pid',
         'exit_status=$[$exit_status + $?]',
 
-        '{pigz} -c -p {pzt} $out_phix1 &',
+        '{pigz} -p {pzt} $out_phix1 &',
         'pigz_phix1_pid=$!',
-        '{pigz} -c -p {pzt} $out_phix2 &',
+        '{pigz} -p {pzt} $out_phix2 &',
         'pigz_phix2_pid=$!',
 
         'wait $pigz_phix1_pid',
