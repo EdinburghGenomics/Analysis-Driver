@@ -12,8 +12,10 @@ path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from analysis_driver.util import bash_commands
 from analysis_driver.config import default as cfg, load_config
 from analysis_driver.exceptions import PipelineError
-from analysis_driver.dataset import NoCommuncationSampleDataset
+from analysis_driver.dataset import NoCommuncationSampleDataset, RunDataset
+from analysis_driver.report_generation import RunCrawler
 
+app_logger = log_cfg.get_logger('Remove_phix')
 
 def main():
     args = _parse_args()
@@ -33,7 +35,9 @@ def remove_phix(sample_id):
     # Get the sample specific config
     cfg.merge(cfg['sample'])
     dataset = NoCommuncationSampleDataset(sample_id)
-    dataset.resolve_pipeline_and_toolset()
+    rundataset = RunDataset(dataset.run_elements[0].get(c.ELEMENT_RUN_NAME))
+
+    rundataset.resolve_pipeline_and_toolset()
     job_dir = os.path.join(cfg['jobs_dir'], 'manual_' + dataset.name)
     os.makedirs(job_dir, exist_ok=True)
 
@@ -49,8 +53,9 @@ def remove_phix(sample_id):
             run_element.get(c.ELEMENT_LANE)
         )
         fqs.sort()
-        assert len(fqs) == 2
-        fastq_pairs.append(fqs)
+        if run_element.get(c.ELEMENT_NB_READS_PASS_FILTER) > 0:
+            assert len(fqs) == 2
+            fastq_pairs.append(fqs)
 
     # bwa alignment
     cmds = []
@@ -125,6 +130,12 @@ def remove_phix(sample_id):
     md5_status = md5_exec.join()
     if md5_status != 0:
         raise PipelineError('Md5 execution for sample %s failed with status %s' % (sample_id, md5_status))
+
+    for run_id in set(r.get(c.ELEMENT_RUN_NAME) for r in run_elements):
+        rd = RunDataset(run_id)
+        run_dir = os.path.join(cfg['input_dir'], run_element.get(c.ELEMENT_RUN_NAME))
+        crawler = RunCrawler(rd, run_dir=run_dir, stage=RunCrawler.STAGE_MAPPING)
+        crawler.send_data()
 
 
 if __name__ == '__main__':
