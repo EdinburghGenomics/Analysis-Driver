@@ -130,12 +130,12 @@ def test_fastq_filterer():
     assert bash_commands.fastq_filterer(('RE_R1_001.fastq.gz', 'RE_R2_001.fastq.gz'), 'RE_phix_read_name.txt') == (
         'run_filterer in_place RE_R1_001.fastq.gz RE_R2_001.fastq.gz RE_R1_001_filtered.fastq.gz '
         'RE_R2_001_filtered.fastq.gz RE_R1_001_filtered.fastq RE_R2_001_filtered.fastq RE_fastqfilterer.stats '
-        'RE_phix_read_name.txt RE_R1_001_phix.fastq RE_R2_001_phix.fastq'
+        'RE_phix_read_name.txt RE_R1_001.fastq_discarded RE_R2_001.fastq_discarded'
     )
     assert bash_commands.fastq_filterer(('RE_R1_001.fastq.gz', 'RE_R2_001.fastq.gz'), 'RE_phix_read_name.txt', trim_r1=149) == (
         'run_filterer keep_originals RE_R1_001.fastq.gz RE_R2_001.fastq.gz RE_R1_001_filtered.fastq.gz '
         'RE_R2_001_filtered.fastq.gz RE_R1_001_filtered.fastq RE_R2_001_filtered.fastq RE_fastqfilterer.stats '
-        'RE_phix_read_name.txt RE_R1_001_phix.fastq RE_R2_001_phix.fastq --trim_r1 149'
+        'RE_phix_read_name.txt RE_R1_001.fastq_discarded RE_R2_001.fastq_discarded --trim_r1 149'
     )
 
 
