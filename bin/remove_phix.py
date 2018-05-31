@@ -1,21 +1,19 @@
 import os
 import logging
 import argparse
-from sys import path
-
 import sys
 from egcg_core import executor, util, rest_communication
 from egcg_core.app_logging import logging_default as log_cfg
 from egcg_core import constants as c
-
-path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from analysis_driver.util import bash_commands
 from analysis_driver.config import default as cfg, load_config
 from analysis_driver.exceptions import PipelineError
-from analysis_driver.dataset import NoCommuncationSampleDataset, RunDataset
+from analysis_driver.dataset import RunDataset
 from analysis_driver.report_generation import RunCrawler
 
 app_logger = log_cfg.get_logger('Remove_phix')
+
 
 def main():
     args = _parse_args()
@@ -34,14 +32,13 @@ def _parse_args():
 def remove_phix(sample_id):
     # Get the sample specific config
     cfg.merge(cfg['sample'])
-    dataset = NoCommuncationSampleDataset(sample_id)
-    rundataset = RunDataset(dataset.run_elements[0].get(c.ELEMENT_RUN_NAME))
+    run_elements = rest_communication.get_documents('run_elements', where={'sample_id': sample_id})
+    rundataset = RunDataset(run_elements[0].get(c.ELEMENT_RUN_NAME))
 
     rundataset.resolve_pipeline_and_toolset()
-    job_dir = os.path.join(cfg['jobs_dir'], 'manual_' + dataset.name)
+    job_dir = os.path.join(cfg['jobs_dir'], 'manual_' + sample_id)
     os.makedirs(job_dir, exist_ok=True)
 
-    run_elements = rest_communication.get_documents('run_elements', where={'sample_id': sample_id})
     # Find all fastq files
     fastq_pairs = []
     for run_element in run_elements:
@@ -133,7 +130,7 @@ def remove_phix(sample_id):
 
     for run_id in set(r.get(c.ELEMENT_RUN_NAME) for r in run_elements):
         rd = RunDataset(run_id)
-        run_dir = os.path.join(cfg['input_dir'], run_element.get(c.ELEMENT_RUN_NAME))
+        run_dir = os.path.join(cfg['input_dir'], run_id)
         crawler = RunCrawler(rd, run_dir=run_dir, stage=RunCrawler.STAGE_MAPPING)
         crawler.send_data()
 
