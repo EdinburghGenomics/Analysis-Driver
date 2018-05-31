@@ -57,14 +57,15 @@ def remove_phix(sample_id):
     # bwa alignment
     cmds = []
     for fqs in fastq_pairs:
-        read_name_list = fqs[0][:-len('_R1_001.fastq.gz')] + 'phix_read_name.list'
+        read_name_list = fqs[0][:-len('_R1_001.fastq.gz')] + '_phix_read_name.list'
         cmds.append(bash_commands.bwa_mem_phix(fqs[0], read_name_list))
     bwa_status = executor.execute(
         *cmds,
         job_name='phix_detection',
         working_dir=job_dir,
         cpus=16,
-        mem=10
+        mem=10,
+        log_commands=False
     ).join()
 
     if bwa_status != 0:
@@ -73,7 +74,7 @@ def remove_phix(sample_id):
     # fastq filterer
     cmds = []
     for fqs in fastq_pairs:
-        read_name_list = fqs[0][:-len('_R1_001.fastq.gz')] + 'phix_read_name.list'
+        read_name_list = fqs[0][:-len('_R1_001.fastq.gz')] + '_phix_read_name.list'
         cmds.append(bash_commands.fastq_filterer(fqs, read_name_list))
 
     filterer_status = executor.execute(
