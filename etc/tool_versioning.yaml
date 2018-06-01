@@ -12,7 +12,7 @@ toolsets:
                 version_cmd: grep_toolname
 
             fastq_filterer:
-                version: 0.3.1
+                version: 0.4
                 version_cmd: '{executable} --version'
 
             fastqc:

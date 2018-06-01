@@ -9,7 +9,34 @@ from tests.test_analysisdriver import TestAnalysisDriver, NamedMock
 from analysis_driver.util import bash_commands
 from analysis_driver.pipelines import demultiplexing as dm
 
-patch_executor = patch('analysis_driver.pipelines.demultiplexing.executor.execute')
+patch_executor = patch(
+    'analysis_driver.pipelines.demultiplexing.executor.execute',
+    return_value=Mock(join=Mock(return_value=0))
+)
+
+
+class TestPhixDetection(TestAnalysisDriver):
+    def test_run(self):
+        dataset = NamedMock(
+            real_name='test'
+        )
+        f = dm.PhixDetection(dataset=dataset)
+        fake_fastq_pairs = [
+            [('L1_R1_001.fastq.gz', 'L1_R2_001.fastq.gz')], [('L2_R1_001.fastq.gz', 'L2_R2_001.fastq.gz')]
+        ]
+        patch_run_crawler = patch('analysis_driver.pipelines.demultiplexing.RunCrawler', autospec=True)
+        patch_find = patch('egcg_core.util.find_all_fastq_pairs', side_effect=fake_fastq_pairs)
+
+        with patch_find, patch_executor as pexecute, patch_run_crawler as prun_crawler:
+            f._run()
+
+            expected_call = (
+            'set -o pipefail; path/to/bwa mem -t 16 /path/to/phix.fa L1_R1_001.fastq.gz | path/to/samtools view -F 4 |'
+            ' cut -f 1 | sort -u > L1_phix_read_name.list'
+            )
+            assert expected_call == pexecute.call_args[0][0]
+            prun_crawler.assert_called_with(dataset, run_dir='tests/assets/jobs/test/fastq',
+                                            stage=prun_crawler.STAGE_CONVERSION)
 
 
 class TestFastqFilter(TestAnalysisDriver):
@@ -37,8 +64,7 @@ class TestFastqFilter(TestAnalysisDriver):
         patch_detector = patch('analysis_driver.pipelines.demultiplexing.BadTileCycleDetector')
         patch_find = patch('analysis_driver.pipelines.demultiplexing.find_all_fastq_pairs_for_lane',
                            side_effect=fake_fastq_pairs + fake_fastq_pairs)
-        patch_run_crawler = patch('analysis_driver.pipelines.demultiplexing.RunCrawler', autospec=True)
-        with patch_find, patch_executor as pexecute, patch_detector as pdetector, patch_run_crawler as prun_crawler:
+        with patch_find, patch_executor as pexecute, patch_detector as pdetector:
             instance = pdetector.return_value
             instance.detect_bad_tiles.return_value = {3: [1101]}
             instance.detect_bad_cycles.return_value = {4: [310, 308, 307, 309]}
@@ -46,23 +72,22 @@ class TestFastqFilter(TestAnalysisDriver):
 
             expected_call_l2 = (
                 'run_filterer in_place L2_R1_001.fastq.gz L2_R2_001.fastq.gz L2_R1_001_filtered.fastq.gz '
-                'L2_R2_001_filtered.fastq.gz L2_R1_001_filtered.fastq L2_R2_001_filtered.fastq L2_fastqfilterer.stats'
+                'L2_R2_001_filtered.fastq.gz L2_R1_001_filtered.fastq L2_R2_001_filtered.fastq L2_fastqfilterer.stats '
+                'L2_phix_read_name.list L2_R1_001.fastq_discarded L2_R2_001.fastq_discarded'
             )
             expected_call_l3 = (
                 'run_filterer keep_originals L3_R1_001.fastq.gz L3_R2_001.fastq.gz L3_R1_001_filtered.fastq.gz '
                 'L3_R2_001_filtered.fastq.gz L3_R1_001_filtered.fastq L3_R2_001_filtered.fastq L3_fastqfilterer.stats '
-                '--remove_tiles 1101'
+                'L3_phix_read_name.list L3_R1_001.fastq_discarded L3_R2_001.fastq_discarded --remove_tiles 1101'
             )
             expected_call_l4 = (
                 'run_filterer keep_originals L4_R1_001.fastq.gz L4_R2_001.fastq.gz L4_R1_001_filtered.fastq.gz '
                 'L4_R2_001_filtered.fastq.gz L4_R1_001_filtered.fastq L4_R2_001_filtered.fastq L4_fastqfilterer.stats '
-                '--trim_r2 147'
+                'L4_phix_read_name.list L4_R1_001.fastq_discarded L4_R2_001.fastq_discarded --trim_r2 147'
             )
             assert expected_call_l2 == pexecute.call_args[0][1]
             assert expected_call_l3 == pexecute.call_args[0][2]
             assert expected_call_l4 == pexecute.call_args[0][3]
-
-            prun_crawler.assert_called_with(dataset, run_dir='tests/assets/jobs/test/fastq', stage=prun_crawler.STAGE_CONVERSION)
 
 
 class TestPostDemultiplexing(TestAnalysisDriver):
