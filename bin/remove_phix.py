@@ -2,7 +2,7 @@ import os
 import logging
 import argparse
 import sys
-from egcg_core import executor, util, rest_communication
+from egcg_core import executor, util, rest_communication, archive_management
 from egcg_core.app_logging import logging_default as log_cfg
 from egcg_core import constants as c
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -134,6 +134,9 @@ def remove_phix(sample_id):
         run_dir = os.path.join(cfg['input_dir'], run_id)
         crawler = RunCrawler(rd, run_dir=run_dir, stage=RunCrawler.STAGE_MAPPING)
         crawler.send_data()
+
+        # Ensure that the tape is up to date
+        archive_management.archive_directory(run_dir)
 
 
 if __name__ == '__main__':
