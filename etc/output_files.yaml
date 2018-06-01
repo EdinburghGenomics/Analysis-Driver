@@ -189,9 +189,17 @@ gatk_var_calling:
 
     gvcf:
         location: ['gatk_var_calling']
-        basename: '{user_sample_id}_filter_snp.vcf.gz'
+        basename: '{user_sample_id}.g.vcf.gz'
 
     gvcf_tbi:
+        location: ['gatk_var_calling']
+        basename: '{user_sample_id}.g.vcf.gz.tbi'
+
+    filtered:
+        location: ['gatk_var_calling']
+        basename: '{user_sample_id}_filter_snp.vcf.gz'
+
+    filtered_tbi:
         location: ['gatk_var_calling']
         basename: '{user_sample_id}_filter_snp.vcf.gz.tbi'
 
