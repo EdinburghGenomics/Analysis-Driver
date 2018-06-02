@@ -350,12 +350,12 @@ class TestBGZip(TestVariantCalling):
     def test_run(self):
         with patch_executor as e:
             self.p._run()
+            cmds = (
+                'path/to/bgzip tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id.g.vcf',
+                'path/to/bgzip tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id_filter_snp.vcf',
+            )
             assert e.call_count == 1
-            e.assert_called_with('path/to/bgzip '
-                                 'tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id_filter_snp.vcf',
-                                 cpus=1,
-                                 job_name='bgzip',
-                                 mem=8,
+            e.assert_called_with(*cmds, cpus=1, job_name='bgzip', mem=8,
                                  working_dir='tests/assets/jobs/test_dataset/gatk_var_calling')
 
 
@@ -367,11 +367,12 @@ class TestTabix(TestVariantCalling):
     def test_run(self):
         with patch_executor as e:
             self.p._run()
+            cmds = (
+                'path/to/tabix -p vcf tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id.g.vcf.gz',
+                'path/to/tabix -p vcf tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id_filter_snp.vcf.gz',
+            )
             assert e.call_count == 1
-            e.assert_called_with('path/to/tabix '
-                                 '-p vcf '
-                                 'tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id_filter_snp.vcf.gz',
-                                 cpus=1,
+            e.assert_called_with(*cmds, cpus=1,
                                  job_name='tabix',
                                  mem=8,
                                  working_dir='tests/assets/jobs/test_dataset/gatk_var_calling')
