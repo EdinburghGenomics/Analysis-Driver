@@ -229,7 +229,7 @@ class VariantFiltration(GATKStage):
 class BGZip(GATKStage):
     def _run(self):
         return executor.execute(
-            '%s %s' % (toolset['bgzip'], self.filter_snp_vcf),
+            *['%s %s' % (toolset['bgzip'], snp) for snp in (self.sample_gvcf, self.filter_snp_vcf)],
             job_name='bgzip',
             working_dir=self.gatk_run_dir,
             cpus=1,
@@ -240,7 +240,7 @@ class BGZip(GATKStage):
 class Tabix(GATKStage):
     def _run(self):
         return executor.execute(
-            '%s -p vcf %s' % (toolset['tabix'], self.filter_snp_vcf + '.gz'),
+            *['%s -p vcf %s' % (toolset['tabix'], snp + '.gz') for snp in (self.sample_gvcf, self.filter_snp_vcf)],
             job_name='tabix',
             working_dir=self.gatk_run_dir,
             cpus=1,
