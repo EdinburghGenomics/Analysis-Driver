@@ -1,11 +1,13 @@
 Changelog for Analysis-Driver
 =============================
 
-0.22 (unreleased)
+0.22 (2018-06-04)
 -----------------
 
-- Nothing changed yet.
-
+- Upload the source of the processing (run elements for sample, samples for project) to analysis_driver_procs
+- Perform variant call for non human in order to get the variant based QC
+- Remove Phix reads from data during run processing
+- New script for removing Phix reads from already processed data
 
 0.21 (2018-03-15)
 -----------------
