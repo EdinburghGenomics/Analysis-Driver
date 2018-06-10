@@ -2,7 +2,8 @@
 import os
 from tests.test_analysisdriver import NamedMock, TestAnalysisDriver
 from analysis_driver.pipelines.variant_calling import GATKStage, BaseRecal, PrintReads, \
-    RealignTarget, Realign, HaplotypeCaller, GenotypeGVCFs, SelectVariants, VariantFiltration, BGZip, Tabix
+    RealignTarget, Realign, HaplotypeCaller, GenotypeGVCFs, SelectVariants, VariantFiltration, TabixVcf, TabixGvcf, \
+    BGZipVcf, BGZipGvcf
 from unittest.mock import  patch, Mock
 
 
@@ -283,7 +284,7 @@ class TestGenotypeGVCFs(TestVariantCalling):
                                  '-o tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id.vcf '
                                  '-l INFO '
                                  '-U LENIENT_VCF_PROCESSING '
-                                 '--variant tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id.g.vcf '
+                                 '--variant tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id.g.vcf.gz '
                                  '-nt 16',
                                  job_name='gatk_genotype_gvcfs',
                                  mem=16,
@@ -344,32 +345,51 @@ class TestVariantFiltration(TestVariantCalling):
 
 
 class TestBGZip(TestVariantCalling):
-    def setUp(self):
-        self.p = BGZip(dataset=self.dataset)
 
-    def test_run(self):
+    def test_bgzip_vcf(self):
+        p = BGZipVcf(dataset=self.dataset)
         with patch_executor as e:
-            self.p._run()
+            p._run()
             cmds = (
-                'path/to/bgzip tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id.g.vcf',
                 'path/to/bgzip tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id_filter_snp.vcf',
             )
             assert e.call_count == 1
             e.assert_called_with(*cmds, cpus=1, job_name='bgzip', mem=8,
                                  working_dir='tests/assets/jobs/test_dataset/gatk_var_calling')
 
+    def test_bgzip_gvcf(self):
+        p = BGZipGvcf(dataset=self.dataset)
+        with patch_executor as e:
+            p._run()
+            cmds = (
+                'path/to/bgzip tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id.g.vcf',
+            )
+            assert e.call_count == 1
+            e.assert_called_with(*cmds, cpus=1, job_name='bgzip', mem=8,
+                                 working_dir='tests/assets/jobs/test_dataset/gatk_var_calling')
 
 
 class TestTabix(TestVariantCalling):
-    def setUp(self):
-        self.p = Tabix(dataset=self.dataset)
 
-    def test_run(self):
+    def test_tabix_vcf(self):
+        self.p = TabixVcf(dataset=self.dataset)
+        with patch_executor as e:
+            self.p._run()
+            cmds = (
+                'path/to/tabix -p vcf tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id_filter_snp.vcf.gz',
+            )
+            assert e.call_count == 1
+            e.assert_called_with(*cmds, cpus=1,
+                                 job_name='tabix',
+                                 mem=8,
+                                 working_dir='tests/assets/jobs/test_dataset/gatk_var_calling')
+
+    def test_tabix_gvcf(self):
+        self.p = TabixGvcf(dataset=self.dataset)
         with patch_executor as e:
             self.p._run()
             cmds = (
                 'path/to/tabix -p vcf tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id.g.vcf.gz',
-                'path/to/tabix -p vcf tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id_filter_snp.vcf.gz',
             )
             assert e.call_count == 1
             e.assert_called_with(*cmds, cpus=1,

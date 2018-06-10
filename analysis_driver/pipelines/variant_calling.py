@@ -182,7 +182,7 @@ class HaplotypeCaller(GATKStage):
 
 class GenotypeGVCFs(GATKStage):
     def _run(self):
-        genotype_gvcfs_cmd = self.gatk_cmd('GenotypeGVCFs', self.genotyped_vcf, nct=1, ext=' --variant ' + self.sample_gvcf)
+        genotype_gvcfs_cmd = self.gatk_cmd('GenotypeGVCFs', self.genotyped_vcf, nct=1, ext=' --variant ' + self.sample_gvcf + '.gz')
         return executor.execute(
             genotype_gvcfs_cmd,
             job_name='gatk_genotype_gvcfs',
@@ -226,10 +226,10 @@ class VariantFiltration(GATKStage):
         ).join()
 
 
-class BGZip(GATKStage):
+class BGZipGvcf(GATKStage):
     def _run(self):
         return executor.execute(
-            *['%s %s' % (toolset['bgzip'], snp) for snp in (self.sample_gvcf, self.filter_snp_vcf)],
+            '%s %s' % (toolset['bgzip'], self.sample_gvcf),
             job_name='bgzip',
             working_dir=self.gatk_run_dir,
             cpus=1,
@@ -237,10 +237,32 @@ class BGZip(GATKStage):
         ).join()
 
 
-class Tabix(GATKStage):
+class BGZipVcf(GATKStage):
     def _run(self):
         return executor.execute(
-            *['%s -p vcf %s' % (toolset['tabix'], snp + '.gz') for snp in (self.sample_gvcf, self.filter_snp_vcf)],
+            '%s %s' % (toolset['bgzip'], self.filter_snp_vcf),
+            job_name='bgzip',
+            working_dir=self.gatk_run_dir,
+            cpus=1,
+            mem=8
+        ).join()
+
+
+class TabixGvcf(GATKStage):
+    def _run(self):
+        return executor.execute(
+            '%s -p vcf %s' % (toolset['tabix'], self.sample_gvcf + '.gz'),
+            job_name='tabix',
+            working_dir=self.gatk_run_dir,
+            cpus=1,
+            mem=8
+        ).join()
+
+
+class TabixVcf(GATKStage):
+    def _run(self):
+        return executor.execute(
+            '%s -p vcf %s' % (toolset['tabix'], self.filter_snp_vcf + '.gz'),
             job_name='tabix',
             working_dir=self.gatk_run_dir,
             cpus=1,
@@ -259,13 +281,15 @@ def build_pipeline(dataset):
     realign_target = stage(RealignTarget, previous_stages=[print_reads])
     realign = stage(Realign, previous_stages=[realign_target])
     haplotype = stage(HaplotypeCaller, input_bam=realign.indel_realigned_bam, previous_stages=[realign])
-    genotype = stage(GenotypeGVCFs, previous_stages=[haplotype])
+    bgzip_gvcf = stage(BGZipGvcf, previous_stages=[haplotype])
+    tabix_gvcf = stage(TabixGvcf, previous_stages=[bgzip_gvcf])
+    genotype = stage(GenotypeGVCFs, previous_stages=[tabix_gvcf])
     select_snp = stage(SelectVariants, previous_stages=[genotype])
     filter_snp = stage(VariantFiltration, previous_stages=[select_snp])
     vcfstats = stage(qc.VCFStats, vcf_file=filter_snp.filter_snp_vcf, previous_stages=[filter_snp])
-    bgzip = stage(BGZip, previous_stages=[vcfstats])
-    tabix = stage(Tabix, previous_stages=[bgzip])
-    output = stage(common.SampleDataOutput, previous_stages=[tabix], output_fileset='gatk_var_calling')
+    bgzip_vcf = stage(BGZipVcf, previous_stages=[vcfstats])
+    tabix_vcf = stage(TabixVcf, previous_stages=[bgzip_vcf])
+    output = stage(common.SampleDataOutput, previous_stages=[tabix_vcf], output_fileset='gatk_var_calling')
     _cleanup = stage(common.Cleanup, previous_stages=[output])
     review = stage(common.SampleReview, previous_stages=[_cleanup])
     return review
