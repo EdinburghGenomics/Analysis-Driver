@@ -33,7 +33,7 @@ Classes that run checks on output files generated from the main pipeline.
   a sample's genotype with an expected, queries the LIMS for an expected genotype vcf, and writes a file containing the
   results of comparing the observed and expected vcfs
 - GenderValidation - Quantifies X-chromosome heterozygosity in BCBio's output haplotype vcf. Produces a file
-  containing the called gender, to be compared against the gender suppied in the Lims
+  containing the called gender, to be compared against the gender supplied in the Lims
 - FastqScreen - Checks fastqs for sample contamination using [fastqscreen](http://www.bioinformatics.babraham.ac.uk/projects/download.html#fastqscreen)
 - Blast - Checks a fastq file for contamination using NCBI Blast
 - VerifyBamID - Checks a Bam file for species contamination using [VerifyBamID](http://genome.sph.umich.edu/wiki/VerifyBamID)
@@ -56,7 +56,7 @@ Parsers for files supplied and generated during the pipeline.
   with adaptors removed.
 
 ### util
-Miscellaneous utilies and a collection of functions that build string Bash commands for running bcl2fastq,
+Miscellaneous utilities and a collection of functions that build string Bash commands for running bcl2fastq,
 fastqc, BCBio, etc.
 
 ### report_generation
@@ -81,7 +81,7 @@ whether to process the dataset. `dataset_reprocess` is treated as invisible, and
 `dataset_new` or `dataset_ready` depending on the dataset's ready status.
 
 The dataset is able to stop an already-running pipeline by sending it a SIGUSR1 or SIGUSR2. SIGUSR2 will stop
-a pipeline where it is, while SIGUSR1 will cause the Luigig task runner to stop scheduling any new taks,
+a pipeline where it is, while SIGUSR1 will cause the Luigi task runner to stop scheduling any new tasks,
 stopping the pipeline cleanly.
 
 RunDataset is able to query the Lims and the run's `RunInfo.xml` for data. It can also write this data to a

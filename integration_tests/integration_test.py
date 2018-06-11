@@ -262,7 +262,7 @@ class IntegrationTest(TestCase):
 
             self.expect_equal(
                 rest_communication.get_document('analysis_driver_procs')['data_source'],
-                ['_'.join([self.run_id, str(i), self.barcode]) for i in range(1,9)]
+                ['_'.join([self.run_id, str(i), self.barcode]) for i in range(1, 9)]
             )
 
         assert self._test_success
@@ -288,7 +288,6 @@ class IntegrationTest(TestCase):
                                    'variantfiltration', 'cleanup', 'realign', 'realigntarget', 'samtoolsstats',
                                    'haplotypecaller', 'md5sum', 'bwamem', 'sampledataoutput', 'genotypegvcfs')
 
-
             self.expect_equal(
                 rest_communication.get_document('analysis_driver_procs')['pipeline_used'],
                 {
@@ -300,7 +299,7 @@ class IntegrationTest(TestCase):
 
             self.expect_equal(
                 rest_communication.get_document('analysis_driver_procs')['data_source'],
-                ['_'.join([self.run_id, str(i), self.barcode]) for i in range(1,9)]
+                ['_'.join([self.run_id, str(i), self.barcode]) for i in range(1, 9)]
             )
 
         assert self._test_success
@@ -330,7 +329,7 @@ class IntegrationTest(TestCase):
 
         self.expect_equal(
                 rest_communication.get_document('analysis_driver_procs')['data_source'],
-                ['_'.join([self.run_id, str(i), self.barcode]) for i in range(1,9)]
+                ['_'.join([self.run_id, str(i), self.barcode]) for i in range(1, 9)]
             )
 
     def test_qc(self):
@@ -418,7 +417,7 @@ def main():
         print(test_output)
 
     if args.email:
-        notifications.send_email(
+        notifications.send_plain_text_email(
             test_output, subject='Analysis Driver integration test', **integration_cfg['notification']
         )
 

@@ -11,7 +11,7 @@ class NamedMock(Mock):  # don't import the tests - that patches `toolset`!
         return self.real_name
 
 
-class MockedSamples(NamedMock):
+class MockedSample(NamedMock):
     project = NamedMock(real_name='10015AT')
 
 
@@ -20,21 +20,21 @@ mocked_lane_artifact_pool = NamedMock(
     input_artifact_list=Mock(
         return_value=[
             NamedMock(reagent_labels=['D701-D502 (ATTACTCG-ATAGAGGC)'],
-                      samples=[MockedSamples(real_name='10015AT0001', id='LP6002014-DTP_A01')]),
+                      samples=[MockedSample(real_name='10015AT0001', id='LP6002014-DTP_A01')]),
             NamedMock(reagent_labels=['D702-D502 (TCCGGAGA-ATAGAGGC)'],
-                      samples=[MockedSamples(real_name='10015AT0002', id='LP6002014-DTP_A02')]),
+                      samples=[MockedSample(real_name='10015AT0002', id='LP6002014-DTP_A02')]),
             NamedMock(reagent_labels=['D703-D502 (CGCTCATT-ATAGAGGC)'],
-                      samples=[MockedSamples(real_name='10015AT0003', id='LP6002014-DTP_A03')]),
+                      samples=[MockedSample(real_name='10015AT0003', id='LP6002014-DTP_A03')]),
             NamedMock(reagent_labels=['D704-D502 (GAGATTCC-ATAGAGGC)'],
-                      samples=[MockedSamples(real_name='10015AT0004', id='LP6002014-DTP_A04')]),
+                      samples=[MockedSample(real_name='10015AT0004', id='LP6002014-DTP_A04')]),
             NamedMock(reagent_labels=['D705-D502 (ATTCAGAA-ATAGAGGC)'],
-                      samples=[MockedSamples(real_name='10015AT0006', id='LP6002014-DTP_A05')]),
+                      samples=[MockedSample(real_name='10015AT0006', id='LP6002014-DTP_A05')]),
             NamedMock(reagent_labels=['D706-D502 (GAATTCGT-ATAGAGGC)'],
-                      samples=[MockedSamples(real_name='10015AT0007', id='LP6002014-DTP_A06')]),
+                      samples=[MockedSample(real_name='10015AT0007', id='LP6002014-DTP_A06')]),
             NamedMock(reagent_labels=['D707-D502 (CTGAAGCT-ATAGAGGC)'],
-                      samples=[MockedSamples(real_name='10015AT0008', id='LP6002014-DTP_A07')]),
+                      samples=[MockedSample(real_name='10015AT0008', id='LP6002014-DTP_A07')]),
             NamedMock(reagent_labels=['D708-D502 (TAATGCGC-ATAGAGGC)'],
-                      samples=[MockedSamples(real_name='10015AT0009', id='LP6002014-DTP_A08')])
+                      samples=[MockedSample(real_name='10015AT0009', id='LP6002014-DTP_A08')])
         ]
     ),
     parent_process=Mock(type=NamedMock(real_name='Create PDP Pool')),

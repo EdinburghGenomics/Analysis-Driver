@@ -83,7 +83,7 @@ Changelog for Analysis-Driver
 - Add md5 files for project process output file
 - Original fastq files are now kept when fastq filtering is enabled
 - Duplicated unmapped read generated in bcbio are removed
-- Small fix to support userprepared libraries
+- Small fix to support user-prepared libraries
 
 
 0.16 (2017-06-22)
@@ -138,7 +138,7 @@ Changelog for Analysis-Driver
  - Demultiplexing pipeline is now segmented
  - Run processing starts as the first files arrives from the sequencer
  - Bcl validation runs throughout the sequencing
- - Fix bug in species contamintion
+ - Fix bug in species contamination
 
 0.13 (2017-03-07)
 -----------------

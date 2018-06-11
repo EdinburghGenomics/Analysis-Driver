@@ -3,8 +3,6 @@ import shutil
 from os.path import join
 from unittest.mock import Mock, patch
 from egcg_core.constants import ELEMENT_PROJECT_ID, ELEMENT_LANE, ELEMENT_SAMPLE_INTERNAL_ID
-
-from analysis_driver.report_generation.run_crawler import RunCrawler
 from tests.test_analysisdriver import TestAnalysisDriver, NamedMock
 from analysis_driver.util import bash_commands
 from analysis_driver.pipelines import demultiplexing as dm
@@ -30,13 +28,13 @@ class TestPhixDetection(TestAnalysisDriver):
         with patch_find, patch_executor as pexecute, patch_run_crawler as prun_crawler:
             f._run()
 
-            expected_call = (
-            'set -o pipefail; path/to/bwa mem -t 16 /path/to/phix.fa L1_R1_001.fastq.gz | path/to/samtools view -F 4 |'
-            ' cut -f 1 | sort -u > L1_phix_read_name.list'
+            assert pexecute.call_args[0][0] == (
+                'set -o pipefail; path/to/bwa mem -t 16 /path/to/phix.fa L1_R1_001.fastq.gz | '
+                'path/to/samtools view -F 4 | cut -f 1 | sort -u > L1_phix_read_name.list'
             )
-            assert expected_call == pexecute.call_args[0][0]
-            prun_crawler.assert_called_with(dataset, run_dir='tests/assets/jobs/test/fastq',
-                                            stage=prun_crawler.STAGE_CONVERSION)
+            prun_crawler.assert_called_with(
+                dataset, run_dir='tests/assets/jobs/test/fastq', stage=prun_crawler.STAGE_CONVERSION
+            )
 
 
 class TestFastqFilter(TestAnalysisDriver):
@@ -50,7 +48,10 @@ class TestFastqFilter(TestAnalysisDriver):
         )
         dataset = NamedMock(
             real_name='test',
-            lane_metrics=[{'pc_q30': 73, 'lane_number': 3}, {'pc_q30': 73, 'lane_number': 4}],
+            lane_metrics=[
+                {'lane_number': 3, 'aggregated': {'pc_q30': 73}},
+                {'lane_number': 4, 'aggregated': {'pc_q30': 73}}
+            ],
             run_info=run_info
         )
         f = dm.FastqFilter(dataset=dataset)

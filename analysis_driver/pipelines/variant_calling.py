@@ -1,5 +1,6 @@
 import os
 from analysis_driver import quality_control as qc
+from luigi import Parameter
 from egcg_core import executor
 from analysis_driver import segmentation
 from analysis_driver.pipelines import common
@@ -7,7 +8,6 @@ from analysis_driver.config import default as cfg
 from analysis_driver.util.bash_commands import java_command
 from analysis_driver.tool_versioning import toolset
 from analysis_driver.exceptions import AnalysisDriverError
-from luigi import Parameter
 
 toolset_type = 'non_human_sample_processing'
 name = 'variant_calling'
@@ -21,7 +21,6 @@ class GATKStage(segmentation.Stage):
         return d
 
     def gatk_cmd(self, run_cls, output, input_bam=None, xmx=16, nct=16, nt=16, ext=None):
-
         base_cmd = java_command(memory=xmx, tmp_dir=self.gatk_run_dir, jar=toolset['gatk']) + (
                     '-R {ref} -T {run_cls} --read_filter BadCigar --read_filter NotPrimaryAlignment '
                     '-o {output} -l INFO -U LENIENT_VCF_PROCESSING')
@@ -152,6 +151,7 @@ class Realign(GATKStage):
 
 class HaplotypeCaller(GATKStage):
     input_bam = Parameter()
+
     def _run(self):
         haplotype_cmd = self.gatk_cmd(
             'HaplotypeCaller',
@@ -169,7 +169,6 @@ class HaplotypeCaller(GATKStage):
             haplotype_cmd += ' --annotation ' + annot
         if self.dbsnp:
             haplotype_cmd += ' --dbsnp ' + self.dbsnp
-
 
         return executor.execute(
             haplotype_cmd,
@@ -206,17 +205,17 @@ class SelectVariants(GATKStage):
 
 class VariantFiltration(GATKStage):
     def _run(self):
-        filter = [
+        filters = [
             'QD < 2.0',
             'FS > 60.0',
             'MQ < 40.0',
             'MQRankSum < -12.5',
             'ReadPosRankSum < -8.0'
         ]
-        filter = "'" + ' || '.join(filter) + "'"
+        filters = "'" + ' || '.join(filters) + "'"
         var_filter_command = self.gatk_cmd('VariantFiltration', self.filter_snp_vcf, nct=1, nt=1)
         var_filter_command += " -V " + self.raw_snp_vcf
-        var_filter_command += " --filterExpression " + filter
+        var_filter_command += " --filterExpression " + filters
         var_filter_command += " --filterName 'SNP_FILTER'"
         return executor.execute(
             var_filter_command,

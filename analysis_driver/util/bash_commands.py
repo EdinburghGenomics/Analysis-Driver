@@ -48,8 +48,8 @@ def seqtk_fqchk(fastq_file):
 def fq_filt_prelim_cmd():
     cmd = (
         'function run_filterer {{',  # double up { and } to escape them for str.format()
-        'strategy=$1', 'i1=$2', 'i2=$3', 'o1=$4', 'o2=$5', 'fifo_1=$6', 'fifo_2=$7', 'stats_file=$8', 'read_name_file=$9' ,
-        'out_phix1=${{10}}', 'out_phix2=${{11}}',
+        'strategy=$1', 'i1=$2', 'i2=$3', 'o1=$4', 'o2=$5', 'fifo_1=$6', 'fifo_2=$7', 'stats_file=$8',
+        'read_name_file=$9', 'out_phix1=${{10}}', 'out_phix2=${{11}}',
         'shift 10',
         'mkfifo $fifo_1', 'mkfifo $fifo_2',
         '{ff} --i1 $i1 --i2 $i2 --o1 $fifo_1 --o2 $fifo_2 --threshold {threshold} '  # no comma means concatenation
@@ -97,6 +97,7 @@ def fq_filt_prelim_cmd():
 def fastq_filterer(fastq_file_pair, read_name_file, tiles_to_filter=None, trim_r1=None, trim_r2=None):
     """
     :param tuple[str,str] fastq_file_pair: Paired-end fastqs to filter
+    :param str read_name_file: File containing read names to pass to --remove_reads
     :param list tiles_to_filter: Tile IDs for reads to remove regardless of length
     :param trim_r1: Maximum length to trim R1 to
     :param trim_r2: As trim_r1, but for R2
@@ -158,8 +159,8 @@ def bwa_mem_samblaster(fastq_pair, reference, expected_output_bam, read_group=No
     return cmd
 
 
-def bwa_mem_phix(fastq1, read_name_list, thread=16):
-    command_bwa = '%s mem -t %s %s %s' % (toolset['bwa'], thread, cfg.query('genomes', 'phix174', 'fasta'), fastq1)
+def bwa_mem_phix(fastq, read_name_list, thread=16):
+    command_bwa = '%s mem -t %s %s %s' % (toolset['bwa'], thread, cfg.query('genomes', 'phix174', 'fasta'), fastq)
     command_samtools = '%s view -F 4 | cut -f 1 | sort -u > %s' % (toolset['samtools'], read_name_list)
     cmd = 'set -o pipefail; ' + ' | '.join([command_bwa, command_samtools])
     app_logger.debug('Writing: ' + cmd)

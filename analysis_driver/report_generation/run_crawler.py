@@ -144,27 +144,26 @@ class RunCrawler(Crawler):
                 self.barcodes_info[run_element_id][ELEMENT_ADAPTER_TRIM_R2] = run_element_adapters_trimmed[run_element_id]['read_2_trimmed_bases']
 
     def _populate_barcode_info_from_phix_read_names(self, run_dir):
-        for run_element_id in self.barcodes_info:
-            barcode_info = self.barcodes_info.get(run_element_id)
+        for run_element_id, barcode_info in self.barcodes_info.items():
             if ELEMENT_BARCODE in barcode_info and barcode_info[ELEMENT_BARCODE] == 'unknown':
-                read_name_files = util.find_files(
+                read_name_file = util.find_file(
                     run_dir, 'Undetermined_S0_L00%s_phix_read_name.list' % barcode_info[ELEMENT_LANE]
                 )
             else:
-                read_name_files = util.find_files(
+                read_name_file = util.find_file(
                     run_dir,
                     barcode_info[ELEMENT_PROJECT_ID],
                     barcode_info[ELEMENT_SAMPLE_INTERNAL_ID],
                     '*_S*_L00%s_phix_read_name.list' % barcode_info[ELEMENT_LANE]
                 )
-            if len(read_name_files) == 1:
-                with open(read_name_files[0]) as open_file:
+            if read_name_file:
+                with open(read_name_file) as open_file:
                     barcode_info[ELEMENT_NB_READS_PHIX] = sum(1 for _ in open_file)
             elif barcode_info[ELEMENT_NB_READS_PASS_FILTER] == 0:
-                self.info('No reads for %s, Not expecting Phix filtered file', run_element_id)
+                self.info('No reads for %s, Not expecting PhiX filtered file', run_element_id)
             else:
                 # TODO: Not mandatory for now as there will be lots of old runs without it
-                self.warning('No Phix read_name file found in %s for %s' % (run_dir, run_element_id))
+                self.warning('No Phix read_name file found in %s for %s', run_dir, run_element_id)
 
     def _populate_barcode_info_from_seqtk_fqchk_files(self, run_dir):
         for run_element_id in self.barcodes_info:
@@ -354,7 +353,6 @@ class RunCrawler(Crawler):
                 lane_info = self.lanes.get(lane_id)
                 lane = int(lane_info.get(ELEMENT_LANE_NUMBER))
                 lane_info['interop_metrics'] = interop_metrics_per_lane.get(str(lane), {})
-
 
     def send_data(self):
         pp('run_elements', self.barcodes_info.values(), ELEMENT_RUN_ELEMENT_ID)

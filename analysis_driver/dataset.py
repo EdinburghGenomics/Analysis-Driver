@@ -51,7 +51,7 @@ class Dataset(AppLogger):
 
     @property
     def data_source(self):
-        raise NotImplementedError
+        return None
 
     @property
     def running_stages(self):
@@ -84,8 +84,8 @@ class Dataset(AppLogger):
 
     def fail(self, exit_status):
         self._assert_status(DATASET_PROCESSING)
-        self.ntf.end_pipeline(exit_status)
         self.most_recent_proc.finish(DATASET_PROCESSED_FAIL)
+        self.ntf.end_pipeline(exit_status)
 
     def abort(self):
         self.most_recent_proc.finish(DATASET_ABORTED)
@@ -229,8 +229,7 @@ class NoCommunicationDataset(Dataset):
         return None
 
 
-class NoCommuncationSampleDataset(NoCommunicationDataset):
-
+class NoCommunicationSampleDataset(NoCommunicationDataset):
     def __init__(self, name):
         super().__init__(name)
         self._run_elements = None
@@ -316,27 +315,25 @@ class RunDataset(Dataset):
             self._run_elements = self._run_elements_from_lims()
         return self._run_elements
 
+    @staticmethod
+    def _find_pooling_step_for_artifact(art, max_iterations=10):
+        n = 1
+        while len(art.input_artifact_list()) == 1:
+            art = art.input_artifact_list()[0]
+            if n == max_iterations:
+                raise ValueError('Cannot find pooling step after %s iterations' % max_iterations)
+            n += 1
+        if art.parent_process.type.name != 'Create PDP Pool':
+            raise ValueError('Invalid step name: %s' % art.parent_process.type.name)
+        return art.input_artifact_list()
+
     def _run_elements_from_lims(self):
         run_elements = []
-
-        def find_pooling_step_for_artifact(art, max_iteration=10, expected_pooling_step_name=None):
-            nb_iteration = 0
-            while len(art.input_artifact_list()) == 1:
-                art = art.input_artifact_list()[0]
-                if nb_iteration == max_iteration:
-                    raise ValueError('Cannot find pooling step after %s iteraction' % max_iteration)
-                nb_iteration += 1
-            if expected_pooling_step_name and art.parent_process.type.name != expected_pooling_step_name:
-                raise ValueError(
-                    'Mismatching Step name: %s != %s' % (expected_pooling_step_name, art.parent_process.type.name)
-                )
-            return art.input_artifact_list()
 
         flowcell = set(self.lims_run.parent_processes()).pop().output_containers()[0]
         for lane in flowcell.placements:
             if len(flowcell.placements[lane].reagent_labels) > 1:
-                artifacts = find_pooling_step_for_artifact(flowcell.placements[lane],
-                                                           expected_pooling_step_name='Create PDP Pool')
+                artifacts = self._find_pooling_step_for_artifact(flowcell.placements[lane])
             else:
                 artifacts = [flowcell.placements[lane]]
             for artifact in artifacts:
@@ -387,10 +384,6 @@ class RunDataset(Dataset):
         return len(previous_r[ELEMENT_BARCODE])
 
     @property
-    def data_source(self):
-        return None
-
-    @property
     def lims_run(self):
         if not self._lims_run:
             self._lims_run = clarity.get_run(self.name)
@@ -406,12 +399,8 @@ class RunDataset(Dataset):
         return self.lims_run.udf.get('Run Status') in ['RunStarted', 'RunPaused']
 
     @property
-    def run_metrics(self):
-        return rest_communication.get_document('aggregate/all_runs', match={'run_id': self.name})
-
-    @property
     def lane_metrics(self):
-        return rest_communication.get_documents('aggregate/run_elements_by_lane', match={'run_id': self.name})
+        return rest_communication.get_documents('lanes', where={'run_id': self.name})
 
     def _default_pipeline(self):
         return 'demultiplexing'
@@ -575,10 +564,7 @@ class ProjectDataset(Dataset):
         self._genome_version = None
 
     def _is_ready(self):
-        if self.number_of_samples > 0 and len(self.samples_processed) >= self.number_of_samples:
-            return True
-        else:
-            return False
+        return 0 < self.number_of_samples <= len(self.samples_processed)
 
     @property
     def data_source(self):

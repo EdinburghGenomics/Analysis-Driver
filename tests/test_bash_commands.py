@@ -179,3 +179,8 @@ def test_picard_insert_size_command():
         memory=10
     )
     assert cmd == exp.format(tmpdir='directory2', mem=10)
+
+
+def test_java_command():
+    obs = bash_commands.java_command(1, 'a_tmp_dir', 'a_jar_file')
+    assert obs == 'java -Djava.io.tmpdir=a_tmp_dir -XX:+UseSerialGC -Xmx1G -jar a_jar_file '
