@@ -27,7 +27,7 @@ class TestTransferData(TestAnalysisDriver):
 
         expected_outputs = ['10015AT0001.depth', '10015AT0001_R1_fastqc.html', '10015AT0001_R1_fastqc.zip',
                             '10015AT0001_R1_screen.txt', '10015AT0001_R2_fastqc.html',
-                            '10015AT0001_R2_fastqc.zip', '10015AT0001_filter_snp.stats',
+                            '10015AT0001_R2_fastqc.zip', '10015AT0001_filter_snp.vcf.stats',
                             'samtools_stats.txt', 'taxa_identified.json']
         assert sorted(os.listdir(output_files)) == expected_outputs == sorted(
             os.path.basename(f) for f in list_of_linked_files

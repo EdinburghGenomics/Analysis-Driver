@@ -50,7 +50,7 @@ class TestSampleDataOutput(TestCommon):
         expected_outputs = ['samtools_stats.txt', 'taxa_identified.json', 'test_dataset.depth',
                             'test_dataset_R1_fastqc.html', 'test_dataset_R1_fastqc.zip',
                             'test_dataset_R1_screen.txt', 'test_dataset_R2_fastqc.html',
-                            'test_dataset_R2_fastqc.zip', 'test_dataset_filter_snp.stats']
+                            'test_dataset_R2_fastqc.zip', 'test_dataset_filter_snp.vcf.stats']
 
         o = sorted(os.listdir(output_files))
         assert exit_status == 0
