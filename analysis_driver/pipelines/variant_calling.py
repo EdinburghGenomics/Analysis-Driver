@@ -4,6 +4,7 @@ from egcg_core import executor
 from analysis_driver import segmentation
 from analysis_driver.pipelines import common
 from analysis_driver.config import default as cfg
+from analysis_driver.pipelines.common import bgzip_and_tabix
 from analysis_driver.util.bash_commands import java_command
 from analysis_driver.tool_versioning import toolset
 from analysis_driver.exceptions import AnalysisDriverError
@@ -97,7 +98,10 @@ class GATKStage(segmentation.Stage):
 class BaseRecal(GATKStage):
     def _run(self):
         return executor.execute(
-            self.gatk_cmd('BaseRecalibrator', self.output_grp, input_bam=self.sorted_bam, xmx=48, nt=1, ext=' --knownSites ' + self.dbsnp),
+            self.gatk_cmd(
+                'BaseRecalibrator', self.output_grp, input_bam=self.sorted_bam,
+                xmx=48, nt=1, ext=' --knownSites ' + self.dbsnp
+            ),
             job_name='gatk_base_recal',
             working_dir=self.gatk_run_dir,
             cpus=16,
@@ -108,7 +112,10 @@ class BaseRecal(GATKStage):
 class PrintReads(GATKStage):
     def _run(self):
         return executor.execute(
-            self.gatk_cmd('PrintReads', self.recal_bam, input_bam=self.sorted_bam, xmx=48, nt=1, ext=' -BQSR ' + self.output_grp),
+            self.gatk_cmd(
+                'PrintReads', self.recal_bam, input_bam=self.sorted_bam,
+                xmx=48, nt=1, ext=' -BQSR ' + self.output_grp
+            ),
             job_name='gatk_print_reads',
             working_dir=self.gatk_run_dir,
             cpus=16,
@@ -118,7 +125,11 @@ class PrintReads(GATKStage):
 
 class RealignTarget(GATKStage):
     def _run(self):
-        realign_target_cmd = self.gatk_cmd('RealignerTargetCreator', self.output_intervals, input_bam=self.recal_bam, nct=1, nt=1)
+        realign_target_cmd = self.gatk_cmd(
+            'RealignerTargetCreator', self.output_intervals,
+            input_bam=self.recal_bam, nct=1, nt=1
+        )
+
         if self.known_indels:
             realign_target_cmd += ' --known ' + self.known_indels
 
@@ -152,6 +163,7 @@ class Realign(GATKStage):
 
 class HaplotypeCaller(GATKStage):
     input_bam = Parameter()
+
     def _run(self):
         haplotype_cmd = self.gatk_cmd(
             'HaplotypeCaller',
@@ -170,8 +182,7 @@ class HaplotypeCaller(GATKStage):
         if self.dbsnp:
             haplotype_cmd += ' --dbsnp ' + self.dbsnp
 
-
-        return executor.execute(
+        haplotype_status = executor.execute(
             haplotype_cmd,
             job_name='gatk_haplotype_call',
             working_dir=self.gatk_run_dir,
@@ -179,95 +190,57 @@ class HaplotypeCaller(GATKStage):
             mem=64
         ).join()
 
+        return haplotype_status + bgzip_and_tabix(self.gatk_run_dir, self.sample_gvcf)
+
 
 class GenotypeGVCFs(GATKStage):
     def _run(self):
         genotype_gvcfs_cmd = self.gatk_cmd('GenotypeGVCFs', self.genotyped_vcf, nct=1, ext=' --variant ' + self.sample_gvcf + '.gz')
-        return executor.execute(
+        genotype_status = executor.execute(
             genotype_gvcfs_cmd,
             job_name='gatk_genotype_gvcfs',
             working_dir=self.gatk_run_dir,
             mem=16
         ).join()
 
+        return genotype_status + bgzip_and_tabix(self.gatk_run_dir, self.genotyped_vcf)
+
 
 class SelectVariants(GATKStage):
     def _run(self):
         select_var_command = self.gatk_cmd('SelectVariants', self.raw_snp_vcf, nct=1, nt=16)
-        select_var_command += ' -V ' + self.genotyped_vcf
+        select_var_command += ' -V ' + self.genotyped_vcf + '.gz'
         select_var_command += ' -selectType SNP '
-        return executor.execute(
+        select_variants_status = executor.execute(
             select_var_command,
             job_name='var_filtration',
             working_dir=self.gatk_run_dir,
             mem=16
         ).join()
+        return select_variants_status + bgzip_and_tabix(self.gatk_run_dir, self.raw_snp_vcf)
 
 
 class VariantFiltration(GATKStage):
     def _run(self):
-        filter = [
+        filter_array = [
             'QD < 2.0',
             'FS > 60.0',
             'MQ < 40.0',
             'MQRankSum < -12.5',
             'ReadPosRankSum < -8.0'
         ]
-        filter = "'" + ' || '.join(filter) + "'"
+        filters = "'" + ' || '.join(filter_array) + "'"
         var_filter_command = self.gatk_cmd('VariantFiltration', self.filter_snp_vcf, nct=1, nt=1)
-        var_filter_command += " -V " + self.raw_snp_vcf
-        var_filter_command += " --filterExpression " + filter
+        var_filter_command += " -V " + self.raw_snp_vcf + '.gz'
+        var_filter_command += " --filterExpression " + filters
         var_filter_command += " --filterName 'SNP_FILTER'"
-        return executor.execute(
+        variant_filter_status = executor.execute(
             var_filter_command,
             job_name='var_filtration',
             working_dir=self.gatk_run_dir,
             mem=16
         ).join()
-
-
-class BGZipGvcf(GATKStage):
-    def _run(self):
-        return executor.execute(
-            '%s %s' % (toolset['bgzip'], self.sample_gvcf),
-            job_name='bgzip',
-            working_dir=self.gatk_run_dir,
-            cpus=1,
-            mem=8
-        ).join()
-
-
-class BGZipVcf(GATKStage):
-    def _run(self):
-        return executor.execute(
-            '%s %s' % (toolset['bgzip'], self.filter_snp_vcf),
-            job_name='bgzip',
-            working_dir=self.gatk_run_dir,
-            cpus=1,
-            mem=8
-        ).join()
-
-
-class TabixGvcf(GATKStage):
-    def _run(self):
-        return executor.execute(
-            '%s -p vcf %s' % (toolset['tabix'], self.sample_gvcf + '.gz'),
-            job_name='tabix',
-            working_dir=self.gatk_run_dir,
-            cpus=1,
-            mem=8
-        ).join()
-
-
-class TabixVcf(GATKStage):
-    def _run(self):
-        return executor.execute(
-            '%s -p vcf %s' % (toolset['tabix'], self.filter_snp_vcf + '.gz'),
-            job_name='tabix',
-            working_dir=self.gatk_run_dir,
-            cpus=1,
-            mem=8
-        ).join()
+        return variant_filter_status + bgzip_and_tabix(self.gatk_run_dir, self.filter_snp_vcf)
 
 
 def build_pipeline(dataset):
@@ -281,15 +254,11 @@ def build_pipeline(dataset):
     realign_target = stage(RealignTarget, previous_stages=[print_reads])
     realign = stage(Realign, previous_stages=[realign_target])
     haplotype = stage(HaplotypeCaller, input_bam=realign.indel_realigned_bam, previous_stages=[realign])
-    bgzip_gvcf = stage(BGZipGvcf, previous_stages=[haplotype])
-    tabix_gvcf = stage(TabixGvcf, previous_stages=[bgzip_gvcf])
-    genotype = stage(GenotypeGVCFs, previous_stages=[tabix_gvcf])
+    genotype = stage(GenotypeGVCFs, previous_stages=[haplotype])
     select_snp = stage(SelectVariants, previous_stages=[genotype])
     filter_snp = stage(VariantFiltration, previous_stages=[select_snp])
     vcfstats = stage(qc.VCFStats, vcf_file=filter_snp.filter_snp_vcf, previous_stages=[filter_snp])
-    bgzip_vcf = stage(BGZipVcf, previous_stages=[vcfstats])
-    tabix_vcf = stage(TabixVcf, previous_stages=[bgzip_vcf])
-    output = stage(common.SampleDataOutput, previous_stages=[tabix_vcf], output_fileset='gatk_var_calling')
+    output = stage(common.SampleDataOutput, previous_stages=[vcfstats], output_fileset='gatk_var_calling')
     _cleanup = stage(common.Cleanup, previous_stages=[output])
     review = stage(common.SampleReview, previous_stages=[_cleanup])
     return review

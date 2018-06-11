@@ -2,14 +2,10 @@
 import os
 from tests.test_analysisdriver import NamedMock, TestAnalysisDriver
 from analysis_driver.pipelines.variant_calling import GATKStage, BaseRecal, PrintReads, \
-    RealignTarget, Realign, HaplotypeCaller, GenotypeGVCFs, SelectVariants, VariantFiltration, TabixVcf, TabixGvcf, \
-    BGZipVcf, BGZipGvcf
-from unittest.mock import  patch, Mock
-
-
+    RealignTarget, Realign, HaplotypeCaller, GenotypeGVCFs, SelectVariants, VariantFiltration
+from unittest.mock import patch, call
 
 patch_executor = patch('analysis_driver.pipelines.variant_calling.executor.execute')
-
 
 
 class TestGATKStage():
@@ -51,10 +47,6 @@ class TestGATKStage():
         basename = self.g.basename
         assert basename == 'tests/assets/jobs/test_sample/gatk_var_calling/test_user_sample_id'
         os.path.isdir(basename)
-
-
-
-
 
     def test_sorted_bam(self):
         bam = self.g.sorted_bam
@@ -226,43 +218,46 @@ class TestHaplotypeCaller(TestVariantCalling):
     def test_run(self):
         with patch_executor as e:
             self.p._run()
-            assert e.call_count == 1
-            e.assert_called_with('java -Djava.io.tmpdir=tests/assets/jobs/test_dataset/gatk_var_calling '
-                                 '-XX:+UseSerialGC '
-                                 '-Xmx48G '
-                                 '-jar path/to/gatk '
-                                 '-R reference_genome '
-                                 '-T HaplotypeCaller '
-                                 '--read_filter BadCigar '
-                                 '--read_filter NotPrimaryAlignment '
-                                 '-o tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id.g.vcf '
-                                 '-l INFO '
-                                 '-U LENIENT_VCF_PROCESSING '
-                                 '-I test_bam --pair_hmm_implementation VECTOR_LOGLESS_CACHING '
-                                 '-ploidy 2 '
-                                 '--emitRefConfidence GVCF '
-                                 '--variant_index_type LINEAR '
-                                 '--variant_index_parameter 128000  '
-                                 '-nct 16 '
-                                 '--annotation BaseQualityRankSumTest '
-                                 '--annotation FisherStrand '
-                                 '--annotation GCContent '
-                                 '--annotation HaplotypeScore '
-                                 '--annotation HomopolymerRun '
-                                 '--annotation MappingQualityRankSumTest '
-                                 '--annotation MappingQualityZero '
-                                 '--annotation QualByDepth '
-                                 '--annotation ReadPosRankSumTest '
-                                 '--annotation RMSMappingQuality '
-                                 '--annotation DepthPerAlleleBySample '
-                                 '--annotation Coverage '
-                                 '--annotation ClippingRankSumTest '
-                                 '--annotation DepthPerSampleHC '
-                                 '--dbsnp /path/to/dbsnp.vcf.gz',
-                                 cpus=16,
-                                 job_name='gatk_haplotype_call',
-                                 mem=64,
-                                 working_dir='tests/assets/jobs/test_dataset/gatk_var_calling')
+            assert e.call_count == 3  # Command + bgzip + tabix
+            assert e.call_args_list[0] == call(
+                'java -Djava.io.tmpdir=tests/assets/jobs/test_dataset/gatk_var_calling '
+                '-XX:+UseSerialGC '
+                '-Xmx48G '
+                '-jar path/to/gatk '
+                '-R reference_genome '
+                '-T HaplotypeCaller '
+                '--read_filter BadCigar '
+                '--read_filter NotPrimaryAlignment '
+                '-o tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id.g.vcf '
+                '-l INFO '
+                '-U LENIENT_VCF_PROCESSING '
+                '-I test_bam --pair_hmm_implementation VECTOR_LOGLESS_CACHING '
+                '-ploidy 2 '
+                '--emitRefConfidence GVCF '
+                '--variant_index_type LINEAR '
+                '--variant_index_parameter 128000  '
+                '-nct 16 '
+                '--annotation BaseQualityRankSumTest '
+                '--annotation FisherStrand '
+                '--annotation GCContent '
+                '--annotation HaplotypeScore '
+                '--annotation HomopolymerRun '
+                '--annotation MappingQualityRankSumTest '
+                '--annotation MappingQualityZero '
+                '--annotation QualByDepth '
+                '--annotation ReadPosRankSumTest '
+                '--annotation RMSMappingQuality '
+                '--annotation DepthPerAlleleBySample '
+                '--annotation Coverage '
+                '--annotation ClippingRankSumTest '
+                '--annotation DepthPerSampleHC '
+                '--dbsnp /path/to/dbsnp.vcf.gz',
+                cpus=16,
+                job_name='gatk_haplotype_call',
+                mem=64,
+                working_dir='tests/assets/jobs/test_dataset/gatk_var_calling'
+            )
+            _test_bgzip_and_tabix(e, 'tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id.g.vcf')
 
 
 class TestGenotypeGVCFs(TestVariantCalling):
@@ -272,23 +267,26 @@ class TestGenotypeGVCFs(TestVariantCalling):
     def test_run(self):
         with patch_executor as e:
             self.p._run()
-            assert e.call_count == 1
-            e.assert_called_with('java -Djava.io.tmpdir=tests/assets/jobs/test_dataset/gatk_var_calling '
-                                 '-XX:+UseSerialGC '
-                                 '-Xmx16G '
-                                 '-jar path/to/gatk '
-                                 '-R reference_genome '
-                                 '-T GenotypeGVCFs '
-                                 '--read_filter BadCigar '
-                                 '--read_filter NotPrimaryAlignment '
-                                 '-o tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id.vcf '
-                                 '-l INFO '
-                                 '-U LENIENT_VCF_PROCESSING '
-                                 '--variant tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id.g.vcf.gz '
-                                 '-nt 16',
-                                 job_name='gatk_genotype_gvcfs',
-                                 mem=16,
-                                 working_dir='tests/assets/jobs/test_dataset/gatk_var_calling')
+            assert e.call_count == 3  # Command + bgzip + tabix
+            assert e.call_args_list[0] == call(
+                'java -Djava.io.tmpdir=tests/assets/jobs/test_dataset/gatk_var_calling '
+                '-XX:+UseSerialGC '
+                '-Xmx16G '
+                '-jar path/to/gatk '
+                '-R reference_genome '
+                '-T GenotypeGVCFs '
+                '--read_filter BadCigar '
+                '--read_filter NotPrimaryAlignment '
+                '-o tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id.vcf '
+                '-l INFO '
+                '-U LENIENT_VCF_PROCESSING '
+                '--variant tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id.g.vcf.gz '
+                '-nt 16',
+                job_name='gatk_genotype_gvcfs',
+                mem=16,
+                working_dir='tests/assets/jobs/test_dataset/gatk_var_calling'
+            )
+            _test_bgzip_and_tabix(e, 'tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id.vcf')
 
 
 class TestSelectVariants(TestVariantCalling):
@@ -298,23 +296,26 @@ class TestSelectVariants(TestVariantCalling):
     def test_run(self):
         with patch_executor as e:
             self.p._run()
-            assert e.call_count == 1
-            e.assert_called_with('java -Djava.io.tmpdir=tests/assets/jobs/test_dataset/gatk_var_calling '
-                                 '-XX:+UseSerialGC '
-                                 '-Xmx16G '
-                                 '-jar path/to/gatk '
-                                 '-R reference_genome '
-                                 '-T SelectVariants '
-                                 '--read_filter BadCigar '
-                                 '--read_filter NotPrimaryAlignment '
-                                 '-o tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id_raw_snp.vcf '
-                                 '-l INFO -U LENIENT_VCF_PROCESSING '
-                                 '-nt 16 '
-                                 '-V tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id.vcf '
-                                 '-selectType SNP ',
-                                 job_name='var_filtration',
-                                 mem=16,
-                                 working_dir='tests/assets/jobs/test_dataset/gatk_var_calling')
+            assert e.call_count == 3  # Command + bgzip + tabix
+            assert e.call_args_list[0] == call(
+                'java -Djava.io.tmpdir=tests/assets/jobs/test_dataset/gatk_var_calling '
+                '-XX:+UseSerialGC '
+                '-Xmx16G '
+                '-jar path/to/gatk '
+                '-R reference_genome '
+                '-T SelectVariants '
+                '--read_filter BadCigar '
+                '--read_filter NotPrimaryAlignment '
+                '-o tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id_raw_snp.vcf '
+                '-l INFO -U LENIENT_VCF_PROCESSING '
+                '-nt 16 '
+                '-V tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id.vcf.gz '
+                '-selectType SNP ',
+                job_name='var_filtration',
+                mem=16,
+                working_dir='tests/assets/jobs/test_dataset/gatk_var_calling'
+            )
+            _test_bgzip_and_tabix(e, 'tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id_raw_snp.vcf')
 
 
 class TestVariantFiltration(TestVariantCalling):
@@ -324,75 +325,35 @@ class TestVariantFiltration(TestVariantCalling):
     def test_run(self):
         with patch_executor as e:
             self.p._run()
-            assert e.call_count == 1
-            e.assert_called_with("java -Djava.io.tmpdir=tests/assets/jobs/test_dataset/gatk_var_calling "
-                                 "-XX:+UseSerialGC "
-                                 "-Xmx16G "
-                                 "-jar path/to/gatk "
-                                 "-R reference_genome "
-                                 "-T VariantFiltration "
-                                 "--read_filter BadCigar "
-                                 "--read_filter NotPrimaryAlignment "
-                                 "-o tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id_filter_snp.vcf "
-                                 "-l INFO "
-                                 "-U LENIENT_VCF_PROCESSING "
-                                 "-V tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id_raw_snp.vcf "
-                                 "--filterExpression 'QD < 2.0 || FS > 60.0 || MQ < 40.0 || MQRankSum < -12.5 || ReadPosRankSum < -8.0' "
-                                 "--filterName 'SNP_FILTER'",
-                                 job_name='var_filtration',
-                                 mem=16,
-                                 working_dir='tests/assets/jobs/test_dataset/gatk_var_calling')
-
-
-class TestBGZip(TestVariantCalling):
-
-    def test_bgzip_vcf(self):
-        p = BGZipVcf(dataset=self.dataset)
-        with patch_executor as e:
-            p._run()
-            cmds = (
-                'path/to/bgzip tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id_filter_snp.vcf',
+            assert e.call_count == 3  # Command + bgzip + tabix
+            assert e.call_args_list[0] == call(
+                "java -Djava.io.tmpdir=tests/assets/jobs/test_dataset/gatk_var_calling "
+                "-XX:+UseSerialGC "
+                "-Xmx16G "
+                "-jar path/to/gatk "
+                "-R reference_genome "
+                "-T VariantFiltration "
+                "--read_filter BadCigar "
+                "--read_filter NotPrimaryAlignment "
+                "-o tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id_filter_snp.vcf "
+                "-l INFO "
+                "-U LENIENT_VCF_PROCESSING "
+                "-V tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id_raw_snp.vcf.gz "
+                "--filterExpression 'QD < 2.0 || FS > 60.0 || MQ < 40.0 || MQRankSum < -12.5 || ReadPosRankSum < -8.0' "
+                "--filterName 'SNP_FILTER'",
+                job_name='var_filtration',
+                mem=16,
+                working_dir='tests/assets/jobs/test_dataset/gatk_var_calling'
             )
-            assert e.call_count == 1
-            e.assert_called_with(*cmds, cpus=1, job_name='bgzip', mem=8,
-                                 working_dir='tests/assets/jobs/test_dataset/gatk_var_calling')
-
-    def test_bgzip_gvcf(self):
-        p = BGZipGvcf(dataset=self.dataset)
-        with patch_executor as e:
-            p._run()
-            cmds = (
-                'path/to/bgzip tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id.g.vcf',
-            )
-            assert e.call_count == 1
-            e.assert_called_with(*cmds, cpus=1, job_name='bgzip', mem=8,
-                                 working_dir='tests/assets/jobs/test_dataset/gatk_var_calling')
+            _test_bgzip_and_tabix(e, 'tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id_filter_snp.vcf')
 
 
-class TestTabix(TestVariantCalling):
-
-    def test_tabix_vcf(self):
-        self.p = TabixVcf(dataset=self.dataset)
-        with patch_executor as e:
-            self.p._run()
-            cmds = (
-                'path/to/tabix -p vcf tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id_filter_snp.vcf.gz',
-            )
-            assert e.call_count == 1
-            e.assert_called_with(*cmds, cpus=1,
-                                 job_name='tabix',
-                                 mem=8,
-                                 working_dir='tests/assets/jobs/test_dataset/gatk_var_calling')
-
-    def test_tabix_gvcf(self):
-        self.p = TabixGvcf(dataset=self.dataset)
-        with patch_executor as e:
-            self.p._run()
-            cmds = (
-                'path/to/tabix -p vcf tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id.g.vcf.gz',
-            )
-            assert e.call_count == 1
-            e.assert_called_with(*cmds, cpus=1,
-                                 job_name='tabix',
-                                 mem=8,
-                                 working_dir='tests/assets/jobs/test_dataset/gatk_var_calling')
+def _test_bgzip_and_tabix(executor, vcf_file):
+    assert executor.call_args_list[1] == call(
+        'path/to/bgzip ' + vcf_file, cpus=1, job_name='bgzip', mem=8,
+        working_dir='tests/assets/jobs/test_dataset/gatk_var_calling'
+    )
+    assert executor.call_args_list[2] == call(
+        'path/to/tabix -p vcf ' + vcf_file + '.gz', cpus=1, job_name='tabix', mem=8,
+        working_dir='tests/assets/jobs/test_dataset/gatk_var_calling'
+    )
