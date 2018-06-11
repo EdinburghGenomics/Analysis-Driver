@@ -257,7 +257,7 @@ def build_pipeline(dataset):
     genotype = stage(GenotypeGVCFs, previous_stages=[haplotype])
     select_snp = stage(SelectVariants, previous_stages=[genotype])
     filter_snp = stage(VariantFiltration, previous_stages=[select_snp])
-    vcfstats = stage(qc.VCFStats, vcf_file=filter_snp.filter_snp_vcf, previous_stages=[filter_snp])
+    vcfstats = stage(qc.VCFStats, vcf_file=filter_snp.filter_snp_vcf + '.gz', previous_stages=[filter_snp])
     output = stage(common.SampleDataOutput, previous_stages=[vcfstats], output_fileset='gatk_var_calling')
     _cleanup = stage(common.Cleanup, previous_stages=[output])
     review = stage(common.SampleReview, previous_stages=[_cleanup])
