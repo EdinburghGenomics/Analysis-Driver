@@ -283,8 +283,8 @@ class IntegrationTest(TestCase):
                 base_dir=os.path.join(cfg['sample']['output_dir'], self.project_id, self.sample_id)
             )
 
-            self.expect_stage_data('mergefastqs', 'samplereview', 'bgzip', 'fastqscreen', 'printreads', 'blast',
-                                   'baserecal', 'samtoolsdepth', 'vcfstats', 'tabix', 'selectvariants', 'fastqc',
+            self.expect_stage_data('mergefastqs', 'samplereview', 'fastqscreen', 'printreads', 'blast',
+                                   'baserecal', 'samtoolsdepth', 'vcfstats', 'selectvariants', 'fastqc',
                                    'variantfiltration', 'cleanup', 'realign', 'realigntarget', 'samtoolsstats',
                                    'haplotypecaller', 'md5sum', 'bwamem', 'sampledataoutput', 'genotypegvcfs')
 
@@ -314,8 +314,8 @@ class IntegrationTest(TestCase):
             rest_communication.get_document('samples', where={'sample_id': self.sample_id}),
             integration_cfg['qc']['qc']
         )
-        self.expect_stage_data('vcfstats', 'tabix', 'selectvariants', 'fastqc', 'variantfiltration',
-                               'samtoolsdepth', 'mergefastqs', 'samtoolsstats', 'samplereview', 'bgzip',
+        self.expect_stage_data('vcfstats', 'selectvariants', 'fastqc', 'variantfiltration',
+                               'samtoolsdepth', 'mergefastqs', 'samtoolsstats', 'samplereview',
                                'haplotypecaller', 'cleanup', 'fastqscreen', 'md5sum', 'bwamem',
                                'sampledataoutput', 'genotypegvcfs', 'blast')
 

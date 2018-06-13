@@ -146,7 +146,7 @@ non_human_qc:
 
     vcf_stats:
         location: ['gatk_var_calling']
-        basename: '{user_sample_id}_filter_snp.stats'
+        basename: '{user_sample_id}_filter_snp.vcf.stats'
 
 
 gatk_var_calling:
@@ -208,7 +208,7 @@ gatk_var_calling:
 
     vcf_stats:
         location: ['gatk_var_calling']
-        basename: '{user_sample_id}_filter_snp.stats'
+        basename: '{user_sample_id}_filter_snp.vcf.stats'
 
 
 project_process:

@@ -194,3 +194,23 @@ class SampleReview(segmentation.Stage):
             use_data=True
         )
         return 0
+
+
+def bgzip_and_tabix(working_dir, vcf_file):
+    bgzip_status = executor.execute(
+        '%s %s' % (toolset['bgzip'], vcf_file),
+        job_name='bgzip',
+        working_dir=working_dir,
+        cpus=1,
+        mem=8
+    ).join()
+
+    tabix_status = executor.execute(
+        '%s -p vcf %s' % (toolset['tabix'], vcf_file + '.gz'),
+        job_name='tabix',
+        working_dir=working_dir,
+        cpus=1,
+        mem=8
+    ).join()
+
+    return bgzip_status + tabix_status
