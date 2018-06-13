@@ -4,7 +4,7 @@ from egcg_core.util import find_file
 from analysis_driver import segmentation
 from analysis_driver.util import bash_commands
 from analysis_driver.pipelines.common import Cleanup
-from analysis_driver.config import default as cfg, OutputFileConfiguration
+from analysis_driver.config import default as cfg, output_file_config
 from analysis_driver.quality_control import Relatedness, Peddy, GenotypeGVCFs, ParseRelatedness
 from analysis_driver.exceptions import PipelineError
 from analysis_driver.transfer_data import output_data_and_archive, create_output_links
@@ -54,12 +54,12 @@ class Output(segmentation.Stage):
     def _run(self):
         dir_with_linked_files = os.path.join(self.job_dir, 'relatedness_outfiles')
         os.makedirs(dir_with_linked_files, exist_ok=True)
-        output_cfg = OutputFileConfiguration('project_process')
+        output_file_config.set_pipeline_type('project_process')
         toolset.write_to_yaml(os.path.join(dir_with_linked_files, 'program_versions.yaml'))
 
         create_output_links(
             self.job_dir,
-            output_cfg,
+            output_file_config,
             dir_with_linked_files,
             project_id=self.dataset.name
         )
