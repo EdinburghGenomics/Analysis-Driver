@@ -1,10 +1,10 @@
 Changelog for Analysis-Driver
 =============================
 
-0.23 (unreleased)
------------------
+0.22.1 (2018-06-13)
+-------------------
 
-- Nothing changed yet.
+- Compress and index all variants files generated to avoid using GATK own index.
 
 
 0.22 (2018-06-04)
