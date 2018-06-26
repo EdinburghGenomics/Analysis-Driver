@@ -20,7 +20,8 @@ class TestSampleDataOutput(TestCommon):
         self.pseudo_links = os.path.join(self.data_output, 'pseudo_links')
         self.to_dir = os.path.join(self.data_output, 'to', '')
         os.makedirs(self.pseudo_links, exist_ok=True)
-        output_cfg = OutputFileConfiguration('non_human_qc')
+        output_cfg = OutputFileConfiguration()
+        output_cfg.set_pipeline_type('non_human_qc')
         for k in output_cfg.content:
             f = os.path.join(
                 self.pseudo_links,

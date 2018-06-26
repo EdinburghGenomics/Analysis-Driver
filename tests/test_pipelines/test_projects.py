@@ -78,14 +78,15 @@ class TestOutput(TestAnalysisDriver):
 
     @patch('analysis_driver.pipelines.projects.create_output_links')
     @patch('analysis_driver.pipelines.projects.output_data_and_archive')
-    @patch('analysis_driver.pipelines.projects.OutputFileConfiguration', return_value='OutfileConfig')
+    @patch('analysis_driver.pipelines.projects.output_file_config')
     def test_run(self, mocked_outfile_config, mocked_output_archive, mocked_output_links):
         with patch('analysis_driver.segmentation.BasicStage.job_dir', new=test_projects):
             self.o._run()
             mocked_output_archive.assert_called_with(relatedness_outfiles, '/path/to/input/dir/test_dataset')
+            mocked_outfile_config.set_pipeline_type.assert_called_with('project_process')
             mocked_output_links.assert_called_with(
                 test_projects,
-                'OutfileConfig',
+                mocked_outfile_config,
                 relatedness_outfiles,
                 project_id='test_dataset'
             )
