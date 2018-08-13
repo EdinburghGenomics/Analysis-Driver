@@ -220,6 +220,7 @@ class TestHaplotypeCaller(TestGATKStage):
     )
     xmx = 48
     exec_kwargs = {'cpus': 16, 'job_name': 'gatk_haplotype_call', 'mem': 64}
+    # _test_bgzip_and_tabix(e, 'tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id.g.vcf')
 
     def setUp(self):
         super().setUp()
@@ -242,6 +243,7 @@ class TestGenotypeGVCFs(TestGATKStage):
     )
     xmx = 16
     exec_kwargs = {'job_name': 'gatk_genotype_gvcfs', 'mem': 16}
+    # _test_bgzip_and_tabix(e, 'tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id.g.vcf')
 
 
 class TestSelectVariants(TestGATKStage):
@@ -260,6 +262,7 @@ class TestSelectVariants(TestGATKStage):
     )
     xmx = 16
     exec_kwargs = {'job_name': 'var_filtration', 'mem': 16}
+    # _test_bgzip_and_tabix(e, 'tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id_raw_snp.vcf')
 
 
 class TestVariantFiltration(TestGATKStage):
@@ -279,21 +282,33 @@ class TestVariantFiltration(TestGATKStage):
     )
     xmx = 16
     exec_kwargs = {'job_name': 'var_filtration', 'mem': 16}
+    # _test_bgzip_and_tabix(e, 'tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id_filter_snp.vcf')
 
 
-class TestBGZip(TestVarCallingStage):
-    cls = variant_calling.BGZip
-    exp_command = (
-        'path/to/bgzip ' + os.path.join(TestVarCallingStage.exp_run_dir, 'test_user_sample_id.g.vcf'),
-        'path/to/bgzip ' + os.path.join(TestVarCallingStage.exp_run_dir, 'test_user_sample_id_filter_snp.vcf')
+# class TestBGZip(TestVarCallingStage):
+#     cls = variant_calling.BGZip
+#     exp_command = (
+#         'path/to/bgzip ' + os.path.join(TestVarCallingStage.exp_run_dir, 'test_user_sample_id.g.vcf'),
+#         'path/to/bgzip ' + os.path.join(TestVarCallingStage.exp_run_dir, 'test_user_sample_id_filter_snp.vcf')
+#     )
+#     exec_kwargs = {'cpus': 1, 'job_name': 'bgzip', 'mem': 8}
+#
+#
+# class TestTabix(TestVarCallingStage):
+#     cls = variant_calling.Tabix
+#     exp_command = (
+#         'path/to/tabix -p vcf ' + os.path.join(TestVarCallingStage.exp_run_dir, 'test_user_sample_id.g.vcf.gz'),
+#         'path/to/tabix -p vcf ' + os.path.join(TestVarCallingStage.exp_run_dir, 'test_user_sample_id_filter_snp.vcf.gz'),
+#     )
+#     exec_kwargs = {'cpus': 1, 'job_name': 'tabix', 'mem': 8}
+
+
+def _test_bgzip_and_tabix(executor, vcf_file):
+    assert executor.call_args_list[1] == call(
+        'path/to/bgzip ' + vcf_file, cpus=1, job_name='bgzip', mem=8,
+        working_dir='tests/assets/jobs/test_dataset/gatk_var_calling'
     )
-    exec_kwargs = {'cpus': 1, 'job_name': 'bgzip', 'mem': 8}
-
-
-class TestTabix(TestVarCallingStage):
-    cls = variant_calling.Tabix
-    exp_command = (
-        'path/to/tabix -p vcf ' + os.path.join(TestVarCallingStage.exp_run_dir, 'test_user_sample_id.g.vcf.gz'),
-        'path/to/tabix -p vcf ' + os.path.join(TestVarCallingStage.exp_run_dir, 'test_user_sample_id_filter_snp.vcf.gz'),
+    assert executor.call_args_list[2] == call(
+        'path/to/tabix -p vcf ' + vcf_file + '.gz', cpus=1, job_name='tabix', mem=8,
+        working_dir='tests/assets/jobs/test_dataset/gatk_var_calling'
     )
-    exec_kwargs = {'cpus': 1, 'job_name': 'tabix', 'mem': 8}

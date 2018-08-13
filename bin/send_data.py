@@ -8,7 +8,7 @@ from egcg_core.app_logging import logging_default as log_cfg
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from analysis_driver.dataset import RunDataset
 from analysis_driver.report_generation import SampleCrawler, RunCrawler
-from analysis_driver.config import default as cfg, load_config, OutputFileConfiguration
+from analysis_driver.config import default as cfg, load_config, output_file_config
 
 
 def main():
@@ -75,10 +75,11 @@ def run_crawler(args):
 
 def sample_crawler(args):
     assert os.listdir(args.input_dir)
+    output_file_config.set_pipeline_type(args.output_fileset)
     c = SampleCrawler(
         args.sample_id,
         args.project_id, args.input_dir,
-        OutputFileConfiguration(args.output_fileset),
+        output_file_config,
         post_pipeline=True
     )
     if args.test:

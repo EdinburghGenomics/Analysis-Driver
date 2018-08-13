@@ -15,9 +15,14 @@ def load_config():
 
 
 class OutputFileConfiguration(Configuration):
-    def __init__(self, pipeline_type):
+    def __init__(self):
         super().__init__(etc_config('output_files.yaml'))
-        self.content = self.content[pipeline_type]
+        self.pipeline_set = False
+
+    def set_pipeline_type(self, pipeline_type):
+        if not self.pipeline_set:
+            self.content = self.content[pipeline_type]
+            self.pipeline_set = True
 
     def job_dir_file(self, outfile_id):
         outfile_record = self.content.get(outfile_id)
@@ -34,3 +39,4 @@ class OutputFileConfiguration(Configuration):
 default = cfg  # backward compatibility
 sample_sheet_config = Configuration(etc_config('sample_sheet_cfg.yaml'))
 tool_versioning_cfg = Configuration(etc_config('tool_versioning.yaml'))
+output_file_config = OutputFileConfiguration()

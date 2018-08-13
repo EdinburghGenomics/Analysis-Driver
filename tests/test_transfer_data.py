@@ -12,7 +12,8 @@ class TestTransferData(TestAnalysisDriver):
     def setUp(self):
         self.link_dir = os.path.join(self.data_output, 'linked_output_files')
         os.makedirs(self.link_dir, exist_ok=True)
-        self.output_cfg = OutputFileConfiguration('non_human_qc')
+        self.output_cfg = OutputFileConfiguration()
+        self.output_cfg.set_pipeline_type('non_human_qc')
 
     def tearDown(self):
         if os.path.isdir(self.link_dir):
@@ -27,7 +28,7 @@ class TestTransferData(TestAnalysisDriver):
 
         expected_outputs = ['10015AT0001.depth', '10015AT0001_R1_fastqc.html', '10015AT0001_R1_fastqc.zip',
                             '10015AT0001_R1_screen.txt', '10015AT0001_R2_fastqc.html',
-                            '10015AT0001_R2_fastqc.zip', '10015AT0001_filter_snp.stats',
+                            '10015AT0001_R2_fastqc.zip', '10015AT0001_filter_snp.vcf.stats',
                             'samtools_stats.txt', 'taxa_identified.json']
         assert sorted(os.listdir(output_files)) == expected_outputs == sorted(
             os.path.basename(f) for f in list_of_linked_files

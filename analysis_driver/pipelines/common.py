@@ -6,7 +6,7 @@ from egcg_core import executor, clarity, util, rest_communication
 from egcg_core.constants import ELEMENT_PROJECT_ID, ELEMENT_LANE, ELEMENT_NB_READS_CLEANED, ELEMENT_RUN_NAME
 from analysis_driver import segmentation, quality_control as qc
 from analysis_driver.util import bash_commands
-from analysis_driver.config import default as cfg, OutputFileConfiguration
+from analysis_driver.config import default as cfg, OutputFileConfiguration, output_file_config
 from analysis_driver.report_generation import SampleCrawler
 from analysis_driver.transfer_data import output_data_and_archive, create_output_links
 from analysis_driver.tool_versioning import toolset
@@ -85,7 +85,8 @@ class SampleDataOutput(segmentation.Stage):
 
     @property
     def output_cfg(self):
-        return OutputFileConfiguration(self.output_fileset)
+        output_file_config.set_pipeline_type(self.output_fileset)
+        return output_file_config
 
     def _run(self):
         dir_with_linked_files = os.path.join(self.job_dir, 'linked_output_files')
@@ -194,3 +195,23 @@ class SampleReview(segmentation.Stage):
             use_data=True
         )
         return 0
+
+
+def bgzip_and_tabix(working_dir, vcf_file):
+    bgzip_status = executor.execute(
+        '%s %s' % (toolset['bgzip'], vcf_file),
+        job_name='bgzip',
+        working_dir=working_dir,
+        cpus=1,
+        mem=8
+    ).join()
+
+    tabix_status = executor.execute(
+        '%s -p vcf %s' % (toolset['tabix'], vcf_file + '.gz'),
+        job_name='tabix',
+        working_dir=working_dir,
+        cpus=1,
+        mem=8
+    ).join()
+
+    return bgzip_status + tabix_status

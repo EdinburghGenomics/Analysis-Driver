@@ -16,10 +16,8 @@ def build_pipeline(dataset):
     genotype = stage(v.GenotypeGVCFs, previous_stages=[haplotype])
     select_snp = stage(v.SelectVariants, previous_stages=[genotype])
     filter_snp = stage(v.VariantFiltration, previous_stages=[select_snp])
-    vcfstats = stage(qc.VCFStats, vcf_file=g.filter_snp_vcf, previous_stages=[filter_snp])
-    bgzip = stage(v.BGZip, previous_stages=[vcfstats])
-    tabix = stage(v.Tabix, previous_stages=[bgzip])
-    data_output = stage(common.SampleDataOutput, previous_stages=[tabix], output_fileset='non_human_qc')
+    vcfstats = stage(qc.VCFStats, vcf_file=g.filter_snp_vcf + '.gz', previous_stages=[filter_snp])
+    data_output = stage(common.SampleDataOutput, previous_stages=[vcfstats], output_fileset='non_human_qc')
     cleanup = stage(common.Cleanup, previous_stages=[data_output])
     review = stage(common.SampleReview, previous_stages=[cleanup])
     return review
