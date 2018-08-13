@@ -1,5 +1,5 @@
 import os
-from unittest.mock import patch
+from unittest.mock import patch, call
 from tests.test_analysisdriver import NamedMock, TestAnalysisDriver
 from analysis_driver.pipelines import variant_calling
 
@@ -17,6 +17,7 @@ class TestVarCallingStage(TestAnalysisDriver):
     exp_command = None
     exec_kwargs = {}
     exp_run_dir = 'tests/assets/jobs/test_sample/gatk_var_calling'
+    exp_executions = 1
 
     def setUp(self):
         self.g = self.cls(dataset=fake_dataset)
@@ -83,12 +84,12 @@ class TestVarCallingStage(TestAnalysisDriver):
         assert self.g.known_indels == '/path/to/known/indels'
 
     def _check_calls(self, mocked_execute):
-        assert mocked_execute.call_count == 1
+        assert mocked_execute.call_count == self.exp_executions
         positional_args = self.exp_command
         if isinstance(positional_args, str):
             positional_args = (positional_args,)
 
-        mocked_execute.assert_called_with(
+        assert mocked_execute.call_args_list[0] == call(
             *positional_args,
             working_dir=self.exp_run_dir,
             **self.exec_kwargs
@@ -186,14 +187,32 @@ class TestRealign(TestGATKStage):
     exec_kwargs = {'job_name': 'gatk_indel_realign', 'mem': 16}
 
 
-class TestHaplotypeCaller(TestGATKStage):
+class TestBGZipTabixStage(TestGATKStage):
+    vcf = None
+    exp_executions = 3
+
+    def _check_calls(self, mocked_execute):
+        super()._check_calls(mocked_execute)
+
+        assert mocked_execute.call_args_list[1] == call(
+            'path/to/bgzip ' + self.vcf, cpus=1, job_name='bgzip', mem=8,
+            working_dir='tests/assets/jobs/test_sample/gatk_var_calling'
+        )
+        assert mocked_execute.call_args_list[2] == call(
+            'path/to/tabix -p vcf ' + self.vcf + '.gz', cpus=1, job_name='tabix', mem=8,
+            working_dir='tests/assets/jobs/test_sample/gatk_var_calling'
+        )
+
+
+class TestHaplotypeCaller(TestBGZipTabixStage):
+    vcf = 'tests/assets/jobs/test_sample/gatk_var_calling/test_user_sample_id.g.vcf'
     exp_command = (
         '[java] '
         '-R reference_genome '
         '-T HaplotypeCaller '
         '--read_filter BadCigar '
         '--read_filter NotPrimaryAlignment '
-        '-o tests/assets/jobs/test_sample/gatk_var_calling/test_user_sample_id.g.vcf '
+        '-o %s ' % vcf +
         '-l INFO '
         '-U LENIENT_VCF_PROCESSING '
         '-I test_bam --pair_hmm_implementation VECTOR_LOGLESS_CACHING '
@@ -220,95 +239,65 @@ class TestHaplotypeCaller(TestGATKStage):
     )
     xmx = 48
     exec_kwargs = {'cpus': 16, 'job_name': 'gatk_haplotype_call', 'mem': 64}
-    # _test_bgzip_and_tabix(e, 'tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id.g.vcf')
 
     def setUp(self):
         super().setUp()
         self.g = variant_calling.HaplotypeCaller(dataset=fake_dataset, input_bam='test_bam')
 
 
-class TestGenotypeGVCFs(TestGATKStage):
+class TestGenotypeGVCFs(TestBGZipTabixStage):
     cls = variant_calling.GenotypeGVCFs
+    vcf = 'tests/assets/jobs/test_sample/gatk_var_calling/test_user_sample_id.vcf'
     exp_command = (
         '[java] '
         '-R reference_genome '
         '-T GenotypeGVCFs '
         '--read_filter BadCigar '
         '--read_filter NotPrimaryAlignment '
-        '-o tests/assets/jobs/test_sample/gatk_var_calling/test_user_sample_id.vcf '
+        '-o %s ' % vcf +
         '-l INFO '
         '-U LENIENT_VCF_PROCESSING '
-        '--variant tests/assets/jobs/test_sample/gatk_var_calling/test_user_sample_id.g.vcf '
+        '--variant tests/assets/jobs/test_sample/gatk_var_calling/test_user_sample_id.g.vcf.gz '
         '-nt 16'
     )
     xmx = 16
     exec_kwargs = {'job_name': 'gatk_genotype_gvcfs', 'mem': 16}
-    # _test_bgzip_and_tabix(e, 'tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id.g.vcf')
 
 
-class TestSelectVariants(TestGATKStage):
+class TestSelectVariants(TestBGZipTabixStage):
     cls = variant_calling.SelectVariants
+    vcf = 'tests/assets/jobs/test_sample/gatk_var_calling/test_user_sample_id_raw_snp.vcf'
     exp_command = (
         '[java] '
         '-R reference_genome '
         '-T SelectVariants '
         '--read_filter BadCigar '
         '--read_filter NotPrimaryAlignment '
-        '-o tests/assets/jobs/test_sample/gatk_var_calling/test_user_sample_id_raw_snp.vcf '
+        '-o %s ' % vcf +
         '-l INFO -U LENIENT_VCF_PROCESSING '
         '-nt 16 '
-        '-V tests/assets/jobs/test_sample/gatk_var_calling/test_user_sample_id.vcf '
+        '-V tests/assets/jobs/test_sample/gatk_var_calling/test_user_sample_id.vcf.gz '
         '-selectType SNP '
     )
     xmx = 16
     exec_kwargs = {'job_name': 'var_filtration', 'mem': 16}
-    # _test_bgzip_and_tabix(e, 'tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id_raw_snp.vcf')
 
 
-class TestVariantFiltration(TestGATKStage):
+class TestVariantFiltration(TestBGZipTabixStage):
     cls = variant_calling.VariantFiltration
+    vcf = 'tests/assets/jobs/test_sample/gatk_var_calling/test_user_sample_id_filter_snp.vcf'
     exp_command = (
         '[java] '
         '-R reference_genome '
         '-T VariantFiltration '
         '--read_filter BadCigar '
         '--read_filter NotPrimaryAlignment '
-        '-o tests/assets/jobs/test_sample/gatk_var_calling/test_user_sample_id_filter_snp.vcf '
+        '-o %s ' % vcf +
         '-l INFO '
         '-U LENIENT_VCF_PROCESSING '
-        '-V tests/assets/jobs/test_sample/gatk_var_calling/test_user_sample_id_raw_snp.vcf '
+        '-V tests/assets/jobs/test_sample/gatk_var_calling/test_user_sample_id_raw_snp.vcf.gz '
         "--filterExpression 'QD < 2.0 || FS > 60.0 || MQ < 40.0 || MQRankSum < -12.5 || ReadPosRankSum < -8.0' "
         "--filterName 'SNP_FILTER'"
     )
     xmx = 16
     exec_kwargs = {'job_name': 'var_filtration', 'mem': 16}
-    # _test_bgzip_and_tabix(e, 'tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id_filter_snp.vcf')
-
-
-# class TestBGZip(TestVarCallingStage):
-#     cls = variant_calling.BGZip
-#     exp_command = (
-#         'path/to/bgzip ' + os.path.join(TestVarCallingStage.exp_run_dir, 'test_user_sample_id.g.vcf'),
-#         'path/to/bgzip ' + os.path.join(TestVarCallingStage.exp_run_dir, 'test_user_sample_id_filter_snp.vcf')
-#     )
-#     exec_kwargs = {'cpus': 1, 'job_name': 'bgzip', 'mem': 8}
-#
-#
-# class TestTabix(TestVarCallingStage):
-#     cls = variant_calling.Tabix
-#     exp_command = (
-#         'path/to/tabix -p vcf ' + os.path.join(TestVarCallingStage.exp_run_dir, 'test_user_sample_id.g.vcf.gz'),
-#         'path/to/tabix -p vcf ' + os.path.join(TestVarCallingStage.exp_run_dir, 'test_user_sample_id_filter_snp.vcf.gz'),
-#     )
-#     exec_kwargs = {'cpus': 1, 'job_name': 'tabix', 'mem': 8}
-
-
-def _test_bgzip_and_tabix(executor, vcf_file):
-    assert executor.call_args_list[1] == call(
-        'path/to/bgzip ' + vcf_file, cpus=1, job_name='bgzip', mem=8,
-        working_dir='tests/assets/jobs/test_dataset/gatk_var_calling'
-    )
-    assert executor.call_args_list[2] == call(
-        'path/to/tabix -p vcf ' + vcf_file + '.gz', cpus=1, job_name='tabix', mem=8,
-        working_dir='tests/assets/jobs/test_dataset/gatk_var_calling'
-    )
