@@ -2,6 +2,7 @@ import os
 from collections import defaultdict
 from egcg_core.rest_communication import get_documents
 from egcg_core.app_logging import AppLogger
+from egcg_core.util import query_dict
 from analysis_driver.dataset import RunDataset, SampleDataset, ProjectDataset
 from egcg_core.constants import DATASET_NEW, DATASET_READY, DATASET_FORCE_READY, DATASET_PROCESSING,\
     DATASET_PROCESSED_SUCCESS, DATASET_PROCESSED_FAIL, DATASET_ABORTED, DATASET_REPROCESS, DATASET_DELETED,\
@@ -60,7 +61,7 @@ class DatasetScanner(AppLogger):
     def _get_datasets_for_statuses(self, statuses):
         self.debug('Creating Datasets for status %s', ', '.join(statuses))
         return [
-            self.get_dataset(d[self.item_id], d.get('aggregated', {}).get('most_recent_proc'))
+            self.get_dataset(d[self.item_id], query_dict(d, 'aggregated.most_recent_proc'))
             for d in self._get_dataset_records_for_statuses(statuses)
         ]
 

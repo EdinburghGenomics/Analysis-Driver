@@ -126,7 +126,7 @@ class RealignTarget(GATKStage):
     def _run(self):
         realign_target_cmd = self.gatk_cmd(
             'RealignerTargetCreator', self.output_intervals,
-            input_bam=self.recal_bam, nct=1, nt=1
+            input_bam=self.recal_bam, xmx=32, nct=1, nt=1
         )
 
         if self.known_indels:
@@ -136,7 +136,7 @@ class RealignTarget(GATKStage):
             realign_target_cmd,
             job_name='gatk_realign_target',
             working_dir=self.gatk_run_dir,
-            mem=16
+            mem=32
         ).join()
 
 
@@ -146,6 +146,7 @@ class Realign(GATKStage):
             'IndelRealigner',
             self.indel_realigned_bam,
             input_bam=self.recal_bam,
+            xmx=32,
             nct=1,
             nt=1,
             ext=' -targetIntervals ' + self.output_intervals
@@ -156,7 +157,7 @@ class Realign(GATKStage):
             realign_cmd,
             job_name='gatk_indel_realign',
             working_dir=self.gatk_run_dir,
-            mem=16
+            mem=32
         ).join()
 
 

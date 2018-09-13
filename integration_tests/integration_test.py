@@ -9,14 +9,6 @@ from analysis_driver import client
 from integration_tests import mocked_data
 
 
-def execute(*cmd, shell=False):
-    p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=shell)
-    out, err = p.communicate()
-    if err:
-        raise ValueError(err)
-    return out.decode('utf-8').rstrip('\n')
-
-
 class IntegrationTest(ReportingAppIntegrationTest):
     patches = (
         patch('analysis_driver.client.load_config'),
@@ -51,6 +43,7 @@ class IntegrationTest(ReportingAppIntegrationTest):
         self.project_id = self.cfg['input_data']['project_id']
         self.sample_id = self.cfg['input_data']['sample_id']
         self.library_id = self.cfg['input_data']['library_id']
+        self.run_dir = os.path.dirname(os.getcwd())  # we're inside the checked out project, not the top level
 
     def setUp(self):
         super().setUp()
@@ -60,8 +53,10 @@ class IntegrationTest(ReportingAppIntegrationTest):
             run_elements.append(
                 {'run_id': self.run_id, 'project_id': self.project_id, 'sample_id': self.sample_id,
                  'library_id': self.library_id, 'run_element_id': '%s_%s_%s' % (self.run_id, lane, self.barcode),
-                 'useable': 'yes', 'barcode': self.barcode, 'lane': lane, 'clean_q30_bases_r1': 57000000,
-                 'clean_q30_bases_r2': 57000000, 'clean_reads': 1, 'clean_bases_r1': 60000000, 'clean_bases_r2': 60000000}
+                 'useable': 'yes', 'barcode': self.barcode, 'lane': lane, 'bases_r1': 60000000, 'bases_r2': 60000000,
+                 'clean_bases_r1': 58000000, 'clean_bases_r2': 58000000, 'q30_bases_r1': 57000000,
+                 'q30_bases_r2': 57000000, 'clean_q30_bases_r1': 56000000, 'clean_q30_bases_r2': 56000000,
+                 'clean_reads': 1}
             )
         for e in run_elements:
             rest_communication.post_entry('run_elements', e)
@@ -144,21 +139,28 @@ class IntegrationTest(ReportingAppIntegrationTest):
         self.expect_equal(obs, {s: 0 for s in stage_names}, 'stages')
 
     def _check_md5(self, fp):
-        if os.path.isfile(fp):
-            if fp.endswith('.gz'):
-                return execute('zcat ' + fp + ' | md5sum', shell=True).split()[0]
-            elif fp.endswith('.bam'):
-                cmd = "{samtools} idxstats {fp} | awk '{awk_exp}' | md5sum".format(
-                    samtools=self.cfg['samtools'],
-                    fp=fp,
-                    awk_exp='{seq_len+=$2; mapped+=$3; unmapped+=$4}END {print seq_len,mapped,unmapped}'
-                )
-                return execute(cmd, shell=True).split()[0]
-            elif os.path.isfile(fp + '.md5'):
-                with open(fp + '.md5', 'r') as f:
-                    return f.readline().split(' ')[0]
-            else:
-                return execute('md5sum', fp).split()[0]
+        if not os.path.isfile(fp):
+            return None
+
+        elif fp.endswith('.bam'):
+            cmd = "{samtools} idxstats {fp} | awk '{awk_exp}'".format(
+                samtools=self.cfg['samtools'],
+                fp=fp,
+                awk_exp='{seq_len+=$2; mapped+=$3; unmapped+=$4}END {print seq_len,mapped,unmapped}'
+            )
+        elif fp.endswith('.gz'):
+            cmd = 'zcat ' + fp
+        else:
+            cmd = 'cat ' + fp
+
+        cmd += " | sed 's/{cwd}//g' | md5sum".format(cwd=self.run_dir.replace('/', '\/'))
+        p = subprocess.Popen(cmd, stdout=subprocess.PIPE, shell=True)
+        out, err = p.communicate()
+
+        if err:
+            raise ValueError(err)
+
+        return out.decode('utf-8').rstrip('\n').split()[0]
 
     def test_demultiplexing(self):
         self.setup_test('run', 'test_demultiplexing', 'demultiplexing')
@@ -199,7 +201,7 @@ class IntegrationTest(ReportingAppIntegrationTest):
                 self.cfg['demultiplexing']['lane_qc']
             )
         self.expect_stage_data('setup', 'wellduplicates', 'bcl2fastq', 'phixdetection', 'fastqfilter', 'seqtkfqchk',
-                               'md5sum', 'fastqc', 'integritycheck', 'qcoutput', 'dataoutput', 'cleanup',
+                               'md5sum', 'fastqc', 'integritycheck', 'qcoutput1', 'dataoutput', 'cleanup',
                                'samtoolsdepthmulti', 'picardinsertsizemulti', 'qcoutput2', 'runreview',
                                'picardmarkduplicatemulti', 'samtoolsstatsmulti', 'bwaalignmulti')
 

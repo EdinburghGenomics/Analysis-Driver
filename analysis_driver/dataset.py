@@ -10,6 +10,7 @@ from collections import OrderedDict
 from egcg_core import rest_communication, clarity
 from egcg_core.app_logging import AppLogger
 from egcg_core.config import cfg
+from egcg_core.util import query_dict
 from egcg_core.constants import *  # pylint: disable=unused-import
 from egcg_core.exceptions import RestCommunicationError
 from analysis_driver import reader
@@ -446,7 +447,7 @@ class SampleDataset(Dataset):
 
     @property
     def data_source(self):
-        return [r.get('run_element_id') for r in self.run_elements]
+        return [r['run_element_id'] for r in self.run_elements]
 
     @property
     def user_sample_id(self):
@@ -481,8 +482,7 @@ class SampleDataset(Dataset):
         return self.sample['project_id']
 
     def _amount_data(self):
-        # TODO: drill down properly with EGCG-Core
-        y = self.sample.get('aggregated', {}).get('clean_yield_in_gb')
+        y = query_dict(self.sample, 'aggregated.clean_yield_in_gb')
         if y:
             return int(y * 1000000000)
         else:
@@ -515,8 +515,8 @@ class SampleDataset(Dataset):
         return self.data_threshold and self.pc_q30 > 75 and self._amount_data() > self.data_threshold
 
     def report(self):
-        runs = self.sample.get('aggregated', {}).get('run_ids')
-        non_useable_runs = sorted(set(r.get(ELEMENT_RUN_NAME) for r in self.non_useable_run_elements))
+        runs = query_dict(self.sample, 'aggregated.run_ids')
+        non_useable_runs = sorted(set(r[ELEMENT_RUN_NAME] for r in self.non_useable_run_elements))
 
         s = '%s  (%s / %s  from %s) ' % (
             super().report(), self._amount_data(), self.data_threshold, ', '.join(runs)
@@ -568,7 +568,7 @@ class ProjectDataset(Dataset):
 
     @property
     def data_source(self):
-        return [i.get('sample_id') for i in self.samples_processed]
+        return [s['sample_id'] for s in self.samples_processed]
 
     @property
     def samples_processed(self):
@@ -698,19 +698,18 @@ class MostRecentProc:
 
     def start(self):
         with self.lock:
+            payload = {
+                'pipeline_used': {
+                    'name': self.dataset.pipeline.name,
+                    'toolset_type': toolset.type,
+                    'toolset_version': toolset.version
+                }
+            }
+            if self.entity['status'] != DATASET_RESUME:
+                payload['date_started'] = now()
+
             self.update_entity(status=DATASET_PROCESSING, pid=os.getpid())
-            rest_communication.patch_entry(
-                'analysis_driver_procs',
-                {
-                    'pipeline_used': {
-                        'name': self.dataset.pipeline.name,
-                        'toolset_type': toolset.type,
-                        'toolset_version': toolset.version
-                    }
-                },
-                'proc_id',
-                self.proc_id
-            )
+            rest_communication.patch_entry('analysis_driver_procs', payload, 'proc_id', self.proc_id)
 
     def finish(self, status):
         with self.lock:

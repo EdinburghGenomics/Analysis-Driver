@@ -1,6 +1,6 @@
 import shutil
 from os import makedirs
-from os.path import join, exists, isdir, dirname, basename
+from os.path import join, exists, dirname, basename
 from egcg_core.config import cfg
 from egcg_core import executor, util, rest_communication, clarity, constants as c
 from analysis_driver import segmentation
@@ -28,14 +28,13 @@ class Setup(DemultiplexingStage):
         self.info('Input BCL folder: ' + self.input_dir)
         self.info('Fastq dir: ' + self.fastq_dir)
 
-        if not isdir(self.fastq_dir):
-            makedirs(self.fastq_dir)
+        makedirs(self.fastq_dir, exist_ok=True)
 
         # Send the information about the run to the rest API
         crawler = RunCrawler(self.dataset)
         crawler.send_data()
 
-        b = BCLValidator(self.job_dir, self.dataset)
+        b = BCLValidator(dataset=self.dataset)
         b.check_bcls()
 
         # Run is finished now so get the interop summary
@@ -123,7 +122,7 @@ class FastqFilter(DemultiplexingStage):
         self.debug('Q30 threshold: %s', q30_threshold)
         filter_lanes = {1: False, 2: False, 3: False, 4: False, 5: False, 6: False, 7: False, 8: False}
         for lane in self.dataset.lane_metrics:
-            if q30_threshold > float(lane['aggregated']['pc_q30']) > 0:
+            if q30_threshold > float(util.query_dict(lane, 'aggregated.pc_q30', ret_default=0)) > 0:
                 self.warning(
                     'Will apply cycle and tile filtering to lane %s: %%Q30=%s < %s',
                     lane['lane_number'],
