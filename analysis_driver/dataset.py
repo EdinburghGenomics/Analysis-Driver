@@ -705,7 +705,7 @@ class MostRecentProc:
                     'toolset_version': toolset.version
                 }
             }
-            if self.entity['status'] != DATASET_RESUME:
+            if self.get('status') != DATASET_RESUME:
                 payload['date_started'] = now()
 
             self.update_entity(status=DATASET_PROCESSING, pid=os.getpid())
