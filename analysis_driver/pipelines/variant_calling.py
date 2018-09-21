@@ -5,7 +5,7 @@ from egcg_core import executor
 from analysis_driver import segmentation
 from analysis_driver.pipelines import common
 from analysis_driver.config import default as cfg
-from analysis_driver.pipelines.common import bgzip_and_tabix  #
+from analysis_driver.pipelines.common import bgzip_and_tabix
 from analysis_driver.util.bash_commands import java_command
 from analysis_driver.tool_versioning import toolset
 from analysis_driver.exceptions import AnalysisDriverError

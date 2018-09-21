@@ -68,11 +68,14 @@ class IntegrationTest(ReportingAppIntegrationTest):
         )
         rest_communication.post_entry('projects', {'project_id': self.project_id, 'samples': [self.sample_id]})
 
+        self.dynamic_patches = []
         self._test_success = True
 
     def tearDown(self):
         super().tearDown()
         self._reset_logging()
+        for p in self.dynamic_patches:
+            p.stop()
 
     def setup_test(self, test_type, test_name, integration_section, species='Homo sapiens', analysis_type='Variant Calling gatk'):
         cfg.content['jobs_dir'] = os.path.join(os.path.dirname(os.getcwd()), 'jobs', test_name)
@@ -95,14 +98,10 @@ class IntegrationTest(ReportingAppIntegrationTest):
                 }
             )
 
-        patches = (
-            patch('egcg_core.clarity.get_sample', new=_fake_get_sample),
-            patch('egcg_core.clarity.get_species_from_sample', return_value=species)
-        )
-        for p in patches:
+        for p in (patch('egcg_core.clarity.get_sample', new=_fake_get_sample),
+                  patch('egcg_core.clarity.get_species_from_sample', return_value=species)):
+            self.dynamic_patches.append(p)
             p.start()
-
-        self.patches += patches
 
     @staticmethod
     def _reset_logging():

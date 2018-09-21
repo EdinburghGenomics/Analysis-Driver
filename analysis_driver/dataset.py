@@ -317,15 +317,17 @@ class RunDataset(Dataset):
         return self._run_elements
 
     @staticmethod
-    def _find_pooling_step_for_artifact(art, max_iterations=10):
+    def _find_pooling_step_for_artifact(art, expected_pooling_step_name=None, max_iterations=10):
         n = 1
         while len(art.input_artifact_list()) == 1:
             art = art.input_artifact_list()[0]
-            if n == max_iterations:
+            if n >= max_iterations:
                 raise ValueError('Cannot find pooling step after %s iterations' % max_iterations)
             n += 1
-        if art.parent_process.type.name != 'Create PDP Pool':
-            raise ValueError('Invalid step name: %s' % art.parent_process.type.name)
+        if expected_pooling_step_name and art.parent_process.type.name != expected_pooling_step_name:
+            raise ValueError(
+                'Mismatching step name: %s != %s' % (expected_pooling_step_name, art.parent_process.type.name)
+            )
         return art.input_artifact_list()
 
     def _run_elements_from_lims(self):
@@ -334,7 +336,7 @@ class RunDataset(Dataset):
         flowcell = set(self.lims_run.parent_processes()).pop().output_containers()[0]
         for lane in flowcell.placements:
             if len(flowcell.placements[lane].reagent_labels) > 1:
-                artifacts = self._find_pooling_step_for_artifact(flowcell.placements[lane])
+                artifacts = self._find_pooling_step_for_artifact(flowcell.placements[lane], 'Create PDP Pool')
             else:
                 artifacts = [flowcell.placements[lane]]
             for artifact in artifacts:
