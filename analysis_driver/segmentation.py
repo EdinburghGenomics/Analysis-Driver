@@ -28,19 +28,19 @@ class Encoder(json.JSONEncoder):
 
 
 class BasicStage(luigi.Task, AppLogger):
-    __stagename__ = None
     exit_status = None
     retry_count = 1  # turn off automatic retrying upon task failure
- 
+
+    stage_name = Parameter(default=None)
     previous_stages = ListParameter(default=[])
     dataset = Parameter()
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.stage_name = self.stage_name or self.__class__.__name__.lower()
+
     def output(self):
         return [luigi.LocalTarget(join(self.job_dir, '.' + self.stage_name + '.stage'))]
-
-    @property
-    def stage_name(self):
-        return self.__stagename__ or self.__class__.__name__.lower()
 
     def requires(self):
         for s in self.previous_stages:

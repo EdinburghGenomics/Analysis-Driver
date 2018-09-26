@@ -33,7 +33,7 @@ def remove_phix(sample_id):
     # Get the sample specific config
     cfg.merge(cfg['sample'])
     run_elements = rest_communication.get_documents('run_elements', where={'sample_id': sample_id})
-    rundataset = RunDataset(run_elements[0].get(c.ELEMENT_RUN_NAME))
+    rundataset = RunDataset(run_elements[0][c.ELEMENT_RUN_NAME])
 
     rundataset.resolve_pipeline_and_toolset()
     job_dir = os.path.join(cfg['jobs_dir'], 'manual_' + sample_id)
@@ -42,15 +42,15 @@ def remove_phix(sample_id):
     # Find all fastq files
     fastq_pairs = []
     for run_element in run_elements:
-        run_dir = os.path.join(cfg['input_dir'], run_element.get(c.ELEMENT_RUN_NAME))
+        run_dir = os.path.join(cfg['input_dir'], run_element[c.ELEMENT_RUN_NAME])
         fqs = util.find_fastqs(
             run_dir,
-            run_element.get(c.ELEMENT_PROJECT_ID),
-            run_element.get(c.ELEMENT_SAMPLE_INTERNAL_ID),
-            run_element.get(c.ELEMENT_LANE)
+            run_element[c.ELEMENT_PROJECT_ID],
+            run_element[c.ELEMENT_SAMPLE_INTERNAL_ID],
+            run_element[c.ELEMENT_LANE]
         )
         fqs.sort()
-        if run_element.get(c.ELEMENT_NB_READS_PASS_FILTER) > 0:
+        if run_element.get(c.ELEMENT_NB_READS_PASS_FILTER, 0) > 0:
             assert len(fqs) == 2
             fastq_pairs.append(fqs)
 
@@ -129,14 +129,21 @@ def remove_phix(sample_id):
     if md5_status != 0:
         raise PipelineError('Md5 execution for sample %s failed with status %s' % (sample_id, md5_status))
 
-    for run_id in set(r.get(c.ELEMENT_RUN_NAME) for r in run_elements):
+    for run_id in set(r[c.ELEMENT_RUN_NAME] for r in run_elements if r.get(c.ELEMENT_NB_READS_PASS_FILTER, 0) > 0):
         rd = RunDataset(run_id)
         run_dir = os.path.join(cfg['input_dir'], run_id)
-        crawler = RunCrawler(rd, run_dir=run_dir, stage=RunCrawler.STAGE_MAPPING)
-        crawler.send_data()
-
-        # Ensure that the tape is up to date
-        archive_management.archive_directory(run_dir)
+        try:
+            crawler = RunCrawler(rd, run_dir=run_dir, stage=RunCrawler.STAGE_MAPPING)
+            crawler.send_data()
+            # Ensure that the tape is up to date
+            archive_management.archive_directory(run_dir)
+        except Exception as e:
+            app_logger.error(
+                'Upload of metrics to reporting app or archiving for run %s encountered a %s exception: %s',
+                run_id,
+                e.__class__.__name__,
+                e
+            )
 
 
 if __name__ == '__main__':

@@ -169,7 +169,7 @@ class TestRealignTarget(TestVariantCalling):
             assert e.call_count == 1
             e.assert_called_with('java -Djava.io.tmpdir=tests/assets/jobs/test_dataset/gatk_var_calling '
                                  '-XX:+UseSerialGC '
-                                 '-Xmx16G '
+                                 '-Xmx32G '
                                  '-jar path/to/gatk '
                                  '-R reference_genome '
                                  '-T RealignerTargetCreator '
@@ -181,7 +181,7 @@ class TestRealignTarget(TestVariantCalling):
                                  '-I tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id_recal.bam '
                                  '--known /path/to/known/indels',
                                  job_name='gatk_realign_target',
-                                 mem=16,
+                                 mem=32,
                                  working_dir='tests/assets/jobs/test_dataset/gatk_var_calling')
 
 
@@ -195,7 +195,7 @@ class TestRealign(TestVariantCalling):
             assert e.call_count == 1
             e.assert_called_with('java -Djava.io.tmpdir=tests/assets/jobs/test_dataset/gatk_var_calling '
                                  '-XX:+UseSerialGC '
-                                 '-Xmx16G '
+                                 '-Xmx32G '
                                  '-jar path/to/gatk '
                                  '-R reference_genome '
                                  '-T IndelRealigner'
@@ -207,7 +207,7 @@ class TestRealign(TestVariantCalling):
                                  '-targetIntervals tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id.intervals '
                                  '--knownAlleles /path/to/known/indels',
                                  job_name='gatk_indel_realign',
-                                 mem=16,
+                                 mem=32,
                                  working_dir='tests/assets/jobs/test_dataset/gatk_var_calling')
 
 

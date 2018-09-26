@@ -6,7 +6,7 @@ from egcg_core import executor, clarity, util, rest_communication
 from egcg_core.constants import ELEMENT_PROJECT_ID, ELEMENT_LANE, ELEMENT_NB_READS_CLEANED, ELEMENT_RUN_NAME
 from analysis_driver import segmentation, quality_control as qc
 from analysis_driver.util import bash_commands
-from analysis_driver.config import default as cfg, OutputFileConfiguration, output_file_config
+from analysis_driver.config import default as cfg, output_file_config
 from analysis_driver.report_generation import SampleCrawler
 from analysis_driver.transfer_data import output_data_and_archive, create_output_links
 from analysis_driver.tool_versioning import toolset

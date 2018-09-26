@@ -1,5 +1,6 @@
 import os
 from analysis_driver import quality_control as qc
+from luigi import Parameter
 from egcg_core import executor
 from analysis_driver import segmentation
 from analysis_driver.pipelines import common
@@ -8,7 +9,6 @@ from analysis_driver.pipelines.common import bgzip_and_tabix
 from analysis_driver.util.bash_commands import java_command
 from analysis_driver.tool_versioning import toolset
 from analysis_driver.exceptions import AnalysisDriverError
-from luigi import Parameter
 
 toolset_type = 'non_human_sample_processing'
 name = 'variant_calling'
@@ -22,7 +22,6 @@ class GATKStage(segmentation.Stage):
         return d
 
     def gatk_cmd(self, run_cls, output, input_bam=None, xmx=16, nct=16, nt=16, ext=None):
-
         base_cmd = java_command(memory=xmx, tmp_dir=self.gatk_run_dir, jar=toolset['gatk']) + (
                     '-R {ref} -T {run_cls} --read_filter BadCigar --read_filter NotPrimaryAlignment '
                     '-o {output} -l INFO -U LENIENT_VCF_PROCESSING')
@@ -127,7 +126,7 @@ class RealignTarget(GATKStage):
     def _run(self):
         realign_target_cmd = self.gatk_cmd(
             'RealignerTargetCreator', self.output_intervals,
-            input_bam=self.recal_bam, nct=1, nt=1
+            input_bam=self.recal_bam, xmx=32, nct=1, nt=1
         )
 
         if self.known_indels:
@@ -137,7 +136,7 @@ class RealignTarget(GATKStage):
             realign_target_cmd,
             job_name='gatk_realign_target',
             working_dir=self.gatk_run_dir,
-            mem=16
+            mem=32
         ).join()
 
 
@@ -147,6 +146,7 @@ class Realign(GATKStage):
             'IndelRealigner',
             self.indel_realigned_bam,
             input_bam=self.recal_bam,
+            xmx=32,
             nct=1,
             nt=1,
             ext=' -targetIntervals ' + self.output_intervals
@@ -157,7 +157,7 @@ class Realign(GATKStage):
             realign_cmd,
             job_name='gatk_indel_realign',
             working_dir=self.gatk_run_dir,
-            mem=16
+            mem=32
         ).join()
 
 

@@ -4,7 +4,7 @@ import pytest
 from sys import modules
 from unittest.mock import patch, Mock, PropertyMock, call
 from egcg_core import constants as c
-from integration_tests.mocked_data import MockedSamples, MockedRunProcess
+from integration_tests.mocked_data import MockedSample, MockedRunProcess
 from tests.test_analysisdriver import TestAnalysisDriver, NamedMock
 from analysis_driver.exceptions import AnalysisDriverError, SequencingRunError
 from analysis_driver.dataset import Dataset, RunDataset, SampleDataset, ProjectDataset, MostRecentProc
@@ -199,15 +199,15 @@ class TestDataset(TestAnalysisDriver):
             'toolset_version': 0
         }
 
-mocked_lane_user_prep_artifact1 = NamedMock(real_name='art1', reagent_labels=[], samples=[MockedSamples(real_name='sample1')])
-mocked_lane_user_prep_artifact2 = NamedMock(real_name='art2', reagent_labels=[], samples=[MockedSamples(real_name='sample2')])
+mocked_lane_user_prep_artifact1 = NamedMock(real_name='art1', reagent_labels=[], samples=[MockedSample(real_name='sample1')])
+mocked_lane_user_prep_artifact2 = NamedMock(real_name='art2', reagent_labels=[], samples=[MockedSample(real_name='sample2')])
 
-mocked_lane_artifact1 = NamedMock(real_name='art1', reagent_labels=['D701-D502 (ATTACTCG-ATAGAGGC)'], samples=[MockedSamples(real_name='sample1')])
-mocked_lane_artifact2 = NamedMock(real_name='art2', reagent_labels=['D702-D502 (TCCGGAGA-ATAGAGGC)'], samples=[MockedSamples(real_name='sample2')])
-mocked_lane_artifact3 = NamedMock(real_name='art3', reagent_labels=['D703-D502 (CGCTCATT-ATAGAGGC)'], samples=[MockedSamples(real_name='sample3')])
-mocked_lane_artifact4 = NamedMock(real_name='art4', reagent_labels=['D704-D502 (GAGATTCC-ATAGAGGC)'], samples=[MockedSamples(real_name='sample4')])
-mocked_lane_artifact5 = NamedMock(real_name='art5', reagent_labels=['D705-D502 (ATTCAGAA-ATAGAGGC)'], samples=[MockedSamples(real_name='sample5')])
-mocked_lane_artifact6 = NamedMock(real_name='art6', reagent_labels=['D706-D502 (GAATTCGT-ATAGAGGC)'], samples=[MockedSamples(real_name='sample6')])
+mocked_lane_artifact1 = NamedMock(real_name='art1', reagent_labels=['D701-D502 (ATTACTCG-ATAGAGGC)'], samples=[MockedSample(real_name='sample1')])
+mocked_lane_artifact2 = NamedMock(real_name='art2', reagent_labels=['D702-D502 (TCCGGAGA-ATAGAGGC)'], samples=[MockedSample(real_name='sample2')])
+mocked_lane_artifact3 = NamedMock(real_name='art3', reagent_labels=['D703-D502 (CGCTCATT-ATAGAGGC)'], samples=[MockedSample(real_name='sample3')])
+mocked_lane_artifact4 = NamedMock(real_name='art4', reagent_labels=['D704-D502 (GAGATTCC-ATAGAGGC)'], samples=[MockedSample(real_name='sample4')])
+mocked_lane_artifact5 = NamedMock(real_name='art5', reagent_labels=['D705-D502 (ATTCAGAA-ATAGAGGC)'], samples=[MockedSample(real_name='sample5')])
+mocked_lane_artifact6 = NamedMock(real_name='art6', reagent_labels=['D706-D502 (GAATTCGT-ATAGAGGC)'], samples=[MockedSample(real_name='sample6')])
 mocked_lane_artifact_pool = NamedMock(real_name='artpool', reagent_labels=[
     'D703-D502 (CGCTCATT-ATAGAGGC)',
     'D704-D502 (GAGATTCC-ATAGAGGC)',
@@ -531,7 +531,11 @@ class TestMostRecentProc(TestAnalysisDriver):
     @patched_patch
     def test_sync(self, mocked_patch):
         self.proc.sync()
-        assert self.proc._entity == {'proc_id': 'a_proc_id', 'dataset_type': 'test', 'dataset_name': 'test'}
+        assert self.proc._entity == {
+            'proc_id': 'a_proc_id',
+            'dataset_type': 'test',
+            'dataset_name': 'test'
+        }
 
         self.proc.entity.update({'this': 'that'})
         self.proc.sync()
@@ -555,10 +559,11 @@ class TestMostRecentProc(TestAnalysisDriver):
                                     'dataset_name': 'test', 'other': 'another'}
         mocked_sync.assert_called()
 
+    @patch(ppath + 'now', return_value='now')
     @patch(ppath + 'toolset', new=Mock(type='some kind of toolset', version=3))
     @patched_patch
     @patched_update
-    def test_start(self, mocked_update, mocked_patch):
+    def test_start(self, mocked_update, mocked_patch, mocked_now):
         self.proc.dataset.pipeline = NamedMock(real_name='some kind of variant calling')
         with patched_pid:
             self.proc.start()
@@ -566,6 +571,7 @@ class TestMostRecentProc(TestAnalysisDriver):
         mocked_patch.assert_called_with(
             'analysis_driver_procs',
             {
+                'date_started': 'now',
                 'pipeline_used': {
                     'name': 'some kind of variant calling',
                     'toolset_type': 'some kind of toolset',

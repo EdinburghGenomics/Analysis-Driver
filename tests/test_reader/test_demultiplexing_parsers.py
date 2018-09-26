@@ -169,7 +169,7 @@ class TestDemultiplexingStats(TestAnalysisDriver):
         assert dm.parse_fastq_filterer_stats(fastqfilterer_stats) == expected_dict
 
     def test_parse_interop_summary(self):
-        interop_summary = os.path.join(self.assets_path, 'test_crawlers','test_run_dir', 'interop_summary.txt')
+        interop_summary = os.path.join(self.assets_path, 'test_crawlers', 'test_run_dir', 'interop_summary.txt')
 
         res = dm.parse_interop_summary(interop_summary)
         expected_metrics = {

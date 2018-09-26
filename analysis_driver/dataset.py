@@ -10,6 +10,7 @@ from collections import OrderedDict
 from egcg_core import rest_communication, clarity
 from egcg_core.app_logging import AppLogger
 from egcg_core.config import cfg
+from egcg_core.util import query_dict
 from egcg_core.constants import *  # pylint: disable=unused-import
 from egcg_core.exceptions import RestCommunicationError
 from analysis_driver import reader
@@ -51,7 +52,7 @@ class Dataset(AppLogger):
 
     @property
     def data_source(self):
-        raise NotImplementedError
+        return None
 
     @property
     def running_stages(self):
@@ -84,8 +85,8 @@ class Dataset(AppLogger):
 
     def fail(self, exit_status):
         self._assert_status(DATASET_PROCESSING)
-        self.ntf.end_pipeline(exit_status)
         self.most_recent_proc.finish(DATASET_PROCESSED_FAIL)
+        self.ntf.end_pipeline(exit_status)
 
     def abort(self):
         self.most_recent_proc.finish(DATASET_ABORTED)
@@ -229,8 +230,7 @@ class NoCommunicationDataset(Dataset):
         return None
 
 
-class NoCommuncationSampleDataset(NoCommunicationDataset):
-
+class NoCommunicationSampleDataset(NoCommunicationDataset):
     def __init__(self, name):
         super().__init__(name)
         self._run_elements = None
@@ -316,27 +316,27 @@ class RunDataset(Dataset):
             self._run_elements = self._run_elements_from_lims()
         return self._run_elements
 
+    @staticmethod
+    def _find_pooling_step_for_artifact(art, expected_pooling_step_name=None, max_iterations=10):
+        n = 1
+        while len(art.input_artifact_list()) == 1:
+            art = art.input_artifact_list()[0]
+            if n >= max_iterations:
+                raise ValueError('Cannot find pooling step after %s iterations' % max_iterations)
+            n += 1
+        if expected_pooling_step_name and art.parent_process.type.name != expected_pooling_step_name:
+            raise ValueError(
+                'Mismatching step name: %s != %s' % (expected_pooling_step_name, art.parent_process.type.name)
+            )
+        return art.input_artifact_list()
+
     def _run_elements_from_lims(self):
         run_elements = []
-
-        def find_pooling_step_for_artifact(art, max_iteration=10, expected_pooling_step_name=None):
-            nb_iteration = 0
-            while len(art.input_artifact_list()) == 1:
-                art = art.input_artifact_list()[0]
-                if nb_iteration == max_iteration:
-                    raise ValueError('Cannot find pooling step after %s iteraction' % max_iteration)
-                nb_iteration += 1
-            if expected_pooling_step_name and art.parent_process.type.name != expected_pooling_step_name:
-                raise ValueError(
-                    'Mismatching Step name: %s != %s' % (expected_pooling_step_name, art.parent_process.type.name)
-                )
-            return art.input_artifact_list()
 
         flowcell = set(self.lims_run.parent_processes()).pop().output_containers()[0]
         for lane in flowcell.placements:
             if len(flowcell.placements[lane].reagent_labels) > 1:
-                artifacts = find_pooling_step_for_artifact(flowcell.placements[lane],
-                                                           expected_pooling_step_name='Create PDP Pool')
+                artifacts = self._find_pooling_step_for_artifact(flowcell.placements[lane], 'Create PDP Pool')
             else:
                 artifacts = [flowcell.placements[lane]]
             for artifact in artifacts:
@@ -387,10 +387,6 @@ class RunDataset(Dataset):
         return len(previous_r[ELEMENT_BARCODE])
 
     @property
-    def data_source(self):
-        return None
-
-    @property
     def lims_run(self):
         if not self._lims_run:
             self._lims_run = clarity.get_run(self.name)
@@ -406,12 +402,8 @@ class RunDataset(Dataset):
         return self.lims_run.udf.get('Run Status') in ['RunStarted', 'RunPaused']
 
     @property
-    def run_metrics(self):
-        return rest_communication.get_document('aggregate/all_runs', match={'run_id': self.name})
-
-    @property
     def lane_metrics(self):
-        return rest_communication.get_documents('aggregate/run_elements_by_lane', match={'run_id': self.name})
+        return rest_communication.get_documents('lanes', where={'run_id': self.name})
 
     def _default_pipeline(self):
         return 'demultiplexing'
@@ -457,7 +449,7 @@ class SampleDataset(Dataset):
 
     @property
     def data_source(self):
-        return [r.get('run_element_id') for r in self.run_elements]
+        return [r['run_element_id'] for r in self.run_elements]
 
     @property
     def user_sample_id(self):
@@ -492,8 +484,7 @@ class SampleDataset(Dataset):
         return self.sample['project_id']
 
     def _amount_data(self):
-        # TODO: drill down properly with EGCG-Core
-        y = self.sample.get('aggregated', {}).get('clean_yield_in_gb')
+        y = query_dict(self.sample, 'aggregated.clean_yield_in_gb')
         if y:
             return int(y * 1000000000)
         else:
@@ -526,8 +517,8 @@ class SampleDataset(Dataset):
         return self.data_threshold and self.pc_q30 > 75 and self._amount_data() > self.data_threshold
 
     def report(self):
-        runs = self.sample.get('aggregated', {}).get('run_ids')
-        non_useable_runs = sorted(set(r.get(ELEMENT_RUN_NAME) for r in self.non_useable_run_elements))
+        runs = query_dict(self.sample, 'aggregated.run_ids')
+        non_useable_runs = sorted(set(r[ELEMENT_RUN_NAME] for r in self.non_useable_run_elements))
 
         s = '%s  (%s / %s  from %s) ' % (
             super().report(), self._amount_data(), self.data_threshold, ', '.join(runs)
@@ -575,14 +566,11 @@ class ProjectDataset(Dataset):
         self._genome_version = None
 
     def _is_ready(self):
-        if self.number_of_samples > 0 and len(self.samples_processed) >= self.number_of_samples:
-            return True
-        else:
-            return False
+        return 0 < self.number_of_samples <= len(self.samples_processed)
 
     @property
     def data_source(self):
-        return [i.get('sample_id') for i in self.samples_processed]
+        return [s['sample_id'] for s in self.samples_processed]
 
     @property
     def samples_processed(self):
@@ -712,19 +700,18 @@ class MostRecentProc:
 
     def start(self):
         with self.lock:
+            payload = {
+                'pipeline_used': {
+                    'name': self.dataset.pipeline.name,
+                    'toolset_type': toolset.type,
+                    'toolset_version': toolset.version
+                }
+            }
+            if self.get('status') != DATASET_RESUME:
+                payload['date_started'] = now()
+
             self.update_entity(status=DATASET_PROCESSING, pid=os.getpid())
-            rest_communication.patch_entry(
-                'analysis_driver_procs',
-                {
-                    'pipeline_used': {
-                        'name': self.dataset.pipeline.name,
-                        'toolset_type': toolset.type,
-                        'toolset_version': toolset.version
-                    }
-                },
-                'proc_id',
-                self.proc_id
-            )
+            rest_communication.patch_entry('analysis_driver_procs', payload, 'proc_id', self.proc_id)
 
     def finish(self, status):
         with self.lock:

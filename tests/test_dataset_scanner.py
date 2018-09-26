@@ -4,7 +4,7 @@ from egcg_core.constants import DATASET_READY, DATASET_NEW, DATASET_ABORTED
 from analysis_driver.dataset import RunDataset, SampleDataset
 from analysis_driver.dataset_scanner import DatasetScanner, RunScanner, SampleScanner
 from tests.test_analysisdriver import TestAnalysisDriver, NamedMock
-from tests.test_dataset import patched_required_yield, fake_proc
+from tests.test_dataset import fake_proc
 
 
 class FakeRunDataset(RunDataset):
@@ -124,11 +124,9 @@ class TestSampleScanner(TestScanner):
         self.scanner = SampleScanner({'input_dir': self.base_dir})
 
     def test_get_dataset(self):
-        with patched_required_yield():
-            observed = self.scanner.get_dataset('test_dataset')
-            expected = SampleDataset('test_dataset')
-            assert observed.name == expected.name
-            assert observed.data_threshold == expected.data_threshold
+        observed = self.scanner.get_dataset('test_dataset')
+        expected = SampleDataset('test_dataset')
+        assert observed.name == expected.name
 
     @patched_get([{'sample_id': 'a_sample_id'}])
     def test_get_dataset_records_for_statuses(self, mocked_get):
@@ -143,12 +141,7 @@ class TestSampleScanner(TestScanner):
 
     @patched_get([{'sample_id': 'a_sample_id'}])
     def test_get_datasets_for_statuses(self, mocked_get):
-        patched_list_samples = patch(
-            ppath('get_list_of_samples'),
-            return_value=[NamedMock(real_name='a_sample_id', udf={'Yield for Quoted Coverage (Gb)': 1})]
-        )
-        with patched_list_samples:
-            d = self.scanner._get_datasets_for_statuses([DATASET_NEW])[0]
+        d = self.scanner._get_datasets_for_statuses([DATASET_NEW])[0]
         assert d.name == 'a_sample_id'
         mocked_get.assert_any_call(
             'samples',

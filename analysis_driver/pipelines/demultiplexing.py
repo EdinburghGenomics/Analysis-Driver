@@ -1,6 +1,6 @@
 import shutil
 from os import makedirs
-from os.path import join, exists, isdir, dirname, basename
+from os.path import join, exists, dirname, basename
 from egcg_core.config import cfg
 from egcg_core import executor, util, rest_communication, clarity, constants as c
 from analysis_driver import segmentation
@@ -28,14 +28,13 @@ class Setup(DemultiplexingStage):
         self.info('Input BCL folder: ' + self.input_dir)
         self.info('Fastq dir: ' + self.fastq_dir)
 
-        if not isdir(self.fastq_dir):
-            makedirs(self.fastq_dir)
+        makedirs(self.fastq_dir, exist_ok=True)
 
         # Send the information about the run to the rest API
         crawler = RunCrawler(self.dataset)
         crawler.send_data()
 
-        b = BCLValidator(self.job_dir, self.dataset)
+        b = BCLValidator(dataset=self.dataset)
         b.check_bcls()
 
         # Run is finished now so get the interop summary
@@ -95,13 +94,12 @@ class Bcl2Fastq(DemultiplexingStage):
 
 
 class PhixDetection(DemultiplexingStage):
-
     def _run(self):
-
         cmds = []
         for fq1, fq2 in util.find_all_fastq_pairs(self.fastq_dir):
             read_name_list = fq1[:-len('_R1_001.fastq.gz')] + '_phix_read_name.list'
             cmds.append(bash_commands.bwa_mem_phix(fq1, read_name_list))
+
         exit_status = executor.execute(
             *cmds,
             job_name='phix_detection',
@@ -110,7 +108,7 @@ class PhixDetection(DemultiplexingStage):
             mem=10,
             log_commands=False
         ).join()
-        if exit_status == 0 :
+        if exit_status == 0:
             # Send the results of BCL2fastq to the rest API
             crawler = RunCrawler(self.dataset, run_dir=self.fastq_dir, stage=RunCrawler.STAGE_CONVERSION)
             crawler.send_data()
@@ -118,22 +116,20 @@ class PhixDetection(DemultiplexingStage):
 
 
 class FastqFilter(DemultiplexingStage):
-
     def _run(self):
-
         # Assess if the lanes need filtering
         q30_threshold = float(cfg.query('fastq_filterer', 'q30_threshold', ret_default=74))
         self.debug('Q30 threshold: %s', q30_threshold)
         filter_lanes = {1: False, 2: False, 3: False, 4: False, 5: False, 6: False, 7: False, 8: False}
-        for lane_metrics in self.dataset.lane_metrics:
-            if q30_threshold > float(lane_metrics['pc_q30']) > 0:
+        for lane in self.dataset.lane_metrics:
+            if q30_threshold > float(util.query_dict(lane, 'aggregated.pc_q30', ret_default=0)) > 0:
                 self.warning(
                     'Will apply cycle and tile filtering to lane %s: %%Q30=%s < %s',
-                    lane_metrics['lane_number'],
-                    lane_metrics['pc_q30'],
+                    lane['lane_number'],
+                    lane['aggregated']['pc_q30'],
                     q30_threshold
                 )
-                filter_lanes[int(lane_metrics['lane_number'])] = True
+                filter_lanes[int(lane['lane_number'])] = True
 
         try:
             detector = BadTileCycleDetector(self.dataset)
@@ -213,8 +209,10 @@ class MD5Sum(DemultiplexingStage):
 
 
 class QCOutput(DemultiplexingStage):
+    run_crawler_stage = segmentation.Parameter()
+
     def _run(self):
-        crawler = RunCrawler(self.dataset, run_dir=self.fastq_dir, stage=RunCrawler.STAGE_FILTER)
+        crawler = RunCrawler(self.dataset, run_dir=self.fastq_dir, stage=self.run_crawler_stage)
         crawler.send_data()
         return 0
 
@@ -313,7 +311,6 @@ class SamtoolsStatsMulti(PostDemultiplexingStage):
 
 
 class SamtoolsDepthMulti(PostDemultiplexingStage):
-
     def _run(self):
         samtools_depth_cmds = []
         for run_element in self.dataset.run_elements:
@@ -375,14 +372,6 @@ class PicardInsertSizeMulti(PostDemultiplexingStage):
         ).join()
 
 
-# Need to have a different name of class bcause the sage name is based on it.
-class QCOutput2(DemultiplexingStage):
-    def _run(self):
-        crawler = RunCrawler(self.dataset, run_dir=self.fastq_dir, stage=RunCrawler.STAGE_MAPPING)
-        crawler.send_data()
-        return 0
-
-
 class RunReview(DemultiplexingStage):
     def _run(self):
         rest_communication.post_entry(
@@ -407,13 +396,13 @@ def build_pipeline(dataset):
     fastqc = stage(FastQC, previous_stages=[fastq_filter])
     seqtk = stage(SeqtkFQChk, previous_stages=[fastq_filter])
     md5 = stage(MD5Sum, previous_stages=[fastq_filter])
-    qc_output = stage(QCOutput, previous_stages=[welldups, integrity_check, fastqc, seqtk, md5])
+    qc_output = stage(QCOutput, stage_name='qcoutput1', run_crawler_stage=RunCrawler.STAGE_FILTER, previous_stages=[welldups, integrity_check, fastqc, seqtk, md5])
     align_output = stage(BwaAlignMulti, previous_stages=[qc_output])
     stats_output = stage(SamtoolsStatsMulti, previous_stages=[align_output])
     depth_output = stage(SamtoolsDepthMulti, previous_stages=[align_output])
     md_output = stage(PicardMarkDuplicateMulti, previous_stages=[align_output])
     is_output = stage(PicardInsertSizeMulti, previous_stages=[align_output])
-    qc_output2 = stage(QCOutput2, previous_stages=[stats_output, depth_output, md_output, is_output])
+    qc_output2 = stage(QCOutput, stage_name='qcoutput2', run_crawler_stage=RunCrawler.STAGE_MAPPING, previous_stages=[stats_output, depth_output, md_output, is_output])
     data_output = stage(DataOutput, previous_stages=[qc_output2])
     _cleanup = stage(Cleanup, previous_stages=[data_output])
     review = stage(RunReview, previous_stages=[_cleanup])

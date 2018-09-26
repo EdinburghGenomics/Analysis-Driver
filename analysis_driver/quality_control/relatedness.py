@@ -156,7 +156,10 @@ class GenotypeGVCFs(RelatednessStage):
 
     @property
     def memory(self):
-        return max(len(self.gVCFs) * 3, 50)
+        return min(
+            max(len(self.gVCFs) * 3, 50),
+            248
+        )
 
     def gatk_genotype_gvcfs_cmd(self, memory, number_threads):
         gvcf_variants = ' '. join(['--variant ' + util.find_file(i) for i in self.gVCFs])

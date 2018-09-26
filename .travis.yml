@@ -5,10 +5,12 @@ python:
 #Command ran before the install
 before_install:
   - "pip install pip --upgrade"
+  - "pip install 'docutils>=0.13'"
 # command to install dependencies
 install:
   - "pip install -r requirements.txt"
   - "pip install python-coveralls pytest-cov"
+  - "pip install coverage --upgrade"
 script: py.test tests -v --cov analysis_driver --cov bin --cov-report term-missing
 after_success:
   - coveralls
