@@ -14,6 +14,7 @@ class IntegrationTest(ReportingAppIntegrationTest):
         patch('analysis_driver.client.load_config'),
         patch('egcg_core.clarity.find_project_name_from_sample', return_value='10015AT'),
         patch('egcg_core.clarity.get_plate_id_and_well', new=mocked_data.fake_get_plate_id_and_well),
+        patch('egcg_core.clarity.get_project', return_value=mocked_data.mocked_clarity_project),
         patch('egcg_core.clarity.get_run', return_value=mocked_data.mocked_clarity_run),
         patch('egcg_core.clarity.get_sample_gender'),
         patch('egcg_core.clarity.get_sample_genotype', return_value=set()),

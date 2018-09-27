@@ -71,5 +71,5 @@ class Output(segmentation.Stage):
 
         return output_data_and_archive(
             dir_with_linked_files,
-            os.path.join(cfg['project']['input_dir'], self.dataset.name)
+            os.path.join(cfg['project']['output_dir'], self.dataset.name)
         )
