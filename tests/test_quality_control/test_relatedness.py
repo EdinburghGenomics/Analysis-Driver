@@ -190,8 +190,16 @@ class TestPeddy(QCTester):
             working_dir='tests/assets/jobs/test_project_id'
         )
 
-    def test_tabix_command(self):
-        assert self.p.tabix_command == 'path/to/tabix -f -p vcf tests/assets/jobs/test_project_id/test_project_id_genotype_gvcfs.vcf.gz'
+    @patch('egcg_core.executor.execute')
+    def test_bgzip(self, mocked_execute):
+        self.p.bgzip()
+        mocked_execute.assert_called_with(
+            'path/to/bgzip -f tests/assets/jobs/test_project_id/test_project_id_genotype_gvcfs.vcf',
+            job_name='bgzip',
+            cpus=1,
+            mem=10,
+            working_dir='tests/assets/jobs/test_project_id'
+        )
 
 
 class TestParseRelatedness(QCTester):
