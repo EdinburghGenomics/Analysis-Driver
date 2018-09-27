@@ -1,6 +1,6 @@
 import os
 from egcg_core import executor
-from egcg_core.util import find_file
+from egcg_core.util import find_file, query_dict
 from analysis_driver import segmentation
 from analysis_driver.util import bash_commands
 from analysis_driver.pipelines.common import Cleanup
@@ -19,20 +19,25 @@ def build_pipeline(dataset):
     project_source = os.path.join(cfg.query('sample', 'output_dir'), dataset.name)
     gvcf_files = []
     for sample in dataset.samples_processed:
-        gvcf_file = find_file(project_source, sample['sample_id'], sample['user_sample_id'] + '.g.vcf.gz')
-        if not gvcf_file:
-            raise PipelineError('Unable to find gVCF file for sample %s in %s' % (sample['sample_id'], project_source))
-        gvcf_files.append(gvcf_file)
+        # Only check if we have gvcf when the samples have been through a process that generate a gvcf
+        if query_dict(sample, 'aggregated.most_recent_proc.pipeline_used.toolset_type') in [
+            'human_sample_processing', 'non_human_sample_processing'
+        ]:
+            gvcf_file = find_file(project_source, sample['sample_id'], sample['user_sample_id'] + '.g.vcf.gz')
+            if not gvcf_file:
+                raise PipelineError('Unable to find gVCF file for sample %s in %s' % (sample['sample_id'], project_source))
+            gvcf_files.append(gvcf_file)
     if len(gvcf_files) < 2:
-        raise PipelineError('Incorrect number of gVCF files: require at least two')
-
-    genotype_gvcfs = GenotypeGVCFs(dataset=dataset, gVCFs=gvcf_files, reference=dataset.reference_genome)
-    relatedness = Relatedness(dataset=dataset, previous_stages=[genotype_gvcfs])
-    peddy = Peddy(dataset=dataset, ids=sample_ids, previous_stages=[genotype_gvcfs])
-    parse = ParseRelatedness(dataset=dataset, ids=sample_ids, parse_method='parse_both', previous_stages=[relatedness, peddy])
-    md5 = MD5Sum(dataset=dataset, previous_stages=[parse])
-    output = Output(dataset=dataset, previous_stages=[md5])
-    cleanup = Cleanup(dataset=dataset, previous_stages=[output])
+        # No need to run as there are not enough gvcf to process
+        cleanup = Cleanup(dataset=dataset)
+    else:
+        genotype_gvcfs = GenotypeGVCFs(dataset=dataset, gVCFs=gvcf_files, reference=dataset.reference_genome)
+        relatedness = Relatedness(dataset=dataset, previous_stages=[genotype_gvcfs])
+        peddy = Peddy(dataset=dataset, ids=sample_ids, previous_stages=[genotype_gvcfs])
+        parse = ParseRelatedness(dataset=dataset, ids=sample_ids, parse_method='parse_both', previous_stages=[relatedness, peddy])
+        md5 = MD5Sum(dataset=dataset, previous_stages=[parse])
+        output = Output(dataset=dataset, previous_stages=[md5])
+        cleanup = Cleanup(dataset=dataset, previous_stages=[output])
     return cleanup
 
 

@@ -352,3 +352,24 @@ class IntegrationTest(ReportingAppIntegrationTest):
         self.expect_equal(procs[0]['status'], 'finished', 'proc status finished')
 
         assert self._test_success
+
+    def test_project(self):
+        self.setup_test('project', 'test_project', 'project')
+        exit_status = client.main(['--project'])
+        self.assertEqual('exit status', exit_status, 0)
+
+        self.expect_output_files(
+            self.cfg['project']['files'],
+            base_dir=os.path.join(cfg['project']['output_dir'], self.project_id)
+        )
+
+        self.expect_stage_data('genotypegvcfs', 'relatedness', 'peddy', 'parserelatedness', 'md5sum', 'output',
+                               'cleanup')
+        ad_procs = rest_communication.get_document('analysis_driver_procs', where={'dataset_name': self.project_id})
+        self.expect_equal(
+            ad_procs['pipeline_used'],
+            {'toolset_type': 'toolset_type', 'name': 'project', 'toolset_version': 0},
+            'pipeline used'
+        )
+
+        assert self._test_success

@@ -16,19 +16,26 @@ class TestProjects(TestAnalysisDriver):
             real_name=project_id,
             species='Homo sapiens',
             samples_processed=[
-                {'sample_id': '10015AT0004', 'user_sample_id': 'test_user_sample1'},
-                {'sample_id': '10015AT0003', 'user_sample_id': 'test_user_sample2'}
+                {
+                    'sample_id': '10015AT0004', 'user_sample_id': 'test_user_sample1',
+                    'aggregated': {'most_recent_proc': {'pipeline_used': {'toolset_type': 'human_sample_processing'}}}
+                },
+                {
+                    'sample_id': '10015AT0003', 'user_sample_id': 'test_user_sample2',
+                    'aggregated': {'most_recent_proc': {'pipeline_used': {'toolset_type': 'non_human_sample_processing'}}}
+                }
             ]
         )
-        projects.build_pipeline(two_sample_dataset)
-
+        pipeline = projects.build_pipeline(two_sample_dataset)
+        assert len(pipeline.previous_stages) > 0
         one_sample_dataset = NamedMock(
             real_name=project_id,
             species='Homo sapiens',
             samples_processed=[{'sample_id': '10015AT0004', 'user_sample_id': 'test_user_sample1'}]
         )
-        with self.assertRaises(PipelineError):
-            projects.build_pipeline(one_sample_dataset)
+        pipeline = projects.build_pipeline(one_sample_dataset)
+        # get a single step pipeline
+        assert len(pipeline.previous_stages) == 0
 
 
 class TestMD5Sum(TestAnalysisDriver):
