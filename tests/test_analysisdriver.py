@@ -16,6 +16,11 @@ class TestAnalysisDriver(TestCase):
     assets_path = join(dirname(__file__), 'assets')
     fastq_path = join(assets_path, 'fastqs')
 
+    @staticmethod
+    def _touch(input_file):
+        open(input_file, 'w').close()
+
+
 
 cfg.load_config_file(etc_config('example_analysisdriver.yaml'))
 helper = TestAnalysisDriver()

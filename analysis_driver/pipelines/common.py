@@ -166,6 +166,14 @@ class MergeFastqs(VarCallingStage):
         """Merge the fastq files per sample using bcbio prepare sample"""
         fastq_files = self.find_fastqs_for_sample()
         bcbio_csv_file = self._write_bcbio_csv(fastq_files)
+
+        sample_fastqs = util.find_files(self.job_dir, 'merged', self.dataset.user_sample_id + '_R?.fastq.gz')
+        if sample_fastqs:
+            self.warning('Output fastq files already exists and will be deleted before being merged again\n' +
+                         '\n'.join(sample_fastqs))
+            for fq_file in sample_fastqs:
+                os.unlink(fq_file)
+
         self.info('Setting up BCBio samples from ' + bcbio_csv_file)
 
         exit_status = executor.execute(

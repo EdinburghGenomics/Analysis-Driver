@@ -63,10 +63,14 @@ class TestMergeFastqs(TestCommon):
         super().setUp()
         self.stage = common.MergeFastqs(dataset=self.dataset)
         self.bcbio_csv = os.path.join(self.assets_path, 'samples_test_dataset.csv')
+        self.job_dir = os.path.abspath(self.stage.job_dir)
+        os.makedirs(self.job_dir, exist_ok=True)
 
     def tearDown(self):
         if os.path.isfile(self.bcbio_csv):
             os.remove(self.bcbio_csv)
+        if os.path.isdir(self.job_dir):
+            rmtree(self.job_dir)
 
     @patch('egcg_core.util.find_fastqs')
     def test_find_fastqs(self, mocked_find):
@@ -87,6 +91,30 @@ class TestMergeFastqs(TestCommon):
                 'test_R1.fastq,a_user_sample_id\n'
                 'test_R2.fastq,a_user_sample_id\n'
             )
+
+    def test_run_overwrite(self):
+        infastqs = ['fastq1_R1', 'fastq1_R2', 'fastq2_R1', 'fastq2_R2']
+        with patch.object(common.MergeFastqs, 'find_fastqs_for_sample', return_value=infastqs), \
+                patch('egcg_core.executor.execute') as mock_execute:
+            mock_execute().join.return_value = 0
+            merge_dir = os.path.join(self.job_dir, 'merged')
+            os.makedirs(merge_dir)
+            self._touch(os.path.join(merge_dir, 'user_sample_id_R1.fastq.gz'))
+            self._touch(os.path.join(merge_dir, 'user_sample_id_R2.fastq.gz'))
+            self.dataset.user_sample_id = 'user_sample_id'
+
+            assert os.path.exists(os.path.join(merge_dir, 'user_sample_id_R1.fastq.gz'))
+            assert os.path.exists(os.path.join(merge_dir, 'user_sample_id_R2.fastq.gz'))
+
+            self.stage._run()
+
+            # overwrite has deleted the files
+            assert not os.path.exists(os.path.join(merge_dir, 'user_sample_id_R1.fastq.gz'))
+            assert not os.path.exists(os.path.join(merge_dir, 'user_sample_id_R2.fastq.gz'))
+            command = 'path/to/bcbio/bin/bcbio_prepare_samples.py ' \
+                      '--out tests/assets/jobs/test_dataset/merged' \
+                      ' --csv tests/assets/jobs/test_dataset/samples_test_dataset.csv'
+            mock_execute.assert_any_call(command, job_name='bcbio_prepare_samples', working_dir='tests/assets/jobs/test_dataset'),
 
 
 class TestSampleReview(TestCommon):
