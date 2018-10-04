@@ -339,7 +339,8 @@ class RunCrawler(Crawler):
             picard_insert_size_metric = fastq_base + '_insertsize.metrics'
             if isfile(picard_insert_size_metric):
                 insert_types = mp.parse_picard_insert_size_metrics(picard_insert_size_metric)
-                mapping_statistics.update(insert_types.pop('FR'))
+                if 'FR' in insert_types:
+                    mapping_statistics.update(insert_types.pop('FR'))
                 if insert_types:
                     mapping_statistics[ELEMENT_NON_FR_INSERTS] = insert_types
             if mapping_statistics:
