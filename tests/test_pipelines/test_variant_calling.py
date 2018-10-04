@@ -350,10 +350,10 @@ class TestVariantFiltration(TestVariantCalling):
 
 def _test_bgzip_and_tabix(executor, vcf_file):
     assert executor.call_args_list[1] == call(
-        'path/to/bgzip ' + vcf_file, cpus=1, job_name='bgzip', mem=8,
+        'path/to/bgzip -f ' + vcf_file, cpus=1, job_name='bgzip', mem=8,
         working_dir='tests/assets/jobs/test_dataset/gatk_var_calling'
     )
     assert executor.call_args_list[2] == call(
-        'path/to/tabix -p vcf ' + vcf_file + '.gz', cpus=1, job_name='tabix', mem=8,
+        'path/to/tabix -f -p vcf ' + vcf_file + '.gz', cpus=1, job_name='tabix', mem=8,
         working_dir='tests/assets/jobs/test_dataset/gatk_var_calling'
     )

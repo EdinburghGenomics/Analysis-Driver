@@ -199,7 +199,7 @@ class SampleReview(segmentation.Stage):
 
 def bgzip_and_tabix(working_dir, vcf_file):
     bgzip_status = executor.execute(
-        '%s %s' % (toolset['bgzip'], vcf_file),
+        bash_commands.bgzip_command(vcf_file),
         job_name='bgzip',
         working_dir=working_dir,
         cpus=1,
@@ -207,7 +207,7 @@ def bgzip_and_tabix(working_dir, vcf_file):
     ).join()
 
     tabix_status = executor.execute(
-        '%s -p vcf %s' % (toolset['tabix'], vcf_file + '.gz'),
+        bash_commands.tabix_vcf_command( vcf_file + '.gz'),
         job_name='tabix',
         working_dir=working_dir,
         cpus=1,

@@ -3,6 +3,7 @@ import csv
 from collections import Counter
 from egcg_core import executor, util, clarity
 from analysis_driver.tool_versioning import toolset
+from analysis_driver.util import bash_commands
 from analysis_driver.util.bash_commands import java_command
 from analysis_driver.segmentation import Stage, Parameter, ListParameter
 from analysis_driver.exceptions import PipelineError
@@ -201,26 +202,18 @@ class Peddy(RelatednessStage):
     def ped_file(self):
         return os.path.join(self.job_dir, 'ped.fam')
 
-    @property
-    def tabix_command(self):
-        return '%s -f -p vcf %s' % (toolset['tabix'], self.gatk_outfile + '.gz')
-
     def bgzip(self):
         return executor.execute(
-            self.bgzip_command,
+            bash_commands.bgzip_command(self.gatk_outfile),
             job_name='bgzip',
             working_dir=self.job_dir,
             cpus=1,
             mem=10
         ).join()
 
-    @property
-    def bgzip_command(self):
-        return '%s %s' % (toolset['bgzip'], self.gatk_outfile)
-
     def tabix_index(self):
         return executor.execute(
-            self.tabix_command,
+            bash_commands.tabix_vcf_command(self.gatk_outfile + '.gz'),
             job_name='tabix',
             working_dir=self.job_dir,
             cpus=1,

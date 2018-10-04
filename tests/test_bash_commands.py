@@ -184,3 +184,11 @@ def test_picard_insert_size_command():
 def test_java_command():
     obs = bash_commands.java_command(1, 'a_tmp_dir', 'a_jar_file')
     assert obs == 'java -Djava.io.tmpdir=a_tmp_dir -XX:+UseSerialGC -Xmx1G -jar a_jar_file '
+
+
+def test_tabix_command():
+    assert bash_commands.tabix_vcf_command('file.vcf.gz') == 'path/to/tabix -f -p vcf file.vcf.gz'
+
+
+def test_bgzip_command():
+    assert bash_commands.bgzip_command('file.vcf') == 'path/to/bgzip -f file.vcf'

@@ -295,3 +295,11 @@ def java_command(memory, tmp_dir, jar):
         tmp_dir=tmp_dir,
         jar=jar
     )
+
+
+def bgzip_command(input_file):
+    return '%s -f %s' % (toolset['bgzip'], input_file)
+
+
+def tabix_vcf_command(input_file):
+    return '%s -f -p vcf %s' % (toolset['tabix'], input_file)
