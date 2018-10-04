@@ -20,9 +20,7 @@ def build_pipeline(dataset):
     gvcf_files = []
     for sample in dataset.samples_processed:
         # Only check if we have gvcf when the samples have been through a process that generate a gvcf
-        if query_dict(sample, 'aggregated.most_recent_proc.pipeline_used.toolset_type') in [
-            'human_sample_processing', 'non_human_sample_processing'
-        ]:
+        if query_dict(sample, 'aggregated.most_recent_proc.pipeline_used.name') in ['bcbio', 'variant_calling']:
             gvcf_file = find_file(project_source, sample['sample_id'], sample['user_sample_id'] + '.g.vcf.gz')
             if not gvcf_file:
                 raise PipelineError('Unable to find gVCF file for sample %s in %s' % (sample['sample_id'], project_source))

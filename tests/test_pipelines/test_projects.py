@@ -18,15 +18,16 @@ class TestProjects(TestAnalysisDriver):
             samples_processed=[
                 {
                     'sample_id': '10015AT0004', 'user_sample_id': 'test_user_sample1',
-                    'aggregated': {'most_recent_proc': {'pipeline_used': {'toolset_type': 'human_sample_processing'}}}
+                    'aggregated': {'most_recent_proc': {'pipeline_used': {'name': 'bcbio'}}}
                 },
                 {
                     'sample_id': '10015AT0003', 'user_sample_id': 'test_user_sample2',
-                    'aggregated': {'most_recent_proc': {'pipeline_used': {'toolset_type': 'non_human_sample_processing'}}}
+                    'aggregated': {'most_recent_proc': {'pipeline_used': {'name': 'bcbio'}}}
                 }
             ]
         )
         pipeline = projects.build_pipeline(two_sample_dataset)
+        # get a real pipeline
         assert len(pipeline.previous_stages) > 0
         one_sample_dataset = NamedMock(
             real_name=project_id,
@@ -34,6 +35,28 @@ class TestProjects(TestAnalysisDriver):
             samples_processed=[{'sample_id': '10015AT0004', 'user_sample_id': 'test_user_sample1'}]
         )
         pipeline = projects.build_pipeline(one_sample_dataset)
+        # get a single step pipeline
+        assert len(pipeline.previous_stages) == 0
+
+        multi_non_human_samples_dataset = NamedMock(
+            real_name=project_id,
+            species='Thingymy',
+            samples_processed=[
+                {
+                    'sample_id': 'sample1', 'user_sample_id': 'user_sample1',
+                    'aggregated': {'most_recent_proc': {'pipeline_used': {'name': 'qc'}}}
+                },
+                {
+                    'sample_id': 'sample2', 'user_sample_id': 'user_sample2',
+                    'aggregated': {'most_recent_proc': {'pipeline_used': {'name': 'qc'}}}
+                },
+                {
+                    'sample_id': 'sample3', 'user_sample_id': 'user_sample3',
+                    'aggregated': {'most_recent_proc': {'pipeline_used': {'name': 'qc'}}}
+                },
+            ]
+        )
+        pipeline = projects.build_pipeline(multi_non_human_samples_dataset)
         # get a single step pipeline
         assert len(pipeline.previous_stages) == 0
 
