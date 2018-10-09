@@ -16,7 +16,7 @@ name = 'project'
 
 def build_pipeline(dataset):
     sample_ids = [sample['sample_id'] for sample in dataset.samples_processed]
-    project_source = os.path.join(cfg['input_dir'], dataset.name)
+    project_source = os.path.join(cfg.query('project', 'input_dir'), dataset.name)
     gvcf_files = []
     for sample in dataset.samples_processed:
         # Only check if we have gvcf when the samples have been through human processing that generate a gvcf
@@ -69,5 +69,5 @@ class Output(segmentation.Stage):
 
         return output_data_and_archive(
             dir_with_linked_files,
-            os.path.join(cfg['output_dir'], self.dataset.name)
+            os.path.join(cfg.query('project', 'output_dir'), self.dataset.name)
         )
