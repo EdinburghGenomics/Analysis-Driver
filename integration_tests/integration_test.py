@@ -44,6 +44,7 @@ class IntegrationTest(ReportingAppIntegrationTest):
         self.project_id = self.cfg['input_data']['project_id']
         self.sample_id = self.cfg['input_data']['sample_id']
         self.library_id = self.cfg['input_data']['library_id']
+        self.sample_for_project = self.cfg['input_data']['samples_for_project']
         self.run_dir = os.path.dirname(os.getcwd())  # we're inside the checked out project, not the top level
 
     def setUp(self):
@@ -67,7 +68,18 @@ class IntegrationTest(ReportingAppIntegrationTest):
             {'library_id': self.library_id, 'project_id': self.project_id, 'sample_id': self.sample_id,
              'run_elements': [e['run_element_id'] for e in run_elements], 'required_yield': 900000000}
         )
-        rest_communication.post_entry('projects', {'project_id': self.project_id, 'samples': [self.sample_id]})
+        # samples for the project process tests
+        for sample in self.sample_for_project:
+            rest_communication.post_entry(
+                'samples', {'project_id': self.project_id, 'sample_id': sample, 'required_yield': 120000000000,
+                            'user_sample_id': 'uid_' + sample}
+            )
+            rest_communication.post_entry(
+                'analysis_driver_procs',
+                {'proc_id': sample + 'proc_id', 'dataset_name': sample, 'dataset_type': 'sample',
+                 'status': 'finished', 'pipeline_used': {'name': 'bcbio'}}
+            )
+        rest_communication.post_entry('projects', {'project_id': self.project_id, 'samples': [self.sample_id] + self.sample_for_project})
 
         self.dynamic_patches = []
         self._test_success = True
@@ -80,7 +92,7 @@ class IntegrationTest(ReportingAppIntegrationTest):
 
     def setup_test(self, test_type, test_name, integration_section, species='Homo sapiens', analysis_type='Variant Calling gatk'):
         cfg.content['jobs_dir'] = os.path.join(os.path.dirname(os.getcwd()), 'jobs', test_name)
-        cfg.content[test_type]['output_dir'] = os.path.join(os.getcwd(), 'outputs', test_name)
+        cfg.content[test_type]['output_dir'] = os.path.join(os.path.dirname(os.getcwd()), 'outputs', test_name)
         if 'input_dir' in self.cfg[integration_section]:
             cfg.content[test_type]['input_dir'] = self.cfg[integration_section]['input_dir']
 

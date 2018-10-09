@@ -16,11 +16,11 @@ name = 'project'
 
 def build_pipeline(dataset):
     sample_ids = [sample['sample_id'] for sample in dataset.samples_processed]
-    project_source = os.path.join(cfg.query('sample', 'output_dir'), dataset.name)
+    project_source = os.path.join(cfg['input_dir'], dataset.name)
     gvcf_files = []
     for sample in dataset.samples_processed:
-        # Only check if we have gvcf when the samples have been through a process that generate a gvcf
-        if query_dict(sample, 'aggregated.most_recent_proc.pipeline_used.name') in ['bcbio', 'variant_calling']:
+        # Only check if we have gvcf when the samples have been through human processing that generate a gvcf
+        if query_dict(sample, 'aggregated.most_recent_proc.pipeline_used.name') in ['bcbio']:
             gvcf_file = find_file(project_source, sample['sample_id'], sample['user_sample_id'] + '.g.vcf.gz')
             if not gvcf_file:
                 raise PipelineError('Unable to find gVCF file for sample %s in %s' % (sample['sample_id'], project_source))
@@ -69,5 +69,5 @@ class Output(segmentation.Stage):
 
         return output_data_and_archive(
             dir_with_linked_files,
-            os.path.join(cfg['project']['output_dir'], self.dataset.name)
+            os.path.join(cfg['output_dir'], self.dataset.name)
         )

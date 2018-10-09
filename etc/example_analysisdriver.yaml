@@ -9,7 +9,7 @@ default:
         delivery_dest:   /path/to/delivery/destination
 
     project:
-        input_dir:       /path/to/input/dir
+        input_dir:       tests/assets/test_projects/
         output_dir:      /path/to/input/dir
 
     rest_api:

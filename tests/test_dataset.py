@@ -571,7 +571,7 @@ class TestMostRecentProc(TestAnalysisDriver):
         mocked_patch.assert_called_with(
             'analysis_driver_procs',
             {
-                'date_started': 'now',
+                'start_date': 'now',
                 'pipeline_used': {
                     'name': 'some kind of variant calling',
                     'toolset_type': 'some kind of toolset',
