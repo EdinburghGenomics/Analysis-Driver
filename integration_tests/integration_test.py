@@ -381,7 +381,7 @@ class IntegrationTest(ReportingAppIntegrationTest):
         ad_procs = rest_communication.get_document('analysis_driver_procs', where={'dataset_name': self.project_id})
         self.expect_equal(
             ad_procs['pipeline_used'],
-            {'toolset_type': 'toolset_type', 'name': 'project', 'toolset_version': 0},
+            {'toolset_type': 'project_processing', 'name': 'project', 'toolset_version': 0},
             'pipeline used'
         )
 
