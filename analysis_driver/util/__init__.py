@@ -1,7 +1,10 @@
+import operator
 import os
 import itertools
 from egcg_core.app_logging import logging_default as log_cfg
 from egcg_core.exceptions import EGCGError
+
+from analysis_driver.exceptions import PipelineError
 from analysis_driver.reader.run_info import Reads
 from . import bash_commands
 
@@ -50,3 +53,23 @@ def get_trim_values_for_bad_cycles(bad_cycle_list, run_info):
         trim_r2 = None
 
     return trim_r1, trim_r2
+
+
+def create_regions_of_genome(reference_genome, output_bed, regions_size=100000000, max_nb_contig=1000):
+    genome_fai = reference_genome + '.fai'
+    if not os.path.exists(genome_fai):
+        raise PipelineError('genome fai file does not exist: ' + genome_fai)
+    contigs_entries = []
+    with open(genome_fai) as open_file:
+        for l in open_file:
+            sp_line = l.strip().split()
+            contigs_entries.append((sp_line[0], int(sp_line[1])))
+    contigs_entries.sort(key=operator.itemgetter(1), reverse=True)
+    size = nb_contig = 0
+    max_nb_contig = min(max_nb_contig, len(contigs_entries))
+    with open(output_bed, 'w') as open_file:
+        while size < regions_size and nb_contig < max_nb_contig:
+            contig, contig_size = contigs_entries[nb_contig]
+            size += contig_size
+            nb_contig += 1
+            open_file.write('%s\t0\t%s\n'%(contig, contig_size))

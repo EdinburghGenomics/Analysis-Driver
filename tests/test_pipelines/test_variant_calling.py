@@ -24,24 +24,26 @@ class TestGATKStage():
 
     def test_gatk_cmd(self):
         gatk_cmd_without_bam = self.g.gatk_cmd('GATKfunction', 'test_outfile')
-        assert gatk_cmd_without_bam == 'java -Djava.io.tmpdir=tests/assets/jobs/test_sample/gatk_var_calling ' \
-                           '-XX:+UseSerialGC -Xmx16G -jar path/to/gatk -R test_reference -T GATKfunction ' \
-                           '--read_filter BadCigar --read_filter NotPrimaryAlignment -o test_outfile ' \
-                           '-l INFO -U LENIENT_VCF_PROCESSING -nct 16 -nt 16'
+        assert gatk_cmd_without_bam == \
+            'java -Duser.timezone=Europe/London -Djava.io.tmpdir=tests/assets/jobs/test_sample/gatk_var_calling ' \
+            '-XX:+UseSerialGC -Xmx16G -jar path/to/gatk -R test_reference -T GATKfunction ' \
+            '--read_filter BadCigar --read_filter NotPrimaryAlignment -o test_outfile ' \
+            '-l INFO -U LENIENT_VCF_PROCESSING -nct 16 -nt 16'
 
         gatk_cmd_with_bam = self.g.gatk_cmd('GATKfunction', 'test_outfile', 'test_bam')
-        assert gatk_cmd_with_bam == 'java -Djava.io.tmpdir=tests/assets/jobs/test_sample/gatk_var_calling ' \
-                           '-XX:+UseSerialGC -Xmx16G -jar path/to/gatk -R test_reference -T GATKfunction ' \
-                           '--read_filter BadCigar --read_filter NotPrimaryAlignment -o test_outfile ' \
-                           '-l INFO -U LENIENT_VCF_PROCESSING -I test_bam -nct 16 -nt 16'
+        assert gatk_cmd_with_bam == \
+            'java -Duser.timezone=Europe/London -Djava.io.tmpdir=tests/assets/jobs/test_sample/gatk_var_calling ' \
+            '-XX:+UseSerialGC -Xmx16G -jar path/to/gatk -R test_reference -T GATKfunction ' \
+            '--read_filter BadCigar --read_filter NotPrimaryAlignment -o test_outfile ' \
+            '-l INFO -U LENIENT_VCF_PROCESSING -I test_bam -nct 16 -nt 16'
 
         gatk_option = 'option'
         gatk_cmd_with_ext = self.g.gatk_cmd('GATKfunction', 'test_outfile', ext=' --flag ' + gatk_option)
-        assert gatk_cmd_with_ext == 'java -Djava.io.tmpdir=tests/assets/jobs/test_sample/gatk_var_calling ' \
-                           '-XX:+UseSerialGC -Xmx16G -jar path/to/gatk -R test_reference -T GATKfunction ' \
-                           '--read_filter BadCigar --read_filter NotPrimaryAlignment -o test_outfile ' \
-                           '-l INFO -U LENIENT_VCF_PROCESSING --flag option -nct 16 -nt 16'
-
+        assert gatk_cmd_with_ext == \
+            'java -Duser.timezone=Europe/London -Djava.io.tmpdir=tests/assets/jobs/test_sample/gatk_var_calling ' \
+            '-XX:+UseSerialGC -Xmx16G -jar path/to/gatk -R test_reference -T GATKfunction ' \
+            '--read_filter BadCigar --read_filter NotPrimaryAlignment -o test_outfile ' \
+            '-l INFO -U LENIENT_VCF_PROCESSING -nct 16 -nt 16 --flag option'
 
     def test_basename(self):
         basename = self.g.basename
@@ -111,7 +113,8 @@ class TestBaseRecal(TestVariantCalling):
         with patch_executor as e:
             self.b._run()
             assert e.call_count == 1
-            e.assert_called_with("java -Djava.io.tmpdir=tests/assets/jobs/test_dataset/gatk_var_calling "
+            e.assert_called_with("java -Duser.timezone=Europe/London "
+                                 "-Djava.io.tmpdir=tests/assets/jobs/test_dataset/gatk_var_calling "
                                  "-XX:+UseSerialGC "
                                  "-Xmx48G "
                                  "-jar path/to/gatk "
@@ -123,8 +126,8 @@ class TestBaseRecal(TestVariantCalling):
                                  "-l INFO "
                                  "-U LENIENT_VCF_PROCESSING "
                                  "-I tests/assets/jobs/test_dataset/test_dataset.bam "
-                                 "--knownSites /path/to/dbsnp.vcf.gz "
-                                 "-nct 16",
+                                 "-nct 16 "
+                                 "--knownSites /path/to/dbsnp.vcf.gz",
                                  cpus=16,
                                  job_name='gatk_base_recal',
                                  mem=64,
@@ -140,7 +143,8 @@ class TestPrintReads(TestVariantCalling):
         with patch_executor as e:
             self.p._run()
             assert e.call_count == 1
-            e.assert_called_with('java -Djava.io.tmpdir=tests/assets/jobs/test_dataset/gatk_var_calling '
+            e.assert_called_with('java -Duser.timezone=Europe/London '
+                                 '-Djava.io.tmpdir=tests/assets/jobs/test_dataset/gatk_var_calling '
                                  '-XX:+UseSerialGC '
                                  '-Xmx48G '
                                  '-jar path/to/gatk '
@@ -151,8 +155,8 @@ class TestPrintReads(TestVariantCalling):
                                  '-o tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id_recal.bam '
                                  '-l INFO -U LENIENT_VCF_PROCESSING '
                                  '-I tests/assets/jobs/test_dataset/test_dataset.bam '
-                                 '-BQSR tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id.grp '
-                                 '-nct 16',
+                                 '-nct 16 '
+                                 '-BQSR tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id.grp',
                                  cpus=16,
                                  job_name='gatk_print_reads',
                                  mem=64,
@@ -167,7 +171,8 @@ class TestRealignTarget(TestVariantCalling):
         with patch_executor as e:
             self.p._run()
             assert e.call_count == 1
-            e.assert_called_with('java -Djava.io.tmpdir=tests/assets/jobs/test_dataset/gatk_var_calling '
+            e.assert_called_with('java -Duser.timezone=Europe/London '
+                                 '-Djava.io.tmpdir=tests/assets/jobs/test_dataset/gatk_var_calling '
                                  '-XX:+UseSerialGC '
                                  '-Xmx32G '
                                  '-jar path/to/gatk '
@@ -193,7 +198,8 @@ class TestRealign(TestVariantCalling):
         with patch_executor as e:
             self.p._run()
             assert e.call_count == 1
-            e.assert_called_with('java -Djava.io.tmpdir=tests/assets/jobs/test_dataset/gatk_var_calling '
+            e.assert_called_with('java -Duser.timezone=Europe/London '
+                                 '-Djava.io.tmpdir=tests/assets/jobs/test_dataset/gatk_var_calling '
                                  '-XX:+UseSerialGC '
                                  '-Xmx32G '
                                  '-jar path/to/gatk '
@@ -220,7 +226,7 @@ class TestHaplotypeCaller(TestVariantCalling):
             self.p._run()
             assert e.call_count == 3  # Command + bgzip + tabix
             assert e.call_args_list[0] == call(
-                'java -Djava.io.tmpdir=tests/assets/jobs/test_dataset/gatk_var_calling '
+                'java -Duser.timezone=Europe/London -Djava.io.tmpdir=tests/assets/jobs/test_dataset/gatk_var_calling '
                 '-XX:+UseSerialGC '
                 '-Xmx48G '
                 '-jar path/to/gatk '
@@ -231,12 +237,12 @@ class TestHaplotypeCaller(TestVariantCalling):
                 '-o tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id.g.vcf '
                 '-l INFO '
                 '-U LENIENT_VCF_PROCESSING '
-                '-I test_bam --pair_hmm_implementation VECTOR_LOGLESS_CACHING '
+                '-I test_bam -nct 16 '
+                '--pair_hmm_implementation VECTOR_LOGLESS_CACHING '
                 '-ploidy 2 '
                 '--emitRefConfidence GVCF '
                 '--variant_index_type LINEAR '
                 '--variant_index_parameter 128000  '
-                '-nct 16 '
                 '--annotation BaseQualityRankSumTest '
                 '--annotation FisherStrand '
                 '--annotation GCContent '
@@ -269,7 +275,7 @@ class TestGenotypeGVCFs(TestVariantCalling):
             self.p._run()
             assert e.call_count == 3  # Command + bgzip + tabix
             assert e.call_args_list[0] == call(
-                'java -Djava.io.tmpdir=tests/assets/jobs/test_dataset/gatk_var_calling '
+                'java -Duser.timezone=Europe/London -Djava.io.tmpdir=tests/assets/jobs/test_dataset/gatk_var_calling '
                 '-XX:+UseSerialGC '
                 '-Xmx16G '
                 '-jar path/to/gatk '
@@ -280,8 +286,8 @@ class TestGenotypeGVCFs(TestVariantCalling):
                 '-o tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id.vcf '
                 '-l INFO '
                 '-U LENIENT_VCF_PROCESSING '
-                '--variant tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id.g.vcf.gz '
-                '-nt 16',
+                '-nt 16 '
+                '--variant tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id.g.vcf.gz',
                 job_name='gatk_genotype_gvcfs',
                 mem=16,
                 working_dir='tests/assets/jobs/test_dataset/gatk_var_calling'
@@ -298,7 +304,7 @@ class TestSelectVariants(TestVariantCalling):
             self.p._run()
             assert e.call_count == 3  # Command + bgzip + tabix
             assert e.call_args_list[0] == call(
-                'java -Djava.io.tmpdir=tests/assets/jobs/test_dataset/gatk_var_calling '
+                'java -Duser.timezone=Europe/London -Djava.io.tmpdir=tests/assets/jobs/test_dataset/gatk_var_calling '
                 '-XX:+UseSerialGC '
                 '-Xmx16G '
                 '-jar path/to/gatk '
@@ -327,7 +333,7 @@ class TestVariantFiltration(TestVariantCalling):
             self.p._run()
             assert e.call_count == 3  # Command + bgzip + tabix
             assert e.call_args_list[0] == call(
-                "java -Djava.io.tmpdir=tests/assets/jobs/test_dataset/gatk_var_calling "
+                "java -Duser.timezone=Europe/London -Djava.io.tmpdir=tests/assets/jobs/test_dataset/gatk_var_calling "
                 "-XX:+UseSerialGC "
                 "-Xmx16G "
                 "-jar path/to/gatk "

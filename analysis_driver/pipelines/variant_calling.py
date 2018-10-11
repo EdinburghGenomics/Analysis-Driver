@@ -21,24 +21,25 @@ class GATKStage(segmentation.Stage):
         os.makedirs(d, exist_ok=True)
         return d
 
-    def gatk_cmd(self, run_cls, output, input_bam=None, xmx=16, nct=16, nt=16, ext=None):
+    def gatk_cmd(self, run_cls, output, input_bam=None, xmx=16, nct=16, nt=16, interval_file=None, ext=None):
         base_cmd = java_command(memory=xmx, tmp_dir=self.gatk_run_dir, jar=toolset['gatk']) + (
                     '-R {ref} -T {run_cls} --read_filter BadCigar --read_filter NotPrimaryAlignment '
                     '-o {output} -l INFO -U LENIENT_VCF_PROCESSING')
 
         if input_bam:
-            base_cmd += ' -I {input_bam}'
-        if ext:
-            base_cmd += ext
+            base_cmd += ' -I %s' % input_bam
         if nct > 1:
             base_cmd += ' -nct %s' % nct
         if nt > 1:
             base_cmd += ' -nt %s' % nt
+        if interval_file:
+            base_cmd += ' -L %s' % interval_file
+        if ext:
+            base_cmd += ext
 
         return base_cmd.format(
             ref=self.dataset.reference_genome,
             run_cls=run_cls,
-            input_bam=input_bam,
             output=output
         )
 
@@ -163,12 +164,14 @@ class Realign(GATKStage):
 
 class HaplotypeCaller(GATKStage):
     input_bam = Parameter()
+    region_bed = Parameter(default=None)
 
     def _run(self):
         haplotype_cmd = self.gatk_cmd(
             'HaplotypeCaller',
             self.sample_gvcf,
             input_bam=self.input_bam,
+            interval_file=self.region_bed,
             xmx=48,
             nt=1,
             ext=(' --pair_hmm_implementation VECTOR_LOGLESS_CACHING -ploidy 2 --emitRefConfidence GVCF '
@@ -194,8 +197,12 @@ class HaplotypeCaller(GATKStage):
 
 
 class GenotypeGVCFs(GATKStage):
+
+    region_bed = Parameter(default=None)
+
     def _run(self):
-        genotype_gvcfs_cmd = self.gatk_cmd('GenotypeGVCFs', self.genotyped_vcf, nct=1, ext=' --variant ' + self.sample_gvcf + '.gz')
+        genotype_gvcfs_cmd = self.gatk_cmd('GenotypeGVCFs', self.genotyped_vcf, nct=1, interval_file=self.region_bed,
+                                           ext=' --variant ' + self.sample_gvcf + '.gz')
         genotype_status = executor.execute(
             genotype_gvcfs_cmd,
             job_name='gatk_genotype_gvcfs',
@@ -207,8 +214,12 @@ class GenotypeGVCFs(GATKStage):
 
 
 class SelectVariants(GATKStage):
+
+    region_bed = Parameter(default=None)
+
     def _run(self):
-        select_var_command = self.gatk_cmd('SelectVariants', self.raw_snp_vcf, nct=1, nt=16)
+        select_var_command = self.gatk_cmd('SelectVariants', self.raw_snp_vcf, nct=1, nt=16,
+                                           interval_file=self.region_bed)
         select_var_command += ' -V ' + self.genotyped_vcf + '.gz'
         select_var_command += ' -selectType SNP '
         select_variants_status = executor.execute(
@@ -221,6 +232,9 @@ class SelectVariants(GATKStage):
 
 
 class VariantFiltration(GATKStage):
+
+    region_bed = Parameter(default=None)
+
     def _run(self):
         filter_array = [
             'QD < 2.0',
@@ -230,7 +244,8 @@ class VariantFiltration(GATKStage):
             'ReadPosRankSum < -8.0'
         ]
         filters = "'" + ' || '.join(filter_array) + "'"
-        var_filter_command = self.gatk_cmd('VariantFiltration', self.filter_snp_vcf, nct=1, nt=1)
+        var_filter_command = self.gatk_cmd('VariantFiltration', self.filter_snp_vcf, nct=1, nt=1,
+                                           interval_file=self.region_bed)
         var_filter_command += " -V " + self.raw_snp_vcf + '.gz'
         var_filter_command += " --filterExpression " + filters
         var_filter_command += " --filterName 'SNP_FILTER'"

@@ -1,5 +1,9 @@
 from unittest.mock import patch, Mock
-from analysis_driver.util import find_all_fastq_pairs_for_lane, get_ranges, get_trim_values_for_bad_cycles
+
+import os
+
+from analysis_driver.util import find_all_fastq_pairs_for_lane, get_ranges, get_trim_values_for_bad_cycles, \
+    create_regions_of_genome
 
 
 def test_get_range():
@@ -52,3 +56,22 @@ def test_trim_values_for_bad_cycles():
 
     bad_cycle_list = [302, 301]
     assert get_trim_values_for_bad_cycles(bad_cycle_list, run_info) == (None, 149)
+
+
+def test_create_regions_of_genome():
+    assets_path = os.path.join(os.path.dirname(__file__), 'assets')
+    reference_genome = os.path.join(assets_path, 'genomes', 'genome.fa')
+    bed_file = os.path.join(assets_path, 'genomes', 'genome_region.bed')
+    expected_bed_lines = ['ref4	0	12500\n', 'ref5	0	8500\n', 'ref7	0	6800\n', 'ref8	0	3800\n',
+                          'ref2	0	3600\n', 'ref1	0	2500\n', 'ref6	0	1800\n', 'ref3	0	1100\n']
+    create_regions_of_genome(reference_genome, output_bed=bed_file)
+    with open(bed_file) as open_bed:
+        assert open_bed.readlines() == expected_bed_lines
+
+    create_regions_of_genome(reference_genome, output_bed=bed_file, max_nb_contig=4)
+    with open(bed_file) as open_bed:
+        assert open_bed.readlines() == expected_bed_lines[:4]
+
+    create_regions_of_genome(reference_genome, output_bed=bed_file, regions_size=35000)
+    with open(bed_file) as open_bed:
+        assert open_bed.readlines() == expected_bed_lines[:5]
