@@ -14,6 +14,7 @@ class IntegrationTest(ReportingAppIntegrationTest):
         patch('analysis_driver.client.load_config'),
         patch('egcg_core.clarity.find_project_name_from_sample', return_value='10015AT'),
         patch('egcg_core.clarity.get_plate_id_and_well', new=mocked_data.fake_get_plate_id_and_well),
+        patch('egcg_core.clarity.get_project', return_value=mocked_data.mocked_clarity_project),
         patch('egcg_core.clarity.get_run', return_value=mocked_data.mocked_clarity_run),
         patch('egcg_core.clarity.get_sample_gender'),
         patch('egcg_core.clarity.get_sample_genotype', return_value=set()),
@@ -43,6 +44,7 @@ class IntegrationTest(ReportingAppIntegrationTest):
         self.project_id = self.cfg['input_data']['project_id']
         self.sample_id = self.cfg['input_data']['sample_id']
         self.library_id = self.cfg['input_data']['library_id']
+        self.sample_for_project = self.cfg['input_data']['samples_for_project']
         self.run_dir = os.path.dirname(os.getcwd())  # we're inside the checked out project, not the top level
 
     def setUp(self):
@@ -66,7 +68,18 @@ class IntegrationTest(ReportingAppIntegrationTest):
             {'library_id': self.library_id, 'project_id': self.project_id, 'sample_id': self.sample_id,
              'run_elements': [e['run_element_id'] for e in run_elements], 'required_yield': 900000000}
         )
-        rest_communication.post_entry('projects', {'project_id': self.project_id, 'samples': [self.sample_id]})
+        # samples for the project process tests
+        for sample in self.sample_for_project:
+            rest_communication.post_entry(
+                'samples', {'project_id': self.project_id, 'sample_id': sample, 'required_yield': 120000000000,
+                            'user_sample_id': 'uid_' + sample}
+            )
+            rest_communication.post_entry(
+                'analysis_driver_procs',
+                {'proc_id': sample + 'proc_id', 'dataset_name': sample, 'dataset_type': 'sample',
+                 'status': 'finished', 'pipeline_used': {'name': 'bcbio'}}
+            )
+        rest_communication.post_entry('projects', {'project_id': self.project_id, 'samples': [self.sample_id] + self.sample_for_project})
 
         self.dynamic_patches = []
         self._test_success = True
@@ -79,7 +92,7 @@ class IntegrationTest(ReportingAppIntegrationTest):
 
     def setup_test(self, test_type, test_name, integration_section, species='Homo sapiens', analysis_type='Variant Calling gatk'):
         cfg.content['jobs_dir'] = os.path.join(os.path.dirname(os.getcwd()), 'jobs', test_name)
-        cfg.content[test_type]['output_dir'] = os.path.join(os.getcwd(), 'outputs', test_name)
+        cfg.content[test_type]['output_dir'] = os.path.join(os.path.dirname(os.getcwd()), 'outputs', test_name)
         if 'input_dir' in self.cfg[integration_section]:
             cfg.content[test_type]['input_dir'] = self.cfg[integration_section]['input_dir']
 
@@ -350,5 +363,26 @@ class IntegrationTest(ReportingAppIntegrationTest):
         procs = rest_communication.get_documents('analysis_driver_procs')
         self.expect_equal(len(procs), 1, 'used existing proc')
         self.expect_equal(procs[0]['status'], 'finished', 'proc status finished')
+
+        assert self._test_success
+
+    def test_project(self):
+        self.setup_test('project', 'test_project', 'project')
+        exit_status = client.main(['--project'])
+        self.assertEqual('exit status', exit_status, 0)
+
+        self.expect_output_files(
+            self.cfg['project']['files'],
+            base_dir=os.path.join(cfg['project']['output_dir'], self.project_id)
+        )
+
+        self.expect_stage_data('genotypegvcfs', 'relatedness', 'peddy', 'parserelatedness', 'md5sum', 'output',
+                               'cleanup')
+        ad_procs = rest_communication.get_document('analysis_driver_procs', where={'dataset_name': self.project_id})
+        self.expect_equal(
+            ad_procs['pipeline_used'],
+            {'toolset_type': 'project_processing', 'name': 'project', 'toolset_version': 0},
+            'pipeline used'
+        )
 
         assert self._test_success

@@ -708,7 +708,7 @@ class MostRecentProc:
                 }
             }
             if self.get('status') != DATASET_RESUME:
-                payload['date_started'] = now()
+                payload['start_date'] = now()
 
             self.update_entity(status=DATASET_PROCESSING, pid=os.getpid())
             rest_communication.patch_entry('analysis_driver_procs', payload, 'proc_id', self.proc_id)

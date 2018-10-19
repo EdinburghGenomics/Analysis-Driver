@@ -10,8 +10,11 @@ class NamedMock(Mock):  # don't import the tests - that patches `toolset`!
         return self.real_name
 
 
+mocked_clarity_project = NamedMock(real_name='10015AT', udf={'Number of Quoted Samples': 2})
+
+
 class MockedSample(NamedMock):
-    project = NamedMock(real_name='10015AT')
+    project = mocked_clarity_project
 
 
 mocked_lane_artifact_pool = NamedMock(
