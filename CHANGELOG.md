@@ -1,11 +1,17 @@
 Changelog for Analysis-Driver
 =============================
 
-0.23 (unreleased)
+0.23 (2018-11-09)
 -----------------
 
-- Nothing changed yet.
-
+- Location-independent integration testing with EGCG-Core
+- Updated EGCG-Core to v0.9
+- Only running trio check on valid projects
+- Fixed memory allocation for indel realignment and GenotypeGVCFs
+- Eager-loading output config file
+- Removed usages of old aggregation
+- Overwriting existing fastqs in SampleDataOutput
+- Minor fixes: rerunnable stages, pipeline start date, FR insert metrics, PhiX error handling
 
 0.22.1 (2018-06-13)
 -------------------
