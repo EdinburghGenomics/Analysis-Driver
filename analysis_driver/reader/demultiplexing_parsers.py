@@ -62,13 +62,11 @@ def parse_conversion_stats(xml_file, has_barcode):
                             for tile in lane.findall('Tile'):
                                 clust_count += int(tile.find('Raw').find('ClusterCount').text)
                                 clust_count_pf += int(tile.find('Pf').find('ClusterCount').text)
-                                # FIXME: Read numbers in the ConversionStats.xml are wrong when using barcodeless run
-                                # Need to be fixed in bcl2fastq and then changed here
                                 for read in tile.find('Pf').findall('Read'):
-                                    if read.get('number') == '2':
+                                    if read.get('number') == '1':
                                         nb_bases += int(read.find('Yield').text)
                                         nb_bases_r1_q30 += int(read.find('YieldQ30').text)
-                                    if read.get('number') != '2':
+                                    if read.get('number') == '2':
                                         nb_bases_r2_q30 += int(read.find('YieldQ30').text)
                             all_barcodeless.append(
                                 (
