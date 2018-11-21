@@ -12,7 +12,7 @@ def test_bcl2fastq():
     mask = run_info.reads.generate_mask(barcode_len=8)
     sample_sheet_csv = join(assets, 'SampleSheet_analysis_driver.csv')
     obs = bash_commands.bcl2fastq(assets, fastq_path, sample_sheet_csv, mask)
-    exp = ('path/to/bcl2fastq -l INFO --runfolder-dir %s --output-dir %s -r 8 -d 8 -p 8 -w 8 '
+    exp = ('path/to/bcl2fastq -l INFO --runfolder-dir %s --output-dir %s -r 8 -p 8 -w 8 '
            '--sample-sheet %s --use-bases-mask %s') % (assets, fastq_path, sample_sheet_csv, mask)
     assert obs == exp
 

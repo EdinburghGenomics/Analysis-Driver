@@ -8,35 +8,6 @@ from egcg_core.app_logging import logging_default as log_cfg
 app_logger = log_cfg.get_logger(__name__)
 
 
-def parse_demultiplexing_stats(xml_file):
-    """
-    Extract numbers of reads for each barcode
-    :param xml_file: demultiplexing_stats.xml
-    """
-    tree = ElementTree.parse(xml_file).getroot()
-    all_elements = []
-    for project in tree.iter('Project'):
-        if project.get('name') == 'default':
-            continue
-
-        for sample in project.findall('Sample'):
-            for barcode in sample.findall('Barcode'):
-                if project.get('name') != 'all' and barcode.get('name') == 'all':
-                    continue
-
-                for lane in barcode.findall('Lane'):
-                    all_elements.append(
-                        (
-                            project.get('name'),
-                            sample.get('name'),
-                            barcode.get('name'),
-                            lane.get('number'),
-                            lane.find('BarcodeCount').text
-                        )
-                    )
-    return all_elements
-
-
 def parse_conversion_stats(xml_file, has_barcode):
     tree = ElementTree.parse(xml_file).getroot()
     all_barcodes_per_lanes = []
