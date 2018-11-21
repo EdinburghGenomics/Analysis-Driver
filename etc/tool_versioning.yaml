@@ -6,9 +6,9 @@ cmd_aliases:
 
 toolsets:
     run_processing:
-        0:
+        1:
             bcl2fastq:
-                version: v2.17.1.14
+                version: v2.20.0.422
                 version_cmd: grep_toolname
 
             fastq_filterer:
