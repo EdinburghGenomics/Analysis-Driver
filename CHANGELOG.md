@@ -1,6 +1,12 @@
 Changelog for Analysis-Driver
 =============================
 
+0.23.2 (unreleased)
+-------------------
+
+- Nothing changed yet.
+
+
 0.23.1 (2018-11-23)
 -------------------
 
