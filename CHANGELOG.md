@@ -1,10 +1,10 @@
 Changelog for Analysis-Driver
 =============================
 
-0.24 (unreleased)
------------------
+0.23.1 (2018-11-23)
+-------------------
 
-- Nothing changed yet.
+- Updated EGCG-Core to 0.9.1
 
 
 0.23 (2018-11-09)
