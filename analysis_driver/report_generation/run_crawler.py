@@ -1,4 +1,4 @@
-import copy
+import copy, json
 from os.path import isfile
 from collections import defaultdict, Counter
 from egcg_core import util
@@ -236,6 +236,24 @@ class RunCrawler(Crawler):
                 lane = int(barcode_info.get(ELEMENT_LANE))
                 if lane in dup_per_lane:
                     barcode_info[ELEMENT_LANE_PC_OPT_DUP] = dup_per_lane[lane]
+
+    def _populate_barcode_info_from_json_file(self, run_dir):
+        """Parses the Stats.json file and populates the conversion statistics and adaptor trimming details in the
+        barcode_info variable. It succeeds and will replace the _populate_barcode_info_from_conversion_file() and
+        _populate_barcode_info_from_adapter_file() functions."""
+        json_files = util.find_files(run_dir, 'Stats', 'Stats.json')
+        if json_files:
+            with open(json_files[0], 'r') as json_stats:
+                json_data = json.load(json_stats)
+
+            # Store multiplexed run status boolean
+            is_multiplexed = self.dataset.has_barcodes
+
+            # Confirm that r1 and r2 are the same, then find the sum of the reads per lane
+            reads_per_lane = Counter()
+
+            # Call function which calculates the aggregates of the run elements (previously barcodes)
+            all_run_elements, top_unknown_run_elements = dm.aggregate_json_stats(json_data)
 
     def _populate_barcode_info_from_conversion_file(self, run_dir):
         conversion_xmls = util.find_files(run_dir, 'Stats', 'ConversionStats.xml')

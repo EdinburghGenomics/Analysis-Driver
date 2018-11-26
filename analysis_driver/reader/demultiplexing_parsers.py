@@ -8,6 +8,42 @@ from egcg_core.app_logging import logging_default as log_cfg
 app_logger = log_cfg.get_logger(__name__)
 
 
+def aggregate_json_stats(json_data):
+    """Creates an array of tuples of run elements and associated metadata."""
+    all_run_elements = []
+
+    for lane in json_data['ConversionResults']:
+        for sample in lane['DemuxResults']:
+            """ If the run is not multiplexed, the index_sequence will not be present in the JSON file.
+             Therefore, the variable will be prepopulated with 'barcodeless'. """
+            index_sequence = "barcodeless"
+            if sample['IndexMetrics']:
+                index_sequence = sample['IndexMetrics']['IndexSequence']
+
+            # obtaining number of bases r1 and r2 q30, confirming the read number first
+            nb_bases_r1_q30, nb_bases_r2_q30 = 0, 0
+            if sample['ReadMetrics'][0]['ReadNumber'] == 1 and sample['ReadMetrics'][1]['ReadNumber'] == 2:
+                nb_bases_r1_q30 = sample['ReadMetrics'][0]['Yield']
+                nb_bases_r2_q30 = sample['ReadMetrics'][1]['Yield']
+            elif sample['ReadMetrics'][0]['ReadNumber'] == 2 and sample['ReadMetrics'][1]['ReadNumber'] == 1:
+                nb_bases_r1_q30 = sample['ReadMetrics'][1]['Yield']
+                nb_bases_r2_q30 = sample['ReadMetrics'][0]['Yield']
+
+            all_run_elements.append((
+                sample['SampleId'][:-4],  # removing the last four characters of the sample ID leaves the project name
+                sample['SampleName'],
+                lane['LaneNumber'],
+                index_sequence,  # barcode sequence
+                sample['NumberReads'],  # cluster count
+                sample['NumberReads'],  # cluster count is equal to cluster count pf in multiplexed runs
+                nb_bases_r1_q30,
+                nb_bases_r2_q30
+
+            ))
+
+    return all_run_elements, top_unknown_run_elements
+
+
 def parse_conversion_stats(xml_file, has_barcode):
     tree = ElementTree.parse(xml_file).getroot()
     all_barcodes_per_lanes = []
