@@ -1,5 +1,7 @@
 import os
 import signal
+import time
+
 import pytest
 from sys import modules
 from unittest.mock import patch, Mock, PropertyMock, call
@@ -176,6 +178,11 @@ class TestDataset(TestAnalysisDriver):
 
     def test_raise_exceptions(self):
         self.dataset.register_exception(Mock(stage_name='task1'), SequencingRunError('RunErrored'))
+        # Give time for the exception to be pickled.
+        # From the documentation:
+        # 'After putting an object on an empty queue there may be an infinitesimal delay before the queue’s empty()
+        # method returns False and get_nowait() can return without raising queue.Empty.'
+        time.sleep(.1)
         with pytest.raises(SequencingRunError):
             self.dataset.raise_exceptions()
 

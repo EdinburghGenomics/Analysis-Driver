@@ -1,16 +1,12 @@
-import unittest
 from unittest.mock import Mock, patch
 
-import luigi
 import pytest
-from luigi import Task, Event
 
 from analysis_driver import segmentation
 from analysis_driver.dataset import RunDataset
 from analysis_driver.exceptions import SequencingRunError, PipelineError
 from analysis_driver.pipelines import pipeline
 from tests import TestAnalysisDriver
-from tests.test_analysisdriver import NamedMock
 
 
 class ExceptionStage(segmentation.Stage):
