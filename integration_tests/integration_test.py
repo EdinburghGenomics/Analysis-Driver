@@ -6,6 +6,7 @@ from egcg_core.app_logging import logging_default
 from egcg_core.integration_testing import ReportingAppIntegrationTest
 from unittest.mock import Mock, patch
 from analysis_driver import client
+from analysis_driver.exceptions import SequencingRunError
 from integration_tests import mocked_data
 
 
@@ -223,6 +224,16 @@ class IntegrationTest(ReportingAppIntegrationTest):
             'pipeline used'
         )
         assert self._test_success
+
+    def test_demultiplexing_aborted(self):
+        self.setup_test('sample', 'test_demultiplexing', 'demultiplexing')
+        with patch('analysis_driver.pipelines.demultiplexing.Setup._run', side_effect=SequencingRunError):
+            exit_status = client.main(['--run'])
+            self.assertEqual('exit status', exit_status, 0)
+
+            self.expect_equal(
+                rest_communication.get_document('analysis_driver_procs')['status'], 'aborted'
+            )
 
     def test_bcbio(self):
         self.setup_test('sample', 'test_bcbio', 'bcbio')
