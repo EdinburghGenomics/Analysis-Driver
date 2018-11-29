@@ -343,7 +343,6 @@
             "a_run_id_1_ATTACTCG",
             "a_run_id_2_ATTACTCG"
         ],
-        "number_of_lanes": 2,
-        "run_id": "a_run_id"
+        "number_of_lanes": 2
     }
 }

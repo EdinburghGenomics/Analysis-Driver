@@ -69,12 +69,15 @@ class Dataset(AppLogger):
             where={'analysis_driver_proc': self.most_recent_proc.get('proc_id'), 'stage_name': stage_name}
         )
 
+    def initialise_entity(self):
+        self.most_recent_proc.initialise_entity()
+
     def start(self):
         self._assert_status(DATASET_READY, DATASET_FORCE_READY, DATASET_NEW, DATASET_RESUME)
         if self.dataset_status == DATASET_RESUME:
-            self.most_recent_proc.retrieve_entity()
+            self.most_recent_proc.retrieve_entity()  # use existing entity
         else:
-            self.most_recent_proc.initialise_entity()  # take a new entity
+            self.initialise_entity()  # take a new entity
         self.most_recent_proc.start()
         self.ntf.start_pipeline()
 
@@ -271,6 +274,13 @@ class RunDataset(Dataset):
         self._run_elements = None
         self._barcode_len = None
         self._lims_run = None
+
+    def initialise_entity(self):
+        run = rest_communication.get_document('runs', where={'run_id': self.name})
+        if not run:
+            rest_communication.post_entry('runs', {'run_id': self.name})
+
+        super().initialise_entity()
 
     @property
     def run_info(self):
@@ -667,9 +677,9 @@ class MostRecentProc:
 
         rest_communication.post_entry('analysis_driver_procs', entity)
         rest_communication.patch_entry(
-            self.dataset.type + 's',
+            self.dataset.endpoint,
             {'analysis_driver_procs': [self.proc_id]},
-            id_field=self.dataset.type + '_id',
+            id_field=self.dataset.id_field,
             element_id=self.dataset.name,
             update_lists=['analysis_driver_procs']
         )

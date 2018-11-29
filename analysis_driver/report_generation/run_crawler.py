@@ -3,7 +3,7 @@ from os.path import isfile
 from collections import defaultdict, Counter
 from egcg_core import util
 from egcg_core.constants import *
-from egcg_core.rest_communication import post_or_patch as pp
+from egcg_core.rest_communication import patch_entry, post_or_patch as pp
 from analysis_driver.reader import demultiplexing_parsers as dm, mapping_stats_parsers as mp
 from analysis_driver.exceptions import PipelineError
 from .crawler import Crawler
@@ -51,7 +51,7 @@ class RunCrawler(Crawler):
         self.unexpected_barcodes = {}
         self.libraries = defaultdict(dict)
         self.lanes = defaultdict(dict)
-        self.run = {ELEMENT_RUN_NAME: self.dataset.name, ELEMENT_RUN_ELEMENTS: []}
+        self.run = {ELEMENT_RUN_ELEMENTS: []}
         self.projects = defaultdict(dict)
 
         for run_element in dataset.run_elements:
@@ -359,6 +359,6 @@ class RunCrawler(Crawler):
         pp('run_elements', self.barcodes_info.values(), ELEMENT_RUN_ELEMENT_ID)
         pp('unexpected_barcodes', self.unexpected_barcodes.values(), ELEMENT_RUN_ELEMENT_ID)
         pp('lanes', self.lanes.values(), ELEMENT_LANE_ID)
-        pp('runs', [self.run], ELEMENT_RUN_NAME)
+        patch_entry('runs', self.run, ELEMENT_RUN_NAME, self.dataset.name)
         pp('samples', self.libraries.values(), ELEMENT_SAMPLE_INTERNAL_ID, ['run_elements'])
         pp('projects', self.projects.values(), ELEMENT_PROJECT_ID, ['samples'])
