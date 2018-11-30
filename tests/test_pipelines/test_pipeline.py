@@ -48,7 +48,7 @@ class TestPipeline(TestAnalysisDriver):
     def test_successful_pipeline(self):
         assert self._pipeline_with_stage(SuccessfulStage) == 0
 
-    def test_failling_pipeline(self):
+    def test_failing_pipeline(self):
         with pytest.raises(PipelineError):
             self._pipeline_with_stage(FailingStage)
 
