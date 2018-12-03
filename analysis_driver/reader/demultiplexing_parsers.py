@@ -8,37 +8,51 @@ from egcg_core.app_logging import logging_default as log_cfg
 app_logger = log_cfg.get_logger(__name__)
 
 
-def aggregate_json_stats(json_data):
-    """Creates an array of tuples of run elements and associated metadata."""
+def parse_json_stats(json_data):
+    """Creates an array of tuples of run elements, unknown run elements and associated metadata."""
     all_run_elements = []
+    top_unknown_run_elements = []
 
     for lane in json_data['ConversionResults']:
         for sample in lane['DemuxResults']:
-            """ If the run is not multiplexed, the index_sequence will not be present in the JSON file.
-             Therefore, the variable will be prepopulated with 'barcodeless'. """
+            """ If the run is not multiplexed, the index_sequence will not be present in the JSON file, and the cluster
+            count needs to be retrieved from a different variable in the JSON file. The index_sequence variable will be 
+            prepopulated with 'barcodeless'. """
             index_sequence = "barcodeless"
+            cluster_count_raw = lane['TotalClustersRaw']
+            cluster_count_pf = lane['TotalClustersPF']
             if sample['IndexMetrics']:
                 index_sequence = sample['IndexMetrics']['IndexSequence']
+                cluster_count_raw = sample['NumberReads']
+                cluster_count_pf = sample['NumberReads']  # cluster count is equal to cluster count pf in multiplexed runs
 
             # obtaining number of bases r1 and r2 q30, confirming the read number first
             nb_bases_r1_q30, nb_bases_r2_q30 = 0, 0
             if sample['ReadMetrics'][0]['ReadNumber'] == 1 and sample['ReadMetrics'][1]['ReadNumber'] == 2:
-                nb_bases_r1_q30 = sample['ReadMetrics'][0]['Yield']
-                nb_bases_r2_q30 = sample['ReadMetrics'][1]['Yield']
+                nb_bases_r1_q30 = sample['ReadMetrics'][0]['YieldQ30']
+                nb_bases_r2_q30 = sample['ReadMetrics'][1]['YieldQ30']
             elif sample['ReadMetrics'][0]['ReadNumber'] == 2 and sample['ReadMetrics'][1]['ReadNumber'] == 1:
-                nb_bases_r1_q30 = sample['ReadMetrics'][1]['Yield']
-                nb_bases_r2_q30 = sample['ReadMetrics'][0]['Yield']
+                nb_bases_r1_q30 = sample['ReadMetrics'][1]['YieldQ30']
+                nb_bases_r2_q30 = sample['ReadMetrics'][0]['YieldQ30']
 
             all_run_elements.append((
-                sample['SampleId'][:-4],  # removing the last four characters of the sample ID leaves the project name
+                sample['SampleId'][:-4],  # TODO: does removing the last four or seven characters of the sample ID leave the project name?
                 sample['SampleName'],
                 lane['LaneNumber'],
                 index_sequence,  # barcode sequence
-                sample['NumberReads'],  # cluster count
-                sample['NumberReads'],  # cluster count is equal to cluster count pf in multiplexed runs
+                cluster_count_raw,  # cluster count
+                cluster_count_pf,
+                sample['ReadMetrics'][0]['Yield'],  # yield is equal for r1 and r2 in multiplexed and barcodeless runs
                 nb_bases_r1_q30,
                 nb_bases_r2_q30
+            ))
 
+    for lane in json_data['UnknownBarcodes']:
+        for barcode, count in lane['Barcodes'].iteritems():
+            top_unknown_run_elements.append((
+                lane['Lane'],
+                barcode,
+                count
             ))
 
     return all_run_elements, top_unknown_run_elements

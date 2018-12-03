@@ -253,7 +253,7 @@ class RunCrawler(Crawler):
             reads_per_lane = Counter()
 
             # Call function which calculates the aggregates of the run elements (previously barcodes)
-            all_run_elements, top_unknown_run_elements = dm.aggregate_json_stats(json_data)
+            all_run_elements, top_unknown_run_elements = dm.parse_json_stats(json_data)
 
     def _populate_barcode_info_from_conversion_file(self, run_dir):
         conversion_xmls = util.find_files(run_dir, 'Stats', 'ConversionStats.xml')
