@@ -11,7 +11,7 @@ app_logger = log_cfg.get_logger(__name__)
 def parse_json_stats(json_data):
     """Creates an array of tuples of run elements, unknown run elements and associated metadata."""
     all_run_elements = []
-    top_unknown_run_elements = []
+    unknown_run_elements = []
 
     for lane in json_data['ConversionResults']:
         for sample in lane['DemuxResults']:
@@ -35,6 +35,10 @@ def parse_json_stats(json_data):
                 nb_bases_r1_q30 = sample['ReadMetrics'][1]['YieldQ30']
                 nb_bases_r2_q30 = sample['ReadMetrics'][0]['YieldQ30']
 
+            if sample['ReadMetrics'][0]['Yield'] != sample['ReadMetrics'][1]['Yield']:
+                # yield is expected to be equal for r1 and r2 in multiplexed and barcodeless runs
+                raise NotImplementedError()
+
             all_run_elements.append((
                 sample['SampleName'],
                 lane['LaneNumber'],
@@ -46,15 +50,16 @@ def parse_json_stats(json_data):
                 nb_bases_r2_q30
             ))
 
+    # parsing the unknown barcodes into their own array
     for lane in json_data['UnknownBarcodes']:
         for barcode, count in lane['Barcodes'].iteritems():
-            top_unknown_run_elements.append((
+            unknown_run_elements.append((
                 lane['Lane'],
                 barcode,
                 count
             ))
 
-    return all_run_elements, top_unknown_run_elements
+    return all_run_elements, unknown_run_elements
 
 
 def parse_conversion_stats(xml_file, has_barcode):
