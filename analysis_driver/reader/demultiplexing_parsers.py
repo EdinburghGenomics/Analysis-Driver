@@ -36,7 +36,6 @@ def parse_json_stats(json_data):
                 nb_bases_r2_q30 = sample['ReadMetrics'][0]['YieldQ30']
 
             all_run_elements.append((
-                sample['SampleId'][:-4],  # TODO: does removing the last four or seven characters of the sample ID leave the project name?
                 sample['SampleName'],
                 lane['LaneNumber'],
                 index_sequence,  # barcode sequence
