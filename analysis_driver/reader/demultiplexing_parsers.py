@@ -55,10 +55,10 @@ def parse_json_stats(json_data, run_id):
             ))
 
             # parsing adapter trimming into its own dict and adding trimmed bases counts
-            run_element_info = (run_id, sample['SampleName'], lane['LaneNumber'])
+            run_element_info = (run_id, sample['SampleId'], lane['LaneNumber'])
             adapter_trimmed_by_id[run_element_info] = {
-                adapter_trimmed_by_id[run_element_info]['read_1_trimmed_bases']: int(trimmed_bases_r1),
-                adapter_trimmed_by_id[run_element_info]['read_2_trimmed_bases']: int(trimmed_bases_r2)
+                'read_1_trimmed_bases': int(trimmed_bases_r1),
+                'read_2_trimmed_bases': int(trimmed_bases_r2)
             }
 
     # parsing the top 10 unknown barcodes into their own array
@@ -72,7 +72,7 @@ def parse_json_stats(json_data, run_id):
             if index == 9:
                 break
 
-    return all_run_elements, unknown_run_elements
+    return all_run_elements, unknown_run_elements, adapter_trimmed_by_id
 
 
 def parse_conversion_stats(xml_file, has_barcode):
