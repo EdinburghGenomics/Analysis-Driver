@@ -246,57 +246,71 @@ class RunCrawler(Crawler):
             with open(json_files[0], 'r') as json_stats:
                 json_data = json.load(json_stats)
 
-            # Find the sum of the reads per lane
-            reads_per_lane = Counter()
-
             # Call function which parses of the run elements JSON file (previously barcodes)
             all_run_elements, unknown_run_elements = dm.parse_json_stats(json_data)
 
-            for (library, lane, barcode, clust_count,
-                 clust_count_pf, nb_bases, nb_bases_r1_q30, nb_bases_r2_q30) in all_run_elements:
+            # To find the sum of the reads per lane, and populate barcode info
+            reads_per_lane = self._generate_barcode_info_from_run_elements(all_run_elements)
 
-                # incrementing the count of reads per lane
-                reads_per_lane[lane] += clust_count_pf
-
-                # retrieving barcode info, which differs between barcodeless and multiplexed runs
-                if barcode == "barcodeless":
-                    barcode_info = self.barcodes_info.get(
-                        '{dataset_name}_{lane}'.format(dataset_name=self.dataset.name, lane=lane))
-                else:
-                    barcode_info = self.barcodes_info.get(
-                        '{dataset_name}_{lane}_{barcode}'.format(dataset_name=self.dataset.name, lane=lane,
-                                                                 barcode=barcode))
-
-                # populating the barcode info array
-                barcode_info[ELEMENT_NB_READS_SEQUENCED] = clust_count
-                barcode_info[ELEMENT_NB_READS_PASS_FILTER] = clust_count_pf
-                barcode_info[ELEMENT_NB_BASE_R1] = nb_bases
-                barcode_info[ELEMENT_NB_BASE_R2] = nb_bases
-                barcode_info[ELEMENT_NB_Q30_R1] = nb_bases_r1_q30
-                barcode_info[ELEMENT_NB_Q30_R2] = nb_bases_r2_q30
-
-            # iterating over run elements in barcodes_info
-            for run_element in self.barcodes_info:
-                barcode = self.barcodes_info[run_element]
-                reads_for_lane = reads_per_lane.get(barcode[ELEMENT_LANE])
-                # TODO: Explain logic
-                if reads_for_lane > 0:
-                    barcode[ELEMENT_PC_READ_IN_LANE] = barcode[ELEMENT_NB_READS_PASS_FILTER] / reads_for_lane
+            # iterating over run elements to calculate proportion of each per lane
+            self._aggregate_run_element_per_lane(reads_per_lane)
 
             # populating the unknown run elements array
-            for lane, barcode, clust_count in unknown_run_elements:
-                unknown_element_id = '{dataset_name}_{lane}_{barcode}'.format(
-                    dataset_name=self.dataset.name, lane=lane, barcode=barcode
-                    )
+            self._populate_unknown_elements(unknown_run_elements, reads_per_lane)
 
-                self.unexpected_barcodes[unknown_element_id] = {
-                    ELEMENT_RUN_ELEMENT_ID: unknown_element_id,
-                    ELEMENT_RUN_NAME: self.dataset.name,
-                    ELEMENT_LANE: lane,
-                    ELEMENT_PC_READ_IN_LANE: int(clust_count) / reads_per_lane.get(lane),
-                    ELEMENT_BARCODE: barcode,
-                    ELEMENT_NB_READS_PASS_FILTER: int(clust_count)
-                }
+    def _generate_barcode_info_from_run_elements(self, all_run_elements):
+        # to find the sum of the reads per lane
+        reads_per_lane = Counter()
+
+        # iterate over all run elements, populating the barcode_info
+        for (library, lane, barcode, clust_count,
+             clust_count_pf, nb_bases, nb_bases_r1_q30, nb_bases_r2_q30) in all_run_elements:
+
+            # incrementing the count of reads per lane
+            reads_per_lane[lane] += clust_count_pf
+
+            # retrieving barcode info, which differs between barcodeless and multiplexed runs
+            if barcode == "barcodeless":
+                barcode_info = self.barcodes_info.get(
+                    '{dataset_name}_{lane}'.format(dataset_name=self.dataset.name, lane=lane))
+            else:
+                barcode_info = self.barcodes_info.get(
+                    '{dataset_name}_{lane}_{barcode}'.format(dataset_name=self.dataset.name, lane=lane,
+                                                             barcode=barcode))
+
+            # populating the barcode info array
+            barcode_info[ELEMENT_NB_READS_SEQUENCED] = clust_count
+            barcode_info[ELEMENT_NB_READS_PASS_FILTER] = clust_count_pf
+            barcode_info[ELEMENT_NB_BASE_R1] = nb_bases
+            barcode_info[ELEMENT_NB_BASE_R2] = nb_bases
+            barcode_info[ELEMENT_NB_Q30_R1] = nb_bases_r1_q30
+            barcode_info[ELEMENT_NB_Q30_R2] = nb_bases_r2_q30
+
+        return reads_per_lane
+
+    def _aggregate_run_element_per_lane(self, reads_per_lane):
+        # iterating over run elements to calculate proportion of each per lane
+        for run_element in self.barcodes_info:
+            barcode = self.barcodes_info[run_element]
+            reads_for_lane = reads_per_lane.get(barcode[ELEMENT_LANE])
+            if reads_for_lane > 0:
+                barcode[ELEMENT_PC_READ_IN_LANE] = barcode[ELEMENT_NB_READS_PASS_FILTER] / reads_for_lane
+
+    def _populate_unknown_elements(self, unknown_run_elements, reads_per_lane):
+        # this helper function populates the unknown run elements array
+        for lane, barcode, clust_count in unknown_run_elements:
+            unknown_element_id = '{dataset_name}_{lane}_{barcode}'.format(
+                dataset_name=self.dataset.name, lane=lane, barcode=barcode
+            )
+
+            self.unexpected_barcodes[unknown_element_id] = {
+                ELEMENT_RUN_ELEMENT_ID: unknown_element_id,
+                ELEMENT_RUN_NAME: self.dataset.name,
+                ELEMENT_LANE: lane,
+                ELEMENT_PC_READ_IN_LANE: int(clust_count) / reads_per_lane.get(lane),
+                ELEMENT_BARCODE: barcode,
+                ELEMENT_NB_READS_PASS_FILTER: int(clust_count)
+            }
 
     def _populate_barcode_info_from_conversion_file(self, run_dir):
         conversion_xmls = util.find_files(run_dir, 'Stats', 'ConversionStats.xml')

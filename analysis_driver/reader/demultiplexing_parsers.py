@@ -21,8 +21,8 @@ def parse_json_stats(json_data):
             index_sequence = "barcodeless"
             cluster_count_raw = lane['TotalClustersRaw']
             cluster_count_pf = lane['TotalClustersPF']
-            if sample['IndexMetrics']:
-                index_sequence = sample['IndexMetrics']['IndexSequence']
+            if 'IndexMetrics' in sample:
+                index_sequence = sample['IndexMetrics'][0]['IndexSequence']
                 cluster_count_raw = sample['NumberReads']
                 cluster_count_pf = sample['NumberReads']  # cluster count is equal to cluster count pf in multiplexed runs
 
@@ -52,12 +52,14 @@ def parse_json_stats(json_data):
 
     # parsing the unknown barcodes into their own array
     for lane in json_data['UnknownBarcodes']:
-        for barcode, count in lane['Barcodes'].iteritems():
+        for index, barcode in enumerate(lane['Barcodes']):
             unknown_run_elements.append((
-                lane['Lane'],
+                str(lane['Lane']),
                 barcode,
-                count
+                str(lane['Barcodes'][barcode])
             ))
+            if index == 9:
+                break
 
     return all_run_elements, unknown_run_elements
 
