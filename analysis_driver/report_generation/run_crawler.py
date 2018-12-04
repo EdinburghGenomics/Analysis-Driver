@@ -246,8 +246,8 @@ class RunCrawler(Crawler):
             with open(json_files[0], 'r') as json_stats:
                 json_data = json.load(json_stats)
 
-            # Call function which parses of the run elements JSON file (previously barcodes)
-            all_run_elements, unknown_run_elements = dm.parse_json_stats(json_data)
+            # Call function which parses of the run elements and adapter trimmings in JSON file (previously barcodes)
+            all_run_elements, unknown_run_elements = dm.parse_json_stats(json_data, self.dataset.name)
 
             # To find the sum of the reads per lane, and populate barcode info
             reads_per_lane = self._generate_barcode_info_from_run_elements(all_run_elements)

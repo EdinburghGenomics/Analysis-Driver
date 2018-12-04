@@ -8,16 +8,18 @@ from egcg_core.app_logging import logging_default as log_cfg
 app_logger = log_cfg.get_logger(__name__)
 
 
-def parse_json_stats(json_data):
+def parse_json_stats(json_data, run_id):
     """Creates an array of tuples of run elements, unknown run elements and associated metadata."""
     all_run_elements = []
     unknown_run_elements = []
+    adapter_trimmed_by_id = {}
 
     for lane in json_data['ConversionResults']:
         for sample in lane['DemuxResults']:
             """ If the run is not multiplexed, the index_sequence will not be present in the JSON file, and the cluster
             count needs to be retrieved from a different variable in the JSON file. The index_sequence variable will be 
             prepopulated with 'barcodeless'. """
+            r1, r2 = sample['ReadMetrics'][0], sample['ReadMetrics'][1]
             index_sequence = "barcodeless"
             cluster_count_raw = lane['TotalClustersRaw']
             cluster_count_pf = lane['TotalClustersPF']
@@ -26,16 +28,18 @@ def parse_json_stats(json_data):
                 cluster_count_raw = sample['NumberReads']
                 cluster_count_pf = sample['NumberReads']  # cluster count is equal to cluster count pf in multiplexed runs
 
-            # obtaining number of bases r1 and r2 q30, confirming the read number first
+            # obtaining number of trimmed bases and bases r1 and r2 q30, confirming the read number first
             nb_bases_r1_q30, nb_bases_r2_q30 = 0, 0
-            if sample['ReadMetrics'][0]['ReadNumber'] == 1 and sample['ReadMetrics'][1]['ReadNumber'] == 2:
-                nb_bases_r1_q30 = sample['ReadMetrics'][0]['YieldQ30']
-                nb_bases_r2_q30 = sample['ReadMetrics'][1]['YieldQ30']
-            elif sample['ReadMetrics'][0]['ReadNumber'] == 2 and sample['ReadMetrics'][1]['ReadNumber'] == 1:
-                nb_bases_r1_q30 = sample['ReadMetrics'][1]['YieldQ30']
-                nb_bases_r2_q30 = sample['ReadMetrics'][0]['YieldQ30']
+            if r1['ReadNumber'] == 1 and r2['ReadNumber'] == 2:
+                nb_bases_r1_q30 = r1['YieldQ30']
+                nb_bases_r2_q30 = r2['YieldQ30']
+                trimmed_bases_r1 = r1['TrimmedBases']
+                trimmed_bases_r2 = r2['TrimmedBases']
+            elif r1['ReadNumber'] == 2 and r2['ReadNumber'] == 1:
+                # this is not expected
+                raise NotImplementedError()
 
-            if sample['ReadMetrics'][0]['Yield'] != sample['ReadMetrics'][1]['Yield']:
+            if r1['Yield'] != r2['Yield']:
                 # yield is expected to be equal for r1 and r2 in multiplexed and barcodeless runs
                 raise NotImplementedError()
 
@@ -45,12 +49,18 @@ def parse_json_stats(json_data):
                 index_sequence,  # barcode sequence
                 cluster_count_raw,  # cluster count
                 cluster_count_pf,
-                sample['ReadMetrics'][0]['Yield'],  # yield is equal for r1 and r2 in multiplexed and barcodeless runs
+                r1['Yield'],  # yield is equal for r1 and r2 in multiplexed and barcodeless runs
                 nb_bases_r1_q30,
                 nb_bases_r2_q30
             ))
 
-    # parsing the unknown barcodes into their own array
+            # parsing adapter trimming into its own dict and adding read information
+            run_element_info = (run_id, sample['SampleName'], lane['LaneNumber'])
+            adapter_trimmed_by_id[run_element_info] = {}
+            adapter_trimmed_by_id[run_element_info]['read_1_trimmed_bases'] = int(trimmed_bases_r1)
+            adapter_trimmed_by_id[run_element_info]['read_2_trimmed_bases'] = int(trimmed_bases_r2)
+
+    # parsing the top 10 unknown barcodes into their own array
     for lane in json_data['UnknownBarcodes']:
         for index, barcode in enumerate(lane['Barcodes']):
             unknown_run_elements.append((
