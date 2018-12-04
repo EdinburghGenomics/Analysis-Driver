@@ -54,11 +54,12 @@ def parse_json_stats(json_data, run_id):
                 nb_bases_r2_q30
             ))
 
-            # parsing adapter trimming into its own dict and adding read information
+            # parsing adapter trimming into its own dict and adding trimmed bases counts
             run_element_info = (run_id, sample['SampleName'], lane['LaneNumber'])
-            adapter_trimmed_by_id[run_element_info] = {}
-            adapter_trimmed_by_id[run_element_info]['read_1_trimmed_bases'] = int(trimmed_bases_r1)
-            adapter_trimmed_by_id[run_element_info]['read_2_trimmed_bases'] = int(trimmed_bases_r2)
+            adapter_trimmed_by_id[run_element_info] = {
+                adapter_trimmed_by_id[run_element_info]['read_1_trimmed_bases']: int(trimmed_bases_r1),
+                adapter_trimmed_by_id[run_element_info]['read_2_trimmed_bases']: int(trimmed_bases_r2)
+            }
 
     # parsing the top 10 unknown barcodes into their own array
     for lane in json_data['UnknownBarcodes']:
