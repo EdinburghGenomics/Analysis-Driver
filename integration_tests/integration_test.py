@@ -245,7 +245,7 @@ class IntegrationTest(ReportingAppIntegrationTest):
         self.expect_equal(
             ad_proc['status'], 'aborted', 'pipeline status'
         )
-        self.expect_stage_data([('setup', 9)], analysis_driver_proc=ad_proc['proc_id'])
+        self.expect_stage_data([('setup', 9)], where={'analysis_driver_proc': ad_proc['proc_id']})
 
     def test_bcbio(self):
         self.setup_test('sample', 'test_bcbio', 'bcbio')
