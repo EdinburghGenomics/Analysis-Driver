@@ -55,11 +55,27 @@ def parse_json_stats(json_data, run_id):
             ))
 
             # parsing adapter trimming into its own dict and adding trimmed bases counts
-            run_element_info = (run_id, sample['SampleId'], lane['LaneNumber'])
+            run_element_info = (run_id, sample['SampleId'], str(lane['LaneNumber']))
             adapter_trimmed_by_id[run_element_info] = {
                 'read_1_trimmed_bases': int(trimmed_bases_r1),
                 'read_2_trimmed_bases': int(trimmed_bases_r2)
             }
+
+        # obtaining number of undetermined trimmed bases r1 and r2 q30, confirming the read number first
+        r1, r2 = lane['Undetermined']['ReadMetrics'][0], lane['Undetermined']['ReadMetrics'][1]
+        if r1['ReadNumber'] == 1 and r2['ReadNumber'] == 2:
+            trimmed_bases_r1 = r1['TrimmedBases']
+            trimmed_bases_r2 = r2['TrimmedBases']
+        elif r1['ReadNumber'] == 2 and r2['ReadNumber'] == 1:
+            # this is not expected
+            raise NotImplementedError()
+
+        # parsing undetermined adapter trimming into its own dict and adding trimmed bases counts
+        run_element_info = (run_id, 'unknown', str(lane['LaneNumber']))
+        adapter_trimmed_by_id[run_element_info] = {
+            'read_1_trimmed_bases': int(trimmed_bases_r1),
+            'read_2_trimmed_bases': int(trimmed_bases_r2)
+        }
 
     # parsing the top 10 unknown barcodes into their own array
     for lane in json_data['UnknownBarcodes']:
