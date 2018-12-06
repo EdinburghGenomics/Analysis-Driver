@@ -9,14 +9,6 @@ from analysis_driver.exceptions import PipelineError
 from .crawler import Crawler
 
 
-# retrieving run_element_id, which differs between barcodeless and multiplexed runs
-def get_run_element_id(run_id, lane_number, barcode=None):
-    if barcode is None or barcode == 'barcodeless':
-        return '{dataset_name}_{lane}'.format(dataset_name=run_id, lane=lane_number)
-    else:
-        return '{dataset_name}_{lane}_{barcode}'.format(dataset_name=run_id, lane=lane_number, barcode=barcode)
-
-
 class RunCrawler(Crawler):
     STAGE_CONVERSION = 20
     STAGE_FILTER = 30
@@ -50,6 +42,13 @@ class RunCrawler(Crawler):
         if k not in d:
             d[k] = set()
         d[k].add(v)
+
+    # retrieving run_element_id, which differs between barcodeless and multiplexed runs
+    def get_run_element_id(run_id, lane_number, barcode=None):
+        if barcode is None or barcode == 'barcodeless':
+            return '{dataset_name}_{lane}'.format(dataset_name=run_id, lane=lane_number)
+        else:
+            return '{dataset_name}_{lane}_{barcode}'.format(dataset_name=run_id, lane=lane_number, barcode=barcode)
 
     def _populate_barcode_info_from_dataset(self, dataset):
         """
@@ -279,7 +278,7 @@ class RunCrawler(Crawler):
 
             # retrieving barcode info, which depends on the run_element_id which differs between barcodeless and
             # multiplexed runs
-            run_element_id = get_run_element_id(run_id=self.dataset.name, lane_number=lane, barcode=barcode)
+            run_element_id = self.get_run_element_id(run_id=self.dataset.name, lane_number=lane, barcode=barcode)
             barcode_info = self.barcodes_info.get(run_element_id)
 
             # populating the barcode info array
@@ -309,7 +308,7 @@ class RunCrawler(Crawler):
     def _populate_unknown_elements(self, unknown_run_elements, reads_per_lane):
         # this helper function populates the unknown run elements array
         for lane, barcode, clust_count in unknown_run_elements:
-            unknown_element_id = get_run_element_id(run_id=self.dataset.name, lane_number=lane, barcode=barcode)
+            unknown_element_id = self.get_run_element_id(run_id=self.dataset.name, lane_number=lane, barcode=barcode)
 
             self.unexpected_barcodes[unknown_element_id] = {
                 ELEMENT_RUN_ELEMENT_ID: unknown_element_id,
