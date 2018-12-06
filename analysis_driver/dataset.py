@@ -665,7 +665,7 @@ class MostRecentProc:
         return self._entity
 
     def initialise_entity(self):
-        self.proc_id = '_'.join((self.dataset.type, self.dataset.name, now()))
+        self.proc_id = '%s_%s_%s' % (self.dataset.type, self.dataset.name, now())
         entity = {
             'proc_id': self.proc_id,
             'dataset_type': self.dataset.type,

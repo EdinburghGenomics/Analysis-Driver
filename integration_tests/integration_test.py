@@ -207,8 +207,14 @@ class IntegrationTest(ReportingAppIntegrationTest):
                                'samtoolsdepthmulti', 'picardinsertsizemulti', 'qcoutput2', 'runreview',
                                'picardmarkduplicatemulti', 'samtoolsstatsmulti', 'bwaalignmulti')
 
+        proc = rest_communication.get_document('analysis_driver_procs')
         self.expect_equal(
-            rest_communication.get_document('analysis_driver_procs')['pipeline_used'],
+            rest_communication.get_document('runs', where={'run_id': self.run_id}).get('analysis_driver_procs'),
+            [proc['proc_id']],
+            'run proc registered'
+        )
+        self.expect_equal(
+            proc['pipeline_used'],
             {'name': 'demultiplexing', 'toolset_version': 0, 'toolset_type': 'run_processing'},
             'pipeline used'
         )
