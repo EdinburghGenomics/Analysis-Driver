@@ -4,6 +4,7 @@ from collections import Counter, defaultdict
 from xml.etree import ElementTree
 from egcg_core import constants as c
 from egcg_core.app_logging import logging_default as log_cfg
+from analysis_driver.report_generation.run_crawler import get_run_element_id
 
 app_logger = log_cfg.get_logger(__name__)
 
@@ -55,8 +56,8 @@ def parse_json_stats(json_data, run_id):
             ))
 
             # parsing adapter trimming into its own dict and adding trimmed bases counts
-            run_element_info = (run_id, sample['SampleId'], str(lane['LaneNumber']))
-            adapter_trimmed_by_id[run_element_info] = {
+            run_element_id = get_run_element_id(run_id=run_id, lane_number=lane['LaneNumber'], barcode=index_sequence)
+            adapter_trimmed_by_id[run_element_id] = {
                 'read_1_trimmed_bases': int(trimmed_bases_r1),
                 'read_2_trimmed_bases': int(trimmed_bases_r2)
             }
@@ -71,8 +72,8 @@ def parse_json_stats(json_data, run_id):
             raise NotImplementedError()
 
         # parsing undetermined adapter trimming into its own dict and adding trimmed bases counts
-        run_element_info = (run_id, 'unknown', str(lane['LaneNumber']))
-        adapter_trimmed_by_id[run_element_info] = {
+        run_element_id = get_run_element_id(run_id=run_id, lane_number=lane['LaneNumber'], barcode='unknown')
+        adapter_trimmed_by_id[run_element_id] = {
             'read_1_trimmed_bases': int(trimmed_bases_r1),
             'read_2_trimmed_bases': int(trimmed_bases_r2)
         }

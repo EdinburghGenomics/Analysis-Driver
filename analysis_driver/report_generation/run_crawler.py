@@ -9,6 +9,14 @@ from analysis_driver.exceptions import PipelineError
 from .crawler import Crawler
 
 
+# retrieving run_element_id, which differs between barcodeless and multiplexed runs
+def get_run_element_id(run_id, lane_number, barcode=None):
+    if barcode is None or barcode == 'barcodeless':
+        return '{dataset_name}_{lane}'.format(dataset_name=run_id, lane=lane_number)
+    else:
+        return '{dataset_name}_{lane}_{barcode}'.format(dataset_name=run_id, lane=lane_number, barcode=barcode)
+
+
 class RunCrawler(Crawler):
     STAGE_CONVERSION = 20
     STAGE_FILTER = 30
@@ -253,7 +261,7 @@ class RunCrawler(Crawler):
             reads_per_lane = self._generate_barcode_info_from_run_elements(all_run_elements)
 
             # iterating over run elements to calculate proportion of each per lane
-            self._aggregate_run_element_per_lane(reads_per_lane)
+            self._aggregate_run_element_per_lane(reads_per_lane, adapter_trimmed_by_id)
 
             # populating the unknown run elements array
             self._populate_unknown_elements(unknown_run_elements, reads_per_lane)
@@ -269,14 +277,10 @@ class RunCrawler(Crawler):
             # incrementing the count of reads per lane
             reads_per_lane[lane] += clust_count_pf
 
-            # retrieving barcode info, which differs between barcodeless and multiplexed runs
-            if barcode == "barcodeless":
-                barcode_info = self.barcodes_info.get(
-                    '{dataset_name}_{lane}'.format(dataset_name=self.dataset.name, lane=lane))
-            else:
-                barcode_info = self.barcodes_info.get(
-                    '{dataset_name}_{lane}_{barcode}'.format(dataset_name=self.dataset.name, lane=lane,
-                                                             barcode=barcode))
+            # retrieving barcode info, which depends on the run_element_id which differs between barcodeless and
+            # multiplexed runs
+            run_element_id = get_run_element_id(run_id=self.dataset.name, lane_number=lane, barcode=barcode)
+            barcode_info = self.barcodes_info.get(run_element_id)
 
             # populating the barcode info array
             barcode_info[ELEMENT_NB_READS_SEQUENCED] = clust_count
@@ -288,20 +292,24 @@ class RunCrawler(Crawler):
 
         return reads_per_lane
 
-    def _aggregate_run_element_per_lane(self, reads_per_lane):
+    def _aggregate_run_element_per_lane(self, reads_per_lane, adapter_trimmed_by_id):
         # iterating over run elements to calculate proportion of each per lane
-        for run_element in self.barcodes_info:
-            barcode = self.barcodes_info[run_element]
+        for run_element_id in self.barcodes_info:
+            barcode = self.barcodes_info[run_element_id]
+
+            # calculating the reads per lane
             reads_for_lane = reads_per_lane.get(barcode[ELEMENT_LANE])
             if reads_for_lane > 0:
                 barcode[ELEMENT_PC_READ_IN_LANE] = barcode[ELEMENT_NB_READS_PASS_FILTER] / reads_for_lane
 
+            # populating adapter trimming data
+            barcode[ELEMENT_ADAPTER_TRIM_R1] = adapter_trimmed_by_id[run_element_id]['read_1_trimmed_bases']
+            barcode[ELEMENT_ADAPTER_TRIM_R2] = adapter_trimmed_by_id[run_element_id]['read_2_trimmed_bases']
+
     def _populate_unknown_elements(self, unknown_run_elements, reads_per_lane):
         # this helper function populates the unknown run elements array
         for lane, barcode, clust_count in unknown_run_elements:
-            unknown_element_id = '{dataset_name}_{lane}_{barcode}'.format(
-                dataset_name=self.dataset.name, lane=lane, barcode=barcode
-            )
+            unknown_element_id = get_run_element_id(run_id=self.dataset.name, lane_number=lane, barcode=barcode)
 
             self.unexpected_barcodes[unknown_element_id] = {
                 ELEMENT_RUN_ELEMENT_ID: unknown_element_id,
