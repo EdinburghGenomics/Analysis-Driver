@@ -2,9 +2,10 @@ import math
 from itertools import islice
 from collections import Counter, defaultdict
 from xml.etree import ElementTree
+
+from analysis_driver.report_generation.run_crawler import get_run_element_id
 from egcg_core import constants as c
 from egcg_core.app_logging import logging_default as log_cfg
-from analysis_driver.report_generation.run_crawler import get_run_element_id
 
 app_logger = log_cfg.get_logger(__name__)
 
