@@ -258,6 +258,9 @@ class RunCrawler(Crawler):
 
             # populating the unknown run elements array
             self._populate_unknown_elements(unknown_run_elements, reads_per_lane)
+        else:
+            # This file is expected. The process should stop if it is not found.
+            raise FileNotFoundError()
 
     def _generate_barcode_info_from_run_elements(self, all_run_elements):
         # to find the sum of the reads per lane
