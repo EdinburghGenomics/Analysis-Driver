@@ -50,16 +50,16 @@ class TestRunCrawler(TestCrawler):
 
     def setUp(self):
         patched_lims_info = patch(ppath + 'RunCrawler.get_sample_information_from_lims')
-        patched_data = patch(
-            ppath + 'RunCrawler._run_sample_lane_to_barcode',
-            return_value={
-                'a_run_id_1_unknown': {'read_1_trimmed_bases': 184380158, 'read_2_trimmed_bases': 172552099},
-                'a_run_id_2_unknown': {'read_1_trimmed_bases': 48149799, 'read_2_trimmed_bases': 48818739},
-                'a_run_id_1_TCCGGAGA': {'read_1_trimmed_bases': 1088149481, 'read_2_trimmed_bases': 1034179505},
-                'a_run_id_2_TCCGGAGA': {'read_1_trimmed_bases': 398993728, 'read_2_trimmed_bases': 391621660},
-                'a_run_id_1_ATTACTCG': {'read_1_trimmed_bases': 714309214, 'read_2_trimmed_bases': 684692293},
-                'a_run_id_2_ATTACTCG': {'read_1_trimmed_bases': 284712861, 'read_2_trimmed_bases': 282625840}}
-        )
+        # patched_data = patch(
+        #     ppath + 'RunCrawler._run_sample_lane_to_barcode',
+        #     return_value={
+        #         'a_run_id_1_unknown': {'read_1_trimmed_bases': 184380158, 'read_2_trimmed_bases': 172552099},
+        #         'a_run_id_2_unknown': {'read_1_trimmed_bases': 48149799, 'read_2_trimmed_bases': 48818739},
+        #         'a_run_id_1_TCCGGAGA': {'read_1_trimmed_bases': 1088149481, 'read_2_trimmed_bases': 1034179505},
+        #         'a_run_id_2_TCCGGAGA': {'read_1_trimmed_bases': 398993728, 'read_2_trimmed_bases': 391621660},
+        #         'a_run_id_1_ATTACTCG': {'read_1_trimmed_bases': 714309214, 'read_2_trimmed_bases': 684692293},
+        #         'a_run_id_2_ATTACTCG': {'read_1_trimmed_bases': 284712861, 'read_2_trimmed_bases': 282625840}}
+        # )
         run_element1 = {
             c.ELEMENT_PROJECT_ID: '10015AT',
             c.ELEMENT_SAMPLE_INTERNAL_ID: '10015AT0001',
@@ -93,13 +93,13 @@ class TestRunCrawler(TestCrawler):
             run_elements=[run_element1, run_element2, run_element3, run_element4],
             has_barcodes=True
         )
-        with patched_lims_info, patched_data:
+        with patched_lims_info:  # , patched_data
             self.crawler = report_generation.RunCrawler(
                 dataset,
                 os.path.join(self.test_data, 'test_run_dir'),
                 stage=report_generation.RunCrawler.STAGE_MAPPING
             )
-        with patched_lims_info, patched_data:
+        with patched_lims_info:  # , patched_data
             self.crawler_start = report_generation.RunCrawler(
                 dataset,
                 os.path.join(self.test_data, 'test_run_dir_start')
@@ -124,10 +124,10 @@ class TestRunCrawler(TestCrawler):
     def test_projects(self):
         self.compare_jsons(dict(self.crawler.projects), self.expected_output['projects'])
 
-    def test_run_sample_lane_to_barcode(self):
-        input_data = {(self.run_id, '10015AT0001', '1'): {'read_1_trimmed_bases': 714309214, 'read_2_trimmed_bases': 684692293}}
-        test = self.crawler._run_sample_lane_to_barcode(input_data)
-        assert test == {self.run_id + '_1_ATTACTCG': {'read_1_trimmed_bases': 714309214, 'read_2_trimmed_bases': 684692293}}
+    # def test_run_sample_lane_to_barcode(self):
+    #     input_data = {(self.run_id, '10015AT0001', '1'): {'read_1_trimmed_bases': 714309214, 'read_2_trimmed_bases': 684692293}}
+    #     test = self.crawler._run_sample_lane_to_barcode(input_data)
+    #     assert test == {self.run_id + '_1_ATTACTCG': {'read_1_trimmed_bases': 714309214, 'read_2_trimmed_bases': 684692293}}
 
 
 class TestSampleCrawler(TestCrawler):

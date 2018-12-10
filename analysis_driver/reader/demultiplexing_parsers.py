@@ -93,102 +93,102 @@ def parse_json_stats(json_data, run_id):
     return all_run_elements, unknown_run_elements, adapter_trimmed_by_id
 
 
-def parse_conversion_stats(xml_file, has_barcode):
-    tree = ElementTree.parse(xml_file).getroot()
-    all_barcodes_per_lanes = []
-    all_barcodeless = []
-
-    if not has_barcode:
-        for project in tree.iter('Project'):
-            if project.get('name') == 'all':
-                continue
-
-            for sample in project.findall('Sample'):
-                if sample.get('name') == 'all':
-                    continue
-
-                for barcode in sample.findall('Barcode'):
-                    if barcode.get('name') == 'all':
-                        for lane in barcode.findall('Lane'):
-                            clust_count = 0
-                            clust_count_pf = 0
-                            nb_bases = 0
-                            nb_bases_r1_q30 = 0
-                            nb_bases_r2_q30 = 0
-                            for tile in lane.findall('Tile'):
-                                clust_count += int(tile.find('Raw').find('ClusterCount').text)
-                                clust_count_pf += int(tile.find('Pf').find('ClusterCount').text)
-                                for read in tile.find('Pf').findall('Read'):
-                                    if read.get('number') == '1':
-                                        nb_bases += int(read.find('Yield').text)
-                                        nb_bases_r1_q30 += int(read.find('YieldQ30').text)
-                                    if read.get('number') == '2':
-                                        nb_bases_r2_q30 += int(read.find('YieldQ30').text)
-                            all_barcodeless.append(
-                                (
-                                    project.get('name'),
-                                    sample.get('name'),
-                                    lane.get('number'),
-                                    barcode.get('name'),
-                                    clust_count,
-                                    clust_count_pf,
-                                    nb_bases,
-                                    nb_bases_r1_q30,
-                                    nb_bases_r2_q30
-                                )
-                            )
-    elif has_barcode:
-        for project in tree.iter('Project'):
-            if project.get('name') == 'all':
-                continue
-
-            for sample in project.findall('Sample'):
-                if sample.get('name') == 'all':
-                    continue
-
-                for barcode in sample.findall('Barcode'):
-
-                    if barcode.get('name') == 'all':
-                        continue
-
-                    for lane in barcode.findall('Lane'):
-                        barcode.get('name')
-                        clust_count = 0
-                        clust_count_pf = 0
-                        nb_bases = 0
-                        nb_bases_r1_q30 = 0
-                        nb_bases_r2_q30 = 0
-                        for tile in lane.findall('Tile'):
-                            clust_count += int(tile.find('Raw').find('ClusterCount').text)
-                            clust_count_pf += int(tile.find('Pf').find('ClusterCount').text)
-                            for read in tile.find('Pf').findall('Read'):
-                                if read.get('number') == '1':
-                                    nb_bases += int(read.find('Yield').text)
-                                    nb_bases_r1_q30 += int(read.find('YieldQ30').text)
-                                if read.get('number') == '2':
-                                    nb_bases_r2_q30 += int(read.find('YieldQ30').text)
-
-                        all_barcodes_per_lanes.append(
-                            (
-                                project.get('name'),
-                                sample.get('name'),
-                                lane.get('number'),
-                                barcode.get('name'),
-                                clust_count,
-                                clust_count_pf,
-                                nb_bases,
-                                nb_bases_r1_q30,
-                                nb_bases_r2_q30
-                            )
-                        )
-
-    top_unknown_barcodes_per_lanes = []
-    for lane in tree.find('Flowcell').findall('Lane'):
-        for unknown_barcode in lane.iter('Barcode'):
-            top_unknown_barcodes_per_lanes.append(
-                (lane.get('number'), unknown_barcode.get('sequence'), unknown_barcode.get('count'))
-            )
-    return all_barcodes_per_lanes, top_unknown_barcodes_per_lanes, all_barcodeless
+# def parse_conversion_stats(xml_file, has_barcode):
+#     tree = ElementTree.parse(xml_file).getroot()
+#     all_barcodes_per_lanes = []
+#     all_barcodeless = []
+#
+#     if not has_barcode:
+#         for project in tree.iter('Project'):
+#             if project.get('name') == 'all':
+#                 continue
+#
+#             for sample in project.findall('Sample'):
+#                 if sample.get('name') == 'all':
+#                     continue
+#
+#                 for barcode in sample.findall('Barcode'):
+#                     if barcode.get('name') == 'all':
+#                         for lane in barcode.findall('Lane'):
+#                             clust_count = 0
+#                             clust_count_pf = 0
+#                             nb_bases = 0
+#                             nb_bases_r1_q30 = 0
+#                             nb_bases_r2_q30 = 0
+#                             for tile in lane.findall('Tile'):
+#                                 clust_count += int(tile.find('Raw').find('ClusterCount').text)
+#                                 clust_count_pf += int(tile.find('Pf').find('ClusterCount').text)
+#                                 for read in tile.find('Pf').findall('Read'):
+#                                     if read.get('number') == '1':
+#                                         nb_bases += int(read.find('Yield').text)
+#                                         nb_bases_r1_q30 += int(read.find('YieldQ30').text)
+#                                     if read.get('number') == '2':
+#                                         nb_bases_r2_q30 += int(read.find('YieldQ30').text)
+#                             all_barcodeless.append(
+#                                 (
+#                                     project.get('name'),
+#                                     sample.get('name'),
+#                                     lane.get('number'),
+#                                     barcode.get('name'),
+#                                     clust_count,
+#                                     clust_count_pf,
+#                                     nb_bases,
+#                                     nb_bases_r1_q30,
+#                                     nb_bases_r2_q30
+#                                 )
+#                             )
+#     elif has_barcode:
+#         for project in tree.iter('Project'):
+#             if project.get('name') == 'all':
+#                 continue
+#
+#             for sample in project.findall('Sample'):
+#                 if sample.get('name') == 'all':
+#                     continue
+#
+#                 for barcode in sample.findall('Barcode'):
+#
+#                     if barcode.get('name') == 'all':
+#                         continue
+#
+#                     for lane in barcode.findall('Lane'):
+#                         barcode.get('name')
+#                         clust_count = 0
+#                         clust_count_pf = 0
+#                         nb_bases = 0
+#                         nb_bases_r1_q30 = 0
+#                         nb_bases_r2_q30 = 0
+#                         for tile in lane.findall('Tile'):
+#                             clust_count += int(tile.find('Raw').find('ClusterCount').text)
+#                             clust_count_pf += int(tile.find('Pf').find('ClusterCount').text)
+#                             for read in tile.find('Pf').findall('Read'):
+#                                 if read.get('number') == '1':
+#                                     nb_bases += int(read.find('Yield').text)
+#                                     nb_bases_r1_q30 += int(read.find('YieldQ30').text)
+#                                 if read.get('number') == '2':
+#                                     nb_bases_r2_q30 += int(read.find('YieldQ30').text)
+#
+#                         all_barcodes_per_lanes.append(
+#                             (
+#                                 project.get('name'),
+#                                 sample.get('name'),
+#                                 lane.get('number'),
+#                                 barcode.get('name'),
+#                                 clust_count,
+#                                 clust_count_pf,
+#                                 nb_bases,
+#                                 nb_bases_r1_q30,
+#                                 nb_bases_r2_q30
+#                             )
+#                         )
+#
+#     top_unknown_barcodes_per_lanes = []
+#     for lane in tree.find('Flowcell').findall('Lane'):
+#         for unknown_barcode in lane.iter('Barcode'):
+#             top_unknown_barcodes_per_lanes.append(
+#                 (lane.get('number'), unknown_barcode.get('sequence'), unknown_barcode.get('count'))
+#             )
+#     return all_barcodes_per_lanes, top_unknown_barcodes_per_lanes, all_barcodeless
 
 
 def parse_seqtk_fqchk_file(fqchk_file, q_threshold):
@@ -411,18 +411,18 @@ def parse_welldup_file(welldup_file):
     return dup_per_lane
 
 
-def parse_adapter_trim_file(adapter_trim_file, run_id):
-    adapters_trimmed_by_id = {}
-    with open(adapter_trim_file) as open_file:
-        open_file = open_file.read()
-        adapter_trim_info = open_file.split('\n\n')[0].split('\n')
-        for line in islice(adapter_trim_info, 1, None):
-            lane, read, project, sample_id, sample_name, sample_number, trimmed_bases, pc_bases = line.split()
-            run_element_info = (run_id, sample_id, lane)
-            if not adapters_trimmed_by_id.get(run_element_info):
-                adapters_trimmed_by_id[run_element_info] = {}
-            adapters_trimmed_by_id[run_element_info]['read_%s_trimmed_bases' % read] = int(trimmed_bases)
-    return adapters_trimmed_by_id
+# def parse_adapter_trim_file(adapter_trim_file, run_id):
+#     adapters_trimmed_by_id = {}
+#     with open(adapter_trim_file) as open_file:
+#         open_file = open_file.read()
+#         adapter_trim_info = open_file.split('\n\n')[0].split('\n')
+#         for line in islice(adapter_trim_info, 1, None):
+#             lane, read, project, sample_id, sample_name, sample_number, trimmed_bases, pc_bases = line.split()
+#             run_element_info = (run_id, sample_id, lane)
+#             if not adapters_trimmed_by_id.get(run_element_info):
+#                 adapters_trimmed_by_id[run_element_info] = {}
+#             adapters_trimmed_by_id[run_element_info]['read_%s_trimmed_bases' % read] = int(trimmed_bases)
+#     return adapters_trimmed_by_id
 
 
 def parse_fastq_filterer_stats(filterer_stats):
