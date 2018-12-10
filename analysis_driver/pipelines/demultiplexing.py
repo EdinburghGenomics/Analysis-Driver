@@ -1,9 +1,12 @@
 import shutil
+import time
 from os import makedirs
 from os.path import join, exists, dirname, basename
 from egcg_core.config import cfg
 from egcg_core import executor, util, rest_communication, clarity, constants as c
 from analysis_driver import segmentation
+from analysis_driver.quality_control.interop_metrics import get_cycles_extracted
+from analysis_driver.reader.run_info import Reads
 from analysis_driver.util import bash_commands, find_all_fastq_pairs_for_lane, get_trim_values_for_bad_cycles
 from analysis_driver.pipelines.common import Cleanup
 from analysis_driver.exceptions import SequencingRunError, AnalysisDriverError
@@ -223,7 +226,51 @@ class DataOutput(DemultiplexingStage):
         return output_data_and_archive(self.fastq_dir, join(cfg['output_dir'], self.dataset.name))
 
 
-class PostDemultiplexingStage(DemultiplexingStage):
+class WaitForRead2(DemultiplexingStage):
+    """Wait for the first 50 cycle of read2 to be extracted."""
+
+    def get_required_number_of_cycle(self):
+        return
+
+    def _run(self):
+        # Full first read, the indexes and 50 bases of read2
+        required_number_of_cycle = sum([
+            Reads.num_cycles(self.dataset.run_info.reads.upstream_read),
+            self.dataset.run_info.reads.self.index_lengths,
+            50
+        ])
+        current_cycle = get_cycles_extracted(self.dataset.run_dir)
+
+        while current_cycle < required_number_of_cycle and self.dataset.is_sequencing():
+            time.sleep(1200)
+            current_cycle = get_cycles_extracted(self.dataset.run_dir)
+
+
+class HalfRun(DemultiplexingStage):
+    @property
+    def fastq_intermetiate_dir(self):
+        return join(self.job_dir, 'fastq_intermetiate')
+
+
+class Bcl2FastqHalfRun(HalfRun):
+
+    def _run(self):
+        mask = self.dataset.mask.replace('y150n', 'y50n101')
+        self.info('bcl2fastq mask: ' + mask)
+        bcl2fastq_exit_status = executor.execute(
+            bash_commands.bcl2fastq(
+                self.input_dir, self.fastq_intermetiate_dir, self.dataset.sample_sheet_file, mask
+            ),
+            job_name='bcl2fastq_intermediate',
+            working_dir=self.job_dir,
+            cpus=8,
+            mem=32
+        ).join()
+
+        return bcl2fastq_exit_status
+
+
+class PostDemultiplexingStage(HalfRun):
     _fastq_files = {}
 
     @property
@@ -238,7 +285,7 @@ class PostDemultiplexingStage(DemultiplexingStage):
         )
         if re_id not in self._fastq_files:
             fqs = util.find_fastqs(
-                self.fastq_dir,
+                self.fastq_intermetiate_dir,
                 run_element.get(c.ELEMENT_PROJECT_ID),
                 run_element.get(c.ELEMENT_SAMPLE_INTERNAL_ID),
                 run_element.get(c.ELEMENT_LANE)
@@ -250,6 +297,14 @@ class PostDemultiplexingStage(DemultiplexingStage):
     def fastq_base(self, run_element):
         fastq_pair = self.fastq_pair(run_element)
         return fastq_pair[0][:-len('_R1_001.fastq.gz')]
+
+    def real_fastq_base(self, run_element):
+        return join(
+            self.fastq_dir,
+            run_element.get(c.ELEMENT_PROJECT_ID),
+            run_element.get(c.ELEMENT_SAMPLE_INTERNAL_ID),
+            basename(self.fastq_base(run_element))
+        )
 
     def bam_path(self, run_element):
         return join(
@@ -263,11 +318,12 @@ class PostDemultiplexingStage(DemultiplexingStage):
 class BwaAlignMulti(PostDemultiplexingStage):
     def _run(self):
         bwa_commands = []
-        self.debug('Searching for fastqs in ' + self.fastq_dir)
+        self.debug('Searching for fastqs in ' + self.fastq_intermetiate_dir)
         for run_element in self.dataset.run_elements:
             if self.fastq_pair(run_element):
-                # make sure the directory where the bam file will go exists
+                # make sure the directory where the bam and qc files will go exists
                 makedirs(dirname(self.bam_path(run_element)), exist_ok=True)
+                makedirs(dirname(self.real_fastq_base(run_element)), exist_ok=True)
                 # get the reference genome
                 species = clarity.get_species_from_sample(run_element.get(c.ELEMENT_SAMPLE_INTERNAL_ID))
                 default_genome_version = cfg.query('species', species, 'default')
@@ -298,7 +354,7 @@ class SamtoolsStatsMulti(PostDemultiplexingStage):
             if self.fastq_pair(run_element):
                 samtools_stats_cmds.append(bash_commands.samtools_stats(
                     self.bam_path(run_element),
-                    self.fastq_base(run_element) + '_samtools_stats.txt'
+                    self.real_fastq_base(run_element) + '_samtools_stats.txt'
                 ))
         return executor.execute(
             *samtools_stats_cmds,
@@ -318,7 +374,7 @@ class SamtoolsDepthMulti(PostDemultiplexingStage):
                 samtools_depth_cmds.append(bash_commands.samtools_depth_command(
                     self.job_dir,
                     self.bam_path(run_element),
-                    self.fastq_base(run_element) + '_samtools.depth'
+                    self.real_fastq_base(run_element) + '_samtools.depth'
                 ))
         return executor.execute(
             *samtools_depth_cmds,
@@ -336,7 +392,7 @@ class PicardMarkDuplicateMulti(PostDemultiplexingStage):
         for run_element in self.dataset.run_elements:
             if self.fastq_pair(run_element):
                 out_md_bam = self.bam_path(run_element)[:-len('.bam')] + '_markdup.bam'
-                metrics_file = self.fastq_base(run_element) + '_markdup.metrics'
+                metrics_file = self.real_fastq_base(run_element) + '_markdup.metrics'
                 mark_dup_cmds.append(bash_commands.picard_mark_dup_command(
                     self.bam_path(run_element),
                     out_md_bam,
@@ -356,8 +412,8 @@ class PicardInsertSizeMulti(PostDemultiplexingStage):
         insert_size_cmds = []
         for run_element in self.dataset.run_elements:
             if self.fastq_pair(run_element):
-                metrics_file = self.fastq_base(run_element) + '_insertsize.metrics'
-                histogram_file = self.fastq_base(run_element) + '_insertsize.pdf'
+                metrics_file = self.real_fastq_base(run_element) + '_insertsize.metrics'
+                histogram_file = self.real_fastq_base(run_element) + '_insertsize.pdf'
                 insert_size_cmds.append(bash_commands.picard_insert_size_command(
                     self.bam_path(run_element),
                     metrics_file,
@@ -386,6 +442,13 @@ def build_pipeline(dataset):
 
     def stage(cls, **params):
         return cls(dataset=dataset, **params)
+    wait_for_read2 = stage(WaitForRead2)
+    bcl2fastq_half_run = stage(Bcl2FastqHalfRun, previous_stages=wait_for_read2)
+    align_output = stage(BwaAlignMulti, previous_stages=[bcl2fastq_half_run])
+    stats_output = stage(SamtoolsStatsMulti, previous_stages=[align_output])
+    depth_output = stage(SamtoolsDepthMulti, previous_stages=[align_output])
+    md_output = stage(PicardMarkDuplicateMulti, previous_stages=[align_output])
+    is_output = stage(PicardInsertSizeMulti, previous_stages=[align_output])
 
     setup = stage(Setup)
     bcl2fastq = stage(Bcl2Fastq, previous_stages=[setup])
@@ -397,13 +460,9 @@ def build_pipeline(dataset):
     seqtk = stage(SeqtkFQChk, previous_stages=[fastq_filter])
     md5 = stage(MD5Sum, previous_stages=[fastq_filter])
     qc_output = stage(QCOutput, stage_name='qcoutput1', run_crawler_stage=RunCrawler.STAGE_FILTER, previous_stages=[welldups, integrity_check, fastqc, seqtk, md5])
-    align_output = stage(BwaAlignMulti, previous_stages=[qc_output])
-    stats_output = stage(SamtoolsStatsMulti, previous_stages=[align_output])
-    depth_output = stage(SamtoolsDepthMulti, previous_stages=[align_output])
-    md_output = stage(PicardMarkDuplicateMulti, previous_stages=[align_output])
-    is_output = stage(PicardInsertSizeMulti, previous_stages=[align_output])
+
     qc_output2 = stage(QCOutput, stage_name='qcoutput2', run_crawler_stage=RunCrawler.STAGE_MAPPING, previous_stages=[stats_output, depth_output, md_output, is_output])
-    data_output = stage(DataOutput, previous_stages=[qc_output2])
+    data_output = stage(DataOutput, previous_stages=[qc_output, qc_output2])
     _cleanup = stage(Cleanup, previous_stages=[data_output])
     review = stage(RunReview, previous_stages=[_cleanup])
     return review
