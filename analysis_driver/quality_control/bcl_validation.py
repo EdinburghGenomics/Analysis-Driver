@@ -1,12 +1,10 @@
 import os
 import csv
 import time
-import illuminate
-from bitstring import ReadError
 from egcg_core import executor
 from egcg_core.util import str_join
 from analysis_driver.exceptions import AnalysisDriverError
-from analysis_driver.quality_control.interop_metrics import get_cycles_extracted
+from analysis_driver.quality_control import interop_metrics
 from analysis_driver.reader.run_info import Reads
 from analysis_driver.segmentation import Stage
 
@@ -137,4 +135,4 @@ class BCLValidator(Stage):
             return []
 
     def _all_cycles_from_interop(self):
-        return get_cycles_extracted(self.run_dir)
+        return interop_metrics.get_cycles_extracted(self.run_dir)

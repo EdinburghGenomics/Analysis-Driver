@@ -34,7 +34,8 @@ class IntegrationTest(ReportingAppIntegrationTest):
                 detect_bad_cycles=Mock(return_value={5: [309, 310]}),
                 detect_bad_tiles=Mock(return_value={})
             )
-        )
+        ),
+        patch('analysis_driver.quality_control.interop_metrics.get_cycles_extracted', return_value=range(1, 311))
     )
 
     def __init__(self, *args):

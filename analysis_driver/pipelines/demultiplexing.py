@@ -5,7 +5,7 @@ from os.path import join, exists, dirname, basename
 from egcg_core.config import cfg
 from egcg_core import executor, util, rest_communication, clarity, constants as c
 from analysis_driver import segmentation
-from analysis_driver.quality_control.interop_metrics import get_cycles_extracted
+from analysis_driver.quality_control import interop_metrics
 from analysis_driver.reader.run_info import Reads
 from analysis_driver.util import bash_commands, find_all_fastq_pairs_for_lane, get_trim_values_for_bad_cycles
 from analysis_driver.pipelines.common import Cleanup
@@ -229,21 +229,17 @@ class DataOutput(DemultiplexingStage):
 class WaitForRead2(DemultiplexingStage):
     """Wait for the first 50 cycle of read2 to be extracted."""
 
-    def get_required_number_of_cycle(self):
-        return
-
     def _run(self):
         # Full first read, the indexes and 50 bases of read2
         required_number_of_cycle = sum([
             Reads.num_cycles(self.dataset.run_info.reads.upstream_read),
-            self.dataset.run_info.reads.self.index_lengths,
+            self.dataset.run_info.reads.index_lengths,
             50
         ])
-        current_cycle = get_cycles_extracted(self.dataset.run_dir)
-
+        current_cycle = sorted(interop_metrics.get_cycles_extracted(self.dataset.run_dir))[-1]
         while current_cycle < required_number_of_cycle and self.dataset.is_sequencing():
             time.sleep(1200)
-            current_cycle = get_cycles_extracted(self.dataset.run_dir)
+            current_cycle = sorted(interop_metrics.get_cycles_extracted(self.dataset.run_dir))[-1]
 
 
 class HalfRun(DemultiplexingStage):
@@ -443,7 +439,7 @@ def build_pipeline(dataset):
     def stage(cls, **params):
         return cls(dataset=dataset, **params)
     wait_for_read2 = stage(WaitForRead2)
-    bcl2fastq_half_run = stage(Bcl2FastqHalfRun, previous_stages=wait_for_read2)
+    bcl2fastq_half_run = stage(Bcl2FastqHalfRun, previous_stages=[wait_for_read2])
     align_output = stage(BwaAlignMulti, previous_stages=[bcl2fastq_half_run])
     stats_output = stage(SamtoolsStatsMulti, previous_stages=[align_output])
     depth_output = stage(SamtoolsDepthMulti, previous_stages=[align_output])

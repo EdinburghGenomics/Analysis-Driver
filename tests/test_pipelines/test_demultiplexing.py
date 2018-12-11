@@ -91,6 +91,32 @@ class TestFastqFilter(TestAnalysisDriver):
             assert expected_call_l4 == pexecute.call_args[0][3]
 
 
+class TestWaitForRead2(TestAnalysisDriver):
+
+    def test_run(self):
+
+        # Run info state 150 cycle for first read and 8 index cycle + 50 cycle for second read = 208
+        run_info = Mock(reads=Mock(upstream_read=Mock(attrib={'NumCycles': '150'}), index_lengths=8))
+        dataset = NamedMock(real_name='testrun', run_info=run_info)
+        # cycle extracted states 310 cycle done
+        pcycles = patch('analysis_driver.quality_control.interop_metrics.get_cycles_extracted',
+                        return_value=range(1, 311))
+
+        with pcycles as mcycle:
+            # No sleep time
+            self.stage = dm.WaitForRead2(dataset=dataset)
+            self.stage._run()
+            assert mcycle.call_count == 1
+
+        pcycles = patch('analysis_driver.quality_control.interop_metrics.get_cycles_extracted',
+                        side_effect=[range(1, 208), range(1, 209)])
+        with pcycles as mcycle, patch('time.sleep') as msleep:
+            self.stage = dm.WaitForRead2(dataset=dataset)
+            self.stage._run()
+            assert mcycle.call_count == 2
+            assert msleep.call_count == 1
+
+
 class TestPostDemultiplexing(TestAnalysisDriver):
     @staticmethod
     def _touch(input_file):
