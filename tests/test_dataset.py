@@ -68,11 +68,12 @@ class TestDataset(TestAnalysisDriver):
             where={'analysis_driver_proc': 'a_proc_id', 'date_finished': None}
         )
 
+    @patch(ppath + 'rest_communication.get_document', return_value={'run_id': 'a_run'})  # for RunDataset.initialise_entity
     @patched_initialise
     @patch(ppath + 'MostRecentProc.start')
     @patch(ppath + 'MostRecentProc.retrieve_entity')
     @patch(ppath + 'SampleDataset.lims_ntf', new_callable=PropertyMock)
-    def test_start(self, mocked_lims_ntf, mocked_retrieve_entity, mocked_start, mocked_update):
+    def test_start(self, mocked_lims_ntf, mocked_retrieve_entity, mocked_start, mocked_update, mocked_get_doc):
         self.dataset.most_recent_proc.entity['status'] = c.DATASET_PROCESSING
         with patched_get_run, patched_is_ready:
             with pytest.raises(AssertionError):
@@ -433,11 +434,12 @@ class TestSampleDataset(TestDataset):
         data_source = self.dataset.data_source
         assert data_source == ['run_element1', 'run_element2']
 
+
 class TestMostRecentProc(TestAnalysisDriver):
     def setUp(self):
         with patched_get_docs():
             self.proc = MostRecentProc(
-                NamedMock(type='test', real_name='test', pipeline_type='some kind of variant calling', data_source=None)
+                NamedMock(type='test', endpoint='tests', real_name='test', pipeline_type='some kind of variant calling', data_source=None, id_field='test_id')
             )
         self.proc._entity = fake_proc.copy()
         self.proc.proc_id = 'a_proc_id'
