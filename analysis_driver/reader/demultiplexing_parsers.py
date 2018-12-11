@@ -47,7 +47,7 @@ def parse_json_stats(json_data, run_id):
 
             all_run_elements.append((
                 sample['SampleName'],
-                lane['LaneNumber'],
+                str(lane['LaneNumber']),
                 index_sequence,  # barcode sequence
                 cluster_count_raw,  # cluster count
                 cluster_count_pf,
@@ -92,7 +92,7 @@ def parse_json_stats(json_data, run_id):
 
     return all_run_elements, unknown_run_elements, adapter_trimmed_by_id
 
-
+# TODO: comment out
 # def parse_conversion_stats(xml_file, has_barcode):
 #     tree = ElementTree.parse(xml_file).getroot()
 #     all_barcodes_per_lanes = []
