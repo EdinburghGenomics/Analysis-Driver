@@ -207,7 +207,7 @@ class IntegrationTest(ReportingAppIntegrationTest):
                                'md5sum', 'fastqc', 'integritycheck', 'qcoutput1', 'dataoutput', 'cleanup',
                                'samtoolsdepthmulti', 'picardinsertsizemulti', 'qcoutput2', 'runreview',
                                'picardmarkduplicatemulti', 'samtoolsstatsmulti', 'bwaalignmulti', 'waitforread2',
-                               ' bcl2fastqhalfrun')
+                               'bcl2fastqhalfrun')
 
         proc = rest_communication.get_document('analysis_driver_procs')
         self.expect_equal(
