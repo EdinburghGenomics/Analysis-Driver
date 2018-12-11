@@ -233,13 +233,16 @@ class WaitForRead2(DemultiplexingStage):
         # Full first read, the indexes and 50 bases of read2
         required_number_of_cycle = sum([
             Reads.num_cycles(self.dataset.run_info.reads.upstream_read),
-            self.dataset.run_info.reads.index_lengths,
+            sum(self.dataset.run_info.reads.index_lengths),
             50
         ])
-        current_cycle = sorted(interop_metrics.get_cycles_extracted(self.dataset.run_dir))[-1]
+
+        # get the last cycle extracted
+        current_cycle = sorted(interop_metrics.get_cycles_extracted(self.dataset.input_dir))[-1]
         while current_cycle < required_number_of_cycle and self.dataset.is_sequencing():
             time.sleep(1200)
-            current_cycle = sorted(interop_metrics.get_cycles_extracted(self.dataset.run_dir))[-1]
+            current_cycle = sorted(interop_metrics.get_cycles_extracted(self.dataset.input_dir))[-1]
+        return 0
 
 
 class HalfRun(DemultiplexingStage):

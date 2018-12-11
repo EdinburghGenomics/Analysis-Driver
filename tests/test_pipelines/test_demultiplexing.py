@@ -26,7 +26,7 @@ class TestPhixDetection(TestAnalysisDriver):
         patch_find = patch('egcg_core.util.find_all_fastq_pairs', side_effect=fake_fastq_pairs)
 
         with patch_find, patch_executor as pexecute, patch_run_crawler as prun_crawler:
-            f._run()
+            assert f._run() == 0
 
             assert pexecute.call_args[0][0] == (
                 'set -o pipefail; path/to/bwa mem -t 16 /path/to/phix.fa L1_R1_001.fastq.gz | '
@@ -69,7 +69,7 @@ class TestFastqFilter(TestAnalysisDriver):
             instance = pdetector.return_value
             instance.detect_bad_tiles.return_value = {3: [1101]}
             instance.detect_bad_cycles.return_value = {4: [310, 308, 307, 309]}
-            f._run()
+            assert f._run() == 0
 
             expected_call_l2 = (
                 'run_filterer in_place L2_R1_001.fastq.gz L2_R2_001.fastq.gz L2_R1_001_filtered.fastq.gz '
@@ -96,25 +96,29 @@ class TestWaitForRead2(TestAnalysisDriver):
     def test_run(self):
 
         # Run info state 150 cycle for first read and 8 index cycle + 50 cycle for second read = 208
-        run_info = Mock(reads=Mock(upstream_read=Mock(attrib={'NumCycles': '150'}), index_lengths=8))
-        dataset = NamedMock(real_name='testrun', run_info=run_info)
-        # cycle extracted states 310 cycle done
+        run_info = Mock(reads=Mock(upstream_read=Mock(attrib={'NumCycles': '150'}), index_lengths=[8]))
+        dataset = NamedMock(real_name='testrun', run_info=run_info, input_dir='path/to/input')
+
+        # cycle extracted states 310 cycles done
         pcycles = patch('analysis_driver.quality_control.interop_metrics.get_cycles_extracted',
                         return_value=range(1, 311))
 
         with pcycles as mcycle:
             # No sleep time
             self.stage = dm.WaitForRead2(dataset=dataset)
-            self.stage._run()
+            assert self.stage._run() == 0
             assert mcycle.call_count == 1
+            mcycle.assert_called_once_with('path/to/input')
 
+        # cycle extracted states first 207 then 208 cycles done
         pcycles = patch('analysis_driver.quality_control.interop_metrics.get_cycles_extracted',
                         side_effect=[range(1, 208), range(1, 209)])
         with pcycles as mcycle, patch('time.sleep') as msleep:
             self.stage = dm.WaitForRead2(dataset=dataset)
-            self.stage._run()
+            assert self.stage._run() == 0
             assert mcycle.call_count == 2
-            assert msleep.call_count == 1
+            mcycle.assert_called_with('path/to/input')
+            msleep.assert_called_with(1200)
 
 
 class TestPostDemultiplexing(TestAnalysisDriver):
@@ -158,7 +162,7 @@ class TestBwaAlignMulti(TestPostDemultiplexing):
     def test_run(self):
         patch_get_sample = patch('egcg_core.clarity.get_species_from_sample', return_value='Homo sapiens')
         with patch_get_sample, patch_executor as mock_executor:
-            self.stage._run()
+            assert self.stage._run() == 0
             cmds = []
             for run_element in self.run_elements:
                 cmds.append(bash_commands.bwa_mem_biobambam(
@@ -180,7 +184,7 @@ class TestSamtoolsStatsMulti(TestPostDemultiplexing):
 
     def test_run(self):
         with patch_executor as mock_executor:
-            self.stage._run()
+            assert self.stage._run() == 0
             cmds = []
             for run_element in self.run_elements:
                 cmds.append(bash_commands.samtools_stats(
@@ -204,7 +208,7 @@ class TestSamtoolsDepthMulti(TestPostDemultiplexing):
 
     def test_run(self):
         with patch_executor as mock_executor:
-            self.stage._run()
+            assert self.stage._run() == 0
             cmds = []
             for run_element in self.run_elements:
                 cmds.append(bash_commands.samtools_depth_command(
@@ -229,7 +233,7 @@ class TestPicardMarkDuplicateMulti(TestPostDemultiplexing):
 
     def test_run(self):
         with patch_executor as mock_executor:
-            self.stage._run()
+            assert self.stage._run() == 0
             cmds = []
             for run_element in self.run_elements:
                 cmds.append(bash_commands.picard_mark_dup_command(
@@ -249,7 +253,7 @@ class TestPicardInsertSizeMulti(TestPostDemultiplexing):
 
     def test_run(self):
         with patch_executor as mock_executor:
-            self.stage._run()
+            assert self.stage._run() == 0
             cmds = []
             for run_element in self.run_elements:
                 cmds.append(bash_commands.picard_insert_size_command(
