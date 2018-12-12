@@ -215,7 +215,7 @@ def bgzip_and_tabix(working_dir, vcf_file):
     ).join()
 
     tabix_status = executor.execute(
-        bash_commands.tabix_vcf_command( vcf_file + '.gz'),
+        bash_commands.tabix_vcf_command(vcf_file + '.gz'),
         job_name='tabix',
         working_dir=working_dir,
         cpus=1,

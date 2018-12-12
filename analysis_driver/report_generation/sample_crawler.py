@@ -2,6 +2,7 @@ from egcg_core import util, clarity
 from egcg_core.constants import *  # pylint: disable=unused-import
 from egcg_core.rest_communication import post_or_patch as pp
 from analysis_driver.reader import demultiplexing_parsers as dm, mapping_stats_parsers as mp
+from analysis_driver.quality_control import gender_validation
 from .crawler import Crawler
 
 
@@ -61,7 +62,7 @@ class SampleCrawler(Crawler):
         if sex_file_path:
             with open(sex_file_path) as f:
                 gender, het_x = f.read().strip().split()
-                sample[ELEMENT_CALLED_GENDER] = self.gender_alias(gender)
+                sample[ELEMENT_CALLED_GENDER] = gender_validation.alias(gender)
                 sample[ELEMENT_GENDER_VALIDATION] = {ELEMENT_GENDER_HETX: het_x}
 
         genotype_validation_path = self.get_output_file('genoval')

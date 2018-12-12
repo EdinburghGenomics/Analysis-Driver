@@ -5,23 +5,15 @@ from egcg_core import executor, util, clarity
 from analysis_driver.tool_versioning import toolset
 from analysis_driver.util import bash_commands
 from analysis_driver.util.bash_commands import java_command
+from analysis_driver.quality_control import gender_validation
 from analysis_driver.segmentation import Stage, Parameter, ListParameter
 from analysis_driver.exceptions import PipelineError
 
 
 class RelatednessStage(Stage):
-    _gender_aliases = {'female': ['f', 'female', 'girl', 'woman'], 'male': ['m', 'male', 'boy', 'man']}
-
     @property
     def gatk_outfile(self):
         return os.path.join(self.job_dir, self.dataset.name + '_genotype_gvcfs.vcf')
-
-    @classmethod
-    def gender_alias(cls, gender):
-        for key in cls._gender_aliases:
-            if str(gender).lower() in cls._gender_aliases[key]:
-                return key
-        return 'unknown'
 
     @staticmethod
     def family_id(sample_id):
@@ -246,7 +238,7 @@ class Peddy(RelatednessStage):
         family_lines = []
         family_info = self.relationships(all_families[family])
         for member in all_families[family]:
-            sex = self.gender_alias(clarity.get_sample(member).udf.get('Sex'))
+            sex = gender_validation.alias(clarity.get_sample(member).udf.get('Sex'))
             sex_codes = {'male': '1', 'female': '2', 'unknown': '0'}
             relationship = self.relationship(member)
             member_id = clarity.get_user_sample_name(member)

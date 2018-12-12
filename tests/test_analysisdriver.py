@@ -21,7 +21,6 @@ class TestAnalysisDriver(TestCase):
         open(input_file, 'w').close()
 
 
-
 cfg.load_config_file(etc_config('example_analysisdriver.yaml'))
 helper = TestAnalysisDriver()
 log_cfg.cfg = cfg['logging']

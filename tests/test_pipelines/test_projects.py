@@ -3,7 +3,6 @@ from shutil import rmtree
 from unittest.mock import patch
 from tests.test_analysisdriver import TestAnalysisDriver, NamedMock
 from analysis_driver.pipelines import projects
-from analysis_driver.exceptions import PipelineError
 
 test_projects = os.path.join(TestAnalysisDriver.assets_path, 'test_projects')
 relatedness_outfiles = os.path.join(test_projects, 'relatedness_outfiles')

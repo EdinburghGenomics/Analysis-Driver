@@ -2,6 +2,15 @@ import os
 from egcg_core import executor, util
 from analysis_driver.segmentation import Parameter, Stage
 
+_sex_aliases = {'female': ['f', 'female', 'girl', 'woman'], 'male': ['m', 'male', 'boy', 'man']}
+
+
+def alias(keyword):
+    for key in _sex_aliases:
+        if str(keyword).lower() in _sex_aliases[key]:
+            return key
+    return 'unknown'
+
 
 class GenderValidation(Stage):
     vcf_file = Parameter()
