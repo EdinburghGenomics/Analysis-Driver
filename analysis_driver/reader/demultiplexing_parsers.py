@@ -16,13 +16,14 @@ def parse_json_stats(json_data, run_id):
     unknown_run_elements = []
     adapter_trimmed_by_id = {}
 
+    # Parsing conversion results, including demultiplexed results and unknown barcodes
     for lane in json_data['ConversionResults']:
         for sample in lane['DemuxResults']:
             """ If the run is not multiplexed, the index_sequence will not be present in the JSON file, and the cluster
             count needs to be retrieved from a different variable in the JSON file. The index_sequence variable will be 
-            prepopulated with 'barcodeless'. """
+            prepopulated as None. """
             r1, r2 = sample['ReadMetrics'][0], sample['ReadMetrics'][1]
-            index_sequence = "barcodeless"
+            index_sequence = None
             cluster_count_raw = lane['TotalClustersRaw']
             cluster_count_pf = lane['TotalClustersPF']
             if 'IndexMetrics' in sample:

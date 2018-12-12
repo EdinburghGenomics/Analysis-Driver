@@ -252,7 +252,7 @@ class RunCrawler(Crawler):
             all_run_elements, unknown_run_elements, adapter_trimmed_by_id = dm.parse_json_stats(json_data, self.dataset.name)
 
             # To find the sum of the reads per lane, and populate barcode info
-            reads_per_lane = self._generate_barcode_info_from_run_elements(all_run_elements)
+            reads_per_lane = self._populate_barcode_info_from_run_elements(all_run_elements)
 
             # iterating over run elements to calculate proportion of each per lane
             self._aggregate_run_element_per_lane(reads_per_lane, adapter_trimmed_by_id)
@@ -263,7 +263,7 @@ class RunCrawler(Crawler):
             # This file is expected. The process should stop if it is not found.
             raise FileNotFoundError()
 
-    def _generate_barcode_info_from_run_elements(self, all_run_elements):
+    def _populate_barcode_info_from_run_elements(self, all_run_elements):
         # to find the sum of the reads per lane
         reads_per_lane = Counter()
 
