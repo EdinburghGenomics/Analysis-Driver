@@ -64,8 +64,12 @@ def parse_json_stats(json_data, run_id):
                 'read_2_trimmed_bases': int(trimmed_bases_r2)
             }
 
+        """ Including the values for unknown barcodes"""
+        # creating helper variables
+        undetermined = lane['Undetermined']
+        r1, r2 = undetermined['ReadMetrics'][0], undetermined['ReadMetrics'][1]
+
         # obtaining number of undetermined trimmed bases r1 and r2 q30, confirming the read number first
-        r1, r2 = lane['Undetermined']['ReadMetrics'][0], lane['Undetermined']['ReadMetrics'][1]
         if r1['ReadNumber'] == 1 and r2['ReadNumber'] == 2:
             trimmed_bases_r1 = r1['TrimmedBases']
             trimmed_bases_r2 = r2['TrimmedBases']
@@ -79,6 +83,18 @@ def parse_json_stats(json_data, run_id):
             'read_1_trimmed_bases': int(trimmed_bases_r1),
             'read_2_trimmed_bases': int(trimmed_bases_r2)
         }
+
+        # adding undetermined details to all_run_elements array
+        all_run_elements.append((
+            'Undetermined',
+            str(lane['LaneNumber']),
+            'unknown',  # barcode sequence
+            0,  # cluster_count_raw,  # cluster count - TODO: find appropriate value
+            undetermined['NumberReads'],
+            r1['Yield'],  # yield is equal for r1 and r2 in multiplexed and barcodeless runs
+            r1['YieldQ30'],
+            r2['YieldQ30']
+        ))
 
     # parsing the top 10 unknown barcodes into their own array
     for lane in json_data['UnknownBarcodes']:
@@ -411,6 +427,7 @@ def parse_welldup_file(welldup_file):
                 in_summary = False
     return dup_per_lane
 
+# TODO: Comment out
 
 # def parse_adapter_trim_file(adapter_trim_file, run_id):
 #     adapters_trimmed_by_id = {}
