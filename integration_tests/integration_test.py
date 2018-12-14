@@ -46,7 +46,7 @@ class IntegrationTest(ReportingAppIntegrationTest):
         self.project_id = self.cfg['input_data']['project_id']
         self.sample_id = self.cfg['input_data']['sample_id']
         self.library_id = self.cfg['input_data']['library_id']
-        self.sample_for_project = self.cfg['input_data']['samples_for_project']
+        self.samples_for_project = self.cfg['input_data']['samples_for_project']
         self.run_dir = os.path.dirname(os.getcwd())  # we're inside the checked out project, not the top level
 
     def setUp(self):
@@ -70,18 +70,8 @@ class IntegrationTest(ReportingAppIntegrationTest):
             {'library_id': self.library_id, 'project_id': self.project_id, 'sample_id': self.sample_id,
              'run_elements': [e['run_element_id'] for e in run_elements], 'required_yield': 900000000}
         )
-        # samples for the project process tests
-        for sample in self.sample_for_project:
-            rest_communication.post_entry(
-                'samples', {'project_id': self.project_id, 'sample_id': sample, 'required_yield': 120000000000,
-                            'user_sample_id': 'uid_' + sample}
-            )
-            rest_communication.post_entry(
-                'analysis_driver_procs',
-                {'proc_id': sample + 'proc_id', 'dataset_name': sample, 'dataset_type': 'sample',
-                 'status': 'finished', 'pipeline_used': {'name': 'bcbio'}}
-            )
-        rest_communication.post_entry('projects', {'project_id': self.project_id, 'samples': [self.sample_id] + self.sample_for_project})
+
+        rest_communication.post_entry('projects', {'project_id': self.project_id, 'samples': [self.sample_id]})
 
         self.dynamic_patches = []
         self._test_success = True
@@ -225,8 +215,14 @@ class IntegrationTest(ReportingAppIntegrationTest):
                                'samtoolsdepthmulti', 'picardinsertsizemulti', 'qcoutput2', 'runreview',
                                'picardmarkduplicatemulti', 'samtoolsstatsmulti', 'bwaalignmulti'])
 
+        proc = rest_communication.get_document('analysis_driver_procs')
         self.expect_equal(
-            rest_communication.get_document('analysis_driver_procs')['pipeline_used'],
+            rest_communication.get_document('runs', where={'run_id': self.run_id}).get('analysis_driver_procs'),
+            [proc['proc_id']],
+            'run proc registered'
+        )
+        self.expect_equal(
+            proc['pipeline_used'],
             {'name': 'demultiplexing', 'toolset_version': 0, 'toolset_type': 'run_processing'},
             'pipeline used'
         )
@@ -390,6 +386,25 @@ class IntegrationTest(ReportingAppIntegrationTest):
         assert self._test_success
 
     def test_project(self):
+        # samples for the project process tests
+        for sample in self.samples_for_project:
+            rest_communication.post_entry(
+                'samples', {'project_id': self.project_id, 'sample_id': sample, 'required_yield': 120000000000,
+                            'user_sample_id': 'uid_' + sample}
+            )
+            rest_communication.post_entry(
+                'analysis_driver_procs',
+                {'proc_id': sample + 'proc_id', 'dataset_name': sample, 'dataset_type': 'sample',
+                 'status': 'finished', 'pipeline_used': {'name': 'bcbio'}}
+            )
+        rest_communication.patch_entry(
+            'projects',
+            {'samples': self.samples_for_project},
+            'project_id',
+            self.project_id,
+            update_lists=['samples']
+        )
+
         self.setup_test('project', 'test_project', 'project')
         exit_status = client.main(['--project'])
         self.assertEqual('exit status', exit_status, 0)
