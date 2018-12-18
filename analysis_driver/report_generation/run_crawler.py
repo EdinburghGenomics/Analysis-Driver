@@ -22,9 +22,9 @@ class RunCrawler(Crawler):
         if run_dir:
             self._populate_lane_info_from_interop_metrics(run_dir)
             if stage >= self.STAGE_CONVERSION:
-                self._populate_barcode_info_from_json_file(run_dir) # TODO: Uncomment out
-                # self._populate_barcode_info_from_conversion_file(run_dir) # TODO: comment out
-                # self._populate_barcode_info_from_adapter_file(run_dir)
+                self._populate_barcode_info_from_json_file(run_dir) # TODO: Uncomment
+                # self._populate_barcode_info_from_conversion_file(run_dir)  # TODO: comment out
+                # self._populate_barcode_info_from_adapter_file(run_dir)  # TODO: comment out
                 self._populate_barcode_info_from_well_dup(run_dir)
                 self._populate_barcode_info_from_phix_read_names(run_dir)
             if stage >= self.STAGE_FILTER:
@@ -322,7 +322,7 @@ class RunCrawler(Crawler):
 # TODO: Comment out
 
     # def _populate_barcode_info_from_conversion_file(self, run_dir):
-    #     conversion_xmls = util.find_files(run_dir, 'Stats', 'ConversionStats.xml')
+    #     conversion_xmls = util.find_files(run_dir, 'Stats', 'ConversionStats_v2.17_barcodeless.xml')
     #     if conversion_xmls:
     #         all_barcodes, top_unknown_barcodes, all_barcodeless = dm.parse_conversion_stats(conversion_xmls[0], self.dataset.has_barcodes)
     #         reads_per_lane = Counter()

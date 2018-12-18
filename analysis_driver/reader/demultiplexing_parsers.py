@@ -64,37 +64,42 @@ def parse_json_stats(json_data, run_id):
                 'read_2_trimmed_bases': int(trimmed_bases_r2)
             }
 
-        """ Including the values for unknown barcodes"""
-        # creating helper variables
-        undetermined = lane['Undetermined']
-        r1, r2 = undetermined['ReadMetrics'][0], undetermined['ReadMetrics'][1]
+        """ Including the values for unknown barcodes, only for multiplexed runs"""
+        if 'Undetermined' in lane:
+            # creating helper variables
+            undetermined = lane['Undetermined']
+            r1, r2 = undetermined['ReadMetrics'][0], undetermined['ReadMetrics'][1]
 
-        # obtaining number of undetermined trimmed bases r1 and r2 q30, confirming the read number first
-        if r1['ReadNumber'] == 1 and r2['ReadNumber'] == 2:
-            trimmed_bases_r1 = r1['TrimmedBases']
-            trimmed_bases_r2 = r2['TrimmedBases']
-        elif r1['ReadNumber'] == 2 and r2['ReadNumber'] == 1:
-            # this is not expected
-            raise NotImplementedError()
+            # obtaining number of undetermined trimmed bases r1 and r2 q30, confirming the read number first
+            if r1['ReadNumber'] == 1 and r2['ReadNumber'] == 2:
+                trimmed_bases_r1 = r1['TrimmedBases']
+                trimmed_bases_r2 = r2['TrimmedBases']
+            elif r1['ReadNumber'] == 2 and r2['ReadNumber'] == 1:
+                # this is not expected
+                raise NotImplementedError()
 
-        # parsing undetermined adapter trimming into its own dict and adding trimmed bases counts
-        run_element_id = get_run_element_id(run_id=run_id, lane_number=lane['LaneNumber'], barcode='unknown')
-        adapter_trimmed_by_id[run_element_id] = {
-            'read_1_trimmed_bases': int(trimmed_bases_r1),
-            'read_2_trimmed_bases': int(trimmed_bases_r2)
-        }
+            # parsing undetermined adapter trimming into its own dict and adding trimmed bases counts
+            run_element_id = get_run_element_id(run_id=run_id, lane_number=lane['LaneNumber'], barcode='unknown')
+            adapter_trimmed_by_id[run_element_id] = {
+                'read_1_trimmed_bases': int(trimmed_bases_r1),
+                'read_2_trimmed_bases': int(trimmed_bases_r2)
+            }
 
-        # adding undetermined details to all_run_elements array
-        all_run_elements.append((
-            'Undetermined',
-            str(lane['LaneNumber']),
-            'unknown',  # barcode sequence
-            0,  # cluster_count_raw,  # cluster count - TODO: find appropriate value
-            undetermined['NumberReads'],
-            r1['Yield'],  # yield is equal for r1 and r2 in multiplexed and barcodeless runs
-            r1['YieldQ30'],
-            r2['YieldQ30']
-        ))
+            # calculating the cluster_count_raw value by subtracting the sum of the total cluster PF and undetermined number
+            # of reads from the total cluster raw
+            cluster_count_raw = lane['TotalClustersRaw'] - lane['TotalClustersPF'] + undetermined['NumberReads']
+
+            # adding undetermined details to all_run_elements array
+            all_run_elements.append((
+                'Undetermined',
+                str(lane['LaneNumber']),
+                'unknown',  # barcode sequence
+                cluster_count_raw,  # cluster_count_raw
+                undetermined['NumberReads'],
+                r1['Yield'],  # yield is equal for r1 and r2 in multiplexed and barcodeless runs
+                r1['YieldQ30'],
+                r2['YieldQ30']
+            ))
 
     # parsing the top 10 unknown barcodes into their own array
     for lane in json_data['UnknownBarcodes']:
@@ -104,6 +109,7 @@ def parse_json_stats(json_data, run_id):
                 barcode,
                 str(lane['Barcodes'][barcode])
             ))
+            # only parse the first ten
             if index == 9:
                 break
 
@@ -136,10 +142,10 @@ def parse_json_stats(json_data, run_id):
 #                                 clust_count += int(tile.find('Raw').find('ClusterCount').text)
 #                                 clust_count_pf += int(tile.find('Pf').find('ClusterCount').text)
 #                                 for read in tile.find('Pf').findall('Read'):
-#                                     if read.get('number') == '1':
+#                                     if read.get('number') == '2':
 #                                         nb_bases += int(read.find('Yield').text)
 #                                         nb_bases_r1_q30 += int(read.find('YieldQ30').text)
-#                                     if read.get('number') == '2':
+#                                     if read.get('number') == '192':
 #                                         nb_bases_r2_q30 += int(read.find('YieldQ30').text)
 #                             all_barcodeless.append(
 #                                 (
