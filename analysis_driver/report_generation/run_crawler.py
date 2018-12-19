@@ -118,7 +118,7 @@ class RunCrawler(Crawler):
                 self.get_sample_information_from_lims(self.libraries[libname][ELEMENT_SAMPLE_INTERNAL_ID])
             )
 # TODO: Comment out
-
+    #
     # def _run_sample_lane_to_barcode(self, adapters_trimmed_by_id):
     #     run_element_adapters_trimmed = {}
     #     for adapter_id in adapters_trimmed_by_id:
