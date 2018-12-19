@@ -50,6 +50,7 @@ class TestRunCrawler(TestCrawler):
 
     def setUp(self):
         patched_lims_info = patch(ppath + 'RunCrawler.get_sample_information_from_lims')
+        # TODO: Remove/Update
         # patched_data = patch(
         #     ppath + 'RunCrawler._run_sample_lane_to_barcode',
         #     return_value={
@@ -124,6 +125,7 @@ class TestRunCrawler(TestCrawler):
     def test_projects(self):
         self.compare_jsons(dict(self.crawler.projects), self.expected_output['projects'])
 
+# TODO: Remove/Update
     # def test_run_sample_lane_to_barcode(self):
     #     input_data = {(self.run_id, '10015AT0001', '1'): {'read_1_trimmed_bases': 714309214, 'read_2_trimmed_bases': 684692293}}
     #     test = self.crawler._run_sample_lane_to_barcode(input_data)

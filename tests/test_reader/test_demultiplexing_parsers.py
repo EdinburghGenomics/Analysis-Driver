@@ -7,6 +7,7 @@ from egcg_core.constants import ELEMENT_CONTAMINANT_UNIQUE_MAP, ELEMENT_PCNT_UNM
 
 
 class TestDemultiplexingStats(TestAnalysisDriver):
+    # TODO: Remove/Update
     # def test(self):
     #     conversion_stat = os.path.join(self.assets_path, 'test_crawlers', 'ConversionStats.xml')
     #     expected_barcode_per_lane = [
@@ -140,6 +141,7 @@ class TestDemultiplexingStats(TestAnalysisDriver):
         dup_per_lane = dm.parse_welldup_file(welldup_file)
         assert dup_per_lane == {1: 11.747, 2: 14.576, 4: 20.496, 5: 5.981, 6: 10.917, 7: 14.611, 8: 26.416}
 
+    # TODO: Remove/Update
     # def test_parse_adapter_trim_file(self):
     #     adapter_trim_file = os.path.join(self.assets_path, 'test_crawlers', 'AdapterTrimming.txt')
     #     run_id = 'test_run_id'
