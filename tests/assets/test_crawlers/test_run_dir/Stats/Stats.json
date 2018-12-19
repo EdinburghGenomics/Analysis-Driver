@@ -231,32 +231,14 @@
    "Lane" : 1,
    "Barcodes" : {
     "CCCCCCCC" : 4820,
-    "AATGCGCA" : 720,
-    "TGAAGCTA" : 660,
-    "GCTCATTA" : 580,
-    "CTGAACTA" : 580,
-    "TATGCGCA" : 560,
-    "TAAATGCG" : 540,
-    "CTGAAAGC" : 520,
-    "NGCCCATT" : 480,
-    "TTACTCGA" : 460,
-    "CTGAAGTA" : 460
+    "TGAAGCTA" : 660
    }
   },
   {
    "Lane" : 2,
    "Barcodes" : {
     "CCCCCCCC" : 21320,
-    "NCCCCCCC" : 9840,
-    "CGCGCAGT" : 1800,
-    "NGCCCATT" : 1640,
-    "NGCTCAGT" : 1460,
-    "ATTAGTGG" : 800,
-    "TATGCGCA" : 760,
-    "NAAGGCGC" : 720,
-    "AAAAAAAA" : 680,
-    "TGAAGCTA" : 600,
-    "AATGCGCA" : 580
+    "NCCCCCCC" : 9840
    }
   }
  ]

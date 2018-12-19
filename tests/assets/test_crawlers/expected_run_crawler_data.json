@@ -21,35 +21,35 @@
     },
     "unexpected_barcodes": {
         "a_run_id_1_TGAAGCTA": {
-            "passing_filter_reads": 828,
+            "passing_filter_reads": 660,
             "run_element_id": "a_run_id_1_TGAAGCTA",
             "barcode": "TGAAGCTA",
             "lane": "1",
-            "pc_reads_in_lane": 0.000715125950262472,
+            "pc_reads_in_lane": 0.000570027931368637,
             "run_id": "a_run_id"
         },
         "a_run_id_2_CCCCCCCC": {
-            "passing_filter_reads": 22153,
+            "passing_filter_reads": 21320,
             "run_element_id": "a_run_id_2_CCCCCCCC",
             "barcode": "CCCCCCCC",
             "lane": "2",
-            "pc_reads_in_lane": 0.020934269625228097,
+            "pc_reads_in_lane": 0.020147096483991468,
             "run_id": "a_run_id"
         },
         "a_run_id_2_NCCCCCCC": {
-            "passing_filter_reads": 9133,
+            "passing_filter_reads": 9840,
             "run_element_id": "a_run_id_2_NCCCCCCC",
             "barcode": "NCCCCCCC",
             "lane": "2",
-            "pc_reads_in_lane": 0.008630554980689216,
+            "pc_reads_in_lane": 0.00929865991568837,
             "run_id": "a_run_id"
         },
         "a_run_id_1_CCCCCCCC": {
-            "passing_filter_reads": 4695,
+            "passing_filter_reads": 4820,
             "run_element_id": "a_run_id_1_CCCCCCCC",
             "barcode": "CCCCCCCC",
             "lane": "1",
-            "pc_reads_in_lane": 0.00405497142087235,
+            "pc_reads_in_lane": 0.004162931256358834,
             "run_id": "a_run_id"
         }
     },
