@@ -418,6 +418,10 @@ class RunDataset(Dataset):
     def _default_pipeline(self):
         return 'demultiplexing'
 
+    @staticmethod
+    def reference_genome(run_element):
+        return SampleDataset(run_element['sample_id']).reference_genome
+
 
 class SampleDataset(Dataset):
     type = 'sample'

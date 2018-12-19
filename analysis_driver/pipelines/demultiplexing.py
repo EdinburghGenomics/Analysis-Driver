@@ -2,7 +2,7 @@ import shutil
 from os import makedirs
 from os.path import join, exists, dirname, basename
 from egcg_core.config import cfg
-from egcg_core import executor, util, rest_communication, clarity, constants as c
+from egcg_core import executor, util, rest_communication, constants as c
 from analysis_driver import segmentation
 from analysis_driver.util import bash_commands, find_all_fastq_pairs_for_lane, get_trim_values_for_bad_cycles
 from analysis_driver.pipelines.common import Cleanup
@@ -268,14 +268,10 @@ class BwaAlignMulti(PostDemultiplexingStage):
             if self.fastq_pair(run_element):
                 # make sure the directory where the bam file will go exists
                 makedirs(dirname(self.bam_path(run_element)), exist_ok=True)
-                # get the reference genome
-                species = clarity.get_species_from_sample(run_element.get(c.ELEMENT_SAMPLE_INTERNAL_ID))
-                default_genome_version = cfg.query('species', species, 'default')
-                reference_genome = cfg.query('genomes', default_genome_version, 'fasta')
                 bwa_commands.append(
                     bash_commands.bwa_mem_biobambam(
                         self.fastq_pair(run_element),
-                        reference_genome,
+                        self.dataset.reference_genome(run_element),
                         self.bam_path(run_element),
                         {'ID': '1', 'SM': run_element.get(c.ELEMENT_SAMPLE_INTERNAL_ID), 'PL': 'illumina'},
                         thread=6
@@ -327,6 +323,26 @@ class SamtoolsDepthMulti(PostDemultiplexingStage):
             cpus=1,
             mem=6,
             log_commands=False
+        ).join()
+
+
+class PicardGCBias(PostDemultiplexingStage):
+    def _picard_cmd(self, run_element):
+        metrics_basename = self.fastq_base(run_element) + '_gc_bias'
+        return '{picard} CollectGcBiasMetrics I={bam} O={metrics} S={summary} R={ref} CHART={chart}'.format(
+            picard=toolset['picard'], bam=self.bam_path(run_element), metrics=metrics_basename + '.metrics',
+            summary=metrics_basename + '_summary.metrics', ref=self.dataset.reference_genome(run_element),
+            chart=metrics_basename + '.pdf'
+        )
+
+    def _run(self):
+        picard_cmds = [self._picard_cmd(r) for r in self.dataset.run_elements if self.fastq_pair(r)]
+        return executor.execute(
+            *picard_cmds,
+            job_name='gc_bias',
+            working_dir=self.job_dir,
+            cpus=1,
+            mem=4
         ).join()
 
 

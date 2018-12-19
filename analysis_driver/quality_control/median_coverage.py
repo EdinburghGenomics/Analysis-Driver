@@ -13,7 +13,7 @@ class SamtoolsDepth(Stage):
         return os.path.splitext(find_file(self.bam_file))[0] + '.depth'
 
     def _run(self):
-        self.info('/Generating depth file: %s', self.samtools_depth_out_file)
+        self.info('Generating depth file: %s', self.samtools_depth_out_file)
         return executor.execute(
             bash_commands.samtools_depth_command(
                 self.job_dir,
