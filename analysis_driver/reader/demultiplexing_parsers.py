@@ -18,90 +18,118 @@ def parse_json_stats(json_data, run_id):
 
     # Parsing conversion results, including demultiplexed results and unknown barcodes
     for lane in json_data['ConversionResults']:
-        for sample in lane['DemuxResults']:
-            """ If the run is not multiplexed, the index_sequence will not be present in the JSON file, and the cluster
-            count needs to be retrieved from a different variable in the JSON file. The index_sequence variable will be 
-            prepopulated as None. """
-            r1, r2 = sample['ReadMetrics'][0], sample['ReadMetrics'][1]
-            index_sequence = None
-            cluster_count_raw = lane['TotalClustersRaw']
-            cluster_count_pf = lane['TotalClustersPF']
-            if 'IndexMetrics' in sample:
-                index_sequence = sample['IndexMetrics'][0]['IndexSequence']
-                cluster_count_raw = sample['NumberReads']
-                cluster_count_pf = sample['NumberReads']  # cluster count is equal to cluster count pf in multiplexed runs
-
-            # obtaining number of trimmed bases and bases r1 and r2 q30, confirming the read number first
-            nb_bases_r1_q30, nb_bases_r2_q30 = 0, 0
-            if r1['ReadNumber'] == 1 and r2['ReadNumber'] == 2:
-                nb_bases_r1_q30 = r1['YieldQ30']
-                nb_bases_r2_q30 = r2['YieldQ30']
-                trimmed_bases_r1 = r1['TrimmedBases']
-                trimmed_bases_r2 = r2['TrimmedBases']
-            elif r1['ReadNumber'] == 2 and r2['ReadNumber'] == 1:
-                # this is not expected
-                raise NotImplementedError()
-
-            if r1['Yield'] != r2['Yield']:
-                # yield is expected to be equal for r1 and r2 in multiplexed and barcodeless runs
-                raise NotImplementedError()
-
-            all_run_elements.append((
-                sample['SampleName'],
-                str(lane['LaneNumber']),
-                index_sequence,  # barcode sequence
-                cluster_count_raw,  # cluster count
-                cluster_count_pf,
-                r1['Yield'],  # yield is equal for r1 and r2 in multiplexed and barcodeless runs
-                nb_bases_r1_q30,
-                nb_bases_r2_q30
-            ))
-
-            # parsing adapter trimming into its own dict and adding trimmed bases counts
-            run_element_id = get_run_element_id(run_id=run_id, lane_number=lane['LaneNumber'], barcode=index_sequence)
-            adapter_trimmed_by_id[run_element_id] = {
-                'read_1_trimmed_bases': int(trimmed_bases_r1),
-                'read_2_trimmed_bases': int(trimmed_bases_r2)
-            }
+        all_run_elements, adapter_trimmed_by_id = \
+            _parse_conversion_results_from_json_stats(run_id=run_id, lane=lane,
+                                                      all_run_elements=all_run_elements,
+                                                      adapter_trimmed_by_id=adapter_trimmed_by_id)
 
         """ Including the values for unknown barcodes, only for multiplexed runs"""
         if 'Undetermined' in lane:
-            # creating helper variables
-            undetermined = lane['Undetermined']
-            r1, r2 = undetermined['ReadMetrics'][0], undetermined['ReadMetrics'][1]
-
-            # obtaining number of undetermined trimmed bases r1 and r2 q30, confirming the read number first
-            if r1['ReadNumber'] == 1 and r2['ReadNumber'] == 2:
-                trimmed_bases_r1 = r1['TrimmedBases']
-                trimmed_bases_r2 = r2['TrimmedBases']
-            elif r1['ReadNumber'] == 2 and r2['ReadNumber'] == 1:
-                # this is not expected
-                raise NotImplementedError()
-
-            # parsing undetermined adapter trimming into its own dict and adding trimmed bases counts
-            run_element_id = get_run_element_id(run_id=run_id, lane_number=lane['LaneNumber'], barcode='unknown')
-            adapter_trimmed_by_id[run_element_id] = {
-                'read_1_trimmed_bases': int(trimmed_bases_r1),
-                'read_2_trimmed_bases': int(trimmed_bases_r2)
-            }
-
-            # calculating the cluster_count_raw value by subtracting the sum of the total cluster PF and undetermined number
-            # of reads from the total cluster raw
-            cluster_count_raw = lane['TotalClustersRaw'] - lane['TotalClustersPF'] + undetermined['NumberReads']
-
-            # adding undetermined details to all_run_elements array
-            all_run_elements.append((
-                'Undetermined',
-                str(lane['LaneNumber']),
-                'unknown',  # barcode sequence
-                cluster_count_raw,  # cluster_count_raw
-                undetermined['NumberReads'],
-                r1['Yield'],  # yield is equal for r1 and r2 in multiplexed and barcodeless runs
-                r1['YieldQ30'],
-                r2['YieldQ30']
-            ))
+            all_run_elements, adapter_trimmed_by_id = \
+                _parse_undetermined_run_elements_from_json_stats(lane=lane,
+                                                                 run_id=run_id,
+                                                                 adapter_trimmed_by_id=adapter_trimmed_by_id,
+                                                                 all_run_elements=all_run_elements)
 
     # parsing the top 10 unknown barcodes into their own array
+    unknown_run_elements = _parse_top_unknown_run_elements_from_json_stats(json_data=json_data)
+
+    return all_run_elements, unknown_run_elements, adapter_trimmed_by_id
+
+
+def _parse_conversion_results_from_json_stats(run_id, lane, all_run_elements, adapter_trimmed_by_id):
+    for sample in lane['DemuxResults']:
+        """ If the run is not multiplexed, the index_sequence will not be present in the JSON file, and the cluster
+        count needs to be retrieved from a different variable in the JSON file. The index_sequence variable will be 
+        prepopulated as None. """
+        r1, r2 = sample['ReadMetrics'][0], sample['ReadMetrics'][1]
+        index_sequence = None
+        cluster_count_raw = lane['TotalClustersRaw']
+        cluster_count_pf = lane['TotalClustersPF']
+        if 'IndexMetrics' in sample:
+            index_sequence = sample['IndexMetrics'][0]['IndexSequence']
+            cluster_count_raw = sample['NumberReads']
+            cluster_count_pf = sample['NumberReads']  # cluster count is equal to cluster count pf in multiplexed runs
+
+        # obtaining number of trimmed bases and bases r1 and r2 q30, confirming the read number first
+        nb_bases_r1_q30, nb_bases_r2_q30 = 0, 0
+        if r1['ReadNumber'] == 1 and r2['ReadNumber'] == 2:
+            nb_bases_r1_q30 = r1['YieldQ30']
+            nb_bases_r2_q30 = r2['YieldQ30']
+            trimmed_bases_r1 = r1['TrimmedBases']
+            trimmed_bases_r2 = r2['TrimmedBases']
+        elif r1['ReadNumber'] == 2 and r2['ReadNumber'] == 1:
+            # this is not expected
+            raise NotImplementedError()
+
+        if r1['Yield'] != r2['Yield']:
+            # yield is expected to be equal for r1 and r2 in multiplexed and barcodeless runs
+            raise NotImplementedError()
+
+        all_run_elements.append((
+            sample['SampleName'],
+            str(lane['LaneNumber']),
+            index_sequence,  # barcode sequence
+            cluster_count_raw,  # cluster count
+            cluster_count_pf,
+            r1['Yield'],  # yield is equal for r1 and r2 in multiplexed and barcodeless runs
+            nb_bases_r1_q30,
+            nb_bases_r2_q30
+        ))
+
+        # parsing adapter trimming into its own dict and adding trimmed bases counts
+        run_element_id = get_run_element_id(run_id=run_id, lane_number=lane['LaneNumber'], barcode=index_sequence)
+        adapter_trimmed_by_id[run_element_id] = {
+            'read_1_trimmed_bases': int(trimmed_bases_r1),
+            'read_2_trimmed_bases': int(trimmed_bases_r2)
+        }
+
+    return all_run_elements, adapter_trimmed_by_id
+
+
+def _parse_undetermined_run_elements_from_json_stats(lane, run_id, adapter_trimmed_by_id, all_run_elements):
+    # creating helper variables
+    undetermined = lane['Undetermined']
+    r1, r2 = undetermined['ReadMetrics'][0], undetermined['ReadMetrics'][1]
+
+    # obtaining number of undetermined trimmed bases r1 and r2 q30, confirming the read number first
+    if r1['ReadNumber'] == 1 and r2['ReadNumber'] == 2:
+        trimmed_bases_r1 = r1['TrimmedBases']
+        trimmed_bases_r2 = r2['TrimmedBases']
+    elif r1['ReadNumber'] == 2 and r2['ReadNumber'] == 1:
+        # this is not expected
+        raise NotImplementedError()
+
+    # parsing undetermined adapter trimming into its own dict and adding trimmed bases counts
+    run_element_id = get_run_element_id(run_id=run_id, lane_number=lane['LaneNumber'], barcode='unknown')
+    adapter_trimmed_by_id[run_element_id] = {
+        'read_1_trimmed_bases': int(trimmed_bases_r1),
+        'read_2_trimmed_bases': int(trimmed_bases_r2)
+    }
+
+    # calculating the cluster_count_raw value by subtracting the sum of the total cluster PF and undetermined number
+    # of reads from the total cluster raw
+    cluster_count_raw = lane['TotalClustersRaw'] - lane['TotalClustersPF'] + undetermined['NumberReads']
+
+    # adding undetermined details to all_run_elements array
+    all_run_elements.append((
+        'Undetermined',
+        str(lane['LaneNumber']),
+        'unknown',  # barcode sequence
+        cluster_count_raw,  # cluster_count_raw
+        undetermined['NumberReads'],
+        r1['Yield'],  # yield is equal for r1 and r2 in multiplexed and barcodeless runs
+        r1['YieldQ30'],
+        r2['YieldQ30']
+    ))
+
+    return all_run_elements, adapter_trimmed_by_id
+
+
+def _parse_top_unknown_run_elements_from_json_stats(json_data):
+    # parsing the top 10 unknown barcodes into their own array
+    unknown_run_elements = []
+
     for lane in json_data['UnknownBarcodes']:
         for index, barcode in enumerate(lane['Barcodes']):
             unknown_run_elements.append((
@@ -113,7 +141,7 @@ def parse_json_stats(json_data, run_id):
             if index == 9:
                 break
 
-    return all_run_elements, unknown_run_elements, adapter_trimmed_by_id
+    return unknown_run_elements
 
 # TODO: comment out
 # def parse_conversion_stats(xml_file, has_barcode):
