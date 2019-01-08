@@ -1,4 +1,4 @@
-import os
+import json, os
 
 from analysis_driver.reader import demultiplexing_parsers as dm
 from tests.test_analysisdriver import TestAnalysisDriver
@@ -36,6 +36,38 @@ class TestDemultiplexingStats(TestAnalysisDriver):
     #     ]
     #     barcodes, unknowns, barcodeless = dm.parse_conversion_stats(conversion_stat, has_barcode=False)
     #     assert barcodeless == expected_barcodeless_per_lane
+
+    def test(self):
+        json_stat = os.path.join(self.assets_path, 'test_crawlers', 'Stats.json')
+        with open(json_stat, 'r') as stats:
+            json_data = json.load(stats)
+
+        expected_barcode_per_lane = [
+            ('LP6002014-DTP_A01', '1', 'ATTACTCG', 537099, 537099, 80564850, 72789430, 58579087),
+            ('LP6002014-DTP_A02', '1', 'TCCGGAGA', 539999, 539999, 80999850, 73257234, 57184580),
+            ('Undetermined', '1', 'unknown', 1696088, 80740, 12111000, 9937085, 7746149),
+            ('LP6002014-DTP_A01', '2', 'ATTACTCG', 466412, 466412, 69961800, 61852875, 49303565),
+            ('LP6002014-DTP_A02', '2', 'TCCGGAGA', 469731, 469731, 70459650, 62355216, 48408701),
+            ('Undetermined', '2', 'unknown', 2335276, 122074, 18311100, 15157909, 12445247)
+        ]
+        expected_unknown_barcodes_per_lanes = [
+            ('1', 'CCCCCCCC', '4820'),
+            ('1', 'TGAAGCTA', '660'),
+            ('2', 'CCCCCCCC', '21320'),
+            ('2', 'NCCCCCCC', '9840')
+        ]
+        barcodes, unknowns, adapter_trimmed_by_id = dm.parse_json_stats(json_data, 'test_run_id')
+        assert barcodes == expected_barcode_per_lane
+        assert unknowns == expected_unknown_barcodes_per_lanes
+
+        assert adapter_trimmed_by_id == {
+            'test_run_id_1_ATTACTCG': {'read_1_trimmed_bases': 1056218, 'read_2_trimmed_bases': 1080753},
+            'test_run_id_1_TCCGGAGA': {'read_1_trimmed_bases': 974374, 'read_2_trimmed_bases': 992558},
+            'test_run_id_1_unknown': {'read_1_trimmed_bases': 100051, 'read_2_trimmed_bases': 122287},
+            'test_run_id_2_ATTACTCG': {'read_1_trimmed_bases': 866438, 'read_2_trimmed_bases': 914963},
+            'test_run_id_2_TCCGGAGA': {'read_1_trimmed_bases': 797469, 'read_2_trimmed_bases': 843785},
+            'test_run_id_2_unknown': {'read_1_trimmed_bases': 112371, 'read_2_trimmed_bases': 143299}
+        }
 
     def test_parse_seqtk_fqchk(self):
         fqchk_file = os.path.join(self.assets_path, '10015ATpool01_S1_L001_R1_001.fastq.gz.fqchk')
