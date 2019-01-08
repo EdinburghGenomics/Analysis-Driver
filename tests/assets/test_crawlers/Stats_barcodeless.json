@@ -1,0 +1,113 @@
+{
+ "Flowcell" : "H5K37ALXX",
+ "RunNumber" : 173,
+ "RunId" : "161209_E00365_0173_AH5K37ALXX",
+ "ReadInfosForLanes" : [
+  {
+   "LaneNumber" : 1,
+   "ReadInfos" : [
+    {
+     "Number" : 1,
+     "NumCycles" : 150,
+     "IsIndexedRead" : false
+    },
+    {
+     "Number" : 2,
+     "NumCycles" : 150,
+     "IsIndexedRead" : false
+    }
+   ]
+  },
+  {
+   "LaneNumber" : 2,
+   "ReadInfos" : [
+    {
+     "Number" : 1,
+     "NumCycles" : 150,
+     "IsIndexedRead" : false
+    },
+    {
+     "Number" : 2,
+     "NumCycles" : 150,
+     "IsIndexedRead" : false
+    }
+   ]
+  }
+ ],
+ "ConversionResults" : [
+  {
+   "LaneNumber" : 1,
+   "TotalClustersRaw" : 621211104,
+   "TotalClustersPF" : 484863400,
+   "Yield" : 145459020000,
+   "DemuxResults" : [
+    {
+     "SampleId" : "X99005P002E01",
+     "SampleName" : "LP3645274-NTP_E01",
+     "NumberReads" : 484863400,
+     "Yield" : 145459020000,
+     "ReadMetrics" : [
+      {
+       "ReadNumber" : 1,
+       "Yield" : 72729510000,
+       "YieldQ30" : 65578821723,
+       "QualityScoreSum" : 2747742986528,
+       "TrimmedBases" : 358146231
+      },
+      {
+       "ReadNumber" : 2,
+       "Yield" : 72729510000,
+       "YieldQ30" : 46299068025,
+       "QualityScoreSum" : 2243618275740,
+       "TrimmedBases" : 389554370
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "LaneNumber" : 2,
+   "TotalClustersRaw" : 621211104,
+   "TotalClustersPF" : 485960674,
+   "Yield" : 145788202200,
+   "DemuxResults" : [
+    {
+     "SampleId" : "X99005P002F03",
+     "SampleName" : "LP3645554-NTP_A08",
+     "NumberReads" : 485960674,
+     "Yield" : 145788202200,
+     "ReadMetrics" : [
+      {
+       "ReadNumber" : 1,
+       "Yield" : 72894101100,
+       "YieldQ30" : 66487334397,
+       "QualityScoreSum" : 2775848641397,
+       "TrimmedBases" : 735649209
+      },
+      {
+       "ReadNumber" : 2,
+       "Yield" : 72894101100,
+       "YieldQ30" : 49457604977,
+       "QualityScoreSum" : 2329167393176,
+       "TrimmedBases" : 747065613
+      }
+     ]
+    }
+   ]
+  }
+ ],
+ "UnknownBarcodes" : [
+  {
+   "Lane" : 1,
+   "Barcodes" : {
+    "unknown" : 484863320
+   }
+  },
+  {
+   "Lane" : 2,
+   "Barcodes" : {
+    "unknown" : 485960620
+   }
+  }
+ ]
+}

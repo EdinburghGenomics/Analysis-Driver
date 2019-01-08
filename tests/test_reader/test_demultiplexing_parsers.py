@@ -9,7 +9,7 @@ from egcg_core.constants import ELEMENT_CONTAMINANT_UNIQUE_MAP, ELEMENT_PCNT_UNM
 class TestDemultiplexingStats(TestAnalysisDriver):
     # TODO: Remove/Update
     # def test(self):
-    #     conversion_stat = os.path.join(self.assets_path, 'test_crawlers', 'ConversionStats.xml')
+    #     conversion_stat = os.path.join(self.assets_path, 'test_crawlers', '_ConversionStats.xml')
     #     expected_barcode_per_lane = [
     #         ('default', 'Undetermined', '1', 'unknown', 1696088, 80740, 12111000, 9937085, 7746149),
     #         ('default', 'Undetermined', '2', 'unknown', 2335276, 122074, 18311100, 15157909, 12445247),
@@ -29,7 +29,7 @@ class TestDemultiplexingStats(TestAnalysisDriver):
     #     assert unknowns == expected_unknown_barcodes_per_lanes
     #     assert barcodeless == []
     #
-    #     conversion_stat = os.path.join(self.assets_path, 'test_crawlers', 'ConversionStats_barcodeless.xml')
+    #     conversion_stat = os.path.join(self.assets_path, 'test_crawlers', '_ConversionStats_barcodeless.xml')
     #     expected_barcodeless_per_lane = [
     #         ('Corriell_2016-02-03', 'LP0000038-NTP_C01', '1', 'all', 6470949, 3794190, 569128500, 481721486, 344363516),
     #         ('Corriell_2016-02-03', 'LP0000038-NTP_C02', '2', 'all', 6470949, 4254880, 638232000, 542343434, 364820834)
@@ -38,6 +38,7 @@ class TestDemultiplexingStats(TestAnalysisDriver):
     #     assert barcodeless == expected_barcodeless_per_lane
 
     def test(self):
+        # testing multiplexed run stats parsing (previously from _ConversionStats.xml and _AdapterTrimming.txt')
         json_stat = os.path.join(self.assets_path, 'test_crawlers', 'Stats.json')
         with open(json_stat, 'r') as stats:
             json_data = json.load(stats)
@@ -67,6 +68,28 @@ class TestDemultiplexingStats(TestAnalysisDriver):
             'test_run_id_2_ATTACTCG': {'read_1_trimmed_bases': 866438, 'read_2_trimmed_bases': 914963},
             'test_run_id_2_TCCGGAGA': {'read_1_trimmed_bases': 797469, 'read_2_trimmed_bases': 843785},
             'test_run_id_2_unknown': {'read_1_trimmed_bases': 112371, 'read_2_trimmed_bases': 143299}
+        }
+
+        # testing barcodeless run stats parsing (previously from _ConversionStats.xml and _AdapterTrimming.txt')
+        json_stat = os.path.join(self.assets_path, 'test_crawlers', 'Stats_barcodeless.json')
+        with open(json_stat, 'r') as stats:
+            json_data = json.load(stats)
+
+        expected_barcode_per_lane = [
+            ('LP3645274-NTP_E01', '1', None, 621211104, 484863400, 72729510000, 65578821723, 46299068025),
+            ('LP3645554-NTP_A08', '2', None, 621211104, 485960674, 72894101100, 66487334397, 49457604977)
+        ]
+        expected_unknown_barcodes_per_lanes = [
+            ('1', 'unknown', '484863320'),
+            ('2', 'unknown', '485960620')
+        ]
+        barcodes, unknowns, adapter_trimmed_by_id = dm.parse_json_stats(json_data, 'test_run_id')
+        assert barcodes == expected_barcode_per_lane
+        assert unknowns == expected_unknown_barcodes_per_lanes
+
+        assert adapter_trimmed_by_id == {
+            'test_run_id_1': {'read_1_trimmed_bases': 358146231, 'read_2_trimmed_bases': 389554370},
+            'test_run_id_2': {'read_1_trimmed_bases': 735649209, 'read_2_trimmed_bases': 747065613}
         }
 
     def test_parse_seqtk_fqchk(self):
@@ -175,7 +198,7 @@ class TestDemultiplexingStats(TestAnalysisDriver):
 
     # TODO: Remove/Update
     # def test_parse_adapter_trim_file(self):
-    #     adapter_trim_file = os.path.join(self.assets_path, 'test_crawlers', 'AdapterTrimming.txt')
+    #     adapter_trim_file = os.path.join(self.assets_path, 'test_crawlers', '_AdapterTrimming.txt')
     #     run_id = 'test_run_id'
     #     parsed_trim_file = dm.parse_adapter_trim_file(adapter_trim_file, run_id)
     #     assert parsed_trim_file == {

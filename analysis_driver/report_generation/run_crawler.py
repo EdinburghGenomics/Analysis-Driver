@@ -140,7 +140,7 @@ class RunCrawler(Crawler):
     # TODO: Comment out
 
     # def _populate_barcode_info_from_adapter_file(self, run_dir):
-    #     adapter_trim_files = util.find_files(run_dir, 'Stats', 'AdapterTrimming.txt')
+    #     adapter_trim_files = util.find_files(run_dir, 'Stats', '_AdapterTrimming.txt')
     #     if adapter_trim_files:
     #         parsed_trimmed_adapters = dm.parse_adapter_trim_file(adapter_trim_files[0], self.dataset.name)
     #         run_element_adapters_trimmed = self._run_sample_lane_to_barcode(parsed_trimmed_adapters)
@@ -335,7 +335,7 @@ class RunCrawler(Crawler):
     #              clust_count_pf, nb_bases, nb_bases_r1_q30, nb_bases_r2_q30) in barcodes:
     #             reads_per_lane[lane] += clust_count_pf
     #             # For the moment, assume that nb_bases for r1 and r2 are the same.
-    #             # TODO: remove this assumption by parsing ConversionStats.xml
+    #             # TODO: remove this assumption by parsing _ConversionStats.xml
     #             if not self.dataset.has_barcodes:
     #                 barcode_info = self.barcodes_info.get('%s_%s' % (self.dataset.name, lane))
     #             else:
