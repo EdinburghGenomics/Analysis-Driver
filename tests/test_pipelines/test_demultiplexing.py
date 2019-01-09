@@ -245,7 +245,7 @@ class TestPicardGCBias(TestPostDemultiplexing):
     @patch_executor
     def test_run(self, mocked_executor):
         self.stage.dataset.reference_genome.return_value = 'a_genome.fa'
-        with patch('analysis_driver.pipelines.demultiplexing.PicardGCBias._picard_cmd', return_value='a_cmd'):
+        with patch('analysis_driver.pipelines.demultiplexing.bash_commands.picard_gc_bias', return_value='a_cmd'):
             self.stage._run()
 
         mocked_executor.assert_called_with(

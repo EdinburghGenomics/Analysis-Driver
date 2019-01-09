@@ -219,6 +219,13 @@ def picard_command(program, input_file, output_file, tmp_dir, memory, picard_par
                       tmp_dir=tmp_dir or os.path.dirname(input_file), memory=memory, program=program)
 
 
+def picard_gc_bias(input_file, metrics, summary, chart, memory=8, tmp_dir=None):
+    return picard_command(
+        'CollectGcBiasMetrics', input_file, metrics, tmp_dir, memory,
+        {'SUMMARY_OUTPUT': summary, 'CHART': chart}  # 'R': ref}
+    )
+
+
 def picard_mark_dup_command(input_file, output_file, metrics_file, memory=10, tmp_dir=None):
     return picard_command(
         'MarkDuplicates', input_file, output_file, tmp_dir, memory,

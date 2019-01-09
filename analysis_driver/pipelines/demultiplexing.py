@@ -336,9 +336,21 @@ class PicardGCBias(PostDemultiplexingStage):
         )
 
     def _run(self):
-        picard_cmds = [self._picard_cmd(r) for r in self.dataset.run_elements if self.fastq_pair(r)]
+        cmds = []
+        for r in self.dataset.run_elements:
+            if self.fastq_pair(r):
+                metrics_basename = self.fastq_base(r) + '_gc_bias'
+                cmds.append(
+                    bash_commands.picard_gc_bias(
+                        self.bam_path(r),
+                        metrics_basename + '.metrics',
+                        metrics_basename + '_summary.metrics',
+                        metrics_basename + '.pdf'
+                    )
+                )
+                
         return executor.execute(
-            *picard_cmds,
+            *cmds,
             job_name='gc_bias',
             working_dir=self.job_dir,
             cpus=1,
@@ -418,7 +430,8 @@ def build_pipeline(dataset):
     depth_output = stage(SamtoolsDepthMulti, previous_stages=[align_output])
     md_output = stage(PicardMarkDuplicateMulti, previous_stages=[align_output])
     is_output = stage(PicardInsertSizeMulti, previous_stages=[align_output])
-    qc_output2 = stage(QCOutput, stage_name='qcoutput2', run_crawler_stage=RunCrawler.STAGE_MAPPING, previous_stages=[stats_output, depth_output, md_output, is_output])
+    gc_bias = stage(PicardGCBias, previous_stages=[align_output])
+    qc_output2 = stage(QCOutput, stage_name='qcoutput2', run_crawler_stage=RunCrawler.STAGE_MAPPING, previous_stages=[stats_output, depth_output, md_output, is_output, gc_bias])
     data_output = stage(DataOutput, previous_stages=[qc_output2])
     _cleanup = stage(Cleanup, previous_stages=[data_output])
     review = stage(RunReview, previous_stages=[_cleanup])
