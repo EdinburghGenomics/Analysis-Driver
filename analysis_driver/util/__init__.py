@@ -3,7 +3,7 @@ import itertools
 from egcg_core.app_logging import logging_default as log_cfg
 from egcg_core.exceptions import EGCGError
 from analysis_driver.reader.run_info import Reads
-from . import bash_commands
+from . import bash_commands, helper_functions
 
 app_logger = log_cfg.get_logger(__name__)
 
@@ -50,11 +50,3 @@ def get_trim_values_for_bad_cycles(bad_cycle_list, run_info):
         trim_r2 = None
 
     return trim_r1, trim_r2
-
-
-# retrieving run_element_id, which differs between barcodeless and multiplexed runs
-def get_run_element_id(run_id, lane_number, barcode=None):
-    if barcode is None:
-        return '{dataset_name}_{lane}'.format(dataset_name=run_id, lane=lane_number)
-    else:
-        return '{dataset_name}_{lane}_{barcode}'.format(dataset_name=run_id, lane=lane_number, barcode=barcode)

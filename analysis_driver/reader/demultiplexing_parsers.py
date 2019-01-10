@@ -3,7 +3,7 @@ from itertools import islice
 from collections import Counter, defaultdict
 from xml.etree import ElementTree
 
-from analysis_driver.util import get_run_element_id
+from analysis_driver.util.helper_functions import get_run_element_id
 from egcg_core import constants as c
 from egcg_core.app_logging import logging_default as log_cfg
 

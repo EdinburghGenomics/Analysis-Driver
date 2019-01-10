@@ -6,7 +6,7 @@ from egcg_core.constants import *
 from egcg_core.rest_communication import patch_entry, post_or_patch as pp
 from analysis_driver.exceptions import PipelineError
 from analysis_driver.reader import demultiplexing_parsers as dm, mapping_stats_parsers as mp
-from analysis_driver.util import get_run_element_id
+from analysis_driver.util.helper_functions import get_run_element_id
 from .crawler import Crawler
 
 
