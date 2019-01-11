@@ -7,7 +7,6 @@ from egcg_core.integration_testing import ReportingAppIntegrationTest
 from unittest.mock import Mock, patch
 from analysis_driver import client
 from integration_tests import mocked_data
-from integration_tests.mocked_data import MockedRunProcess, mocked_flowcell_pooling
 
 
 class IntegrationTest(ReportingAppIntegrationTest):
@@ -138,9 +137,11 @@ class IntegrationTest(ReportingAppIntegrationTest):
 
     def expect_stage_data(self, stage_names, **query_kw):
         """
-        Take a list of stage name as string assuming exit status is 0 or as tuple with (stage_name, exist status).
-        Compare to the list of stage name and exist status retrieve from the analysis_driver_stages endpoint using the
-        keyword arguments provided.
+        Take a list of expected stages, and compare with observed stages and exit statuses from the
+        analysis_driver_stages endpoint.
+        :param list stage_names: Expected stages and exit statuses. Each item can be a string stage name (in which case
+                                 expected exit status will be 0), or a tuple of stage_name and exit_status.
+        :param **query_kw: Request parameters to pass to rest_communication.get_documents
         """
         stages = rest_communication.get_documents('analysis_driver_stages', **query_kw)
         obs = {s['stage_name']: s.get('exit_status') for s in stages}
@@ -230,7 +231,10 @@ class IntegrationTest(ReportingAppIntegrationTest):
     def test_demultiplexing_aborted(self):
         self.setup_test('sample', 'test_demultiplexing_aborted', 'demultiplexing')
 
-        mocked_clarity_run = MockedRunProcess(udf={'Run Status': 'RunAborted'}, container=mocked_flowcell_pooling)
+        mocked_clarity_run = mocked_data.MockedRunProcess(
+            udf={'Run Status': 'RunAborted'},
+            container=mocked_data.mocked_flowcell_pooling
+        )
         with patch('egcg_core.clarity.get_run', return_value=mocked_clarity_run):
             exit_status = client.main(['--run'])
 
