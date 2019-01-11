@@ -327,14 +327,6 @@ class SamtoolsDepthMulti(PostDemultiplexingStage):
 
 
 class PicardGCBias(PostDemultiplexingStage):
-    def _picard_cmd(self, run_element):
-        metrics_basename = self.fastq_base(run_element) + '_gc_bias'
-        return '{picard} CollectGcBiasMetrics I={bam} O={metrics} S={summary} R={ref} CHART={chart}'.format(
-            picard=toolset['picard'], bam=self.bam_path(run_element), metrics=metrics_basename + '.metrics',
-            summary=metrics_basename + '_summary.metrics', ref=self.dataset.reference_genome(run_element),
-            chart=metrics_basename + '.pdf'
-        )
-
     def _run(self):
         cmds = []
         for r in self.dataset.run_elements:
@@ -345,7 +337,8 @@ class PicardGCBias(PostDemultiplexingStage):
                         self.bam_path(r),
                         metrics_basename + '.metrics',
                         metrics_basename + '_summary.metrics',
-                        metrics_basename + '.pdf'
+                        metrics_basename + '.pdf',
+                        self.dataset.reference_genome(r)
                     )
                 )
                 

@@ -163,7 +163,7 @@ class RunCrawler(Crawler):
                 with open(read_name_file) as open_file:
                     barcode_info[ELEMENT_NB_READS_PHIX] = sum(1 for _ in open_file)
             elif barcode_info[ELEMENT_NB_READS_PASS_FILTER] == 0:
-                self.info('No reads for %s, Not expecting PhiX filtered file', run_element_id)
+                self.info('No reads for %s, not expecting PhiX filtered file', run_element_id)
             else:
                 # TODO: Not mandatory for now as there will be lots of old runs without it
                 self.warning('No Phix read_name file found in %s for %s', run_dir, run_element_id)
@@ -291,7 +291,7 @@ class RunCrawler(Crawler):
                 continue
 
             if barcode_info[ELEMENT_NB_READS_PASS_FILTER] == 0:
-                self.info('No reads for %s, Not expecting mapping stat file', run_element_id)
+                self.info('No reads for %s, not expecting mapping stat file', run_element_id)
                 continue
 
             fastq_file = util.find_files(
@@ -360,7 +360,8 @@ class RunCrawler(Crawler):
 
     def _populate_from_gc_bias_metrics(self, run_dir):
         for k, run_element in self.barcodes_info.items():
-            if run_element.get('barcode') == 'unknown':
+            if run_element.get('barcode') == 'unknown' or run_element[ELEMENT_NB_READS_PASS_FILTER] == 0:
+                self.info('No reads for %s, not expecting GC bias data', run_element['run_element_id'])
                 continue
 
             metrics_file = util.find_file(
@@ -391,8 +392,10 @@ class RunCrawler(Crawler):
                 normal_dev = sum(diffs) / len(diffs)
                 self.info('Calculated a normal deviation of %s from %s data points', normal_dev, len(diffs))
 
-                run_element['gc_slope'] = gc_slope[0]
-                run_element['normal_dev'] = normal_dev
+                run_element['gc_bias'] = {
+                    'slope': gc_slope[0],
+                    'mean_deviation': normal_dev
+                }
 
     def send_data(self):
         pp('run_elements', self.barcodes_info.values(), ELEMENT_RUN_ELEMENT_ID)

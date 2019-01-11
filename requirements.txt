@@ -1,5 +1,5 @@
 EGCG-Core==0.9
-luigi==2.5.0
+luigi==2.8.0
 ete3==3.0.0b35
 pandas<0.21
 illuminate==0.6.4
