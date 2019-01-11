@@ -1,3 +1,4 @@
+import multiprocessing
 import os
 import re
 import signal
@@ -6,7 +7,6 @@ from datetime import datetime
 from errno import ESRCH
 from sys import modules
 from time import sleep
-from collections import OrderedDict
 from egcg_core import rest_communication, clarity
 from egcg_core.app_logging import AppLogger
 from egcg_core.config import cfg
@@ -28,7 +28,7 @@ class Dataset(AppLogger):
     type = None
     endpoint = None
     id_field = None
-    exceptions = OrderedDict()
+    exceptions = multiprocessing.Queue()  # This needs to be a Queue to be accessible from every subprocess
 
     def __init__(self, name, most_recent_proc=None):
         self.name = name
@@ -163,21 +163,23 @@ class Dataset(AppLogger):
         raise NotImplementedError
 
     def register_exception(self, luigi_task, exception):
-        self.exceptions[luigi_task.stage_name] = exception
+        self.exceptions.put((luigi_task.stage_name, exception))
 
     def raise_exceptions(self):
-        if self.exceptions:
-            self.critical('%s exceptions registered with dataset %s', len(self.exceptions), self.name)
-            for name in self.exceptions:
+        if not self.exceptions.empty():
+            first_exception = None
+            while not self.exceptions.empty():
+                name, exception = self.exceptions.get()
+                if not first_exception:
+                    first_exception = exception
                 self.critical(
                     'exception: %s%s raised in %s',
-                    self.exceptions[name].__class__.__name__,
-                    self.exceptions[name].args,
+                    exception.__class__.__name__,
+                    exception.args,
                     name
                 )
             # Only raise the first exception raised by tasks
-            task_name = list(self.exceptions.keys())[0]
-            raise self.exceptions[task_name]
+            raise first_exception
 
     def __str__(self):
         return '%s(name=%s)' % (self.__class__.__name__, self.name)
