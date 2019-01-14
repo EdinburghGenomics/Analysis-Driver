@@ -245,20 +245,20 @@ class WaitForRead2(DemultiplexingStage):
         return 0
 
 
-class HalfRun(DemultiplexingStage):
+class PartialRun(DemultiplexingStage):
     @property
-    def fastq_intermetiate_dir(self):
+    def fastq_intermediate_dir(self):
         return join(self.job_dir, 'fastq_intermetiate')
 
 
-class Bcl2FastqHalfRun(HalfRun):
+class Bcl2FastqPartialRun(PartialRun):
 
     def _run(self):
         mask = self.dataset.mask.replace('y150n', 'y50n101')
         self.info('bcl2fastq mask: ' + mask)
         bcl2fastq_exit_status = executor.execute(
             bash_commands.bcl2fastq(
-                self.input_dir, self.fastq_intermetiate_dir, self.dataset.sample_sheet_file, mask
+                self.input_dir, self.fastq_intermediate_dir, self.dataset.sample_sheet_file, mask
             ),
             job_name='bcl2fastq_intermediate',
             working_dir=self.job_dir,
@@ -269,7 +269,7 @@ class Bcl2FastqHalfRun(HalfRun):
         return bcl2fastq_exit_status
 
 
-class PostDemultiplexingStage(HalfRun):
+class PostDemultiplexingStage(PartialRun):
     _fastq_files = {}
 
     @property
@@ -284,7 +284,7 @@ class PostDemultiplexingStage(HalfRun):
         )
         if re_id not in self._fastq_files:
             fqs = util.find_fastqs(
-                self.fastq_intermetiate_dir,
+                self.fastq_intermediate_dir,
                 run_element.get(c.ELEMENT_PROJECT_ID),
                 run_element.get(c.ELEMENT_SAMPLE_INTERNAL_ID),
                 run_element.get(c.ELEMENT_LANE)
@@ -293,16 +293,16 @@ class PostDemultiplexingStage(HalfRun):
             self._fastq_files[re_id] = fqs
         return self._fastq_files[re_id]
 
-    def fastq_base(self, run_element):
+    def intermediate_fastq_base(self, run_element):
         fastq_pair = self.fastq_pair(run_element)
         return fastq_pair[0][:-len('_R1_001.fastq.gz')]
 
-    def real_fastq_base(self, run_element):
+    def final_fastq_base(self, run_element):
         return join(
             self.fastq_dir,
             run_element.get(c.ELEMENT_PROJECT_ID),
             run_element.get(c.ELEMENT_SAMPLE_INTERNAL_ID),
-            basename(self.fastq_base(run_element))
+            basename(self.intermediate_fastq_base(run_element))
         )
 
     def bam_path(self, run_element):
@@ -310,19 +310,19 @@ class PostDemultiplexingStage(HalfRun):
             self.alignment_dir,
             run_element.get(c.ELEMENT_PROJECT_ID),
             run_element.get(c.ELEMENT_SAMPLE_INTERNAL_ID),
-            basename(self.fastq_base(run_element))
+            basename(self.intermediate_fastq_base(run_element))
         ) + '.bam'
 
 
 class BwaAlignMulti(PostDemultiplexingStage):
     def _run(self):
         bwa_commands = []
-        self.debug('Searching for fastqs in ' + self.fastq_intermetiate_dir)
+        self.debug('Searching for fastqs in ' + self.fastq_intermediate_dir)
         for run_element in self.dataset.run_elements:
             if self.fastq_pair(run_element):
                 # make sure the directory where the bam and qc files will go exists
                 makedirs(dirname(self.bam_path(run_element)), exist_ok=True)
-                makedirs(dirname(self.real_fastq_base(run_element)), exist_ok=True)
+                makedirs(dirname(self.final_fastq_base(run_element)), exist_ok=True)
                 # get the reference genome
                 species = clarity.get_species_from_sample(run_element.get(c.ELEMENT_SAMPLE_INTERNAL_ID))
                 default_genome_version = cfg.query('species', species, 'default')
@@ -353,7 +353,7 @@ class SamtoolsStatsMulti(PostDemultiplexingStage):
             if self.fastq_pair(run_element):
                 samtools_stats_cmds.append(bash_commands.samtools_stats(
                     self.bam_path(run_element),
-                    self.real_fastq_base(run_element) + '_samtools_stats.txt'
+                    self.final_fastq_base(run_element) + '_samtools_stats.txt'
                 ))
         return executor.execute(
             *samtools_stats_cmds,
@@ -373,7 +373,7 @@ class SamtoolsDepthMulti(PostDemultiplexingStage):
                 samtools_depth_cmds.append(bash_commands.samtools_depth_command(
                     self.job_dir,
                     self.bam_path(run_element),
-                    self.real_fastq_base(run_element) + '_samtools.depth'
+                    self.final_fastq_base(run_element) + '_samtools.depth'
                 ))
         return executor.execute(
             *samtools_depth_cmds,
@@ -391,7 +391,7 @@ class PicardMarkDuplicateMulti(PostDemultiplexingStage):
         for run_element in self.dataset.run_elements:
             if self.fastq_pair(run_element):
                 out_md_bam = self.bam_path(run_element)[:-len('.bam')] + '_markdup.bam'
-                metrics_file = self.real_fastq_base(run_element) + '_markdup.metrics'
+                metrics_file = self.final_fastq_base(run_element) + '_markdup.metrics'
                 mark_dup_cmds.append(bash_commands.picard_mark_dup_command(
                     self.bam_path(run_element),
                     out_md_bam,
@@ -411,8 +411,8 @@ class PicardInsertSizeMulti(PostDemultiplexingStage):
         insert_size_cmds = []
         for run_element in self.dataset.run_elements:
             if self.fastq_pair(run_element):
-                metrics_file = self.real_fastq_base(run_element) + '_insertsize.metrics'
-                histogram_file = self.real_fastq_base(run_element) + '_insertsize.pdf'
+                metrics_file = self.final_fastq_base(run_element) + '_insertsize.metrics'
+                histogram_file = self.final_fastq_base(run_element) + '_insertsize.pdf'
                 insert_size_cmds.append(bash_commands.picard_insert_size_command(
                     self.bam_path(run_element),
                     metrics_file,
@@ -442,7 +442,7 @@ def build_pipeline(dataset):
     def stage(cls, **params):
         return cls(dataset=dataset, **params)
     wait_for_read2 = stage(WaitForRead2)
-    bcl2fastq_half_run = stage(Bcl2FastqHalfRun, previous_stages=[wait_for_read2])
+    bcl2fastq_half_run = stage(Bcl2FastqPartialRun, previous_stages=[wait_for_read2])
     align_output = stage(BwaAlignMulti, previous_stages=[bcl2fastq_half_run])
     stats_output = stage(SamtoolsStatsMulti, previous_stages=[align_output])
     depth_output = stage(SamtoolsDepthMulti, previous_stages=[align_output])

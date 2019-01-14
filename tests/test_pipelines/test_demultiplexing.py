@@ -137,10 +137,10 @@ class TestPostDemultiplexing(TestAnalysisDriver):
         )
         self.stage = stage_class(dataset=dataset)
         os.makedirs(self.stage.fastq_dir, exist_ok=True)
-        os.makedirs(self.stage.fastq_intermetiate_dir, exist_ok=True)
+        os.makedirs(self.stage.fastq_intermediate_dir, exist_ok=True)
 
         for run_element in self.run_elements:
-            s_dir = join(self.stage.fastq_intermetiate_dir, run_element[ELEMENT_PROJECT_ID], run_element[ELEMENT_SAMPLE_INTERNAL_ID])
+            s_dir = join(self.stage.fastq_intermediate_dir, run_element[ELEMENT_PROJECT_ID], run_element[ELEMENT_SAMPLE_INTERNAL_ID])
             os.makedirs(s_dir, exist_ok=True)
             self._touch(join(s_dir, 'someid_L00%s_R1_001.fastq.gz' % run_element[ELEMENT_LANE]))
             self._touch(join(s_dir, 'someid_L00%s_R2_001.fastq.gz' % run_element[ELEMENT_LANE]))
@@ -189,7 +189,7 @@ class TestSamtoolsStatsMulti(TestPostDemultiplexing):
             for run_element in self.run_elements:
                 cmds.append(bash_commands.samtools_stats(
                     self.stage.bam_path(run_element),
-                    self.stage.real_fastq_base(run_element) + '_samtools_stats.txt'
+                    self.stage.final_fastq_base(run_element) + '_samtools_stats.txt'
                 ))
             mock_executor.assert_called_with(
                 *cmds,
@@ -214,7 +214,7 @@ class TestSamtoolsDepthMulti(TestPostDemultiplexing):
                 cmds.append(bash_commands.samtools_depth_command(
                     self.stage.job_dir,
                     self.stage.bam_path(run_element),
-                    self.stage.real_fastq_base(run_element) + '_samtools.depth'
+                    self.stage.final_fastq_base(run_element) + '_samtools.depth'
                 ))
             mock_executor.assert_called_with(
                 *cmds,
@@ -239,7 +239,7 @@ class TestPicardMarkDuplicateMulti(TestPostDemultiplexing):
                 cmds.append(bash_commands.picard_mark_dup_command(
                     self.stage.bam_path(run_element),
                     self.stage.bam_path(run_element)[:-len('.bam')] + '_markdup.bam',
-                    self.stage.real_fastq_base(run_element) + '_markdup.metrics'
+                    self.stage.final_fastq_base(run_element) + '_markdup.metrics'
                 ))
             mock_executor.assert_called_with(
                 *cmds, cpus=1, job_name='picardMD', mem=12, working_dir='tests/assets/jobs/testrun'
@@ -258,8 +258,8 @@ class TestPicardInsertSizeMulti(TestPostDemultiplexing):
             for run_element in self.run_elements:
                 cmds.append(bash_commands.picard_insert_size_command(
                     self.stage.bam_path(run_element),
-                    self.stage.real_fastq_base(run_element) + '_insertsize.metrics',
-                    self.stage.real_fastq_base(run_element) + '_insertsize.pdf'
+                    self.stage.final_fastq_base(run_element) + '_insertsize.metrics',
+                    self.stage.final_fastq_base(run_element) + '_insertsize.pdf'
                 ))
             mock_executor.assert_called_with(
                 *cmds, cpus=1, job_name='picardIS', mem=12, working_dir='tests/assets/jobs/testrun'
