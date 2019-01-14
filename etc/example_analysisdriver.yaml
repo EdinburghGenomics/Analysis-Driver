@@ -64,7 +64,7 @@ default:
         fix_dup_unmapped: path/to/fix_dup_unmapped
 
     logging:
-        format: '[%(asctime)s][%(name)s][%(levelname)s] %(message)s'
+        format: '[%(asctime)s][%(processName)s][%(name)s][%(levelname)s] %(message)s'
         datefmt: '%Y-%b-%d %H:%M:%S'
         handlers:
             stdout:
@@ -111,3 +111,6 @@ default:
         baseuri: 'https://clarity.co.uk'
         username: apiuser
         password: apiuser
+
+    luigi:
+        local_scheduler: True

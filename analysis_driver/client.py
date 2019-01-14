@@ -4,6 +4,8 @@ import logging
 import argparse
 import signal
 import traceback
+
+from egcg_core import rest_communication
 from egcg_core.executor import stop_running_jobs
 from egcg_core.app_logging import logging_default as log_cfg
 from analysis_driver import exceptions
@@ -146,8 +148,16 @@ def _process_dataset(d):
 
     except exceptions.SequencingRunError as e:
         app_logger.info('Bad sequencing run: %s. Aborting this dataset', str(e))
-        exit_status = 2  # TODO: we should send a notification of the run status found
+        # Aborting for aborted run is the right thing to do so exist status should be 0
+        exit_status = 0
+        # Initiate the review as this was not done during the pipeline
+        rest_communication.post_entry(
+            'actions',
+            {'action_type': 'automatic_run_review', 'run_id': d.name},
+            use_data=True
+        )
         d.abort()
+        d.ntf.end_pipeline(exit_status)
 
     except Exception as e:
         _handle_exception(e)
