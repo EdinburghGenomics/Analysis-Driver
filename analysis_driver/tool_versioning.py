@@ -6,11 +6,12 @@ from analysis_driver.exceptions import AnalysisDriverError
 
 
 class Toolset(AppLogger):
-    tools = {}
-    tool_versions = {}
-    versioning_cfg = tool_versioning_cfg
-    version = None
-    type = None
+    def __init__(self):
+        self.tools = {}
+        self.tool_versions = {}
+        self.versioning_cfg = tool_versioning_cfg
+        self.version = None
+        self.type = None
 
     def latest_version(self, toolset_type):
         return max(self.versioning_cfg['toolsets'][toolset_type])
@@ -27,10 +28,7 @@ class Toolset(AppLogger):
         self.tool_versions = {}
 
         for k in cfg['tools']:
-            if k in self.versioning_cfg['toolsets'][self.type][self.version]:
-                self.tools[k] = self.add_versioned_tool(k)
-            else:
-                self.tools[k] = cfg['tools'][k]
+            self.add_tool(k)
 
         self.info('Selected %s toolset version %s', self.type, self.version)
 
@@ -38,38 +36,58 @@ class Toolset(AppLogger):
     def unversioned_tools(self):
         return [k for k in self.tools if k not in self.tool_versions]
 
+    def add_tool(self, toolname):
+        if toolname in self.versioning_cfg['toolsets'][self.type][self.version]:
+            self.tools[toolname] = self.add_versioned_tool(toolname)
+        else:
+            config = cfg['tools'][toolname]
+            if isinstance(config, list):
+                config = sorted(config)[-1]
+
+            self.tools[toolname] = config
+
     def add_versioned_tool(self, toolname):
         """
         For a given tool, resolve its version and version_cmd from self.versioning_cfg and find the correct executable
         in cfg['tools'].
         :param str toolname:
         """
+        if toolname in self.tools:
+            self.debug('Tried to add %s - already added')
+            return self.tools[toolname]
+
         version = self.resolve(toolname, 'version')
         version_cmd = self.resolve(toolname, 'version_cmd')
+        dependency = self.resolve(toolname, 'dependency')
+        if dependency:
+            self.add_tool(dependency)
 
         config = cfg['tools'][toolname]
         if type(config) is str:
             config = [config]
 
         for c in config:
-            if self.check_version(toolname, c, version, version_cmd):
+            if self.check_version(toolname, c, version, version_cmd, self.tools.get(dependency)):
                 self.tool_versions[toolname] = version
                 return c
 
         raise AnalysisDriverError('Could not find version %s for %s' % (version, toolname))
 
-    def check_version(self, toolname, executable, exp_version, version_cmd):
+    def check_version(self, toolname, executable, exp_version, version_cmd, dependency=None):
         """
         Query an executable for its version and compare with an expected value.
         :param str toolname:
         :param str executable:
         :param str exp_version:
         :param str version_cmd:
+        :param str dependency:
         """
         if version_cmd in self.versioning_cfg['cmd_aliases']:
             version_cmd = self.versioning_cfg['cmd_aliases'][version_cmd]
 
-        obs_version = self._get_stdout(version_cmd.format(executable=executable, toolname=toolname))
+        obs_version = self._get_stdout(
+            version_cmd.format(executable=executable, toolname=toolname, dependency=dependency)
+        )
         return obs_version == str(exp_version)
 
     def resolve(self, toolname, val, toolset_version=None):
@@ -80,9 +98,10 @@ class Toolset(AppLogger):
         :param int toolset_version:
         """
         if toolset_version is None:
-            toolset_version = self.version
-        elif toolset_version < 0:
-            raise AnalysisDriverError('Could not resolve %s for %s', val, toolname)
+            toolset_version = self.version  # place to start scanning backwards to 0
+        elif toolset_version < 0:  # finished scanning backwards and found nothing
+            self.warning('Could not resolve %s for %s', val, toolname)
+            return None
 
         config = self.versioning_cfg['toolsets'][self.type][toolset_version][toolname] or {}
 

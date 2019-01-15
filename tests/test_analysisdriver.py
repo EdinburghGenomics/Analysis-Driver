@@ -1,7 +1,6 @@
 from os.path import join, dirname
 from unittest import TestCase
 from unittest.mock import Mock
-from egcg_core.app_logging import logging_default as log_cfg
 from analysis_driver.config import default as cfg, etc_config
 from analysis_driver import tool_versioning
 
@@ -20,11 +19,9 @@ class TestAnalysisDriver(TestCase):
     def _touch(input_file):
         open(input_file, 'w').close()
 
-
-
-cfg.load_config_file(etc_config('example_analysisdriver.yaml'))
-helper = TestAnalysisDriver()
-log_cfg.cfg = cfg['logging']
-log_cfg.add_stdout_handler()
-
-tool_versioning.toolset = Mock(__getitem__=lambda self, key: 'path/to/' + key)
+    @classmethod
+    def setUpClass(cls):
+        cfg.load_config_file(etc_config('example_analysisdriver.yaml'))
+        tool_versioning.toolset.versioning_cfg.load_config_file(join(cls.assets_path, 'tool_versioning.yaml'))
+        tool_versioning.toolset.select_type('fake_tools')
+        tool_versioning.toolset.select_version(0)

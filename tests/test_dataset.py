@@ -204,7 +204,7 @@ class TestDataset(TestAnalysisDriver):
         assert self.dataset._pipeline_instruction() == {
             'name': 'qc',
             'toolset_type': 'non_human_sample_processing',
-            'toolset_version': 0
+            'toolset_version': 1  # as per tests/assets/tool_versioning.yaml
         }
 
 mocked_lane_user_prep_artifact1 = NamedMock(real_name='art1', reagent_labels=[], samples=[MockedSample(real_name='sample1')])
@@ -374,7 +374,7 @@ class TestSampleDataset(TestDataset):
         exp = {
             'name': 'qc',
             'toolset_type': 'non_human_sample_processing',
-            'toolset_version': 0
+            'toolset_version': 1
         }
 
         with patched_get_doc(None), patched_patch as mocked_patch:

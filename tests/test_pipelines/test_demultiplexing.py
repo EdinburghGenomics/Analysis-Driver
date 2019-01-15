@@ -17,9 +17,7 @@ patched_ref_genome = patch('analysis_driver.dataset.RunDataset.reference_genome'
 
 class TestPhixDetection(TestAnalysisDriver):
     def test_run(self):
-        dataset = NamedMock(
-            real_name='test'
-        )
+        dataset = NamedMock(real_name='test')
         f = dm.PhixDetection(dataset=dataset)
         fake_fastq_pairs = [
             [('L1_R1_001.fastq.gz', 'L1_R2_001.fastq.gz')], [('L2_R1_001.fastq.gz', 'L2_R2_001.fastq.gz')]
@@ -31,8 +29,8 @@ class TestPhixDetection(TestAnalysisDriver):
             f._run()
 
             assert pexecute.call_args[0][0] == (
-                'set -o pipefail; path/to/bwa mem -t 16 /path/to/phix.fa L1_R1_001.fastq.gz | '
-                'path/to/samtools view -F 4 | cut -f 1 | sort -u > L1_phix_read_name.list'
+                'set -o pipefail; path/to/bwa_1.1 mem -t 16 /path/to/phix.fa L1_R1_001.fastq.gz | '
+                'path/to/samtools_1.3.1 view -F 4 | cut -f 1 | sort -u > L1_phix_read_name.list'
             )
             prun_crawler.assert_called_with(
                 dataset, run_dir='tests/assets/jobs/test/fastq', stage=prun_crawler.STAGE_CONVERSION

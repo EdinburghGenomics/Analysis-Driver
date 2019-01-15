@@ -12,15 +12,14 @@ def test_bcl2fastq():
     mask = run_info.reads.generate_mask(barcode_len=8)
     sample_sheet_csv = join(assets, 'SampleSheet_analysis_driver.csv')
     obs = bash_commands.bcl2fastq(assets, fastq_path, sample_sheet_csv, mask)
-    exp = ('path/to/bcl2fastq -l INFO --runfolder-dir %s --output-dir %s -r 8 -d 8 -p 8 -w 8 '
+    exp = ('path/to/bcl2fastq_1.0.4 -l INFO --runfolder-dir %s --output-dir %s -r 8 -d 8 -p 8 -w 8 '
            '--sample-sheet %s --use-bases-mask %s') % (assets, fastq_path, sample_sheet_csv, mask)
     assert obs == exp
 
 
 def test_fastqc():
     test_fastq = join(fastq_path, '10015AT', '10015ATA0001L05', 'this.fastq.gz')
-    expected = '--nogroup -t 1 -q ' + test_fastq
-    assert bash_commands.fastqc(test_fastq).endswith(expected)
+    assert bash_commands.fastqc(test_fastq) == 'path/to/fastqc_v0.11.5 --nogroup -t 1 -q ' + test_fastq
 
 
 def test_bcbio():
@@ -43,9 +42,9 @@ def test_bwa_mem_samblaster():
     cmd = bash_commands.bwa_mem_samblaster(['this.fastq', 'that.fastq'], 'ref.fasta', 'output/out.bam')
     expected_cmd = (
         'set -o pipefail; '
-        'path/to/bwa mem -M -t 16 ref.fasta this.fastq that.fastq | '
+        'path/to/bwa_1.1 mem -M -t 16 ref.fasta this.fastq that.fastq | '
         'path/to/samblaster | '
-        'path/to/samtools view -b - | '
+        'path/to/samtools_1.3.1 view -b - | '
         'path/to/sambamba sort -m 5G --tmpdir output -t 16 -o output/out.bam /dev/stdin'
     )
     assert cmd == expected_cmd
@@ -60,10 +59,10 @@ def test_bwa_mem_samblaster_read_groups():
     )
     expected_cmd = (
         'set -o pipefail; '
-        'path/to/bwa mem -M -t 16 -R \'@RG\\tID:1\\tPL:illumina\\tSM:user_sample_id\' '
+        'path/to/bwa_1.1 mem -M -t 16 -R \'@RG\\tID:1\\tPL:illumina\\tSM:user_sample_id\' '
         'ref.fasta this.fastq that.fastq | '
         'path/to/samblaster | '
-        'path/to/samtools view -b - | '
+        'path/to/samtools_1.3.1 view -b - | '
         'path/to/sambamba sort -m 5G --tmpdir output -t 16 -o output/out.bam /dev/stdin'
     )
     assert cmd == expected_cmd
@@ -78,21 +77,21 @@ def test_bwa_mem_biobambam_read_groups():
     )
     expected_cmd = (
         'set -o pipefail; '
-        'path/to/bwa mem -M -t 16 -R \'@RG\\tID:1\\tPL:illumina\\tSM:user_sample_id\' '
+        'path/to/bwa_1.1 mem -M -t 16 -R \'@RG\\tID:1\\tPL:illumina\\tSM:user_sample_id\' '
         'ref.fasta this.fastq that.fastq | '
-        'path/to/biobambam_sortmapdup inputformat=sam SO=coordinate tmpfile=output/out.bam '
+        'path/to/sortmapdup inputformat=sam SO=coordinate tmpfile=output/out.bam '
         'threads=16 indexfilename=output/out.bam.bai > output/out.bam'
     )
     assert cmd == expected_cmd
 
 
 def test_samtools_stats():
-    expected = 'path/to/samtools stats in.bam > out.txt'
+    expected = 'path/to/samtools_1.3.1 stats in.bam > out.txt'
     assert bash_commands.samtools_stats('in.bam', 'out.txt') == expected
 
 
 def test_samtools_depth_command():
-    expected = 'path/to/samtools depth -a -a -q 0 -Q 0 /path/to/bam_file | '\
+    expected = 'path/to/samtools_1.3.1 depth -a -a -q 0 -Q 0 /path/to/bam_file | '\
                'awk -F "	" \'{array[$1"	"$3]+=1} END{for (val in array){print val"	"array[val]}}\' | '\
                'sort -T /path/to/job -k 1,1 -nk 2,2 > /path/to/depth_file'
     assert bash_commands.samtools_depth_command('/path/to/job', '/path/to/bam_file', '/path/to/depth_file') == expected
@@ -198,7 +197,7 @@ def test_picard_insert_size_command():
 
 def test_java_command():
     obs = bash_commands.java_command(1, 'a_tmp_dir', 'a_jar_file')
-    assert obs == 'java -Djava.io.tmpdir=a_tmp_dir -XX:+UseSerialGC -Xmx1G -jar a_jar_file '
+    assert obs == 'path/to/java_8 -Djava.io.tmpdir=a_tmp_dir -XX:+UseSerialGC -Xmx1G -jar a_jar_file '
 
 
 def test_tabix_command():

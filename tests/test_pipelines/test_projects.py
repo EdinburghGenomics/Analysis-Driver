@@ -3,7 +3,6 @@ from shutil import rmtree
 from unittest.mock import patch
 from tests.test_analysisdriver import TestAnalysisDriver, NamedMock
 from analysis_driver.pipelines import projects
-from analysis_driver.exceptions import PipelineError
 
 test_projects = os.path.join(TestAnalysisDriver.assets_path, 'test_projects')
 relatedness_outfiles = os.path.join(test_projects, 'relatedness_outfiles')
@@ -106,14 +105,16 @@ class TestOutput(TestAnalysisDriver):
         )
         self.o = projects.Output(dataset=dataset)
 
-    @patch('analysis_driver.pipelines.projects.create_output_links')
-    @patch('analysis_driver.pipelines.projects.output_data_and_archive')
-    @patch('analysis_driver.pipelines.projects.output_file_config')
-    def test_run(self, mocked_outfile_config, mocked_output_archive, mocked_output_links):
+    @patch.object(projects.toolset, 'write_to_yaml')
+    @patch.object(projects, 'create_output_links')
+    @patch.object(projects, 'output_data_and_archive')
+    @patch.object(projects, 'output_file_config')
+    def test_run(self, mocked_outfile_config, mocked_output_archive, mocked_output_links, mocked_write):
         with patch('analysis_driver.segmentation.BasicStage.job_dir', new=test_projects):
             self.o._run()
             mocked_output_archive.assert_called_with(relatedness_outfiles, '/path/to/input/dir/test_dataset')
             mocked_outfile_config.set_pipeline_type.assert_called_with('project_process')
+            mocked_write.assert_called_with(os.path.join(relatedness_outfiles, 'program_versions.yaml'))
             mocked_output_links.assert_called_with(
                 test_projects,
                 mocked_outfile_config,
