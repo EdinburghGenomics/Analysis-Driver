@@ -7,38 +7,8 @@ from egcg_core.constants import ELEMENT_CONTAMINANT_UNIQUE_MAP, ELEMENT_PCNT_UNM
 
 
 class TestDemultiplexingStats(TestAnalysisDriver):
-    # TODO: Remove/Update
-    # def test(self):
-    #     conversion_stat = os.path.join(self.assets_path, 'test_crawlers', '_ConversionStats.xml')
-    #     expected_barcode_per_lane = [
-    #         ('default', 'Undetermined', '1', 'unknown', 1696088, 80740, 12111000, 9937085, 7746149),
-    #         ('default', 'Undetermined', '2', 'unknown', 2335276, 122074, 18311100, 15157909, 12445247),
-    #         ('10015AT', 'LP6002014-DTP_A01', '1', 'ATTACTCG', 537099, 537099, 80564850, 72789430, 58579087),
-    #         ('10015AT', 'LP6002014-DTP_A01', '2', 'ATTACTCG', 466412, 466412, 69961800, 61852875, 49303565),
-    #         ('10015AT', 'LP6002014-DTP_A02', '1', 'TCCGGAGA', 539999, 539999, 80999850, 73257234, 57184580),
-    #         ('10015AT', 'LP6002014-DTP_A02', '2', 'TCCGGAGA', 469731, 469731, 70459650, 62355216, 48408701)
-    #     ]
-    #     expected_unknown_barcodes_per_lanes = [
-    #         ('1', 'CCCCCCCC', '4695'),
-    #         ('1', 'TGAAGCTA', '828'),
-    #         ('2', 'CCCCCCCC', '22153'),
-    #         ('2', 'NCCCCCCC', '9133')
-    #     ]
-    #     barcodes, unknowns, barcodeless = dm.parse_conversion_stats(conversion_stat, has_barcode=True)
-    #     assert barcodes == expected_barcode_per_lane
-    #     assert unknowns == expected_unknown_barcodes_per_lanes
-    #     assert barcodeless == []
-    #
-    #     conversion_stat = os.path.join(self.assets_path, 'test_crawlers', '_ConversionStats_barcodeless.xml')
-    #     expected_barcodeless_per_lane = [
-    #         ('Corriell_2016-02-03', 'LP0000038-NTP_C01', '1', 'all', 6470949, 3794190, 569128500, 481721486, 344363516),
-    #         ('Corriell_2016-02-03', 'LP0000038-NTP_C02', '2', 'all', 6470949, 4254880, 638232000, 542343434, 364820834)
-    #     ]
-    #     barcodes, unknowns, barcodeless = dm.parse_conversion_stats(conversion_stat, has_barcode=False)
-    #     assert barcodeless == expected_barcodeless_per_lane
-
     def test(self):
-        # testing multiplexed run stats parsing (previously from _ConversionStats.xml and _AdapterTrimming.txt')
+        # testing multiplexed run stats parsing (previously from ConversionStats.xml and AdapterTrimming.txt')
         json_stat = os.path.join(self.assets_path, 'test_crawlers', 'Stats.json')
         with open(json_stat, 'r') as stats:
             json_data = json.load(stats)
@@ -70,7 +40,7 @@ class TestDemultiplexingStats(TestAnalysisDriver):
             'test_run_id_2_unknown': {'read_1_trimmed_bases': 112371, 'read_2_trimmed_bases': 143299}
         })
 
-        # testing barcodeless run stats parsing (previously from _ConversionStats.xml and _AdapterTrimming.txt')
+        # testing barcodeless run stats parsing (previously from ConversionStats.xml and AdapterTrimming.txt')
         json_stat = os.path.join(self.assets_path, 'test_crawlers', 'Stats_barcodeless.json')
         with open(json_stat, 'r') as stats:
             json_data = json.load(stats)
@@ -195,20 +165,6 @@ class TestDemultiplexingStats(TestAnalysisDriver):
         welldup_file = os.path.join(self.assets_path, 'test_crawlers', 'test_run.well_dup')
         dup_per_lane = dm.parse_welldup_file(welldup_file)
         assert dup_per_lane == {1: 11.747, 2: 14.576, 4: 20.496, 5: 5.981, 6: 10.917, 7: 14.611, 8: 26.416}
-
-    # TODO: Remove/Update
-    # def test_parse_adapter_trim_file(self):
-    #     adapter_trim_file = os.path.join(self.assets_path, 'test_crawlers', '_AdapterTrimming.txt')
-    #     run_id = 'test_run_id'
-    #     parsed_trim_file = dm.parse_adapter_trim_file(adapter_trim_file, run_id)
-    #     assert parsed_trim_file == {
-    #         ('test_run_id', '10015AT0001', '1'): {'read_1_trimmed_bases': 714309214, 'read_2_trimmed_bases': 684692293},
-    #         ('test_run_id', '10015AT0001', '2'): {'read_1_trimmed_bases': 284712861, 'read_2_trimmed_bases': 282625840},
-    #         ('test_run_id', '10015AT0002', '2'): {'read_1_trimmed_bases': 398993728, 'read_2_trimmed_bases': 391621660},
-    #         ('test_run_id', 'unknown', '2'): {'read_1_trimmed_bases': 48149799, 'read_2_trimmed_bases': 48818739},
-    #         ('test_run_id', '10015AT0002', '1'): {'read_1_trimmed_bases': 1088149481, 'read_2_trimmed_bases': 1034179505},
-    #         ('test_run_id', 'unknown', '1'): {'read_1_trimmed_bases': 184380158, 'read_2_trimmed_bases': 172552099}
-    #     }
 
     def test_parse_fastqFilterer_stats(self):
         fastqfilterer_stats = os.path.join(self.assets_path, 'RE_fastqfilterer.stats')
