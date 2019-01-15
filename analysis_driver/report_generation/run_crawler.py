@@ -1,6 +1,7 @@
-import copy, json
+import csv, copy, json
 from os.path import isfile
 from collections import defaultdict, Counter
+from scipy.stats.mstats import theilslopes
 from egcg_core import util
 from egcg_core.constants import *
 from egcg_core.rest_communication import patch_entry, post_or_patch as pp
@@ -30,6 +31,7 @@ class RunCrawler(Crawler):
                 self._populate_barcode_info_from_seqtk_fqchk_files(run_dir)
             if stage >= self.STAGE_MAPPING:
                 self._populate_from_mapping_stats(run_dir)
+                self._populate_from_gc_bias_metrics(run_dir)
 
     @staticmethod
     def _update_doc_list(d, k, v):
@@ -134,7 +136,7 @@ class RunCrawler(Crawler):
                 with open(read_name_file) as open_file:
                     barcode_info[ELEMENT_NB_READS_PHIX] = sum(1 for _ in open_file)
             elif barcode_info[ELEMENT_NB_READS_PASS_FILTER] == 0:
-                self.info('No reads for %s, Not expecting PhiX filtered file', run_element_id)
+                self.info('No reads for %s, not expecting PhiX filtered file', run_element_id)
             else:
                 # TODO: Not mandatory for now as there will be lots of old runs without it
                 self.warning('No Phix read_name file found in %s for %s', run_dir, run_element_id)
@@ -298,7 +300,7 @@ class RunCrawler(Crawler):
                 continue
 
             if barcode_info[ELEMENT_NB_READS_PASS_FILTER] == 0:
-                self.info('No reads for %s, Not expecting mapping stat file', run_element_id)
+                self.info('No reads for %s, not expecting mapping stat file', run_element_id)
                 continue
 
             fastq_file = util.find_files(
@@ -364,6 +366,45 @@ class RunCrawler(Crawler):
                 lane_info = self.lanes.get(lane_id)
                 lane = int(lane_info.get(ELEMENT_LANE_NUMBER))
                 lane_info['interop_metrics'] = interop_metrics_per_lane.get(str(lane), {})
+
+    def _populate_from_gc_bias_metrics(self, run_dir):
+        for k, run_element in self.barcodes_info.items():
+            if run_element.get('barcode') == 'unknown' or run_element[ELEMENT_NB_READS_PASS_FILTER] == 0:
+                self.info('No reads for %s, not expecting GC bias data', run_element['run_element_id'])
+                continue
+
+            metrics_file = util.find_file(
+                run_dir,
+                run_element['project_id'],
+                run_element['sample_id'],
+                '*_S*_L00%s_gc_bias.metrics' % run_element['lane']
+            )
+
+            with open(metrics_file) as f:
+                header = ''
+                while not header.startswith('ACCUMULATION_LEVEL'):
+                    header = f.readline()
+
+                reader = csv.DictReader(f, header.split('\t'), delimiter='\t')
+                lines = [l for l in reader]
+
+                # gc slope
+                data_points = [float(l['NORMALIZED_COVERAGE']) for l in lines if 20 <= int(l['GC']) <= 80]
+                gc_slope = theilslopes(data_points)
+                self.info('Calculated a GC slope of %s from %s data points', gc_slope, len(data_points))
+
+                # deviation from normal
+                total_windows = sum([int(l['WINDOWS']) for l in lines])
+                # total_windows * 0.0004 gives approximately the same number of data points as 20 <= GC <= 80
+                threshold = total_windows * 0.0004
+                diffs = [abs(1 - float(l['NORMALIZED_COVERAGE'])) for l in lines if int(l['WINDOWS']) > threshold]
+                normal_dev = sum(diffs) / len(diffs)
+                self.info('Calculated a normal deviation of %s from %s data points', normal_dev, len(diffs))
+
+                run_element['gc_bias'] = {
+                    'slope': gc_slope[0],
+                    'mean_deviation': normal_dev
+                }
 
     def send_data(self):
         pp('run_elements', self.barcodes_info.values(), ELEMENT_RUN_ELEMENT_ID)

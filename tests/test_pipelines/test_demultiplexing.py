@@ -12,6 +12,8 @@ patch_executor = patch(
     return_value=Mock(join=Mock(return_value=0))
 )
 
+patched_ref_genome = patch('analysis_driver.dataset.RunDataset.reference_genome', return_value='a_genome.fa')
+
 
 class TestPhixDetection(TestAnalysisDriver):
     def test_run(self):
@@ -129,14 +131,14 @@ class TestBwaAlignMulti(TestPostDemultiplexing):
         self.setup_stage(dm.BwaAlignMulti)
 
     def test_run(self):
-        patch_get_sample = patch('egcg_core.clarity.get_species_from_sample', return_value='Homo sapiens')
-        with patch_get_sample, patch_executor as mock_executor:
+        self.stage.dataset.reference_genome.return_value = 'a_genome.fa'
+        with patch_executor as mock_executor:
             self.stage._run()
             cmds = []
             for run_element in self.run_elements:
                 cmds.append(bash_commands.bwa_mem_biobambam(
                     self.stage.fastq_pair(run_element),
-                    '/path/to/genome.fa',
+                    'a_genome.fa',
                     self.stage.bam_path(run_element),
                     {'ID': '1', 'SM': run_element.get(ELEMENT_SAMPLE_INTERNAL_ID), 'PL': 'illumina'},
                     thread=6
@@ -233,6 +235,27 @@ class TestPicardInsertSizeMulti(TestPostDemultiplexing):
             mock_executor.assert_called_with(
                 *cmds, cpus=1, job_name='picardIS', mem=12, working_dir='tests/assets/jobs/testrun'
             )
+
+
+class TestPicardGCBias(TestPostDemultiplexing):
+    def setUp(self):
+        self.setup_stage(dm.PicardGCBias)
+        self.setup_post_alignment()
+
+    @patch_executor
+    def test_run(self, mocked_executor):
+        self.stage.dataset.reference_genome.return_value = 'a_genome.fa'
+        with patch('analysis_driver.pipelines.demultiplexing.bash_commands.picard_gc_bias', return_value='a_cmd'):
+            self.stage._run()
+
+        mocked_executor.assert_called_with(
+            'a_cmd',
+            'a_cmd',
+            job_name='gc_bias',
+            working_dir='tests/assets/jobs/testrun',
+            cpus=1,
+            mem=4
+        )
 
 
 class TestRunReview(TestAnalysisDriver):

@@ -1,7 +1,5 @@
-from unittest.mock import Mock, patch
-
 import pytest
-
+from unittest.mock import Mock, patch
 from analysis_driver import segmentation
 from analysis_driver.dataset import RunDataset
 from analysis_driver.exceptions import SequencingRunError, PipelineError
@@ -25,8 +23,8 @@ class FailingStage(segmentation.Stage):
 
 
 class TestPipeline(TestAnalysisDriver):
-
-    def _pipeline_with_stage(self, stage_class):
+    @staticmethod
+    def _pipeline_with_stage(stage_class):
         dataset = RunDataset(name='a_sample')
         patches = []
         for function_to_patch in ['start', 'get_stage', 'start_stage', 'end_stage', 'resolve_pipeline_and_toolset']:
@@ -51,5 +49,3 @@ class TestPipeline(TestAnalysisDriver):
     def test_failing_pipeline(self):
         with pytest.raises(PipelineError):
             self._pipeline_with_stage(FailingStage)
-
-
