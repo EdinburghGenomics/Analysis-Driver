@@ -145,7 +145,7 @@ class TestPeddy(QCTester):
 
     @patch(ppath + 'Peddy.relationships')
     @patch(ppath + 'Peddy.relationship')
-    @patch(ppath + 'gender_validation.alias')
+    @patch(ppath + 'sex_check.alias')
     @patch(ppath + 'clarity.get_user_sample_name')
     @patch(ppath + 'clarity.get_sample')
     def test_get_member_details(self, psample, pname, psex, prel, prels):

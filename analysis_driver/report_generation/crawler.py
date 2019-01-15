@@ -1,7 +1,7 @@
 from egcg_core import clarity
 from egcg_core import constants as c
 from egcg_core.app_logging import AppLogger
-from analysis_driver.quality_control import gender_validation
+from analysis_driver.quality_control import sex_check
 
 
 class Crawler(AppLogger):
@@ -11,7 +11,7 @@ class Crawler(AppLogger):
         sample_info = {
             c.ELEMENT_SAMPLE_EXTERNAL_ID: clarity.get_user_sample_name(sample_name, lenient=True),
             c.ELEMENT_SAMPLE_PLATE: clarity.get_plate_id_and_well(sample_name)[0],  # returns [plate_id, well]
-            c.ELEMENT_PROVIDED_GENDER: gender_validation.alias(clarity.get_sample_gender(sample_name)),
+            c.ELEMENT_PROVIDED_GENDER: sex_check.alias(clarity.get_sample_gender(sample_name)),
             c.ELEMENT_SAMPLE_SPECIES: clarity.get_species_from_sample(sample_name)
         }
         if 'Yield for Quoted Coverage (Gb)' in lims_sample.udf:

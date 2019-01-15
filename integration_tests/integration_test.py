@@ -259,8 +259,8 @@ class IntegrationTest(ReportingAppIntegrationTest):
         )
 
         self.expect_stage_data(['mergefastqs', 'fastqc', 'genotypevalidation', 'bcbio', 'fastqscreen',
-                               'fixunmapped', 'blast', 'gendervalidation', 'vcfstats', 'samtoolsdepth',
-                               'verifybamid', 'sampledataoutput', 'md5sum', 'cleanup', 'samplereview'])
+                                'fixunmapped', 'blast', 'sexcheck', 'vcfstats', 'samtoolsdepth',
+                                'verifybamid', 'sampledataoutput', 'md5sum', 'cleanup', 'samplereview'])
 
         self.expect_equal(
             rest_communication.get_document('analysis_driver_procs')['pipeline_used'],

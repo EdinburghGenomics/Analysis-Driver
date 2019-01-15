@@ -8,6 +8,8 @@ patch_executor = patch('analysis_driver.pipelines.variant_calling.executor.execu
 
 
 class TestVariantCalling(TestAnalysisDriver):
+    stage_cls = GATKStage
+    extra_args = {}
     dataset = NamedMock(
         real_name='test_dataset',
         reference_genome='reference_genome',
@@ -15,215 +17,202 @@ class TestVariantCalling(TestAnalysisDriver):
         genome_version='genome_version'
     )
 
-
-class TestGATKStage(TestVariantCalling):
     def setUp(self):
-        self.g = GATKStage(dataset=self.dataset)
+        self.stage = self.stage_cls(dataset=self.dataset, **self.extra_args)
 
+
+class TestGATKGenericStage(TestVariantCalling):
     def test_gatk_run_dir(self):
-        run_dir = self.g.gatk_run_dir
+        run_dir = self.stage.gatk_run_dir
         assert run_dir == 'tests/assets/jobs/test_dataset/gatk_var_calling'
         assert os.path.isdir('tests/assets/jobs/test_dataset/gatk_var_calling')
 
     def test_gatk_cmd(self):
-        gatk_cmd_without_bam = self.g.gatk_cmd('GATKfunction', 'test_outfile')
-        assert gatk_cmd_without_bam == 'java -Djava.io.tmpdir=tests/assets/jobs/test_dataset/gatk_var_calling ' \
-                                       '-XX:+UseSerialGC -Xmx16G -jar path/to/gatk -R reference_genome ' \
-                                       '-T GATKfunction --read_filter BadCigar --read_filter NotPrimaryAlignment ' \
-                                       '-o test_outfile -l INFO -U LENIENT_VCF_PROCESSING -nct 16 -nt 16'
+        minimal_cmd = self.stage.gatk_cmd('GATKClass', 'test_outfile')
+        assert minimal_cmd == ('java -Djava.io.tmpdir=tests/assets/jobs/test_dataset/gatk_var_calling -XX:+UseSerialGC '
+                               '-Xmx16G -jar path/to/gatk -R reference_genome -T GATKClass --read_filter BadCigar '
+                               '--read_filter NotPrimaryAlignment -o test_outfile -l INFO -U LENIENT_VCF_PROCESSING '
+                               '-nct 16 -nt 16')
 
-        gatk_cmd_with_bam = self.g.gatk_cmd('GATKfunction', 'test_outfile', 'test_bam')
-        assert gatk_cmd_with_bam == 'java -Djava.io.tmpdir=tests/assets/jobs/test_dataset/gatk_var_calling ' \
-                                    '-XX:+UseSerialGC -Xmx16G -jar path/to/gatk -R reference_genome -T GATKfunction ' \
-                                    '--read_filter BadCigar --read_filter NotPrimaryAlignment -o test_outfile ' \
-                                    '-l INFO -U LENIENT_VCF_PROCESSING -I test_bam -nct 16 -nt 16'
-
-        gatk_cmd_with_ext = self.g.gatk_cmd('GATKfunction', 'test_outfile', ext=' --flag option')
-        assert gatk_cmd_with_ext == 'java -Djava.io.tmpdir=tests/assets/jobs/test_dataset/gatk_var_calling ' \
-                                    '-XX:+UseSerialGC -Xmx16G -jar path/to/gatk -R reference_genome -T GATKfunction ' \
-                                    '--read_filter BadCigar --read_filter NotPrimaryAlignment -o test_outfile ' \
-                                    '-l INFO -U LENIENT_VCF_PROCESSING --flag option -nct 16 -nt 16'
+        full_cmd = self.stage.gatk_cmd('GATKClass', 'test_outfile', 'test_bam', 17, 18, 19, ' --flag option')
+        assert full_cmd == ('java -Djava.io.tmpdir=tests/assets/jobs/test_dataset/gatk_var_calling -XX:+UseSerialGC '
+                            '-Xmx17G -jar path/to/gatk -R reference_genome -T GATKClass --read_filter BadCigar '
+                            '--read_filter NotPrimaryAlignment -o test_outfile -l INFO -U LENIENT_VCF_PROCESSING '
+                            '-I test_bam --flag option -nct 18 -nt 19')
 
     def test_basename(self):
-        basename = self.g.basename
+        basename = self.stage.basename
         assert basename == 'tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id'
         os.path.isdir(basename)
 
     def test_sorted_bam(self):
-        assert self.g.sorted_bam == 'tests/assets/jobs/test_dataset/test_dataset.bam'
+        assert self.stage.sorted_bam == 'tests/assets/jobs/test_dataset/test_dataset.bam'
 
     def test_recal_bam(self):
-        assert self.g.recal_bam == 'tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id_recal.bam'
+        assert self.stage.recal_bam == 'tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id_recal.bam'
 
     def test_output_grp(self):
-        assert self.g.output_grp == 'tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id.grp'
+        assert self.stage.output_grp == 'tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id.grp'
 
     def test_output_intervals(self):
-        assert self.g.output_intervals == 'tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id.intervals'
+        assert self.stage.output_intervals == 'tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id.intervals'
 
     def test_indel_realigned_bam(self):
-        assert self.g.indel_realigned_bam == 'tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id_indel_realigned.bam'
+        assert self.stage.indel_realigned_bam == 'tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id_indel_realigned.bam'
 
     def test_dataset_gvcf(self):
-        assert self.g.sample_gvcf == 'tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id.g.vcf'
+        assert self.stage.sample_gvcf == 'tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id.g.vcf'
 
     def test_genotyped_vcf(self):
-        assert self.g.genotyped_vcf == 'tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id.vcf'
+        assert self.stage.genotyped_vcf == 'tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id.vcf'
 
     def test_raw_snp_vcf(self):
-        assert self.g.raw_snp_vcf == 'tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id_raw_snp.vcf'
+        assert self.stage.raw_snp_vcf == 'tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id_raw_snp.vcf'
 
     def test_filter_snp_vcf(self):
-        assert self.g.filter_snp_vcf == 'tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id_filter_snp.vcf'
+        assert self.stage.filter_snp_vcf == 'tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id_filter_snp.vcf'
 
     def test_dbsnp(self):
-        assert self.g.dbsnp == '/path/to/dbsnp.vcf.gz'
+        assert self.stage.dbsnp == '/path/to/dbsnp.vcf.gz'
 
     def test_known_indels(self):
-        assert self.g.known_indels == '/path/to/known/indels'
+        assert self.stage.known_indels == '/path/to/known/indels'
 
 
-class TestBaseRecal(TestVariantCalling):
+class TestGATKStage(TestVariantCalling):
     def setUp(self):
-        self.b = BaseRecal(dataset=self.dataset)
+        super().setUp()
+        self.patched_executor = patch('analysis_driver.pipelines.variant_calling.executor.execute')
+        self.mocked_executor = self.patched_executor.start()
+        self.patched_gatk_cmd = patch.object(self.stage_cls, 'gatk_cmd', return_value='a_cmd')
+        self.mocked_gatk_cmd = self.patched_gatk_cmd.start()
+
+    def tearDown(self):
+        self.patched_executor.stop()
+        self.patched_gatk_cmd.stop()
+
+    def _test_bgzip_and_tabix(self, vcf_file):
+        assert self.mocked_executor.call_args_list[1] == call(
+            'path/to/bgzip -f ' + vcf_file, cpus=1, job_name='bgzip', mem=8,
+            working_dir='tests/assets/jobs/test_dataset/gatk_var_calling'
+        )
+        assert self.mocked_executor.call_args_list[2] == call(
+            'path/to/tabix -f -p vcf ' + vcf_file + '.gz', cpus=1, job_name='tabix', mem=8,
+            working_dir='tests/assets/jobs/test_dataset/gatk_var_calling'
+        )
+
+
+class TestBaseRecal(TestGATKStage):
+    stage_cls = BaseRecal
 
     def test_run(self):
-        with patch_executor as e:
-            self.b._run()
-            assert e.call_count == 1
-            e.assert_called_with(
-                'java -Djava.io.tmpdir=tests/assets/jobs/test_dataset/gatk_var_calling '
-                '-XX:+UseSerialGC '
-                '-Xmx48G '
-                '-jar path/to/gatk '
-                '-R reference_genome '
-                '-T BaseRecalibrator '
-                '--read_filter BadCigar '
-                '--read_filter NotPrimaryAlignment '
-                '-o tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id.grp '
-                '-l INFO '
-                '-U LENIENT_VCF_PROCESSING '
-                '-I tests/assets/jobs/test_dataset/test_dataset.bam '
-                '--knownSites /path/to/dbsnp.vcf.gz '
-                '-nct 16',
-                cpus=16,
-                job_name='gatk_base_recal',
-                mem=64,
-                working_dir='tests/assets/jobs/test_dataset/gatk_var_calling'
-            )
+        self.stage._run()
+        assert self.mocked_executor.call_count == 1
+        self.mocked_gatk_cmd.assert_called_with(
+            'BaseRecalibrator',
+            'tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id.grp',
+            input_bam='tests/assets/jobs/test_dataset/test_dataset.bam',
+            xmx=48,
+            nt=1,
+            ext=' --knownSites /path/to/dbsnp.vcf.gz'
+        )
+        self.mocked_executor.assert_called_with(
+            'a_cmd',
+            cpus=16,
+            job_name='gatk_base_recal',
+            mem=64,
+            working_dir='tests/assets/jobs/test_dataset/gatk_var_calling'
+        )
 
 
-class TestPrintReads(TestVariantCalling):
-    def setUp(self):
-        self.p = PrintReads(dataset=self.dataset)
+class TestPrintReads(TestGATKStage):
+    stage_cls = PrintReads
 
     def test_run(self):
-        with patch_executor as e:
-            self.p._run()
-            assert e.call_count == 1
-            e.assert_called_with(
-                'java -Djava.io.tmpdir=tests/assets/jobs/test_dataset/gatk_var_calling '
-                '-XX:+UseSerialGC '
-                '-Xmx48G '
-                '-jar path/to/gatk '
-                '-R reference_genome '
-                '-T PrintReads '
-                '--read_filter BadCigar '
-                '--read_filter NotPrimaryAlignment '
-                '-o tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id_recal.bam '
-                '-l INFO -U LENIENT_VCF_PROCESSING '
-                '-I tests/assets/jobs/test_dataset/test_dataset.bam '
-                '-BQSR tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id.grp '
-                '-nct 16',
-                cpus=16,
-                job_name='gatk_print_reads',
-                mem=64,
-                working_dir='tests/assets/jobs/test_dataset/gatk_var_calling'
-            )
+        self.stage._run()
+        assert self.mocked_executor.call_count == 1
+        self.mocked_gatk_cmd.assert_called_with(
+            'PrintReads',
+            'tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id_recal.bam',
+            input_bam='tests/assets/jobs/test_dataset/test_dataset.bam',
+            xmx=48,
+            nt=1,
+            ext=' -BQSR tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id.grp'
+        )
+        self.mocked_executor.assert_called_with(
+            'a_cmd',
+            cpus=16,
+            job_name='gatk_print_reads',
+            mem=64,
+            working_dir='tests/assets/jobs/test_dataset/gatk_var_calling'
+        )
 
 
-class TestRealignTarget(TestVariantCalling):
-    def setUp(self):
-        self.p = RealignTarget(dataset=self.dataset)
+class TestRealignTarget(TestGATKStage):
+    stage_cls = RealignTarget
 
     def test_run(self):
-        with patch_executor as e:
-            self.p._run()
-            assert e.call_count == 1
-            e.assert_called_with(
-                'java -Djava.io.tmpdir=tests/assets/jobs/test_dataset/gatk_var_calling '
-                '-XX:+UseSerialGC '
-                '-Xmx32G '
-                '-jar path/to/gatk '
-                '-R reference_genome '
-                '-T RealignerTargetCreator '
-                '--read_filter BadCigar '
-                '--read_filter NotPrimaryAlignment '
-                '-o tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id.intervals '
-                '-l INFO '
-                '-U LENIENT_VCF_PROCESSING '
-                '-I tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id_recal.bam '
-                '--known /path/to/known/indels',
-                job_name='gatk_realign_target',
-                mem=32,
-                working_dir='tests/assets/jobs/test_dataset/gatk_var_calling'
-            )
+        self.stage._run()
+        assert self.mocked_executor.call_count == 1
+        self.mocked_gatk_cmd.assert_called_with(
+            'RealignerTargetCreator',
+            'tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id.intervals',
+            input_bam='tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id_recal.bam',
+            xmx=32,
+            nct=1,
+            nt=1,
+            ext=' --known /path/to/known/indels'
+        )
+        self.mocked_executor.assert_called_with(
+            'a_cmd',
+            job_name='gatk_realign_target',
+            mem=32,
+            working_dir='tests/assets/jobs/test_dataset/gatk_var_calling'
+        )
 
 
-class TestRealign(TestVariantCalling):
-    def setUp(self):
-        self.p = Realign(dataset=self.dataset)
+class TestRealign(TestGATKStage):
+    stage_cls = Realign
 
     def test_run(self):
-        with patch_executor as e:
-            self.p._run()
-            assert e.call_count == 1
-            e.assert_called_with(
-                'java -Djava.io.tmpdir=tests/assets/jobs/test_dataset/gatk_var_calling '
-                '-XX:+UseSerialGC '
-                '-Xmx32G '
-                '-jar path/to/gatk '
-                '-R reference_genome '
-                '-T IndelRealigner'
-                ' --read_filter BadCigar '
-                '--read_filter NotPrimaryAlignment '
-                '-o tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id_indel_realigned.bam '
-                '-l INFO -U LENIENT_VCF_PROCESSING '
-                '-I tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id_recal.bam '
-                '-targetIntervals tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id.intervals '
-                '--knownAlleles /path/to/known/indels',
-                job_name='gatk_indel_realign',
-                mem=32,
-                working_dir='tests/assets/jobs/test_dataset/gatk_var_calling'
-            )
+        self.stage._run()
+        assert self.mocked_executor.call_count == 1
+        self.mocked_gatk_cmd.assert_called_with(
+            'IndelRealigner',
+            'tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id_indel_realigned.bam',
+            input_bam='tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id_recal.bam',
+            xmx=32,
+            nct=1,
+            nt=1,
+            ext=' -targetIntervals tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id.intervals '
+                '--knownAlleles /path/to/known/indels'
+        )
+        self.mocked_executor.assert_called_with(
+            'a_cmd',
+            job_name='gatk_indel_realign',
+            mem=32,
+            working_dir='tests/assets/jobs/test_dataset/gatk_var_calling'
+        )
 
 
-class TestHaplotypeCaller(TestVariantCalling):
-    def setUp(self):
-        self.p = HaplotypeCaller(dataset=self.dataset, input_bam='test_bam')
+class TestHaplotypeCaller(TestGATKStage):
+    stage_cls = HaplotypeCaller
+    extra_args = {'input_bam': 'test_bam'}
 
     def test_run(self):
-        with patch_executor as e:
-            self.p._run()
-            assert e.call_count == 3  # Command + bgzip + tabix
-            assert e.call_args_list[0] == call(
-                'java -Djava.io.tmpdir=tests/assets/jobs/test_dataset/gatk_var_calling '
-                '-XX:+UseSerialGC '
-                '-Xmx48G '
-                '-jar path/to/gatk '
-                '-R reference_genome '
-                '-T HaplotypeCaller '
-                '--read_filter BadCigar '
-                '--read_filter NotPrimaryAlignment '
-                '-o tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id.g.vcf '
-                '-l INFO '
-                '-U LENIENT_VCF_PROCESSING '
-                '-I test_bam --pair_hmm_implementation VECTOR_LOGLESS_CACHING '
+        self.stage._run()
+        assert self.mocked_executor.call_count == 3  # Command + bgzip + tabix
+        self.mocked_gatk_cmd.assert_called_with(
+            'HaplotypeCaller',
+            'tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id.g.vcf',
+            input_bam='test_bam',
+            xmx=48,
+            nt=1,
+            ext=' --pair_hmm_implementation VECTOR_LOGLESS_CACHING '
                 '-ploidy 2 '
                 '--emitRefConfidence GVCF '
                 '--variant_index_type LINEAR '
                 '--variant_index_parameter 128000  '
-                '-nct 16 '
                 '--annotation BaseQualityRankSumTest '
                 '--annotation FisherStrand '
                 '--annotation GCContent '
@@ -238,109 +227,82 @@ class TestHaplotypeCaller(TestVariantCalling):
                 '--annotation Coverage '
                 '--annotation ClippingRankSumTest '
                 '--annotation DepthPerSampleHC '
-                '--dbsnp /path/to/dbsnp.vcf.gz',
-                cpus=16,
-                job_name='gatk_haplotype_call',
-                mem=64,
-                working_dir='tests/assets/jobs/test_dataset/gatk_var_calling'
-            )
-            _test_bgzip_and_tabix(e, 'tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id.g.vcf')
+                '--dbsnp /path/to/dbsnp.vcf.gz'
+        )
+        assert self.mocked_executor.call_args_list[0] == call(
+            'a_cmd',
+            cpus=16,
+            job_name='gatk_haplotype_call',
+            mem=64,
+            working_dir='tests/assets/jobs/test_dataset/gatk_var_calling'
+        )
+        self._test_bgzip_and_tabix('tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id.g.vcf')
 
 
-class TestGenotypeGVCFs(TestVariantCalling):
-    def setUp(self):
-        self.p = GenotypeGVCFs(dataset=self.dataset)
-
-    def test_run(self):
-        with patch_executor as e:
-            self.p._run()
-            assert e.call_count == 3  # Command + bgzip + tabix
-            assert e.call_args_list[0] == call(
-                'java -Djava.io.tmpdir=tests/assets/jobs/test_dataset/gatk_var_calling '
-                '-XX:+UseSerialGC '
-                '-Xmx16G '
-                '-jar path/to/gatk '
-                '-R reference_genome '
-                '-T GenotypeGVCFs '
-                '--read_filter BadCigar '
-                '--read_filter NotPrimaryAlignment '
-                '-o tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id.vcf '
-                '-l INFO '
-                '-U LENIENT_VCF_PROCESSING '
-                '--variant tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id.g.vcf.gz '
-                '-nt 16',
-                job_name='gatk_genotype_gvcfs',
-                mem=16,
-                working_dir='tests/assets/jobs/test_dataset/gatk_var_calling'
-            )
-            _test_bgzip_and_tabix(e, 'tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id.vcf')
-
-
-class TestSelectVariants(TestVariantCalling):
-    def setUp(self):
-        self.p = SelectVariants(dataset=self.dataset)
+class TestGenotypeGVCFs(TestGATKStage):
+    stage_cls = GenotypeGVCFs
 
     def test_run(self):
-        with patch_executor as e:
-            self.p._run()
-            assert e.call_count == 3  # Command + bgzip + tabix
-            assert e.call_args_list[0] == call(
-                'java -Djava.io.tmpdir=tests/assets/jobs/test_dataset/gatk_var_calling '
-                '-XX:+UseSerialGC '
-                '-Xmx16G '
-                '-jar path/to/gatk '
-                '-R reference_genome '
-                '-T SelectVariants '
-                '--read_filter BadCigar '
-                '--read_filter NotPrimaryAlignment '
-                '-o tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id_raw_snp.vcf '
-                '-l INFO -U LENIENT_VCF_PROCESSING '
-                '-nt 16 '
-                '-V tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id.vcf.gz '
-                '-selectType SNP ',
-                job_name='var_filtration',
-                mem=16,
-                working_dir='tests/assets/jobs/test_dataset/gatk_var_calling'
-            )
-            _test_bgzip_and_tabix(e, 'tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id_raw_snp.vcf')
+        self.stage._run()
+
+        assert self.mocked_executor.call_count == 3  # Command + bgzip + tabix
+        self.mocked_gatk_cmd.assert_called_with(
+            'GenotypeGVCFs',
+            'tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id.vcf',
+            nct=1,
+            ext=' --variant tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id.g.vcf.gz'
+        )
+        assert self.mocked_executor.call_args_list[0] == call(
+            'a_cmd',
+            job_name='gatk_genotype_gvcfs',
+            mem=16,
+            working_dir='tests/assets/jobs/test_dataset/gatk_var_calling'
+        )
+        self._test_bgzip_and_tabix('tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id.vcf')
 
 
-class TestVariantFiltration(TestVariantCalling):
-    def setUp(self):
-        self.p = VariantFiltration(dataset=self.dataset)
+class TestSelectVariants(TestGATKStage):
+    stage_cls = SelectVariants
 
     def test_run(self):
-        with patch_executor as e:
-            self.p._run()
-            assert e.call_count == 3  # Command + bgzip + tabix
-            assert e.call_args_list[0] == call(
-                'java -Djava.io.tmpdir=tests/assets/jobs/test_dataset/gatk_var_calling '
-                '-XX:+UseSerialGC '
-                '-Xmx16G '
-                '-jar path/to/gatk '
-                '-R reference_genome '
-                '-T VariantFiltration '
-                '--read_filter BadCigar '
-                '--read_filter NotPrimaryAlignment '
-                '-o tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id_filter_snp.vcf '
-                '-l INFO '
-                '-U LENIENT_VCF_PROCESSING '
-                '-V tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id_raw_snp.vcf.gz '
+        self.stage._run()
+
+        assert self.mocked_executor.call_count == 3  # Command + bgzip + tabix
+        self.mocked_gatk_cmd.assert_called_with(
+            'SelectVariants',
+            'tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id_raw_snp.vcf',
+            nct=1,
+            nt=16,
+            ext=' -V tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id.vcf.gz -selectType SNP'
+        )
+        assert self.mocked_executor.call_args_list[0] == call(
+            'a_cmd',
+            job_name='var_filtration',
+            mem=16,
+            working_dir='tests/assets/jobs/test_dataset/gatk_var_calling'
+        )
+        self._test_bgzip_and_tabix('tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id_raw_snp.vcf')
+
+
+class TestVariantFiltration(TestGATKStage):
+    stage_cls = VariantFiltration
+
+    def test_run(self):
+        self.stage._run()
+        assert self.mocked_executor.call_count == 3  # Command + bgzip + tabix
+        self.mocked_gatk_cmd.assert_called_with(
+            'VariantFiltration',
+            'tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id_filter_snp.vcf',
+            nct=1,
+            nt=1,
+            ext=' -V tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id_raw_snp.vcf.gz '
                 "--filterExpression 'QD < 2.0 || FS > 60.0 || MQ < 40.0 || MQRankSum < -12.5 || ReadPosRankSum < -8.0' "
-                "--filterName 'SNP_FILTER'",
-                job_name='var_filtration',
-                mem=16,
-                working_dir='tests/assets/jobs/test_dataset/gatk_var_calling'
-            )
-            _test_bgzip_and_tabix(e, 'tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id_filter_snp.vcf')
-
-
-def _test_bgzip_and_tabix(executor, vcf_file):
-    assert executor.call_args_list[1] == call(
-        'path/to/bgzip -f ' + vcf_file, cpus=1, job_name='bgzip', mem=8,
-        working_dir='tests/assets/jobs/test_dataset/gatk_var_calling'
-    )
-    assert executor.call_args_list[2] == call(
-        'path/to/tabix -f -p vcf ' + vcf_file + '.gz', cpus=1, job_name='tabix', mem=8,
-        working_dir='tests/assets/jobs/test_dataset/gatk_var_calling'
-    )
+                "--filterName 'SNP_FILTER'"
+        )
+        assert self.mocked_executor.call_args_list[0] == call(
+            'a_cmd',
+            job_name='var_filtration',
+            mem=16,
+            working_dir='tests/assets/jobs/test_dataset/gatk_var_calling'
+        )
+        self._test_bgzip_and_tabix('tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id_filter_snp.vcf')

@@ -1,6 +1,5 @@
 import os
 import time
-import signal
 import pytest
 from sys import modules
 from unittest.mock import patch, Mock, PropertyMock
@@ -188,7 +187,7 @@ class TestDataset(TestAnalysisDriver):
         # 'After putting an object on an empty queue there may be an infinitesimal delay before the queue’s empty()
         # method returns False and get_nowait() can return without raising queue.Empty.'
         time.sleep(.1)
-        with pytest.raises(SequencingRunError):
+        with self.assertRaises(SequencingRunError) as e:
             self.dataset.raise_exceptions()
 
         assert str(e.exception) == 'RunErrored'

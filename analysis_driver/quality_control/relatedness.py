@@ -5,7 +5,7 @@ from egcg_core import executor, util, clarity
 from analysis_driver.tool_versioning import toolset
 from analysis_driver.util import bash_commands
 from analysis_driver.util.bash_commands import java_command
-from analysis_driver.quality_control import gender_validation
+from analysis_driver.quality_control import sex_check
 from analysis_driver.segmentation import Stage, Parameter, ListParameter
 from analysis_driver.exceptions import PipelineError
 
@@ -238,7 +238,7 @@ class Peddy(RelatednessStage):
         family_lines = []
         family_info = self.relationships(all_families[family])
         for member in all_families[family]:
-            sex = gender_validation.alias(clarity.get_sample(member).udf.get('Sex'))
+            sex = sex_check.alias(clarity.get_sample(member).udf.get('Sex'))
             sex_codes = {'male': '1', 'female': '2', 'unknown': '0'}
             relationship = self.relationship(member)
             member_id = clarity.get_user_sample_name(member)

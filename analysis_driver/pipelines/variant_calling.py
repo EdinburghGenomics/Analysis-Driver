@@ -126,11 +126,12 @@ class RealignTarget(GATKStage):
     def _run(self):
         realign_target_cmd = self.gatk_cmd(
             'RealignerTargetCreator', self.output_intervals,
-            input_bam=self.recal_bam, xmx=32, nct=1, nt=1
+            input_bam=self.recal_bam,
+            xmx=32,
+            nct=1,
+            nt=1,
+            ext=' --known ' + self.known_indels if self.known_indels else None
         )
-
-        if self.known_indels:
-            realign_target_cmd += ' --known ' + self.known_indels
 
         return executor.execute(
             realign_target_cmd,
@@ -142,19 +143,20 @@ class RealignTarget(GATKStage):
 
 class Realign(GATKStage):
     def _run(self):
-        realign_cmd = self.gatk_cmd(
-            'IndelRealigner',
-            self.indel_realigned_bam,
-            input_bam=self.recal_bam,
-            xmx=32,
-            nct=1,
-            nt=1,
-            ext=' -targetIntervals ' + self.output_intervals
-        )
+        ext = ' -targetIntervals ' + self.output_intervals
         if self.known_indels:
-            realign_cmd += ' --knownAlleles ' + self.known_indels
+            ext += ' --knownAlleles ' + self.known_indels
+
         return executor.execute(
-            realign_cmd,
+            self.gatk_cmd(
+                'IndelRealigner',
+                self.indel_realigned_bam,
+                input_bam=self.recal_bam,
+                xmx=32,
+                nct=1,
+                nt=1,
+                ext=ext
+            ),
             job_name='gatk_indel_realign',
             working_dir=self.gatk_run_dir,
             mem=32
@@ -165,25 +167,27 @@ class HaplotypeCaller(GATKStage):
     input_bam = Parameter()
 
     def _run(self):
-        haplotype_cmd = self.gatk_cmd(
-            'HaplotypeCaller',
-            self.sample_gvcf,
-            input_bam=self.input_bam,
-            xmx=48,
-            nt=1,
-            ext=(' --pair_hmm_implementation VECTOR_LOGLESS_CACHING -ploidy 2 --emitRefConfidence GVCF '
-                 '--variant_index_type LINEAR --variant_index_parameter 128000 ')
-        )
+        cmd_extension = (' --pair_hmm_implementation VECTOR_LOGLESS_CACHING -ploidy 2 --emitRefConfidence GVCF '
+                         '--variant_index_type LINEAR --variant_index_parameter 128000 ')
+
         for annot in ('BaseQualityRankSumTest', 'FisherStrand', 'GCContent', 'HaplotypeScore',
                       'HomopolymerRun', 'MappingQualityRankSumTest', 'MappingQualityZero', 'QualByDepth',
                       'ReadPosRankSumTest', 'RMSMappingQuality', 'DepthPerAlleleBySample', 'Coverage',
                       'ClippingRankSumTest', 'DepthPerSampleHC'):
-            haplotype_cmd += ' --annotation ' + annot
+            cmd_extension += ' --annotation ' + annot
+
         if self.dbsnp:
-            haplotype_cmd += ' --dbsnp ' + self.dbsnp
+            cmd_extension += ' --dbsnp ' + self.dbsnp
 
         haplotype_status = executor.execute(
-            haplotype_cmd,
+            self.gatk_cmd(
+                'HaplotypeCaller',
+                self.sample_gvcf,
+                input_bam=self.input_bam,
+                xmx=48,
+                nt=1,
+                ext=cmd_extension
+            ),
             job_name='gatk_haplotype_call',
             working_dir=self.gatk_run_dir,
             cpus=16,
@@ -195,9 +199,13 @@ class HaplotypeCaller(GATKStage):
 
 class GenotypeGVCFs(GATKStage):
     def _run(self):
-        genotype_gvcfs_cmd = self.gatk_cmd('GenotypeGVCFs', self.genotyped_vcf, nct=1, ext=' --variant ' + self.sample_gvcf + '.gz')
         genotype_status = executor.execute(
-            genotype_gvcfs_cmd,
+            self.gatk_cmd(
+                'GenotypeGVCFs',
+                self.genotyped_vcf,
+                nct=1,
+                ext=' --variant ' + self.sample_gvcf + '.gz'
+            ),
             job_name='gatk_genotype_gvcfs',
             working_dir=self.gatk_run_dir,
             mem=16
@@ -208,11 +216,14 @@ class GenotypeGVCFs(GATKStage):
 
 class SelectVariants(GATKStage):
     def _run(self):
-        select_var_command = self.gatk_cmd('SelectVariants', self.raw_snp_vcf, nct=1, nt=16)
-        select_var_command += ' -V ' + self.genotyped_vcf + '.gz'
-        select_var_command += ' -selectType SNP '
         select_variants_status = executor.execute(
-            select_var_command,
+            self.gatk_cmd(
+                'SelectVariants',
+                self.raw_snp_vcf,
+                nct=1,
+                nt=16,
+                ext=' -V ' + self.genotyped_vcf + '.gz -selectType SNP'
+            ),
             job_name='var_filtration',
             working_dir=self.gatk_run_dir,
             mem=16
@@ -222,20 +233,23 @@ class SelectVariants(GATKStage):
 
 class VariantFiltration(GATKStage):
     def _run(self):
-        filter_array = [
+        filters = [
             'QD < 2.0',
             'FS > 60.0',
             'MQ < 40.0',
             'MQRankSum < -12.5',
             'ReadPosRankSum < -8.0'
         ]
-        filters = "'" + ' || '.join(filter_array) + "'"
-        var_filter_command = self.gatk_cmd('VariantFiltration', self.filter_snp_vcf, nct=1, nt=1)
-        var_filter_command += " -V " + self.raw_snp_vcf + '.gz'
-        var_filter_command += " --filterExpression " + filters
-        var_filter_command += " --filterName 'SNP_FILTER'"
         variant_filter_status = executor.execute(
-            var_filter_command,
+            self.gatk_cmd(
+                'VariantFiltration',
+                self.filter_snp_vcf,
+                nct=1,
+                nt=1,
+                ext=" -V %s.gz --filterExpression '%s' --filterName 'SNP_FILTER'" % (
+                    self.raw_snp_vcf, ' || '.join(filters)
+                )
+            ),
             job_name='var_filtration',
             working_dir=self.gatk_run_dir,
             mem=16
