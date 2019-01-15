@@ -1,6 +1,5 @@
 import os
 import subprocess
-
 from egcg_core import rest_communication, util
 from egcg_core.config import cfg
 from egcg_core.app_logging import logging_default
@@ -8,7 +7,6 @@ from egcg_core.integration_testing import ReportingAppIntegrationTest
 from unittest.mock import Mock, patch
 from analysis_driver import client
 from integration_tests import mocked_data
-from integration_tests.mocked_data import MockedRunProcess, mocked_flowcell_pooling
 
 
 class IntegrationTest(ReportingAppIntegrationTest):
@@ -139,9 +137,11 @@ class IntegrationTest(ReportingAppIntegrationTest):
 
     def expect_stage_data(self, stage_names, **query_kw):
         """
-        Take a list of stage name as string assuming exit status is 0 or as tuple with (stage_name, exist status).
-        Compare to the list of stage name and exist status retrieve from the analysis_driver_stages endpoint using the
-        keyword arguments provided.
+        Take a list of expected stages, and compare with observed stages and exit statuses from the
+        analysis_driver_stages endpoint.
+        :param list stage_names: Expected stages and exit statuses. Each item can be a string stage name (in which case
+                                 expected exit status will be 0), or a tuple of stage_name and exit_status.
+        :param **query_kw: Request parameters to pass to rest_communication.get_documents
         """
         stages = rest_communication.get_documents('analysis_driver_stages', **query_kw)
         obs = {s['stage_name']: s.get('exit_status') for s in stages}
@@ -211,9 +211,9 @@ class IntegrationTest(ReportingAppIntegrationTest):
                 self.cfg['demultiplexing']['lane_qc']
             )
         self.expect_stage_data(['setup', 'wellduplicates', 'bcl2fastq', 'phixdetection', 'fastqfilter', 'seqtkfqchk',
-                               'md5sum', 'fastqc', 'integritycheck', 'qcoutput1', 'dataoutput', 'cleanup',
-                               'samtoolsdepthmulti', 'picardinsertsizemulti', 'qcoutput2', 'runreview',
-                               'picardmarkduplicatemulti', 'samtoolsstatsmulti', 'bwaalignmulti'])
+                                'md5sum', 'fastqc', 'integritycheck', 'qcoutput1', 'dataoutput', 'cleanup',
+                                'samtoolsdepthmulti', 'picardinsertsizemulti', 'qcoutput2', 'runreview',
+                                'picardmarkduplicatemulti', 'samtoolsstatsmulti', 'bwaalignmulti', 'picardgcbias'])
 
         proc = rest_communication.get_document('analysis_driver_procs')
         self.expect_equal(
@@ -231,7 +231,10 @@ class IntegrationTest(ReportingAppIntegrationTest):
     def test_demultiplexing_aborted(self):
         self.setup_test('sample', 'test_demultiplexing_aborted', 'demultiplexing')
 
-        mocked_clarity_run = MockedRunProcess(udf={'Run Status': 'RunAborted'}, container=mocked_flowcell_pooling)
+        mocked_clarity_run = mocked_data.MockedRunProcess(
+            udf={'Run Status': 'RunAborted'},
+            container=mocked_data.mocked_flowcell_pooling
+        )
         with patch('egcg_core.clarity.get_run', return_value=mocked_clarity_run):
             exit_status = client.main(['--run'])
 
@@ -292,9 +295,9 @@ class IntegrationTest(ReportingAppIntegrationTest):
         )
 
         self.expect_stage_data(['mergefastqs', 'samplereview', 'fastqscreen', 'printreads', 'blast', 'baserecal',
-                               'samtoolsdepth', 'vcfstats', 'selectvariants', 'fastqc', 'variantfiltration',
-                               'cleanup', 'realign', 'realigntarget', 'samtoolsstats', 'haplotypecaller',
-                               'md5sum', 'bwamem', 'sampledataoutput', 'genotypegvcfs'])
+                                'samtoolsdepth', 'vcfstats', 'selectvariants', 'fastqc', 'variantfiltration',
+                                'cleanup', 'realign', 'realigntarget', 'samtoolsstats', 'haplotypecaller',
+                                'md5sum', 'bwamem', 'sampledataoutput', 'genotypegvcfs'])
 
         self.expect_equal(
             rest_communication.get_document('analysis_driver_procs')['pipeline_used'],
@@ -319,8 +322,8 @@ class IntegrationTest(ReportingAppIntegrationTest):
             self.cfg['qc']['qc']
         )
         self.expect_stage_data(['vcfstats', 'selectvariants', 'fastqc', 'variantfiltration', 'samtoolsdepth',
-                               'mergefastqs', 'samtoolsstats', 'samplereview', 'haplotypecaller', 'cleanup',
-                               'fastqscreen', 'md5sum', 'bwamem', 'sampledataoutput', 'genotypegvcfs', 'blast'])
+                                'mergefastqs', 'samtoolsstats', 'samplereview', 'haplotypecaller', 'cleanup',
+                                'fastqscreen', 'md5sum', 'bwamem', 'sampledataoutput', 'genotypegvcfs', 'blast'])
 
         self.expect_equal(
             rest_communication.get_document('analysis_driver_procs')['pipeline_used'],
@@ -415,7 +418,7 @@ class IntegrationTest(ReportingAppIntegrationTest):
         )
 
         self.expect_stage_data(['genotypegvcfs', 'relatedness', 'peddy', 'parserelatedness', 'md5sum', 'output',
-                               'cleanup'])
+                                'cleanup'])
         ad_procs = rest_communication.get_document('analysis_driver_procs', where={'dataset_name': self.project_id})
         self.expect_equal(
             ad_procs['pipeline_used'],

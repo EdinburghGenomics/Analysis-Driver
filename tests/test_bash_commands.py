@@ -139,6 +139,21 @@ def test_fastq_filterer():
     )
 
 
+def test_picard_gc_bias():
+    cmd = bash_commands.picard_gc_bias(
+        'directory/test.bam',
+        'directory/metrics.txt',
+        'directory/summary_metrics.txt',
+        'directory/chart.pdf',
+        'a_reference_genome.fasta'
+    )
+
+    assert cmd == ('path/to/picard -Djava.io.tmpdir=directory -XX:+UseSerialGC -Xmx8G CollectGcBiasMetrics '
+                   'INPUT=directory/test.bam OUTPUT=directory/metrics.txt ASSUME_SORTED=true '
+                   'VALIDATION_STRINGENCY=LENIENT CHART=directory/chart.pdf R=a_reference_genome.fasta '
+                   'SUMMARY_OUTPUT=directory/summary_metrics.txt')
+
+
 def test_picard_mark_dup_command():
     cmd = bash_commands.picard_mark_dup_command(
         'directory/test.bam',
