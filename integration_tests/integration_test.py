@@ -223,7 +223,7 @@ class IntegrationTest(ReportingAppIntegrationTest):
         )
         self.expect_equal(
             proc['pipeline_used'],
-            {'name': 'demultiplexing', 'toolset_version': 0, 'toolset_type': 'run_processing'},
+            {'name': 'demultiplexing', 'toolset_version': 1, 'toolset_type': 'run_processing'},
             'pipeline used'
         )
         assert self._test_success

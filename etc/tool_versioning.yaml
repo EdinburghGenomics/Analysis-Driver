@@ -6,9 +6,9 @@ cmd_aliases:
 
 toolsets:
     run_processing:
-        1:
+        0:
             bcl2fastq:
-                version: v2.20.0.422
+                version: v2.17.1.14
                 version_cmd: grep_toolname
 
             fastq_filterer:
@@ -30,6 +30,21 @@ toolsets:
             well_duplicates:
                 version: 0.2
                 version_cmd: '{executable} --version'
+
+        1:
+            bcl2fastq:
+                version: v2.20.0.422
+                version_cmd: grep_toolname
+
+            fastq_filterer: null
+
+            fastqc: null
+
+            pigz: null
+
+            seqtk: null
+
+            well_duplicates: null
 
 
     non_human_sample_processing:
