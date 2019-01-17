@@ -386,7 +386,7 @@ class PicardGCBias(PostDemultiplexingStage):
         cmds = []
         for r in self.dataset.run_elements:
             if self.fastq_pair(r):
-                metrics_basename = self.fastq_base(r) + '_gc_bias'
+                metrics_basename = self.final_fastq_base(r) + '_gc_bias'
                 cmds.append(
                     bash_commands.picard_gc_bias(
                         self.bam_path(r),
@@ -475,14 +475,17 @@ def build_pipeline(dataset):
     bcl2fastq = stage(Bcl2Fastq, previous_stages=[setup])
     phix_detection = stage(PhixDetection, previous_stages=[bcl2fastq])
     fastq_filter = stage(FastqFilter, previous_stages=[phix_detection])
-    welldups = stage(well_duplicates.WellDuplicates, run_directory=bcl2fastq.input_dir, output_directory=bcl2fastq.fastq_dir, previous_stages=[setup])
+    welldups = stage(well_duplicates.WellDuplicates, run_directory=bcl2fastq.input_dir,
+                     output_directory=bcl2fastq.fastq_dir, previous_stages=[setup])
     integrity_check = stage(IntegrityCheck, previous_stages=[fastq_filter])
     fastqc = stage(FastQC, previous_stages=[fastq_filter])
     seqtk = stage(SeqtkFQChk, previous_stages=[fastq_filter])
     md5 = stage(MD5Sum, previous_stages=[fastq_filter])
-    qc_output = stage(QCOutput, stage_name='qcoutput1', run_crawler_stage=RunCrawler.STAGE_FILTER, previous_stages=[welldups, integrity_check, fastqc, seqtk, md5])
+    qc_output = stage(QCOutput, stage_name='qcoutput1', run_crawler_stage=RunCrawler.STAGE_FILTER,
+                      previous_stages=[welldups, integrity_check, fastqc, seqtk, md5])
 
-    qc_output2 = stage(QCOutput, stage_name='qcoutput2', run_crawler_stage=RunCrawler.STAGE_MAPPING, previous_stages=[stats_output, depth_output, md_output, is_output, gc_bias])
+    qc_output2 = stage(QCOutput, stage_name='qcoutput2', run_crawler_stage=RunCrawler.STAGE_MAPPING,
+                       previous_stages=[stats_output, depth_output, md_output, is_output, gc_bias])
     data_output = stage(DataOutput, previous_stages=[qc_output, qc_output2])
     _cleanup = stage(Cleanup, previous_stages=[data_output])
     review = stage(RunReview, previous_stages=[_cleanup])

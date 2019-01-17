@@ -276,6 +276,7 @@ class TestPicardGCBias(TestPostDemultiplexing):
     @patch_executor
     def test_run(self, mocked_executor):
         self.stage.dataset.reference_genome.return_value = 'a_genome.fa'
+        cmds = []
         with patch('analysis_driver.pipelines.demultiplexing.bash_commands.picard_gc_bias', return_value='a_cmd'):
             self.stage._run()
 
