@@ -1,7 +1,5 @@
 import math
-from itertools import islice
 from collections import Counter, defaultdict
-from xml.etree import ElementTree
 
 from analysis_driver.util.helper_functions import get_run_element_id
 from egcg_core import constants as c
@@ -13,7 +11,6 @@ app_logger = log_cfg.get_logger(__name__)
 def parse_json_stats(json_data, run_id):
     """Creates an array of tuples of run elements, unknown run elements and associated metadata."""
     all_run_elements = []
-    unknown_run_elements = []
     adapter_trimmed_by_id = {}
 
     # Parsing conversion results, including demultiplexed results and unknown barcodes

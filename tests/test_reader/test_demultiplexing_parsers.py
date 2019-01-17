@@ -28,10 +28,10 @@ class TestDemultiplexingStats(TestAnalysisDriver):
             ('2', 'NCCCCCCC', '9840')
         ]
         barcodes, unknowns, adapter_trimmed_by_id = dm.parse_json_stats(json_data, 'test_run_id')
-        self.assertCountEqual(barcodes,expected_barcode_per_lane)
-        self.assertCountEqual(unknowns,expected_unknown_barcodes_per_lanes)
+        self.assertEqual(barcodes,expected_barcode_per_lane)
+        self.assertEqual(unknowns,expected_unknown_barcodes_per_lanes)
 
-        self.assertCountEqual(adapter_trimmed_by_id, {
+        self.assertEqual(adapter_trimmed_by_id, {
             'test_run_id_1_ATTACTCG': {'read_1_trimmed_bases': 1056218, 'read_2_trimmed_bases': 1080753},
             'test_run_id_1_TCCGGAGA': {'read_1_trimmed_bases': 974374, 'read_2_trimmed_bases': 992558},
             'test_run_id_1_unknown': {'read_1_trimmed_bases': 100051, 'read_2_trimmed_bases': 122287},
@@ -54,10 +54,10 @@ class TestDemultiplexingStats(TestAnalysisDriver):
             ('2', 'unknown', '485960620')
         ]
         barcodes, unknowns, adapter_trimmed_by_id = dm.parse_json_stats(json_data, 'test_run_id')
-        self.assertCountEqual(barcodes, expected_barcode_per_lane)
-        self.assertCountEqual(unknowns, expected_unknown_barcodes_per_lanes)
+        self.assertEqual(barcodes, expected_barcode_per_lane)
+        self.assertEqual(unknowns, expected_unknown_barcodes_per_lanes)
 
-        self.assertCountEqual(adapter_trimmed_by_id, {
+        self.assertEqual(adapter_trimmed_by_id, {
             'test_run_id_1': {'read_1_trimmed_bases': 358146231, 'read_2_trimmed_bases': 389554370},
             'test_run_id_2': {'read_1_trimmed_bases': 735649209, 'read_2_trimmed_bases': 747065613}
         })
