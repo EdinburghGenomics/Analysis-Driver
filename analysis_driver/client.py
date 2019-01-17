@@ -4,7 +4,6 @@ import logging
 import argparse
 import signal
 import traceback
-
 from egcg_core import rest_communication
 from egcg_core.executor import stop_running_jobs
 from egcg_core.app_logging import logging_default as log_cfg
@@ -147,8 +146,8 @@ def _process_dataset(d):
         app_logger.info('Finished with exit status ' + str(exit_status))
 
     except exceptions.SequencingRunError as e:
-        app_logger.info('Bad sequencing run: %s. Aborting this dataset', str(e))
-        # Aborting for aborted run is the right thing to do so exist status should be 0
+        app_logger.info('Bad sequencing run: %s. Aborting this dataset', e)
+        # Aborting for aborted run is the right thing to do so exit status should be 0
         exit_status = 0
         # Initiate the review as this was not done during the pipeline
         rest_communication.post_entry(

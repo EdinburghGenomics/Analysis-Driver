@@ -1,8 +1,7 @@
-import multiprocessing
 import os
 import re
 import signal
-from multiprocessing import Lock
+from multiprocessing import Lock, Queue
 from datetime import datetime
 from errno import ESRCH
 from sys import modules
@@ -28,7 +27,7 @@ class Dataset(AppLogger):
     type = None
     endpoint = None
     id_field = None
-    exceptions = multiprocessing.Queue()  # This needs to be a Queue to be accessible from every subprocess
+    exceptions = Queue()  # This needs to be a Queue to be accessible from every subprocess
 
     def __init__(self, name, most_recent_proc=None):
         self.name = name
@@ -419,6 +418,10 @@ class RunDataset(Dataset):
 
     def _default_pipeline(self):
         return 'demultiplexing'
+
+    @staticmethod
+    def reference_genome(run_element):
+        return SampleDataset(run_element['sample_id']).reference_genome
 
 
 class SampleDataset(Dataset):

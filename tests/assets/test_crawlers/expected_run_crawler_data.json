@@ -136,7 +136,11 @@
             "tiles_filtered": "1102,2202",
             "trim_r1": "14",
             "trim_r2": "16",
-            "phix_reads": 3
+            "phix_reads": 3,
+            "gc_bias": {
+                "slope": -0.0025327419786096215,
+                "mean_deviation": 0.06666590163934426
+            }
         },
         "a_run_id_1_TCCGGAGA": {
             "sample_id": "10015AT0002",
@@ -164,7 +168,11 @@
             "tiles_filtered": "1102,2202",
             "trim_r1": "14",
             "trim_r2": "16",
-            "phix_reads": 3
+            "phix_reads": 3,
+            "gc_bias": {
+                "slope": 0.0009656555944055939,
+                "mean_deviation": 0.05817667213114754
+            }
         },
         "a_run_id_2_TCCGGAGA": {
             "sample_id": "10015AT0002",
@@ -192,7 +200,11 @@
             "tiles_filtered": "1102,2202",
             "trim_r1": "14",
             "trim_r2": "16",
-            "phix_reads": 3
+            "phix_reads": 3,
+            "gc_bias": {
+                "slope": -0.01374780769230769,
+                "mean_deviation": 0.22148618032786885
+            }
         },
         "a_run_id_1_ATTACTCG": {
             "sample_id": "10015AT0001",
@@ -221,6 +233,10 @@
             "trim_r1": "14",
             "trim_r2": "16",
             "phix_reads": 3,
+            "gc_bias": {
+                "slope": -0.004132326086956521,
+                "mean_deviation": 0.10896062295081968
+            },
             "mapping_metrics": {
                 "bam_file_reads": 1074198,
                 "duplicate_reads": 156823,
