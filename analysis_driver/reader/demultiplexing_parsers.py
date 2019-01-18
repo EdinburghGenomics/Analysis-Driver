@@ -60,7 +60,7 @@ def _parse_conversion_results_from_json_stats(run_id, lane, all_run_elements, ad
             # this is not expected
             raise ValueError()
 
-        assert r1['Yield'] != r2['Yield'], \
+        assert r1['Yield'] == r2['Yield'], \
             "yield is expected to be equal for r1 and r2 in multiplexed and barcodeless runs"
 
         all_run_elements.append((
