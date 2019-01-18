@@ -39,7 +39,8 @@ def _parse_conversion_results_from_json_stats(run_id, lane, all_run_elements, ad
         """ If the run is not multiplexed, the index_sequence will not be present in the JSON file, and the cluster
         count needs to be retrieved from a different variable in the JSON file. The index_sequence variable will be 
         prepopulated as None. """
-        r1, r2 = sample['ReadMetrics'][0], sample['ReadMetrics'][1]
+        r1 = sample['ReadMetrics'][0] if sample['ReadMetrics'][0]['ReadNumber'] == 1 else sample['ReadMetrics'][1]
+        r2 = sample['ReadMetrics'][1] if sample['ReadMetrics'][1]['ReadNumber'] == 2 else sample['ReadMetrics'][0]
         index_sequence = None
         cluster_count_raw = lane['TotalClustersRaw']
         cluster_count_pf = lane['TotalClustersPF']
@@ -57,11 +58,10 @@ def _parse_conversion_results_from_json_stats(run_id, lane, all_run_elements, ad
             trimmed_bases_r2 = r2['TrimmedBases']
         elif r1['ReadNumber'] == 2 and r2['ReadNumber'] == 1:
             # this is not expected
-            raise NotImplementedError()
+            raise ValueError()
 
-        if r1['Yield'] != r2['Yield']:
-            # yield is expected to be equal for r1 and r2 in multiplexed and barcodeless runs
-            raise NotImplementedError()
+        assert r1['Yield'] != r2['Yield'], \
+            "yield is expected to be equal for r1 and r2 in multiplexed and barcodeless runs"
 
         all_run_elements.append((
             sample['SampleName'],
@@ -87,7 +87,9 @@ def _parse_conversion_results_from_json_stats(run_id, lane, all_run_elements, ad
 def _parse_undetermined_run_elements_from_json_stats(lane, run_id, adapter_trimmed_by_id, all_run_elements):
     # creating helper variables
     undetermined = lane['Undetermined']
-    r1, r2 = undetermined['ReadMetrics'][0], undetermined['ReadMetrics'][1]
+
+    r1 = undetermined['ReadMetrics'][0] if undetermined['ReadMetrics'][0]['ReadNumber'] == 1 else undetermined['ReadMetrics'][1]
+    r2 = undetermined['ReadMetrics'][1] if undetermined['ReadMetrics'][1]['ReadNumber'] == 2 else undetermined['ReadMetrics'][0]
 
     # obtaining number of undetermined trimmed bases r1 and r2 q30, confirming the read number first
     if r1['ReadNumber'] == 1 and r2['ReadNumber'] == 2:
@@ -95,7 +97,7 @@ def _parse_undetermined_run_elements_from_json_stats(lane, run_id, adapter_trimm
         trimmed_bases_r2 = r2['TrimmedBases']
     elif r1['ReadNumber'] == 2 and r2['ReadNumber'] == 1:
         # this is not expected
-        raise NotImplementedError()
+        raise ValueError()
 
     # parsing undetermined adapter trimming into its own dict and adding trimmed bases counts
     run_element_id = get_run_element_id(run_id=run_id, lane_number=lane['LaneNumber'], barcode='unknown')
