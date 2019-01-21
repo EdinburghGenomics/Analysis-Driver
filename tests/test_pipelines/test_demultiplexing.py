@@ -28,7 +28,7 @@ class TestPhixDetection(TestAnalysisDriver):
         patch_find = patch('egcg_core.util.find_all_fastq_pairs', side_effect=fake_fastq_pairs)
 
         with patch_find, patch_executor as pexecute, patch_run_crawler as prun_crawler:
-            f._run()
+            assert f._run() == 0
 
             assert pexecute.call_args[0][0] == (
                 'set -o pipefail; path/to/bwa mem -t 16 /path/to/phix.fa L1_R1_001.fastq.gz | '
@@ -71,7 +71,7 @@ class TestFastqFilter(TestAnalysisDriver):
             instance = pdetector.return_value
             instance.detect_bad_tiles.return_value = {3: [1101]}
             instance.detect_bad_cycles.return_value = {4: [310, 308, 307, 309]}
-            f._run()
+            assert f._run() == 0
 
             expected_call_l2 = (
                 'run_filterer in_place L2_R1_001.fastq.gz L2_R2_001.fastq.gz L2_R1_001_filtered.fastq.gz '
@@ -93,6 +93,36 @@ class TestFastqFilter(TestAnalysisDriver):
             assert expected_call_l4 == pexecute.call_args[0][3]
 
 
+class TestWaitForRead2(TestAnalysisDriver):
+
+    def test_run(self):
+
+        # Run info state 150 cycle for first read and 8 index cycle + 50 cycle for second read = 208
+        run_info = Mock(reads=Mock(upstream_read=Mock(attrib={'NumCycles': '150'}), index_lengths=[8]))
+        dataset = NamedMock(real_name='testrun', run_info=run_info, input_dir='path/to/input')
+
+        # cycle extracted states 310 cycles done
+        pcycles = patch('analysis_driver.quality_control.interop_metrics.get_cycles_extracted',
+                        return_value=range(1, 311))
+
+        with pcycles as mcycle:
+            # No sleep time
+            self.stage = dm.WaitForRead2(dataset=dataset)
+            assert self.stage._run() == 0
+            assert mcycle.call_count == 1
+            mcycle.assert_called_once_with('path/to/input')
+
+        # cycle extracted states first 207 then 208 cycles done
+        pcycles = patch('analysis_driver.quality_control.interop_metrics.get_cycles_extracted',
+                        side_effect=[range(1, 208), range(1, 209)])
+        with pcycles as mcycle, patch('time.sleep') as msleep:
+            self.stage = dm.WaitForRead2(dataset=dataset)
+            assert self.stage._run() == 0
+            assert mcycle.call_count == 2
+            mcycle.assert_called_with('path/to/input')
+            msleep.assert_called_with(1200)
+
+
 class TestPostDemultiplexing(TestAnalysisDriver):
     @staticmethod
     def _touch(input_file):
@@ -109,9 +139,10 @@ class TestPostDemultiplexing(TestAnalysisDriver):
         )
         self.stage = stage_class(dataset=dataset)
         os.makedirs(self.stage.fastq_dir, exist_ok=True)
+        os.makedirs(self.stage.fastq_intermediate_dir, exist_ok=True)
 
         for run_element in self.run_elements:
-            s_dir = join(self.stage.fastq_dir, run_element[ELEMENT_PROJECT_ID], run_element[ELEMENT_SAMPLE_INTERNAL_ID])
+            s_dir = join(self.stage.fastq_intermediate_dir, run_element[ELEMENT_PROJECT_ID], run_element[ELEMENT_SAMPLE_INTERNAL_ID])
             os.makedirs(s_dir, exist_ok=True)
             self._touch(join(s_dir, 'someid_L00%s_R1_001.fastq.gz' % run_element[ELEMENT_LANE]))
             self._touch(join(s_dir, 'someid_L00%s_R2_001.fastq.gz' % run_element[ELEMENT_LANE]))
@@ -133,7 +164,7 @@ class TestBwaAlignMulti(TestPostDemultiplexing):
     def test_run(self):
         self.stage.dataset.reference_genome.return_value = 'a_genome.fa'
         with patch_executor as mock_executor:
-            self.stage._run()
+            assert self.stage._run() == 0
             cmds = []
             for run_element in self.run_elements:
                 cmds.append(bash_commands.bwa_mem_biobambam(
@@ -155,12 +186,12 @@ class TestSamtoolsStatsMulti(TestPostDemultiplexing):
 
     def test_run(self):
         with patch_executor as mock_executor:
-            self.stage._run()
+            assert self.stage._run() == 0
             cmds = []
             for run_element in self.run_elements:
                 cmds.append(bash_commands.samtools_stats(
                     self.stage.bam_path(run_element),
-                    self.stage.fastq_base(run_element) + '_samtools_stats.txt'
+                    self.stage.final_fastq_base(run_element) + '_samtools_stats.txt'
                 ))
             mock_executor.assert_called_with(
                 *cmds,
@@ -179,13 +210,13 @@ class TestSamtoolsDepthMulti(TestPostDemultiplexing):
 
     def test_run(self):
         with patch_executor as mock_executor:
-            self.stage._run()
+            assert self.stage._run() == 0
             cmds = []
             for run_element in self.run_elements:
                 cmds.append(bash_commands.samtools_depth_command(
                     self.stage.job_dir,
                     self.stage.bam_path(run_element),
-                    self.stage.fastq_base(run_element) + '_samtools.depth'
+                    self.stage.final_fastq_base(run_element) + '_samtools.depth'
                 ))
             mock_executor.assert_called_with(
                 *cmds,
@@ -204,13 +235,13 @@ class TestPicardMarkDuplicateMulti(TestPostDemultiplexing):
 
     def test_run(self):
         with patch_executor as mock_executor:
-            self.stage._run()
+            assert self.stage._run() == 0
             cmds = []
             for run_element in self.run_elements:
                 cmds.append(bash_commands.picard_mark_dup_command(
                     self.stage.bam_path(run_element),
                     self.stage.bam_path(run_element)[:-len('.bam')] + '_markdup.bam',
-                    self.stage.fastq_base(run_element) + '_markdup.metrics'
+                    self.stage.final_fastq_base(run_element) + '_markdup.metrics'
                 ))
             mock_executor.assert_called_with(
                 *cmds, cpus=1, job_name='picardMD', mem=12, working_dir='tests/assets/jobs/testrun'
@@ -224,13 +255,13 @@ class TestPicardInsertSizeMulti(TestPostDemultiplexing):
 
     def test_run(self):
         with patch_executor as mock_executor:
-            self.stage._run()
+            assert self.stage._run() == 0
             cmds = []
             for run_element in self.run_elements:
                 cmds.append(bash_commands.picard_insert_size_command(
                     self.stage.bam_path(run_element),
-                    self.stage.fastq_base(run_element) + '_insertsize.metrics',
-                    self.stage.fastq_base(run_element) + '_insertsize.pdf'
+                    self.stage.final_fastq_base(run_element) + '_insertsize.metrics',
+                    self.stage.final_fastq_base(run_element) + '_insertsize.pdf'
                 ))
             mock_executor.assert_called_with(
                 *cmds, cpus=1, job_name='picardIS', mem=12, working_dir='tests/assets/jobs/testrun'
@@ -245,6 +276,7 @@ class TestPicardGCBias(TestPostDemultiplexing):
     @patch_executor
     def test_run(self, mocked_executor):
         self.stage.dataset.reference_genome.return_value = 'a_genome.fa'
+        cmds = []
         with patch('analysis_driver.pipelines.demultiplexing.bash_commands.picard_gc_bias', return_value='a_cmd'):
             self.stage._run()
 

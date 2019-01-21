@@ -107,3 +107,11 @@ class BadTileCycleDetector(AppLogger):
                     self.info('Lane %s cycle %s: average quality %s < %s', lane, cycle, avg, self.cycle_quality_threshold)
                     bad_cycle_per_lanes[lane].append(cycle)
         return bad_cycle_per_lanes
+
+
+def get_cycles_extracted(run_dir):
+    run_metrics = RunMetrics()
+    run_metrics.read(run_dir)
+    extraction_metrics = run_metrics.extraction_metric_set()
+    return sorted(extraction_metrics.cycles())
+

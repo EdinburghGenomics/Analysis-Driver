@@ -317,14 +317,10 @@ class RunCrawler(Crawler):
             if isfile(samtools_depth):
                 (mean, median, sd, coverage_percentiles, bases_at_coverage,
                  genome_size, evenness) = dm.get_coverage_statistics(samtools_depth)
+                # Coverage value is only 1/3 of what it should be because only 50 bases of each reads were used
                 coverage_statistics = {
-                    ELEMENT_MEAN_COVERAGE: mean,
-                    ELEMENT_MEDIAN_COVERAGE_SAMTOOLS: median,
-                    ELEMENT_COVERAGE_SD: sd,
-                    ELEMENT_COVERAGE_PERCENTILES: coverage_percentiles,
-                    ELEMENT_BASES_AT_COVERAGE: bases_at_coverage,
-                    ELEMENT_SAMPLE_GENOME_SIZE: genome_size,
-                    ELEMENT_COVERAGE_EVENNESS: evenness
+                    ELEMENT_MEAN_COVERAGE: mean * 3,
+                    ELEMENT_COVERAGE_SD: sd * 3
                 }
                 barcode_info[ELEMENT_COVERAGE_STATISTICS] = coverage_statistics
 
