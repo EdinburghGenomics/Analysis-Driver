@@ -148,7 +148,7 @@ def test_picard_gc_bias():
         'a_reference_genome.fasta'
     )
 
-    assert cmd == ('path/to/picard -Djava.io.tmpdir=directory -XX:+UseSerialGC -Xmx8G CollectGcBiasMetrics '
+    assert cmd == ('java -Djava.io.tmpdir=directory -XX:+UseSerialGC -Xmx8G -jar path/to/picard CollectGcBiasMetrics '
                    'INPUT=directory/test.bam OUTPUT=directory/metrics.txt ASSUME_SORTED=true '
                    'VALIDATION_STRINGENCY=LENIENT CHART=directory/chart.pdf R=a_reference_genome.fasta '
                    'SUMMARY_OUTPUT=directory/summary_metrics.txt')
@@ -160,7 +160,7 @@ def test_picard_mark_dup_command():
         'directory/test_out.bam',
         'directory/test_out.metrics'
     )
-    exp = ('path/to/picard -Djava.io.tmpdir={tmpdir} -XX:+UseSerialGC -Xmx{mem}G MarkDuplicates '
+    exp = ('java -Djava.io.tmpdir={tmpdir} -XX:+UseSerialGC -Xmx{mem}G -jar path/to/picard MarkDuplicates '
            'INPUT=directory/test.bam OUTPUT=directory/test_out.bam ASSUME_SORTED=true VALIDATION_STRINGENCY=LENIENT '
            'METRICS_FILE=directory/test_out.metrics OPTICAL_DUPLICATE_PIXEL_DISTANCE=100')
     assert cmd == exp.format(tmpdir='directory', mem=10)
@@ -181,7 +181,7 @@ def test_picard_insert_size_command():
         'directory/test_out.metrics',
         'directory/test_out.histogram'
     )
-    exp = ('path/to/picard -Djava.io.tmpdir={tmpdir} -XX:+UseSerialGC -Xmx{mem}G CollectInsertSizeMetrics '
+    exp = ('java -Djava.io.tmpdir={tmpdir} -XX:+UseSerialGC -Xmx{mem}G -jar path/to/picard CollectInsertSizeMetrics '
            'INPUT=directory/test.bam OUTPUT=directory/test_out.metrics ASSUME_SORTED=true '
            'VALIDATION_STRINGENCY=LENIENT HISTOGRAM_FILE=directory/test_out.histogram')
     assert cmd == exp.format(tmpdir='directory', mem=8)
