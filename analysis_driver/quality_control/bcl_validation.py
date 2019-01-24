@@ -117,7 +117,7 @@ class BCLValidator(Stage):
             if os.path.isfile(validation_log_tmp):
                 for bcl, exit_status in self.read_check_bcl_files(validation_log_tmp):
                     f.write('%s,%s\n' % (bcl, exit_status))
-        self.info('Finished validation. Found %s invalid files' % len(self.read_invalid_files()))
+        self.info('Finished validation. Found %s invalid files', len(self.read_invalid_files()))
 
     def read_check_bcl_files(self, validation_log=None):
         with open(validation_log or self.validation_log, 'r', newline='') as f:

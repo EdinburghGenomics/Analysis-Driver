@@ -1,23 +1,22 @@
 
 ---
 default:
+    run:
+        input_dir: tests/assets/data_transfer/from/
+        output_dir: path/to/output_data
 
     sample:
-        input_dir:       /path/to/input/dir
-        output_dir:      tests/assets/test_projects/
-        delivery_source: /path/to/delivery/source
-        delivery_dest:   /path/to/delivery/destination
+        input_dir: path/to/input/dir
+        output_dir: tests/assets/test_projects/
 
     project:
-        input_dir:       tests/assets/test_projects/
-        output_dir:      /path/to/input/dir
+        input_dir: tests/assets/test_projects/
+        output_dir: path/to/input/dir
 
     rest_api:
         url: 'http://localhost:4999/api/0.1'
 
-    input_dir: tests/assets/data_transfer/from/
     jobs_dir: tests/assets/jobs/
-    output_dir: path/to/output_data
 
     data_deletion:
       raw_data: tests/assets/data_deletion/raw

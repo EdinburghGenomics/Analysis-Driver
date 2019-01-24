@@ -76,7 +76,7 @@ class TestMergeFastqs(TestCommon):
     def test_find_fastqs(self, mocked_find):
         fake_run_element = {'run_id': 'a_run', 'project_id': 'a_project', 'lane': 1}
         self.stage._find_fastqs_for_run_element(fake_run_element)
-        mocked_find.assert_called_with(os.path.join(cfg['input_dir'], 'a_run'), 'a_project', 'test_dataset', 1)
+        mocked_find.assert_called_with(os.path.join(cfg['sample']['input_dir'], 'a_run'), 'a_project', 'test_dataset', 1)
 
     def test_write_bcbio_csv(self):
         self.dataset.user_sample_id = 'a_user_sample_id'

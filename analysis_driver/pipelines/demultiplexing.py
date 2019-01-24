@@ -24,7 +24,6 @@ class DemultiplexingStage(segmentation.Stage):
 
 class Setup(DemultiplexingStage):
     def _run(self):
-        self.info('Job dir: ' + self.job_dir)
         self.info('Input BCL folder: ' + self.input_dir)
         self.info('Fastq dir: ' + self.fastq_dir)
 
@@ -119,7 +118,7 @@ class FastqFilter(DemultiplexingStage):
     def _run(self):
         # Assess if the lanes need filtering
         q30_threshold = float(cfg.query('fastq_filterer', 'q30_threshold', ret_default=74))
-        self.debug('Q30 threshold: %s', q30_threshold)
+        self.info('Q30 threshold: %s', q30_threshold)
         filter_lanes = {1: False, 2: False, 3: False, 4: False, 5: False, 6: False, 7: False, 8: False}
         for lane in self.dataset.lane_metrics:
             if q30_threshold > float(util.query_dict(lane, 'aggregated.pc_q30', ret_default=0)) > 0:
@@ -220,7 +219,7 @@ class QCOutput(DemultiplexingStage):
 class DataOutput(DemultiplexingStage):
     def _run(self):
         toolset.write_to_yaml(join(self.fastq_dir, 'program_versions.yaml'))
-        return output_data_and_archive(self.fastq_dir, join(cfg['output_dir'], self.dataset.name))
+        return output_data_and_archive(self.fastq_dir, join(cfg['run']['output_dir'], self.dataset.name))
 
 
 class PostDemultiplexingStage(DemultiplexingStage):

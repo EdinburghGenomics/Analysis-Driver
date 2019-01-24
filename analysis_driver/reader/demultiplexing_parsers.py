@@ -201,7 +201,6 @@ def parse_fastqscreen_file(fastqscreen_file, focal_species):
         c.ELEMENT_PCNT_UNMAPPED_FOCAL: focal_species_pc_unmapped,
         c.ELEMENT_PCNT_UNMAPPED: hit_no_genomes
     }
-    app_logger.debug('Extracted fastqscreen QC: %s', fastqscreen_qc)
     return fastqscreen_qc
 
 

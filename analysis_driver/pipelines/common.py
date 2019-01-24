@@ -122,7 +122,7 @@ class SampleDataOutput(segmentation.Stage):
         self.dataset.end_stage('md5sum', md5sum_exit_status)
 
         # transfer output data
-        output_dir = os.path.join(cfg['output_dir'], project_id, self.dataset.name)
+        output_dir = os.path.join(cfg['sample']['output_dir'], project_id, self.dataset.name)
         transfer_exit_status = output_data_and_archive(
             dir_with_linked_files.rstrip('/') + '/',
             output_dir.rstrip('/')
@@ -132,7 +132,7 @@ class SampleDataOutput(segmentation.Stage):
 
 class MergeFastqs(VarCallingStage):
     def _find_fastqs_for_run_element(self, run_element):
-        local_fastq_dir = os.path.join(cfg['input_dir'], run_element.get(ELEMENT_RUN_NAME))
+        local_fastq_dir = os.path.join(cfg['sample']['input_dir'], run_element.get(ELEMENT_RUN_NAME))
         self.debug('Searching for fastqs in ' + local_fastq_dir)
         return util.find_fastqs(
             local_fastq_dir,
@@ -142,7 +142,6 @@ class MergeFastqs(VarCallingStage):
         )
 
     def find_fastqs_for_sample(self):
-        self.debug('Preparing dataset %s (%s)', self.dataset.name, self.dataset.dataset_status)
         fastqs = []
         for run_element in self.dataset.run_elements:
             if int(run_element.get(ELEMENT_NB_READS_CLEANED, 0)) > 0:
@@ -215,7 +214,7 @@ def bgzip_and_tabix(working_dir, vcf_file):
     ).join()
 
     tabix_status = executor.execute(
-        bash_commands.tabix_vcf_command( vcf_file + '.gz'),
+        bash_commands.tabix_vcf_command(vcf_file + '.gz'),
         job_name='tabix',
         working_dir=working_dir,
         cpus=1,

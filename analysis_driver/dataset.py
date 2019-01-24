@@ -116,15 +116,16 @@ class Dataset(AppLogger):
 
     def _terminate(self, signal_id):
         pid = self.most_recent_proc.get('pid')
-        self.debug('Attempting to terminate pid %s for %s %s with signal %s', pid, self.type, self.name, signal_id)
+        self.info('Attempting to terminate pid %s for %s %s with signal %s', pid, self.type, self.name, signal_id)
         if not pid or not self._pid_valid(pid):
-            self.debug('Attempted to terminate invalid pid %s with signal %s', pid, signal_id)
+            self.warning('Termination unsuccessful')
             return
 
         os.kill(pid, signal_id)
         while self._pid_running(pid):
             sleep(1)
-        self.info('Terminated pid %s for %s %s with signal %s', pid, self.type, self.name, signal_id)
+
+        self.info('Termination successful')
 
     def start_stage(self, stage_name):
         self.ntf.start_stage(stage_name)
@@ -271,7 +272,7 @@ class RunDataset(Dataset):
         super().__init__(name, most_recent_proc)
         self._run_info = None
         self._sample_sheet_file = None
-        self.input_dir = os.path.join(cfg['input_dir'], self.name)
+        self.input_dir = os.path.join(cfg['run']['input_dir'], self.name)
         self._run_elements = None
         self._barcode_len = None
         self._lims_run = None
@@ -592,7 +593,8 @@ class ProjectDataset(Dataset):
         if not self._samples_processed:
             self._samples_processed = rest_communication.get_documents(
                 'samples',
-                where={'project_id': self.name, 'aggregated.most_recent_proc.status': 'finished'}
+                where={'project_id': self.name, 'aggregated.most_recent_proc.status': 'finished'},
+                all_pages=True
             )
         return self._samples_processed
 

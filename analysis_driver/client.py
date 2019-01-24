@@ -20,24 +20,16 @@ def main(argv=None):
 
     load_config()
 
-    if args.debug:
-        log_cfg.set_log_level(logging.DEBUG)
-
+    log_cfg.set_log_level(logging.DEBUG)
     log_cfg.cfg = cfg.get('logging', {})
     log_cfg.configure_handlers_from_config()
 
     if args.run:
-        if 'run' in cfg:
-            cfg.merge(cfg['run'])
         scanner = RunScanner(cfg)
     elif args.sample:
-        if 'sample' in cfg:
-            cfg.merge(cfg['sample'])
         scanner = SampleScanner(cfg)
     else:
         assert args.project
-        if 'project' in cfg:
-            cfg.merge(cfg['project'])
         scanner = ProjectScanner(cfg)
 
     if any([args.abort, args.skip, args.reset, args.resume, args.force, args.report, args.report_all, args.stop]):
@@ -80,11 +72,15 @@ def setup_dataset_logging(d):
     log_repo = cfg.query('logging', 'repo')
     if log_repo:
         repo_log = os.path.join(log_repo, d.name + '.log')
-        log_cfg.add_handler(logging.FileHandler(filename=repo_log, mode='a'))
+        log_cfg.add_handler(logging.FileHandler(repo_log, mode='a'), level=logging.INFO)
 
-    job_dir_log = os.path.join(cfg['jobs_dir'], d.name, 'analysis_driver.log')
     log_cfg.add_handler(
-        logging.FileHandler(filename=job_dir_log, mode='w')
+        logging.FileHandler(os.path.join(cfg['jobs_dir'], d.name, 'analysis_driver.log'), mode='w'),
+        level=logging.INFO
+    )
+    log_cfg.add_handler(
+        logging.FileHandler(os.path.join(cfg['jobs_dir'], d.name, 'analysis_driver_debug.log'), mode='w'),
+        level=logging.DEBUG
     )
 
 
@@ -107,6 +103,7 @@ def _process_dataset(d):
 
     app_logger.info('Using config file at ' + cfg.config_file)
     app_logger.info('Triggering for dataset: ' + d.name)
+    app_logger.info('Job dir: %s', dataset_job_dir)
 
     def _handle_exception(exception):
         app_logger.critical('Encountered a %s exception: %s', exception.__class__.__name__, str(exception))
@@ -167,7 +164,6 @@ def _process_dataset(d):
 
 def _parse_args(argv=None):
     p = argparse.ArgumentParser()
-    p.add_argument('--debug', action='store_true', help='override pipeline log level to debug')
     group = p.add_mutually_exclusive_group(required=True)
     group.add_argument('--run', action='store_true')
     group.add_argument('--sample', action='store_true')

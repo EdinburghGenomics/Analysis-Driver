@@ -69,6 +69,7 @@ class Toolset(AppLogger):
         for c in config:
             if self.check_version(toolname, c, version, version_cmd, self.tools.get(dependency)):
                 self.tool_versions[toolname] = version
+                self.debug('Resolved %s version %s: %s', toolname, version, c)
                 return c
 
         raise AnalysisDriverError('Could not find version %s for %s' % (version, toolname))
@@ -106,9 +107,6 @@ class Toolset(AppLogger):
         config = self.versioning_cfg['toolsets'][self.type][toolset_version][toolname] or {}
 
         if val in config:
-            self.debug(
-                'Resolved tool %s with %s=%s from toolset %s', toolname, val, config[val], toolset_version
-            )
             return config[val]
         else:
             return self.resolve(toolname, val, toolset_version - 1)

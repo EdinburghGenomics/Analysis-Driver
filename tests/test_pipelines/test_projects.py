@@ -112,7 +112,7 @@ class TestOutput(TestAnalysisDriver):
     def test_run(self, mocked_outfile_config, mocked_output_archive, mocked_output_links, mocked_write):
         with patch('analysis_driver.segmentation.BasicStage.job_dir', new=test_projects):
             self.o._run()
-            mocked_output_archive.assert_called_with(relatedness_outfiles, '/path/to/input/dir/test_dataset')
+            mocked_output_archive.assert_called_with(relatedness_outfiles, 'path/to/input/dir/test_dataset')
             mocked_outfile_config.set_pipeline_type.assert_called_with('project_process')
             mocked_write.assert_called_with(os.path.join(relatedness_outfiles, 'program_versions.yaml'))
             mocked_output_links.assert_called_with(
