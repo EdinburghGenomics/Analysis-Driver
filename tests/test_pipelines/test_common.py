@@ -40,14 +40,13 @@ class TestSampleDataOutput(TestCommon):
         patched_archive = patch('analysis_driver.transfer_data.archive_management.archive_directory', return_value=True)
         patched_crawler = patch('analysis_driver.pipelines.common.SampleCrawler')
         patched_execute = patch('egcg_core.executor.execute', return_value=Mock(join=Mock(return_value=0)))
-        patched_cfg = patch('analysis_driver.pipelines.common.cfg', new={'output_dir': self.to_dir})
         patched_find_project = patch('egcg_core.clarity.find_project_name_from_sample', return_value='proj_' + self.sample_id)
 
-        with patched_find_project, patched_archive, patched_crawler, patched_execute, patched_cfg:
+        with patched_find_project, patched_archive, patched_crawler, patched_execute:
             stage = common.SampleDataOutput(dataset=self.dataset, output_fileset='non_human_qc')
             exit_status = stage.output_data(self.pseudo_links)
 
-        output_files = os.path.join(self.to_dir, 'proj_' + self.sample_id, self.sample_id)
+        output_files = os.path.join(cfg['sample']['output_dir'], 'proj_' + self.sample_id, self.sample_id)
         expected_outputs = ['samtools_stats.txt', 'taxa_identified.json', 'test_dataset.depth',
                             'test_dataset_R1_fastqc.html', 'test_dataset_R1_fastqc.zip',
                             'test_dataset_R1_screen.txt', 'test_dataset_R2_fastqc.html',
