@@ -70,15 +70,15 @@ class TestMappingStats(TestAnalysisDriver):
 
     def test_picard_mark_dup(self):
         mapped_reads, duplicate_reads, opt_duplicate_reads, est_library_size = mp.parse_picard_mark_dup_metrics(self.picard_markdup_file)
-        assert mapped_reads == 1278460
-        assert duplicate_reads == 230832
-        assert opt_duplicate_reads == 229948
-        assert est_library_size == 15140319228
+        assert mapped_reads == 1059293
+        assert duplicate_reads == 158975
+        assert opt_duplicate_reads == 115966
+        assert est_library_size == 5054793
 
         mapped_reads, duplicate_reads, opt_duplicate_reads, est_library_size = mp.parse_picard_mark_dup_metrics(self.picard_markdup_file2)
-        assert mapped_reads == 1077345
-        assert duplicate_reads == 182779
-        assert opt_duplicate_reads == 181980
+        assert mapped_reads == 1059293
+        assert duplicate_reads == 158975
+        assert opt_duplicate_reads == 115966
         assert est_library_size is None
 
     def test_parse_picard_insert_size_metrics(self):
