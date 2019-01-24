@@ -167,6 +167,11 @@ def parse_picard_mark_dup_metrics(input_file):
     for line in lines[1:]:
         sp_line = line.split('\t')
         library = sp_line[headers.index('LIBRARY')]
+
+        # parsing should halt at the histogram data, which begins with BIN VALUE
+        if library == 'BIN':
+            break
+
         for header_val in headers[1:]:
             if header_val == 'PERCENT_DUPLICATION':
                 if len(sp_line) > headers.index(header_val):

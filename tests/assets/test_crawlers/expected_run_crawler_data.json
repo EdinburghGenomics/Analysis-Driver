@@ -243,7 +243,7 @@
                 "mapped_reads": 1025176,
                 "properly_mapped_reads": 958624,
                 "picard_dup_reads": 230832,
-                "picard_est_lib_size": 15140319228,
+                "picard_est_lib_size": 5054793,
                 "picard_opt_dup_reads": 229948,
                 "median_abs_dev_insert_size": 69.0,
                 "median_insert_size": 439.0,
