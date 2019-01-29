@@ -164,6 +164,7 @@ def parse_picard_mark_dup_metrics(input_file):
             lines.append(line.rstrip())
     headers = lines[0].split('\t')
     library_to_metrics = defaultdict(dict)
+    # starting from the second line, as the first line is the header
     for line in lines[1:]:
         sp_line = line.split('\t')
         library = sp_line[headers.index('LIBRARY')]

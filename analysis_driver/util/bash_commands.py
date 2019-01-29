@@ -214,8 +214,7 @@ def picard_command(program, input_file, output_file, tmp_dir, memory, picard_par
         for k in sorted(picard_params):
             cmd += ' %s=%s' % (k, picard_params[k])
 
-    return cmd.format(picard=toolset['picard'], input=input_file, output=output_file,
-                      tmp_dir=tmp_dir, memory=memory, program=program)
+    return cmd.format(input=input_file, output=output_file, program=program)
 
 
 def picard_gc_bias(input_file, metrics, summary, chart, ref, memory=8, tmp_dir=None):
