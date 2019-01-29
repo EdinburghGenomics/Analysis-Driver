@@ -3,7 +3,7 @@ import itertools
 from egcg_core.app_logging import logging_default as log_cfg
 from egcg_core.exceptions import EGCGError
 from analysis_driver.reader.run_info import Reads
-from . import bash_commands
+from . import bash_commands, helper_functions
 
 app_logger = log_cfg.get_logger(__name__)
 
