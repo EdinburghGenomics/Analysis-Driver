@@ -3,6 +3,7 @@ from collections import defaultdict
 from egcg_core.rest_communication import get_documents
 from egcg_core.app_logging import AppLogger
 from egcg_core.util import query_dict
+from egcg_core.config import cfg
 from analysis_driver.dataset import RunDataset, SampleDataset, ProjectDataset
 from egcg_core.constants import DATASET_NEW, DATASET_READY, DATASET_FORCE_READY, DATASET_PROCESSING,\
     DATASET_PROCESSED_SUCCESS, DATASET_PROCESSED_FAIL, DATASET_ABORTED, DATASET_REPROCESS, DATASET_DELETED,\
@@ -10,6 +11,7 @@ from egcg_core.constants import DATASET_NEW, DATASET_READY, DATASET_FORCE_READY,
 
 
 class DatasetScanner(AppLogger):
+    type = None
     endpoint = None
     item_id = None
 
@@ -17,8 +19,8 @@ class DatasetScanner(AppLogger):
     status_visible = (DATASET_NEW, DATASET_REPROCESS, DATASET_RESUME,
                       DATASET_READY, DATASET_FORCE_READY, DATASET_PROCESSING)
 
-    def __init__(self, config):
-        self.input_dir = config.get('input_dir')
+    def __init__(self):
+        self.input_dir = cfg[self.type]['input_dir']
         self.__triggerignore = None
 
     def get_dataset(self, *args, **kwargs):
@@ -93,12 +95,10 @@ class DatasetScanner(AppLogger):
 
 
 class RunScanner(DatasetScanner):
+    type = 'run'
     endpoint = 'runs'
     item_id = 'run_id'
     expected_bcl_subdirs = ('RunInfo.xml', 'Data')
-
-    def __init__(self, config):
-        super().__init__(config)
 
     def get_dataset(self, name, most_recent_proc=None):
         dataset_path = os.path.join(self.input_dir, name)
@@ -131,6 +131,7 @@ class RunScanner(DatasetScanner):
 
 
 class SampleScanner(DatasetScanner):
+    type = 'sample'
     endpoint = 'samples'
     item_id = 'sample_id'
 
@@ -139,6 +140,7 @@ class SampleScanner(DatasetScanner):
 
 
 class ProjectScanner(DatasetScanner):
+    type = 'project'
     endpoint = 'projects'
     item_id = 'project_id'
 

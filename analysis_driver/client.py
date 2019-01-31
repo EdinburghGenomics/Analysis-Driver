@@ -25,12 +25,12 @@ def main(argv=None):
     log_cfg.configure_handlers_from_config()
 
     if args.run:
-        scanner = RunScanner(cfg)
+        scanner = RunScanner()
     elif args.sample:
-        scanner = SampleScanner(cfg)
+        scanner = SampleScanner()
     else:
         assert args.project
-        scanner = ProjectScanner(cfg)
+        scanner = ProjectScanner()
 
     if any([args.abort, args.skip, args.reset, args.resume, args.force, args.report, args.report_all, args.stop]):
         for d in args.abort:

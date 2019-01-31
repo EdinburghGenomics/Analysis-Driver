@@ -69,7 +69,7 @@ class TestScanner(TestAnalysisDriver):
             assert self.scanner._triggerignore == ['ignored_dataset']
 
     def _setup_scanner(self):
-        self.scanner = DatasetScanner({'input_dir': self.base_dir})
+        self.scanner = DatasetScanner()
 
 
 class TestRunScanner(TestScanner):
@@ -116,12 +116,12 @@ class TestRunScanner(TestScanner):
             assert [d.name for d in obs[DATASET_READY]] == [d.name for d in exp[DATASET_READY]]
 
     def _setup_scanner(self):
-        self.scanner = RunScanner({'input_dir': self.base_dir})
+        self.scanner = RunScanner()
 
 
 class TestSampleScanner(TestScanner):
     def _setup_scanner(self):
-        self.scanner = SampleScanner({'input_dir': self.base_dir})
+        self.scanner = SampleScanner()
 
     def test_get_dataset(self):
         observed = self.scanner.get_dataset('test_dataset')

@@ -42,7 +42,7 @@ def build_pipeline(dataset):
                 )
             )
 
-        genotype_gvcfs = GenotypeGVCFs(dataset=dataset, gVCFs=[c.output_file for c in combine_gvcfs], reference=dataset.reference_genome, previous_stages=[combine_gvcfs])
+        genotype_gvcfs = GenotypeGVCFs(dataset=dataset, gVCFs=[c.output_file for c in combine_gvcfs], reference=dataset.reference_genome, previous_stages=combine_gvcfs)
         relatedness = Relatedness(dataset=dataset, previous_stages=[genotype_gvcfs])
         peddy = Peddy(dataset=dataset, ids=sample_ids, previous_stages=[genotype_gvcfs])
         parse = ParseRelatedness(dataset=dataset, ids=sample_ids, parse_method='parse_both', previous_stages=[relatedness, peddy])
@@ -62,7 +62,7 @@ class CombineGVCFs(segmentation.Stage):
         return os.path.join(self.job_dir, self.output_base)
 
     def gatk_combine_gvcfs_cmd(self):
-        cmd = bash_commands.java_command(2, self.job_dir, toolset['gatk']) + \
+        cmd = bash_commands.java_command(16, self.job_dir, toolset['gatk']) + \
               '-T CombineGVCFs -R %s -o %s ' % (self.reference, self.output_file)
 
         for f in self.gvcfs:
@@ -76,7 +76,7 @@ class CombineGVCFs(segmentation.Stage):
             job_name='combine_gvcfs',
             working_dir=self.job_dir,
             cpus=2,
-            mem=2
+            mem=18
         ).join()
 
 
