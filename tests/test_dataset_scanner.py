@@ -28,7 +28,7 @@ class TestScanner(TestAnalysisDriver):
         self.base_dir = os.path.join(self.assets_path, 'dataset_scanner')
         os.makedirs(self.base_dir, exist_ok=True)
         self._setup_scanner()
-        assert self.scanner.input_dir == self.base_dir
+        self.scanner.input_dir = self.base_dir  # patch the config
 
     def test_report(self):
         def fake_dataset(name):

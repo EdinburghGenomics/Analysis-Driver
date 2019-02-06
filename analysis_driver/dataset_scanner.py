@@ -20,7 +20,7 @@ class DatasetScanner(AppLogger):
                       DATASET_READY, DATASET_FORCE_READY, DATASET_PROCESSING)
 
     def __init__(self):
-        self.input_dir = cfg[self.type]['input_dir']
+        self.input_dir = cfg.query('%s.input_dir' % self.type)
         self.__triggerignore = None
 
     def get_dataset(self, *args, **kwargs):
