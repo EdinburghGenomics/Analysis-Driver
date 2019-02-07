@@ -207,16 +207,14 @@ def md5sum(input_file):
 
 
 def picard_command(program, input_file, output_file, tmp_dir, memory, picard_params=None):
-    cmd = (
-        '{picard} -Djava.io.tmpdir={tmp_dir} -XX:+UseSerialGC -Xmx{memory}G {program} '
-        'INPUT={input} OUTPUT={output} ASSUME_SORTED=true VALIDATION_STRINGENCY=LENIENT'
-    )
+    cmd = (java_command(memory, tmp_dir or os.path.dirname(input_file), toolset['picard']) + '{program} '
+           'INPUT={input} OUTPUT={output} ASSUME_SORTED=true VALIDATION_STRINGENCY=LENIENT'
+           )
     if picard_params:
         for k in sorted(picard_params):
             cmd += ' %s=%s' % (k, picard_params[k])
 
-    return cmd.format(picard=toolset['picard'], input=input_file, output=output_file,
-                      tmp_dir=tmp_dir or os.path.dirname(input_file), memory=memory, program=program)
+    return cmd.format(input=input_file, output=output_file, program=program)
 
 
 def picard_gc_bias(input_file, metrics, summary, chart, ref, memory=8, tmp_dir=None):
