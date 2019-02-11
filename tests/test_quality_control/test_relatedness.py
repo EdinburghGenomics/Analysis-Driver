@@ -13,8 +13,7 @@ class TestGenotypeGVCFs(QCTester):
         super().setUp()
         self.g = GenotypeGVCFs(
             dataset=self.project_dataset,
-            gVCFs=['test_sample1.g.vcf.gz', 'test_sample2.g.vcf.gz', 'test_sample3.g.vcf.gz'],
-            reference='/path/to/reference.fa'
+            gVCFs=['test_sample1.g.vcf.gz', 'test_sample2.g.vcf.gz', 'test_sample3.g.vcf.gz']
         )
 
     def test_memory(self):

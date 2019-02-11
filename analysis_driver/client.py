@@ -28,11 +28,14 @@ def main(argv=None):
         scanner = RunScanner()
     elif args.sample:
         scanner = SampleScanner()
-    else:
-        assert args.project
+    elif args.project:
         scanner = ProjectScanner()
+    else:
+        raise exceptions.AnalysisDriverError('Invalid arguments: %s' % args)
 
     if any([args.abort, args.skip, args.reset, args.resume, args.force, args.report, args.report_all, args.stop]):
+        log_cfg.add_stdout_handler()
+
         for d in args.abort:
             scanner.get_dataset(d).abort()
         for d in args.skip:

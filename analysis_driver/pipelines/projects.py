@@ -20,11 +20,12 @@ def build_pipeline(dataset):
     gvcf_files = []
     for sample in dataset.samples_processed:
         # Only check if we have gvcf when the samples have been through human processing that generate a gvcf
-        if query_dict(sample, 'aggregated.most_recent_proc.pipeline_used.name') in ['bcbio']:
+        if query_dict(sample, 'aggregated.most_recent_proc.pipeline_used.name') == 'bcbio':
             gvcf_file = find_file(project_source, sample['sample_id'], sample['user_sample_id'] + '.g.vcf.gz')
             if not gvcf_file:
                 raise PipelineError('Unable to find gVCF file for sample %s in %s' % (sample['sample_id'], project_source))
             gvcf_files.append(gvcf_file)
+
     if len(gvcf_files) < 2:
         # No need to run as there are not enough gvcfs to process
         cleanup = Cleanup(dataset=dataset)
@@ -37,12 +38,11 @@ def build_pipeline(dataset):
                 CombineGVCFs(
                     dataset=dataset,
                     gvcfs=gvcf_files[start:start+slice_size],
-                    reference=dataset.reference_genome,
                     output_base='combined_gvcfs_%s_%s.g.vcf.gz' % (start, end)
                 )
             )
 
-        genotype_gvcfs = GenotypeGVCFs(dataset=dataset, gVCFs=[c.output_file for c in combine_gvcfs], reference=dataset.reference_genome, previous_stages=combine_gvcfs)
+        genotype_gvcfs = GenotypeGVCFs(dataset=dataset, gVCFs=[c.output_file for c in combine_gvcfs], previous_stages=combine_gvcfs)
         relatedness = Relatedness(dataset=dataset, previous_stages=[genotype_gvcfs])
         peddy = Peddy(dataset=dataset, ids=sample_ids, previous_stages=[genotype_gvcfs])
         parse = ParseRelatedness(dataset=dataset, ids=sample_ids, parse_method='parse_both', previous_stages=[relatedness, peddy])
@@ -55,7 +55,6 @@ def build_pipeline(dataset):
 class CombineGVCFs(segmentation.Stage):
     gvcfs = segmentation.ListParameter()
     output_base = segmentation.Parameter()
-    reference = segmentation.Parameter()
 
     @property
     def output_file(self):
@@ -63,7 +62,7 @@ class CombineGVCFs(segmentation.Stage):
 
     def gatk_combine_gvcfs_cmd(self):
         cmd = bash_commands.java_command(16, self.job_dir, toolset['gatk']) + \
-              '-T CombineGVCFs -R %s -o %s ' % (self.reference, self.output_file)
+              '-T CombineGVCFs -R %s -o %s ' % (self.dataset.reference_genome, self.output_file)
 
         for f in self.gvcfs:
             cmd += ' -V ' + f

@@ -31,8 +31,13 @@ class TestToolset(TestAnalysisDriver):
         assert self.toolset['gatk'] == 'path/to/gatk_4'
         assert self.toolset['fastqc'] == 'path/to/fastqc_v0.11.5'
         assert self.toolset['java'] == 'path/to/java_8'
-        assert 'fastqc' in self.toolset.unversioned_tools
-        assert self.toolset.tool_versions == {'bwa': 1.1, 'gatk': 4, 'samtools': '1.3.1', 'java': 8}
+        assert 'fastqc' in self.toolset.unversioned_tools  # no longer versioned
+        assert self.toolset.tool_versions == {
+            'bwa': 1.1,  # updated
+            'gatk': 4,  # updated, new version_cmd
+            'samtools': '1.3.1',  # inherited
+            'java': 8  # inherited
+        }
 
     @patch('analysis_driver.tool_versioning.Toolset.check_version')
     def test_tool_config_inheritance(self, mocked_check):
