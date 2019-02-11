@@ -212,10 +212,10 @@ class IntegrationTest(ReportingAppIntegrationTest):
                 self.cfg['demultiplexing']['lane_qc']
             )
         self.expect_stage_data(['setup', 'wellduplicates', 'bcl2fastq', 'phixdetection', 'fastqfilter', 'seqtkfqchk',
-                               'md5sum', 'fastqc', 'integritycheck', 'qcoutput1', 'dataoutput', 'cleanup',
-                               'samtoolsdepthmulti', 'picardinsertsizemulti', 'qcoutput2', 'runreview',
-                               'picardmarkduplicatemulti', 'samtoolsstatsmulti', 'bwaalignmulti', 'waitforread2',
-                               'bcl2fastqhalfrun', 'picardgcbias'])
+                                'md5sum', 'fastqc', 'integritycheck', 'qcoutput1', 'dataoutput', 'cleanup',
+                                'samtoolsdepthmulti', 'picardinsertsizemulti', 'qcoutput2', 'runreview',
+                                'picardmarkduplicatemulti', 'samtoolsstatsmulti', 'bwaalignmulti', 'waitforread2',
+                                'bcl2fastqhalfrun', 'picardgcbias'])
 
         proc = rest_communication.get_document('analysis_driver_procs')
         self.expect_equal(

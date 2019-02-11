@@ -5,12 +5,11 @@ from os.path import join, exists, dirname, basename
 from egcg_core.config import cfg
 from egcg_core import executor, util, rest_communication, constants as c
 from analysis_driver import segmentation
-from analysis_driver.quality_control import interop_metrics
 from analysis_driver.reader.run_info import Reads
 from analysis_driver.util import bash_commands, find_all_fastq_pairs_for_lane, get_trim_values_for_bad_cycles
 from analysis_driver.pipelines.common import Cleanup
 from analysis_driver.exceptions import SequencingRunError, AnalysisDriverError
-from analysis_driver.quality_control import well_duplicates, BCLValidator, BadTileCycleDetector
+from analysis_driver.quality_control import well_duplicates, interop_metrics, BCLValidator, BadTileCycleDetector
 from analysis_driver.report_generation import RunCrawler
 from analysis_driver.transfer_data import output_data_and_archive
 from analysis_driver.tool_versioning import toolset
@@ -226,11 +225,11 @@ class DataOutput(DemultiplexingStage):
 
 
 class WaitForRead2(DemultiplexingStage):
-    """Wait for the first 50 cycle of read2 to be extracted."""
+    """Wait for the first 50 cycles of read 2 to be extracted."""
 
     def _run(self):
-        # Full first read, the indexes and 50 bases of read2
-        required_number_of_cycle = sum([
+        # Full first read, the indexes, and 50 bases of read 2
+        required_number_of_cycles = sum([
             Reads.num_cycles(self.dataset.run_info.reads.upstream_read),
             sum(self.dataset.run_info.reads.index_lengths),
             50
@@ -238,7 +237,7 @@ class WaitForRead2(DemultiplexingStage):
 
         # get the last cycle extracted
         current_cycle = sorted(interop_metrics.get_cycles_extracted(self.dataset.input_dir))[-1]
-        while current_cycle < required_number_of_cycle and self.dataset.is_sequencing():
+        while current_cycle < required_number_of_cycles and self.dataset.is_sequencing():
             time.sleep(1200)
             current_cycle = sorted(interop_metrics.get_cycles_extracted(self.dataset.input_dir))[-1]
         return 0
@@ -251,21 +250,16 @@ class PartialRun(DemultiplexingStage):
 
 
 class Bcl2FastqPartialRun(PartialRun):
-
     def _run(self):
         mask = self.dataset.mask.replace('y150n', 'y50n101')
         self.info('bcl2fastq mask: ' + mask)
-        bcl2fastq_exit_status = executor.execute(
-            bash_commands.bcl2fastq(
-                self.input_dir, self.fastq_intermediate_dir, self.dataset.sample_sheet_file, mask
-            ),
+        return executor.execute(
+            bash_commands.bcl2fastq(self.input_dir, self.fastq_intermediate_dir, self.dataset.sample_sheet_file, mask),
             job_name='bcl2fastq_intermediate',
             working_dir=self.job_dir,
             cpus=8,
             mem=32
         ).join()
-
-        return bcl2fastq_exit_status
 
 
 class PostDemultiplexingStage(PartialRun):
@@ -458,9 +452,9 @@ class RunReview(DemultiplexingStage):
 
 
 def build_pipeline(dataset):
-
     def stage(cls, **params):
         return cls(dataset=dataset, **params)
+
     wait_for_read2 = stage(WaitForRead2)
     bcl2fastq_half_run = stage(Bcl2FastqPartialRun, previous_stages=[wait_for_read2])
     align_output = stage(BwaAlignMulti, previous_stages=[bcl2fastq_half_run])
