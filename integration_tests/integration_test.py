@@ -34,7 +34,8 @@ class IntegrationTest(ReportingAppIntegrationTest):
                 detect_bad_cycles=Mock(return_value={5: [309, 310]}),
                 detect_bad_tiles=Mock(return_value={})
             )
-        )
+        ),
+        patch('analysis_driver.quality_control.interop_metrics.get_cycles_extracted', return_value=range(1, 311))
     )
 
     def __init__(self, *args):
@@ -211,9 +212,10 @@ class IntegrationTest(ReportingAppIntegrationTest):
                 self.cfg['demultiplexing']['lane_qc']
             )
         self.expect_stage_data(['setup', 'wellduplicates', 'bcl2fastq', 'phixdetection', 'fastqfilter', 'seqtkfqchk',
-                                'md5sum', 'fastqc', 'integritycheck', 'qcoutput1', 'dataoutput', 'cleanup',
-                                'samtoolsdepthmulti', 'picardinsertsizemulti', 'qcoutput2', 'runreview',
-                                'picardmarkduplicatemulti', 'samtoolsstatsmulti', 'bwaalignmulti', 'picardgcbias'])
+                               'md5sum', 'fastqc', 'integritycheck', 'qcoutput1', 'dataoutput', 'cleanup',
+                               'samtoolsdepthmulti', 'picardinsertsizemulti', 'qcoutput2', 'runreview',
+                               'picardmarkduplicatemulti', 'samtoolsstatsmulti', 'bwaalignmulti', 'waitforread2',
+                               'bcl2fastqhalfrun', 'picardgcbias'])
 
         proc = rest_communication.get_document('analysis_driver_procs')
         self.expect_equal(
@@ -223,7 +225,7 @@ class IntegrationTest(ReportingAppIntegrationTest):
         )
         self.expect_equal(
             proc['pipeline_used'],
-            {'name': 'demultiplexing', 'toolset_version': 0, 'toolset_type': 'run_processing'},
+            {'name': 'demultiplexing', 'toolset_version': 1, 'toolset_type': 'run_processing'},
             'pipeline used'
         )
         assert self._test_success

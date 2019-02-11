@@ -31,6 +31,28 @@ toolsets:
                 version: 0.2
                 version_cmd: '{executable} --version'
 
+        # the following configuration overrides the previous one while inheriting all the previous entries
+        # where null is present.
+        1:
+            bcl2fastq:
+                version: v2.20.0.422
+                version_cmd: grep_toolname
+
+            fastq_filterer: null
+
+            fastqc: null
+
+            # Picard does not seem to be able to report its version, so MarkDuplicates' version will be used instead - these should be equivalent
+            picard:
+                version: 2.18.23
+                version_cmd: 'java -jar {executable} MarkDuplicates -v 2>&1 | grep "Version: " | cut -d " " -f 2 | cut -d "-" -f 1'
+
+            pigz: null
+
+            seqtk: null
+
+            well_duplicates: null
+
 
     non_human_sample_processing:
         0:

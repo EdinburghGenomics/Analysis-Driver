@@ -1,140 +1,146 @@
 import math
-from itertools import islice
 from collections import Counter, defaultdict
-from xml.etree import ElementTree
+
+from analysis_driver.util.helper_functions import get_run_element_id
 from egcg_core import constants as c
 from egcg_core.app_logging import logging_default as log_cfg
 
 app_logger = log_cfg.get_logger(__name__)
 
 
-def parse_demultiplexing_stats(xml_file):
-    """
-    Extract numbers of reads for each barcode
-    :param xml_file: demultiplexing_stats.xml
-    """
-    tree = ElementTree.parse(xml_file).getroot()
-    all_elements = []
-    for project in tree.iter('Project'):
-        if project.get('name') == 'default':
-            continue
+def parse_json_stats(json_data, run_id):
+    """Creates an array of tuples of run elements, unknown run elements and associated metadata."""
+    all_run_elements = []
+    adapter_trimmed_by_id = {}
 
-        for sample in project.findall('Sample'):
-            for barcode in sample.findall('Barcode'):
-                if project.get('name') != 'all' and barcode.get('name') == 'all':
-                    continue
+    # Parsing conversion results, including demultiplexed results and unknown barcodes
+    for lane in json_data['ConversionResults']:
+        all_run_elements, adapter_trimmed_by_id = \
+            _parse_conversion_results_from_json_stats(run_id=run_id, lane=lane,
+                                                      all_run_elements=all_run_elements,
+                                                      adapter_trimmed_by_id=adapter_trimmed_by_id)
 
-                for lane in barcode.findall('Lane'):
-                    all_elements.append(
-                        (
-                            project.get('name'),
-                            sample.get('name'),
-                            barcode.get('name'),
-                            lane.get('number'),
-                            lane.find('BarcodeCount').text
-                        )
-                    )
-    return all_elements
+        """ Including the values for unknown barcodes, only for multiplexed runs"""
+        if 'Undetermined' in lane:
+            all_run_elements, adapter_trimmed_by_id = \
+                _parse_undetermined_run_elements_from_json_stats(lane=lane,
+                                                                 run_id=run_id,
+                                                                 adapter_trimmed_by_id=adapter_trimmed_by_id,
+                                                                 all_run_elements=all_run_elements)
+
+    # parsing the top 10 unknown barcodes into their own array
+    unknown_run_elements = _parse_top_unknown_run_elements_from_json_stats(json_data=json_data)
+
+    return all_run_elements, unknown_run_elements, adapter_trimmed_by_id
 
 
-def parse_conversion_stats(xml_file, has_barcode):
-    tree = ElementTree.parse(xml_file).getroot()
-    all_barcodes_per_lanes = []
-    all_barcodeless = []
+def _parse_conversion_results_from_json_stats(run_id, lane, all_run_elements, adapter_trimmed_by_id):
+    for sample in lane['DemuxResults']:
+        """ If the run is not multiplexed, the index_sequence will not be present in the JSON file, and the cluster
+        count needs to be retrieved from a different variable in the JSON file. The index_sequence variable will be 
+        prepopulated as None. """
+        r1 = sample['ReadMetrics'][0] if sample['ReadMetrics'][0]['ReadNumber'] == 1 else sample['ReadMetrics'][1]
+        r2 = sample['ReadMetrics'][1] if sample['ReadMetrics'][1]['ReadNumber'] == 2 else sample['ReadMetrics'][0]
+        index_sequence = None
+        cluster_count_raw = lane['TotalClustersRaw']
+        cluster_count_pf = lane['TotalClustersPF']
+        if 'IndexMetrics' in sample:
+            index_sequence = sample['IndexMetrics'][0]['IndexSequence']
+            cluster_count_raw = sample['NumberReads']
+            cluster_count_pf = sample['NumberReads']  # cluster count is equal to cluster count pf in multiplexed runs
 
-    if not has_barcode:
-        for project in tree.iter('Project'):
-            if project.get('name') == 'all':
-                continue
+        # obtaining number of trimmed bases and bases r1 and r2 q30, confirming the read number first
+        nb_bases_r1_q30, nb_bases_r2_q30 = 0, 0
+        if r1['ReadNumber'] == 1 and r2['ReadNumber'] == 2:
+            nb_bases_r1_q30 = r1['YieldQ30']
+            nb_bases_r2_q30 = r2['YieldQ30']
+            trimmed_bases_r1 = r1['TrimmedBases']
+            trimmed_bases_r2 = r2['TrimmedBases']
+        elif r1['ReadNumber'] == 2 and r2['ReadNumber'] == 1:
+            # this is not expected
+            raise ValueError()
 
-            for sample in project.findall('Sample'):
-                if sample.get('name') == 'all':
-                    continue
+        assert r1['Yield'] == r2['Yield'], \
+            "yield is expected to be equal for r1 and r2 in multiplexed and barcodeless runs"
 
-                for barcode in sample.findall('Barcode'):
-                    if barcode.get('name') == 'all':
-                        for lane in barcode.findall('Lane'):
-                            clust_count = 0
-                            clust_count_pf = 0
-                            nb_bases = 0
-                            nb_bases_r1_q30 = 0
-                            nb_bases_r2_q30 = 0
-                            for tile in lane.findall('Tile'):
-                                clust_count += int(tile.find('Raw').find('ClusterCount').text)
-                                clust_count_pf += int(tile.find('Pf').find('ClusterCount').text)
-                                # FIXME: Read numbers in the ConversionStats.xml are wrong when using barcodeless run
-                                # Need to be fixed in bcl2fastq and then changed here
-                                for read in tile.find('Pf').findall('Read'):
-                                    if read.get('number') == '2':
-                                        nb_bases += int(read.find('Yield').text)
-                                        nb_bases_r1_q30 += int(read.find('YieldQ30').text)
-                                    if read.get('number') != '2':
-                                        nb_bases_r2_q30 += int(read.find('YieldQ30').text)
-                            all_barcodeless.append(
-                                (
-                                    project.get('name'),
-                                    sample.get('name'),
-                                    lane.get('number'),
-                                    barcode.get('name'),
-                                    clust_count,
-                                    clust_count_pf,
-                                    nb_bases,
-                                    nb_bases_r1_q30,
-                                    nb_bases_r2_q30
-                                )
-                            )
-    elif has_barcode:
-        for project in tree.iter('Project'):
-            if project.get('name') == 'all':
-                continue
+        all_run_elements.append((
+            sample['SampleName'],
+            str(lane['LaneNumber']),
+            index_sequence,  # barcode sequence
+            cluster_count_raw,  # cluster count
+            cluster_count_pf,
+            r1['Yield'],  # yield is equal for r1 and r2 in multiplexed and barcodeless runs
+            nb_bases_r1_q30,
+            nb_bases_r2_q30
+        ))
 
-            for sample in project.findall('Sample'):
-                if sample.get('name') == 'all':
-                    continue
+        # parsing adapter trimming into its own dict and adding trimmed bases counts
+        run_element_id = get_run_element_id(run_id=run_id, lane_number=lane['LaneNumber'], barcode=index_sequence)
+        adapter_trimmed_by_id[run_element_id] = {
+            'read_1_trimmed_bases': int(trimmed_bases_r1),
+            'read_2_trimmed_bases': int(trimmed_bases_r2)
+        }
 
-                for barcode in sample.findall('Barcode'):
+    return all_run_elements, adapter_trimmed_by_id
 
-                    if barcode.get('name') == 'all':
-                        continue
 
-                    for lane in barcode.findall('Lane'):
-                        barcode.get('name')
-                        clust_count = 0
-                        clust_count_pf = 0
-                        nb_bases = 0
-                        nb_bases_r1_q30 = 0
-                        nb_bases_r2_q30 = 0
-                        for tile in lane.findall('Tile'):
-                            clust_count += int(tile.find('Raw').find('ClusterCount').text)
-                            clust_count_pf += int(tile.find('Pf').find('ClusterCount').text)
-                            for read in tile.find('Pf').findall('Read'):
-                                if read.get('number') == '1':
-                                    nb_bases += int(read.find('Yield').text)
-                                    nb_bases_r1_q30 += int(read.find('YieldQ30').text)
-                                if read.get('number') == '2':
-                                    nb_bases_r2_q30 += int(read.find('YieldQ30').text)
+def _parse_undetermined_run_elements_from_json_stats(lane, run_id, adapter_trimmed_by_id, all_run_elements):
+    # creating helper variables
+    undetermined = lane['Undetermined']
 
-                        all_barcodes_per_lanes.append(
-                            (
-                                project.get('name'),
-                                sample.get('name'),
-                                lane.get('number'),
-                                barcode.get('name'),
-                                clust_count,
-                                clust_count_pf,
-                                nb_bases,
-                                nb_bases_r1_q30,
-                                nb_bases_r2_q30
-                            )
-                        )
+    r1 = undetermined['ReadMetrics'][0] if undetermined['ReadMetrics'][0]['ReadNumber'] == 1 else undetermined['ReadMetrics'][1]
+    r2 = undetermined['ReadMetrics'][1] if undetermined['ReadMetrics'][1]['ReadNumber'] == 2 else undetermined['ReadMetrics'][0]
 
-    top_unknown_barcodes_per_lanes = []
-    for lane in tree.find('Flowcell').findall('Lane'):
-        for unknown_barcode in lane.iter('Barcode'):
-            top_unknown_barcodes_per_lanes.append(
-                (lane.get('number'), unknown_barcode.get('sequence'), unknown_barcode.get('count'))
-            )
-    return all_barcodes_per_lanes, top_unknown_barcodes_per_lanes, all_barcodeless
+    # obtaining number of undetermined trimmed bases r1 and r2 q30, confirming the read number first
+    if r1['ReadNumber'] == 1 and r2['ReadNumber'] == 2:
+        trimmed_bases_r1 = r1['TrimmedBases']
+        trimmed_bases_r2 = r2['TrimmedBases']
+    elif r1['ReadNumber'] == 2 and r2['ReadNumber'] == 1:
+        # this is not expected
+        raise ValueError()
+
+    # parsing undetermined adapter trimming into its own dict and adding trimmed bases counts
+    run_element_id = get_run_element_id(run_id=run_id, lane_number=lane['LaneNumber'], barcode='unknown')
+    adapter_trimmed_by_id[run_element_id] = {
+        'read_1_trimmed_bases': int(trimmed_bases_r1),
+        'read_2_trimmed_bases': int(trimmed_bases_r2)
+    }
+
+    # calculating the cluster_count_raw value by subtracting the sum of the total cluster PF and undetermined number
+    # of reads from the total cluster raw
+    cluster_count_raw = lane['TotalClustersRaw'] - lane['TotalClustersPF'] + undetermined['NumberReads']
+
+    # adding undetermined details to all_run_elements array
+    all_run_elements.append((
+        'Undetermined',
+        str(lane['LaneNumber']),
+        'unknown',  # barcode sequence
+        cluster_count_raw,  # cluster_count_raw
+        undetermined['NumberReads'],
+        r1['Yield'],  # yield is equal for r1 and r2 in multiplexed and barcodeless runs
+        r1['YieldQ30'],
+        r2['YieldQ30']
+    ))
+
+    return all_run_elements, adapter_trimmed_by_id
+
+
+def _parse_top_unknown_run_elements_from_json_stats(json_data):
+    # parsing the top 10 unknown barcodes into their own array
+    unknown_run_elements = []
+
+    for lane in json_data['UnknownBarcodes']:
+        for index, barcode in enumerate(lane['Barcodes']):
+            unknown_run_elements.append((
+                str(lane['Lane']),
+                barcode,
+                str(lane['Barcodes'][barcode])
+            ))
+            # only parse the first ten
+            if index == 9:
+                break
+
+    return unknown_run_elements
 
 
 def parse_seqtk_fqchk_file(fqchk_file, q_threshold):
@@ -354,20 +360,6 @@ def parse_welldup_file(welldup_file):
             elif line.startswith('Lane: '):
                 in_summary = False
     return dup_per_lane
-
-
-def parse_adapter_trim_file(adapter_trim_file, run_id):
-    adapters_trimmed_by_id = {}
-    with open(adapter_trim_file) as open_file:
-        open_file = open_file.read()
-        adapter_trim_info = open_file.split('\n\n')[0].split('\n')
-        for line in islice(adapter_trim_info, 1, None):
-            lane, read, project, sample_id, sample_name, sample_number, trimmed_bases, pc_bases = line.split()
-            run_element_info = (run_id, sample_id, lane)
-            if not adapters_trimmed_by_id.get(run_element_info):
-                adapters_trimmed_by_id[run_element_info] = {}
-            adapters_trimmed_by_id[run_element_info]['read_%s_trimmed_bases' % read] = int(trimmed_bases)
-    return adapters_trimmed_by_id
 
 
 def parse_fastq_filterer_stats(filterer_stats):
