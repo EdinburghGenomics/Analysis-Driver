@@ -99,7 +99,8 @@ class TestWaitForRead2(TestAnalysisDriver):
 
         # Run info state 150 cycle for first read and 8 index cycle + 50 cycle for second read = 208
         run_info = Mock(reads=Mock(upstream_read=Mock(attrib={'NumCycles': '150'}), index_lengths=[8]))
-        dataset = NamedMock(real_name='testrun', run_info=run_info, input_dir='path/to/input')
+        dataset = NamedMock(real_name='testrun', run_info=run_info, input_dir='path/to/input',
+                            lims_run=Mock(udf={'Run Status': 'RunStarted'}))
 
         # cycle extracted states 310 cycles done
         pcycles = patch('analysis_driver.quality_control.interop_metrics.get_cycles_extracted',
