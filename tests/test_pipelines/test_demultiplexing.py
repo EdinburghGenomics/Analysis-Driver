@@ -2,7 +2,11 @@ import os
 import shutil
 from os.path import join
 from unittest.mock import Mock, patch
+
+import pytest
 from egcg_core.constants import ELEMENT_PROJECT_ID, ELEMENT_LANE, ELEMENT_SAMPLE_INTERNAL_ID
+
+from analysis_driver.exceptions import SequencingRunError
 from tests.test_analysisdriver import TestAnalysisDriver, NamedMock
 from analysis_driver.util import bash_commands
 from analysis_driver.pipelines import demultiplexing as dm
@@ -122,6 +126,23 @@ class TestWaitForRead2(TestAnalysisDriver):
             assert mcycle.call_count == 2
             mcycle.assert_called_with('path/to/input')
             msleep.assert_called_with(1200)
+
+    def test_run_aborted(self):
+        # Run info state 150 cycle for first read and 8 index cycle + 50 cycle for second read = 208
+        run_info = Mock(reads=Mock(upstream_read=Mock(attrib={'NumCycles': '150'}), index_lengths=[8]))
+        dataset = NamedMock(real_name='testrun', run_info=run_info, input_dir='path/to/input',
+                            lims_run=Mock(udf={'Run Status': 'RunAborted'}))
+
+        # cycle extracted states 209 cycles done
+        pcycles = patch('analysis_driver.quality_control.interop_metrics.get_cycles_extracted',
+                        return_value=range(1, 209))
+
+        with pcycles as mcycle:
+            with pytest.raises(SequencingRunError):
+                self.stage = dm.WaitForRead2(dataset=dataset)
+                self.stage._run()
+            assert mcycle.call_count == 1
+            mcycle.assert_called_once_with('path/to/input')
 
 
 class TestPostDemultiplexing(TestAnalysisDriver):
