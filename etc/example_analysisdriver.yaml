@@ -99,10 +99,6 @@ default:
         'Homo sapiens':
             default: genome_version
 
-    dragen:
-        reference: /path/to/dragen_reference
-        staging: /path/to/dragen_staging
-
     genomes:
       genome_version:
         fasta: /path/to/genome.fa

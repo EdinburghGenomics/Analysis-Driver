@@ -17,9 +17,9 @@ def pipeline(dataset):
     luigi.interface.setup_interface_logging.has_run = True  # turn off Luigi's default logging setup
     log_cfg.get_logger('luigi-interface', 20)  # just calling log_cfg.get_logger registers the luigi-interface
 
-    p = dataset.resolve_pipeline_and_toolset()
+    dataset.resolve_pipeline_and_toolset()
     dataset.start()
-    final_stage = p.build_pipeline(dataset)
+    final_stage = dataset.pipeline.build_pipeline(dataset)
 
     luigi_params = {
         'tasks': [final_stage],

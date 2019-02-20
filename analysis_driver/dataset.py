@@ -32,6 +32,7 @@ class Dataset(AppLogger):
     def __init__(self, name, most_recent_proc=None):
         self.name = name
         self.most_recent_proc = MostRecentProc(self, most_recent_proc)
+        self.pipeline = None
         self._ntf = None
 
     @property
@@ -196,12 +197,11 @@ class Dataset(AppLogger):
     def __lt__(self, other):
         return self.name < other.name
 
-    @property
-    def _pipeline(self):
-        return None
+    def _default_pipeline(self):
+        raise NotImplementedError
 
-    def _processing_instruction(self):
-        pipeline = pipeline_register[self._pipeline]
+    def _pipeline_instruction(self):
+        pipeline = pipeline_register[self._default_pipeline()]
         return {
             'name': pipeline.name,
             'toolset_type': pipeline.toolset_type,
@@ -209,10 +209,10 @@ class Dataset(AppLogger):
         }
 
     def resolve_pipeline_and_toolset(self):
-        instruction = self._processing_instruction()
+        instruction = self._pipeline_instruction()
         toolset.select_type(instruction['toolset_type'])
         toolset.select_version(instruction['toolset_version'])
-        return pipeline_register[instruction['name']]
+        self.pipeline = pipeline_register[instruction['name']]
 
 
 class NoCommunicationDataset(Dataset):
@@ -231,7 +231,7 @@ class NoCommunicationDataset(Dataset):
     def _is_ready(self):
         pass
 
-    def _pipeline(self):
+    def _default_pipeline(self):
         return None
 
 
@@ -252,7 +252,7 @@ class NoCommunicationSampleDataset(NoCommunicationDataset):
     def project_id(self):
         return self.run_elements[0]['project_id']
 
-    def _processing_instruction(self):
+    def _pipeline_instruction(self):
         instruction = rest_communication.get_document(
             'projects', where={'project_id': self.project_id}
         ).get('sample_pipeline')
@@ -276,7 +276,6 @@ class RunDataset(Dataset):
         self._run_elements = None
         self._barcode_len = None
         self._lims_run = None
-        self._rapid_samples_by_lane = None
 
     def initialise_entity(self):
         run = rest_communication.get_document('runs', where={'run_id': self.name})
@@ -342,24 +341,6 @@ class RunDataset(Dataset):
                 'Mismatching step name: %s != %s' % (expected_pooling_step_name, art.parent_process.type.name)
             )
         return art.input_artifact_list()
-
-    @property
-    def rapid_samples_by_lane(self):
-        if self._rapid_samples_by_lane is None:
-            self._rapid_samples_by_lane = {}
-
-            flowcell = set(self.lims_run.parent_processes()).pop().output_containers()[0]
-            for lane in flowcell.placements:
-                if len(flowcell.placements[lane].reagent_labels) > 1:
-                    continue  # we don't want to run rapid processing on pools
-
-                artifact = flowcell.placements[lane]
-                assert len(artifact.samples) == 1
-                sample = artifact.samples[0]
-                if sample.udf.get('Rapid Analysis'):
-                    self._rapid_samples_by_lane[lane.split(':')[0]] = sample
-
-        return self._rapid_samples_by_lane
 
     def _run_elements_from_lims(self):
         run_elements = []
@@ -436,8 +417,7 @@ class RunDataset(Dataset):
     def lane_metrics(self):
         return rest_communication.get_documents('lanes', where={'run_id': self.name})
 
-    @property
-    def _pipeline(self):
+    def _default_pipeline(self):
         return 'demultiplexing'
 
     @staticmethod
@@ -538,13 +518,13 @@ class SampleDataset(Dataset):
             raise AnalysisDriverError('Could not find data threshold for ' + self.name)
         return self._data_threshold
 
-    def _processing_instruction(self):
+    def _pipeline_instruction(self):
         instruction = rest_communication.get_document(
             'projects', where={'project_id': self.project_id}
         ).get('sample_pipeline')
 
         if not instruction:
-            instruction = super()._processing_instruction()
+            instruction = super()._pipeline_instruction()
             rest_communication.patch_entry('projects', {'sample_pipeline': instruction}, 'project_id', self.project_id)
 
         return instruction
@@ -577,8 +557,7 @@ class SampleDataset(Dataset):
         super().fail(exit_status)
         self.lims_ntf.remove_sample_from_workflow()
 
-    @property
-    def _pipeline(self):
+    def _default_pipeline(self):
         if self.species is None:
             raise AnalysisDriverError('No species information found in the LIMS for ' + self.name)
 
@@ -659,8 +638,7 @@ class ProjectDataset(Dataset):
     def __str__(self):
         return '%s  (%s samples / %s) ' % (super().__str__(), len(self.samples_processed), self.number_of_samples)
 
-    @property
-    def _pipeline(self):
+    def _default_pipeline(self):
         return 'project'
 
 

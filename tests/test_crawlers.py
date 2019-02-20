@@ -4,6 +4,7 @@ from unittest.mock import patch
 from egcg_core import constants as c
 from tests.test_analysisdriver import TestAnalysisDriver, NamedMock
 from analysis_driver import report_generation
+from analysis_driver.config import OutputFileConfiguration
 
 ppath = 'analysis_driver.report_generation.'
 
@@ -122,9 +123,11 @@ class TestSampleCrawler(TestCrawler):
             return_value={'user_sample_id': 'test_sample', 'provided_gender': 'female', 'species_name': 'Homo sapiens'}
         )
         patched_user_sample_id = patch(ppath + 'sample_crawler.clarity.get_user_sample_name', return_value='test_sample')
+        output_cfg = OutputFileConfiguration()
+        output_cfg.set_pipeline_type('bcbio')
         with patched_sample_info, patched_user_sample_id:
             self.crawler = report_generation.SampleCrawler(
-                'test_sample', 'test_project', self.test_data, 'bcbio', post_pipeline=True
+                'test_sample', 'test_project', self.test_data, output_cfg, post_pipeline=True
             )
 
     def test_sample(self):

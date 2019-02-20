@@ -231,18 +231,3 @@ project_process:
     relatedness_output_gel:
         location: ['']
         basename: '{project_id}.relatedness_output.gel'
-
-
-rapid_analysis:
-    gvcf:
-        location: ['rapid_processing_{lane}']
-        basename: '{user_sample_id}.vcf.gz'
-
-    tbi:
-        location: ['rapid_processing_{lane}']
-        basename: '{user_sample_id}.vcf.gz.tbi'
-
-    gvcf_md5:
-        location: ['rapid_processing_{lane}']
-        basename: '{user_sample_id}.vcf.gz.md5sum'
-        new_name: '{user_sample_id}.vcf.gz.md5'
