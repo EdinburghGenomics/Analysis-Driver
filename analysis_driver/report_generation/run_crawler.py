@@ -118,7 +118,6 @@ class RunCrawler(Crawler):
                 self.get_sample_information_from_lims(self.libraries[libname][ELEMENT_SAMPLE_INTERNAL_ID])
             )
 
-
     def _populate_barcode_info_from_phix_read_names(self, run_dir):
         for run_element_id, barcode_info in self.barcodes_info.items():
             if ELEMENT_BARCODE in barcode_info and barcode_info[ELEMENT_BARCODE] == 'unknown':
@@ -290,7 +289,6 @@ class RunCrawler(Crawler):
                 ELEMENT_BARCODE: barcode,
                 ELEMENT_NB_READS_PASS_FILTER: int(clust_count)
             }
-
 
     def _populate_from_mapping_stats(self, run_dir):
         for run_element_id in self.barcodes_info:

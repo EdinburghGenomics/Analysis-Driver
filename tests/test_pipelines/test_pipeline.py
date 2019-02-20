@@ -32,7 +32,9 @@ class TestPipeline(TestAnalysisDriver):
             p.start()
             patches.append(p)
 
-        dataset.pipeline = Mock(build_pipeline=Mock(return_value=stage_class(dataset=dataset)))
+        dataset.resolve_pipeline_and_toolset = Mock(
+            return_value=Mock(build_pipeline=Mock(return_value=stage_class(dataset=dataset)))
+        )
         try:
             return pipeline(dataset)
         finally:

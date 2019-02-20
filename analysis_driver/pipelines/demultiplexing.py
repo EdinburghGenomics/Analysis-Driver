@@ -7,6 +7,7 @@ from egcg_core import executor, util, rest_communication, constants as c
 from analysis_driver import segmentation
 from analysis_driver.reader.run_info import Reads
 from analysis_driver.util import bash_commands, find_all_fastq_pairs_for_lane, get_trim_values_for_bad_cycles
+from analysis_driver.pipelines import rapid
 from analysis_driver.pipelines.common import Cleanup
 from analysis_driver.exceptions import SequencingRunError, AnalysisDriverError
 from analysis_driver.quality_control import well_duplicates, interop_metrics, BCLValidator, BadTileCycleDetector
@@ -480,6 +481,14 @@ def build_pipeline(dataset):
     qc_output2 = stage(QCOutput, stage_name='qcoutput2', run_crawler_stage=RunCrawler.STAGE_MAPPING,
                        previous_stages=[stats_output, depth_output, md_output, is_output, gc_bias])
     data_output = stage(DataOutput, previous_stages=[qc_output, qc_output2])
-    _cleanup = stage(Cleanup, previous_stages=[data_output])
-    review = stage(RunReview, previous_stages=[_cleanup])
+    cleanup = stage(Cleanup, previous_stages=[data_output])
+    final_checkpoint = [cleanup]
+
+    if dataset.rapid_samples_by_lane:
+        dragen = stage(rapid.Dragen, previous_stages=[setup])
+        dragen_metrics = stage(rapid.DragenMetrics, previous_stages=[dragen])
+        dragen_output = stage(rapid.DragenOutput, previous_stages=[dragen_metrics])
+        final_checkpoint.append(dragen_output)
+
+    review = stage(RunReview, previous_stages=final_checkpoint)
     return review
