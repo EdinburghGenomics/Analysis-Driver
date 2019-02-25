@@ -5,7 +5,6 @@ from egcg_core.config import cfg
 from egcg_core import executor, util, rest_communication, clarity
 from analysis_driver import segmentation, transfer_data
 from analysis_driver.util import bash_commands
-from analysis_driver.config import output_file_config
 
 
 class RapidStage(segmentation.Stage):
@@ -109,20 +108,16 @@ class DragenMetrics(RapidStage):
 class DragenOutput(RapidStage):
     def _run(self):
         exit_status = 0
-        for l in self.lanes:
-            exit_status += self.output_data(l)
+        for lane, sample in self.dataset.rapid_samples_by_lane.items():
+            exit_status += self.output_data(lane, sample)
 
         return exit_status
 
-    def output_data(self, lane):
-        sample_id = self.sample_from_lane(lane)
-        project_id = clarity.find_project_name_from_sample(sample_id)
-        user_sample_id = clarity.get_user_sample_name(sample_id)
-
+    def output_data(self, lane, sample):
+        user_sample_id = clarity.get_user_sample_name(sample.name)
         staging_dir = os.path.join(self.job_dir, 'linked_output_files_%s' % lane)
-        os.makedirs(staging_dir, exist_ok=True)
-        output_file_config.set_pipeline_type('rapid_analysis')
 
+        os.makedirs(staging_dir, exist_ok=True)
         transfer_data.create_output_links(
             self.job_dir,
             'rapid_analysis',
@@ -134,7 +129,11 @@ class DragenOutput(RapidStage):
         # TODO: implement generic MD5Sum stage
         self.dataset.start_stage('md5sum')
         md5sum_exit_status = executor.execute(
-            *[bash_commands.md5sum(os.path.join(staging_dir, f)) for f in os.listdir(staging_dir)],
+            *[
+                bash_commands.md5sum(os.path.join(staging_dir, f))
+                for f in os.listdir(staging_dir)
+                if not f.endswith('md5')
+            ],
             job_name='md5sum',
             working_dir=self.job_dir,
             cpus=1,
@@ -143,7 +142,7 @@ class DragenOutput(RapidStage):
         ).join()
         self.dataset.end_stage('md5sum')
 
-        output_dir = os.path.join(cfg['sample']['output_dir'], project_id, sample_id)
+        output_dir = os.path.join(cfg['sample']['output_dir'], sample.project.name, sample.name)
         transfer_exit_status = transfer_data.output_data_and_archive(
             staging_dir.rstrip('/') + '/',
             output_dir.rstrip('/')
