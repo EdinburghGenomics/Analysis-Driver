@@ -56,19 +56,20 @@ class DragenMetrics(RapidStage):
 
     def _run(self):
         data = []
-        for lane, sample in self.dataset.rapid_samples_by_lane.items():
+        for lane in sorted(self.dataset.rapid_samples_by_lane):
+            sample_id = self.dataset.rapid_samples_by_lane[lane].name
             output_dir = self.rapid_output_dir(lane)
             map_metrics = self.parse_metrics_file(
-                util.find_file(output_dir, '%s.mapping_metrics.csv' % sample.name)
+                util.find_file(output_dir, '%s.mapping_metrics.csv' % sample_id)
             )['MAPPING/ALIGNING SUMMARY']
 
             vc_metrics = self.parse_metrics_file(
-                util.find_file(output_dir, '%s.vc_metrics.csv' % sample.name)
+                util.find_file(output_dir, '%s.vc_metrics.csv' % sample_id)
             )['VARIANT CALLER POSTFILTER']
 
             data.append(
                 {
-                    'sample_id': sample.name,
+                    'sample_id': sample_id,
                     'rapid_metrics': {
                         'var_calling': {
                              'ti_tv_ratio': float(vc_metrics['Ti/Tv ratio'][0]),
