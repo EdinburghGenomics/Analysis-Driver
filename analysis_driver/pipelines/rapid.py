@@ -13,20 +13,21 @@ class RapidStage(segmentation.Stage):
 
 
 class Dragen(RapidStage):
-    def _run(self):
+    def _run(self): 
         cmds = []
-
         for lane, sample in self.dataset.rapid_samples_by_lane.items():
             cmds.append(
-                'if [ -d {tmp_dir} ]; then rm -r {tmp_dir}; fi; mkdir -p {tmp_dir}; '
-                'dragen -r {ref} --bcl-input-dir {run_dir} --bcl-only-lane {lane} --output-directory {tmp_dir} '
+                'if [ -d {tmp_dir} ]; then rm -r {tmp_dir}; fi; mkdir -p {tmp_dir}; {dragen} -r {ref} '
+                '--bcl-input-dir {run_dir} --bcl-only-lane {lane} --output-directory {tmp_dir} '
                 '--output-file-prefix {user_sample_id} --enable-variant-caller true --vc-sample-name {sample_id} '
-                '--bcl-sample-sheet {sample_sheet}; '
-                'rsync -rLD {tmp_dir}/ {out_dir}; rm -r {tmp_dir}'.format(
+                '--bcl-sample-sheet {sample_sheet} --enable-map-align-output true --enable-duplicate-marking true '
+                '--dbsnp {dbsnp}; rsync -rLD {tmp_dir}/ {out_dir}; rm -r {tmp_dir}'.format(
+                    dragen=cfg['dragen']['executable'],
                     ref=cfg['dragen']['reference'], run_dir=self.input_dir, lane=lane,
                     out_dir=self.rapid_output_dir(lane), user_sample_id=clarity.get_user_sample_name(sample.name),
                     sample_id=sample.name, sample_sheet=self.dataset.sample_sheet_file,
-                    tmp_dir=os.path.join(cfg['dragen']['staging'], self.dataset.name + '_' + lane)
+                    tmp_dir=os.path.join(cfg['dragen']['staging'], self.dataset.name + '_' + lane),
+                    dbsnp=cfg['dragen']['dbsnp']
                 )
             )
 
@@ -34,9 +35,10 @@ class Dragen(RapidStage):
             *cmds,
             prelim_cmds=['ulimit -n 65535', 'ulimit -c 0', 'ulimit -s 8192', 'ulimit -u 16384', 'ulimit -i 1029522'],
             job_name='dragen',
-            queue='dragen',
+            job_queue='dragen',
             working_dir=self.job_dir,
-            exclusive=True
+            exclusive=True,
+            log_commands=False
         ).join()
 
 
@@ -57,14 +59,16 @@ class DragenMetrics(RapidStage):
     def _run(self):
         data = []
         for lane in sorted(self.dataset.rapid_samples_by_lane):
-            sample_id = self.dataset.rapid_samples_by_lane[lane].name
+            sample = self.dataset.rapid_samples_by_lane[lane]
+            sample_id = sample.name
+            user_sample_id = sample.udf['User Sample Name']
             output_dir = self.rapid_output_dir(lane)
             map_metrics = self.parse_metrics_file(
-                util.find_file(output_dir, '%s.mapping_metrics.csv' % sample_id)
+                util.find_file(output_dir, '%s.mapping_metrics.csv' % user_sample_id)
             )['MAPPING/ALIGNING SUMMARY']
 
             vc_metrics = self.parse_metrics_file(
-                util.find_file(output_dir, '%s.vc_metrics.csv' % sample_id)
+                util.find_file(output_dir, '%s.vc_metrics.csv' % user_sample_id)
             )['VARIANT CALLER POSTFILTER']
 
             data.append(
@@ -104,6 +108,7 @@ class DragenMetrics(RapidStage):
             )
 
         rest_communication.post_or_patch('samples', data, id_field='sample_id')
+        return 0
 
 
 class DragenOutput(RapidStage):

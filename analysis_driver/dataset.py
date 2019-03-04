@@ -32,6 +32,7 @@ class Dataset(AppLogger):
     def __init__(self, name, most_recent_proc=None):
         self.name = name
         self.most_recent_proc = MostRecentProc(self, most_recent_proc)
+        self.pipeline = None
         self._ntf = None
 
     @property
@@ -212,7 +213,7 @@ class Dataset(AppLogger):
         instruction = self._processing_instruction()
         toolset.select_type(instruction['toolset_type'])
         toolset.select_version(instruction['toolset_version'])
-        return pipeline_register[instruction['name']]
+        self.pipeline = pipeline_register[instruction['name']]
 
 
 class NoCommunicationDataset(Dataset):
@@ -349,11 +350,10 @@ class RunDataset(Dataset):
             self._rapid_samples_by_lane = {}
 
             flowcell = set(self.lims_run.parent_processes()).pop().output_containers()[0]
-            for lane in flowcell.placements:
-                if len(flowcell.placements[lane].reagent_labels) > 1:
+            for lane, artifact in flowcell.placements.items():
+                if len(artifact.reagent_labels) > 1:
                     continue  # we don't want to run rapid processing on pools
 
-                artifact = flowcell.placements[lane]
                 assert len(artifact.samples) == 1
                 sample = artifact.samples[0]
                 if sample.udf.get('Rapid Analysis'):

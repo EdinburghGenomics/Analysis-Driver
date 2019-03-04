@@ -1,6 +1,6 @@
 import os
 import subprocess
-from egcg_core import rest_communication, util
+from egcg_core import rest_communication, util, exceptions
 from egcg_core.config import cfg
 from egcg_core.app_logging import logging_default
 from egcg_core.integration_testing import ReportingAppIntegrationTest
@@ -10,12 +10,11 @@ from integration_tests import mocked_data
 
 
 class IntegrationTest(ReportingAppIntegrationTest):
-    patches = (
+    patches = [
         patch('analysis_driver.client.load_config'),
         patch('egcg_core.clarity.find_project_name_from_sample', return_value='10015AT'),
         patch('egcg_core.clarity.get_plate_id_and_well', new=mocked_data.fake_get_plate_id_and_well),
         patch('egcg_core.clarity.get_project', return_value=mocked_data.mocked_clarity_project),
-        patch('egcg_core.clarity.get_run', return_value=mocked_data.mocked_clarity_run),
         patch('egcg_core.clarity.get_sample_gender'),
         patch('egcg_core.clarity.get_sample_genotype', return_value=set()),
         patch('egcg_core.clarity.get_sample_names_from_project', return_value=set()),
@@ -34,13 +33,13 @@ class IntegrationTest(ReportingAppIntegrationTest):
                 detect_bad_cycles=Mock(return_value={5: [309, 310]}),
                 detect_bad_tiles=Mock(return_value={})
             )
-        ),
-        patch('analysis_driver.quality_control.interop_metrics.get_cycles_extracted', return_value=range(1, 311))
-    )
+        )
+    ]
 
     def __init__(self, *args):
         super().__init__(*args)
         self.run_id = self.cfg['input_data']['run_id']
+        self.rapid_run_id = self.cfg['input_data']['rapid_run_id']
         self.barcode = self.cfg['input_data']['barcode']
         self.project_id = self.cfg['input_data']['project_id']
         self.sample_id = self.cfg['input_data']['sample_id']
@@ -71,21 +70,27 @@ class IntegrationTest(ReportingAppIntegrationTest):
         )
 
         rest_communication.post_entry('projects', {'project_id': self.project_id, 'samples': [self.sample_id]})
-
-        self.dynamic_patches = []
         self._test_success = True
 
     def tearDown(self):
         super().tearDown()
         self._reset_logging()
-        for p in self.dynamic_patches:
-            p.stop()
 
     def setup_test(self, test_type, test_name, integration_section, species='Homo sapiens', analysis_type='Variant Calling gatk'):
         cfg.content['jobs_dir'] = os.path.join(os.path.dirname(os.getcwd()), 'jobs', test_name)
         cfg.content[test_type]['output_dir'] = os.path.join(os.path.dirname(os.getcwd()), 'outputs', test_name)
-        if 'input_dir' in self.cfg[integration_section]:
-            cfg.content[test_type]['input_dir'] = self.cfg[integration_section]['input_dir']
+
+        input_dir = self.cfg[integration_section].get('input_dir')
+        if input_dir:
+            cfg.content[test_type]['input_dir'] = input_dir
+            
+        if len(os.listdir(cfg[test_type]['input_dir'])) != 1:
+            raise exceptions.EGCGError(
+                '%s input datasets found in input dir %s - 1 required' % (
+                    len(os.listdir(input_dir)),
+                    input_dir
+                )
+            )
 
         os.makedirs(cfg['jobs_dir'])
         os.makedirs(cfg[test_type]['output_dir'])
@@ -102,10 +107,10 @@ class IntegrationTest(ReportingAppIntegrationTest):
                 }
             )
 
-        for p in (patch('egcg_core.clarity.get_sample', new=_fake_get_sample),
-                  patch('egcg_core.clarity.get_species_from_sample', return_value=species)):
-            self.dynamic_patches.append(p)
-            p.start()
+        self._add_patches(
+            patch('egcg_core.clarity.get_sample', new=_fake_get_sample),
+            patch('egcg_core.clarity.get_species_from_sample', return_value=species)
+        )
 
     @staticmethod
     def _reset_logging():
@@ -116,6 +121,11 @@ class IntegrationTest(ReportingAppIntegrationTest):
         logging_default.handlers = set()
         logging_default.loggers = {}
 
+    def _add_patches(self, *patches):
+        for p in patches:
+            self.patches.append(p)
+            p.start()
+
     def expect_equal(self, obs, exp, name):
         try:
             self.assertEqual(name, obs, exp)
@@ -124,13 +134,19 @@ class IntegrationTest(ReportingAppIntegrationTest):
 
     def expect_output_files(self, exp, base_dir):
         for k, v in exp.items():
+            grepv = None
+            if isinstance(v, dict):  # {'md5': 'an_md5sum', 'grepv': 'GATKCommandLine'}
+                grepv = v.get('grepv')
+                assert isinstance(grepv, list), 'grepv field for %s must be a list' % k
+                v = v['md5']
+
             if base_dir:
                 k = os.path.join(base_dir, k)
 
             if v is None:
                 self.expect_equal(os.path.isfile(k), True, k)
             else:
-                self.expect_equal(self._check_md5(k), v, k)
+                self.expect_equal(self._check_md5(k, grepv), v, k)
 
     def expect_qc_data(self, obs, exp):
         for e in sorted(exp):
@@ -149,7 +165,7 @@ class IntegrationTest(ReportingAppIntegrationTest):
         exp = dict([s if type(s) == tuple else (s, 0) for s in stage_names])
         self.expect_equal(obs, exp, 'stages')
 
-    def _check_md5(self, fp):
+    def _check_md5(self, fp, grepv_patterns=None):
         if not os.path.isfile(fp):
             return None
 
@@ -164,6 +180,10 @@ class IntegrationTest(ReportingAppIntegrationTest):
         else:
             cmd = 'cat ' + fp
 
+        if grepv_patterns:
+            for p in grepv_patterns:
+                cmd += " | grep -v '{pattern}'".format(pattern=p)
+
         cmd += " | sed 's/{cwd}//g' | md5sum".format(cwd=self.run_dir.replace('/', '\/'))
         p = subprocess.Popen(cmd, stdout=subprocess.PIPE, shell=True)
         out, err = p.communicate()
@@ -175,6 +195,10 @@ class IntegrationTest(ReportingAppIntegrationTest):
 
     def test_demultiplexing(self):
         self.setup_test('run', 'test_demultiplexing', 'demultiplexing')
+        self._add_patches(
+            patch('egcg_core.clarity.get_run', return_value=mocked_data.mocked_pooling_run),
+            patch('analysis_driver.quality_control.interop_metrics.get_cycles_extracted', return_value=range(1, 311))
+        )
 
         exit_status = client.main(['--run'])
         self.assertEqual('exit status', exit_status, 0)
@@ -232,6 +256,7 @@ class IntegrationTest(ReportingAppIntegrationTest):
 
     def test_demultiplexing_aborted(self):
         self.setup_test('sample', 'test_demultiplexing_aborted', 'demultiplexing')
+        self._add_patches(patch('egcg_core.clarity.get_run', return_value=mocked_data.mocked_pooling_run))
 
         mocked_clarity_run = mocked_data.MockedRunProcess(
             udf={'Run Status': 'RunAborted'},
@@ -428,4 +453,61 @@ class IntegrationTest(ReportingAppIntegrationTest):
             'pipeline used'
         )
 
+        assert self._test_success
+
+    def test_rapid_analyis(self):
+        self._add_patches(
+            patch('egcg_core.clarity.get_run', return_value=mocked_data.mocked_rapid_run),
+            patch('analysis_driver.quality_control.interop_metrics.get_cycles_extracted', return_value=range(1, 302))
+        )
+
+        sample_ids = ['non_pooling_sample_%s' % i for i in range(1, 9)]
+        for s in sample_ids:
+            rest_communication.post_entry(
+                'samples', {'project_id': 'rapid_project', 'sample_id': s, 'user_sample_id': 'uid_' + s}
+            )
+
+        rest_communication.patch_entry(
+            'projects',
+            {'samples': sample_ids},
+            'project_id',
+            self.project_id,
+            update_lists=['samples']
+        )
+
+        self.setup_test('run', 'test_rapid', 'rapid')
+        cfg.content['sample']['output_dir'] = os.path.join(os.path.dirname(os.getcwd()), 'outputs', 'test_rapid')
+
+        exit_status = client.main(['--run'])
+        self.assertEqual('exit status', exit_status, 0)
+
+        output_dir = os.path.join(cfg['sample']['output_dir'], self.project_id)
+        self.expect_output_files(
+            self.cfg['rapid']['files'],
+            base_dir=output_dir
+        )
+        self.expect_qc_data(
+            rest_communication.get_document(
+                'samples',
+                where={'sample_id': 'non_pooling_sample_2'}
+            ),
+            self.cfg['rapid']['qc']
+        )
+        self.expect_stage_data(['setup', 'wellduplicates', 'bcl2fastq', 'phixdetection', 'fastqfilter', 'seqtkfqchk',
+                                'md5sum', 'fastqc', 'integritycheck', 'qcoutput1', 'dataoutput', 'cleanup',
+                                'samtoolsdepthmulti', 'picardinsertsizemulti', 'qcoutput2', 'runreview',
+                                'picardmarkduplicatemulti', 'samtoolsstatsmulti', 'bwaalignmulti', 'waitforread2',
+                                'bcl2fastqhalfrun', 'picardgcbias', 'dragen', 'dragenmetrics', 'dragenoutput'])
+
+        proc = rest_communication.get_document('analysis_driver_procs')
+        self.expect_equal(
+            rest_communication.get_document('runs', where={'run_id': self.rapid_run_id}).get('analysis_driver_procs'),
+            [proc['proc_id']],
+            'run proc registered'
+        )
+        self.expect_equal(
+            proc['pipeline_used'],
+            {'name': 'demultiplexing', 'toolset_version': 1, 'toolset_type': 'run_processing'},
+            'pipeline used'
+        )
         assert self._test_success
