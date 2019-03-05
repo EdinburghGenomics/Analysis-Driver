@@ -211,11 +211,12 @@ class IntegrationTest(ReportingAppIntegrationTest):
                 ),
                 self.cfg['demultiplexing']['lane_qc']
             )
-        self.expect_stage_data(['setup', 'wellduplicates', 'bcl2fastq', 'phixdetection', 'fastqfilter', 'seqtkfqchk',
-                                'md5sum', 'fastqc', 'integritycheck', 'qcoutput1', 'dataoutput', 'cleanup',
-                                'samtoolsdepthmulti', 'picardinsertsizemulti', 'qcoutput2', 'runreview',
-                                'picardmarkduplicatemulti', 'samtoolsstatsmulti', 'bwaalignmulti', 'waitforread2',
-                                'bcl2fastqhalfrun', 'picardgcbias'])
+        self.expect_stage_data([
+            'setup', 'wellduplicates', 'bcl2fastq', 'phixdetection', 'fastqfilter', 'seqtkfqchk', 'md5sum', 'fastqc',
+            'integritycheck', 'qcoutput1', 'dataoutput', 'cleanup', 'samtoolsdepthmulti', 'picardinsertsizemulti',
+            'qcoutput2', 'runreview', 'picardmarkduplicatemulti', 'samtoolsstatsmulti', 'bwaalignmulti', 'waitforread2',
+            'bcl2fastqpartialrun', 'picardgcbias'
+        ])
 
         proc = rest_communication.get_document('analysis_driver_procs')
         self.expect_equal(
@@ -246,7 +247,8 @@ class IntegrationTest(ReportingAppIntegrationTest):
         self.expect_equal(
             ad_proc['status'], 'aborted', 'pipeline status'
         )
-        self.expect_stage_data([('setup', 9)], where={'analysis_driver_proc': ad_proc['proc_id']})
+        stages = [('setup', 9), ('waitforread2', 9)]
+        self.expect_stage_data(stages, where={'analysis_driver_proc': ad_proc['proc_id']})
 
     def test_bcbio(self):
         self.setup_test('sample', 'test_bcbio', 'bcbio')

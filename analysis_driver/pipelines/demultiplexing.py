@@ -240,6 +240,13 @@ class WaitForRead2(DemultiplexingStage):
         while current_cycle < required_number_of_cycles and self.dataset.is_sequencing():
             time.sleep(1200)
             current_cycle = sorted(interop_metrics.get_cycles_extracted(self.dataset.input_dir))[-1]
+
+        # make sure the run is not aborted or errored before continuing with the rest of the pipeline
+        run_status = self.dataset.lims_run.udf.get('Run Status')
+        if run_status not in ['RunCompleted', 'RunStarted', 'RunPaused']:
+            self.error('Run status is \'%s\'. Stopping.', run_status)
+            raise SequencingRunError(run_status)
+
         return 0
 
 
