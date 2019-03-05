@@ -35,18 +35,6 @@ class TestProjects(TestAnalysisDriver):
         pipeline = projects.build_pipeline(self.fake_dataset(['sample1', 'sample2', 'sample3'], 'qc'))
         assert len(pipeline.previous_stages) == 0
 
-    def test_combinegvcf_batching(self):
-        sample_ids = ['sample' + str(n) for n in range(1, 31)]
-        d = self.fake_dataset(sample_ids, 'bcbio')
-
-        with patch('analysis_driver.pipelines.projects.find_file', return_value='a_file'):
-            final_stage = projects.build_pipeline(d)
-
-        parse = final_stage.previous_stages[0].previous_stages[0].previous_stages[0]
-        genotype_gvcfs = parse.previous_stages[0].previous_stages[0]
-        assert genotype_gvcfs.previous_stages[0].gvcfs == tuple('a_file' for _ in range(25))  # batch 1
-        assert genotype_gvcfs.previous_stages[1].gvcfs == tuple('a_file' for _ in range(5))  # batch 2
-
 
 class TestMD5Sum(TestAnalysisDriver):
     def setUp(self):

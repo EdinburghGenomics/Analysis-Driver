@@ -30,19 +30,7 @@ def build_pipeline(dataset):
         # No need to run as there are not enough gvcfs to process
         cleanup = Cleanup(dataset=dataset)
     else:
-        slice_size = 25
-        combine_gvcfs = []
-        for start in range(0, len(gvcf_files), slice_size):
-            end = start + slice_size
-            combine_gvcfs.append(
-                CombineGVCFs(
-                    dataset=dataset,
-                    gvcfs=gvcf_files[start:start+slice_size],
-                    output_base='combined_gvcfs_%s_%s.g.vcf.gz' % (start, end)
-                )
-            )
-
-        genotype_gvcfs = GenotypeGVCFs(dataset=dataset, gVCFs=[c.output_file for c in combine_gvcfs], previous_stages=combine_gvcfs)
+        genotype_gvcfs = GenotypeGVCFs(dataset=dataset, gVCFs=gvcf_files)
         relatedness = Relatedness(dataset=dataset, previous_stages=[genotype_gvcfs])
         peddy = Peddy(dataset=dataset, ids=sample_ids, previous_stages=[genotype_gvcfs])
         parse = ParseRelatedness(dataset=dataset, ids=sample_ids, parse_method='parse_both', previous_stages=[relatedness, peddy])
@@ -50,33 +38,6 @@ def build_pipeline(dataset):
         output = Output(dataset=dataset, previous_stages=[md5])
         cleanup = Cleanup(dataset=dataset, previous_stages=[output])
     return cleanup
-
-
-class CombineGVCFs(segmentation.Stage):
-    gvcfs = segmentation.ListParameter()
-    output_base = segmentation.Parameter()
-
-    @property
-    def output_file(self):
-        return os.path.join(self.job_dir, self.output_base)
-
-    def gatk_combine_gvcfs_cmd(self):
-        cmd = bash_commands.java_command(16, self.job_dir, toolset['gatk']) + \
-              '-T CombineGVCFs -R %s -o %s ' % (self.dataset.reference_genome, self.output_file)
-
-        for f in self.gvcfs:
-            cmd += ' -V ' + f
-
-        return cmd
-
-    def _run(self):
-        return executor.execute(
-            self.gatk_combine_gvcfs_cmd(),
-            job_name='combine_gvcfs',
-            working_dir=self.job_dir,
-            cpus=2,
-            mem=18
-        ).join()
 
 
 class MD5Sum(segmentation.Stage):
