@@ -7,7 +7,6 @@ from tests.test_analysisdriver import TestAnalysisDriver, NamedMock
 
 
 test_run_dir = os.path.join(TestAnalysisDriver.assets_path, 'rapid_analysis', 'a_run')
-patched_uid = patch('egcg_core.clarity.get_user_sample_name', return_value='a_uid')
 patched_executor = patch(
     'analysis_driver.pipelines.demultiplexing.executor.execute',
     return_value=Mock(join=Mock(return_value=0))
@@ -15,30 +14,31 @@ patched_executor = patch(
 
 
 class TestDragen(TestAnalysisDriver):
-    @patched_uid
     @patched_executor
-    def test_run(self, mocked_execute, mocked_uid):
+    def test_run(self, mocked_execute):
         d = rapid.Dragen(
             dataset=NamedMock(
                 real_name='a_run',
                 type='run',
-                rapid_samples_by_lane={'2': NamedMock(real_name='a_sample')},
+                rapid_samples_by_lane={'2': NamedMock(real_name='a_sample', udf={'User Sample Name': 'uid_a_sample'})},
                 sample_sheet_file='path/to/SampleSheet_analysis_driver.csv'
             )
         )
         d._run()
         mocked_execute.assert_called_with(
             'if [ -d /path/to/dragen_staging/a_run_2 ]; then rm -r /path/to/dragen_staging/a_run_2; fi; '
-            'mkdir -p /path/to/dragen_staging/a_run_2; dragen -r /path/to/dragen_reference '
+            'mkdir -p /path/to/dragen_staging/a_run_2; /path/to/dragen -r /path/to/dragen_reference '
             '--bcl-input-dir tests/assets/data_transfer/from/a_run --bcl-only-lane 2 '
-            '--output-directory /path/to/dragen_staging/a_run_2 --output-file-prefix a_uid '
+            '--output-directory /path/to/dragen_staging/a_run_2 --output-file-prefix uid_a_sample '
             '--enable-variant-caller true --vc-sample-name a_sample '
-            '--bcl-sample-sheet path/to/SampleSheet_analysis_driver.csv; '
+            '--bcl-sample-sheet path/to/SampleSheet_analysis_driver.csv --enable-map-align-output true '
+            '--enable-duplicate-marking true --dbsnp /path/to/dbsnp; '
             'rsync -rLD /path/to/dragen_staging/a_run_2/ tests/assets/jobs/a_run/rapid_analysis_2; '
             'rm -r /path/to/dragen_staging/a_run_2',
             prelim_cmds=['ulimit -n 65535', 'ulimit -c 0', 'ulimit -s 8192', 'ulimit -u 16384', 'ulimit -i 1029522'],
             job_name='dragen',
-            queue='dragen',
+            job_queue='dragen',
+            log_commands=False,
             working_dir='tests/assets/jobs/a_run',
             exclusive=True
         )
@@ -51,7 +51,10 @@ class TestDragenMetrics(TestAnalysisDriver):
             dataset=NamedMock(
                 real_name='a_run',
                 type='run',
-                rapid_samples_by_lane={'2': NamedMock(real_name='a_sample'), '4': NamedMock(real_name='another_sample')}
+                rapid_samples_by_lane={
+                    '2': NamedMock(real_name='a_sample', udf={'User Sample Name': 'uid_a_sample'}),
+                    '4': NamedMock(real_name='another_sample', udf={'User Sample Name': 'uid_another_sample'})
+                }
             )
         )
 
@@ -135,8 +138,8 @@ class TestDragenOutput(TestAnalysisDriver):
         os.makedirs(self.dragen_output_dir, exist_ok=True)
 
         self.dragen_output_files = [
-            os.path.join(self.dragen_output_dir, 'a_uid.' + ext)
-            for ext in ('vcf.gz', 'vcf.gz.tbi', 'vcf.gz.md5sum')
+            os.path.join(self.dragen_output_dir, 'uid_a_sample.' + ext)
+            for ext in ('vcf.gz', 'vcf.gz.tbi', 'vcf.gz.md5sum', 'bam', 'bam.bai', 'bam.md5sum')
         ]
 
         for f in self.dragen_output_files:
@@ -147,28 +150,26 @@ class TestDragenOutput(TestAnalysisDriver):
     @patch('analysis_driver.transfer_data.archive_management.archive_directory', return_value=True)
     def test_output_data(self, mocked_archive, mocked_md5, mocked_executor):
         d = rapid.DragenOutput(
-            dataset=NamedMock(
-                real_name='a_run',
-                type='run',
-                rapid_samples_by_lane={'2': NamedMock(real_name='a_sample'), '4': NamedMock(real_name='another_sample')}
-            )
+            dataset=NamedMock(real_name='a_run', type='run')
         )
 
         for f in self.dragen_output_files:
             assert os.path.isfile(f)
 
-        with patched_uid, patch.object(d.__class__, 'job_dir', new=test_run_dir):
-            d.output_data(2, NamedMock(real_name='a_sample', project=NamedMock(real_name='a_rapid_project')))
+        with patch.object(d.__class__, 'job_dir', new=test_run_dir):
+            d.output_data(2, NamedMock(real_name='a_sample', project=NamedMock(real_name='a_rapid_project'), udf={'User Sample Name': 'uid_a_sample'}))
 
         for f in self.dragen_output_files:
             assert not os.path.isfile(f)
 
-        for ext in ('vcf.gz', 'vcf.gz.tbi', 'vcf.gz.md5'):
-            assert os.path.isfile(os.path.join(self.sample_output_dir, 'a_uid.' + ext))
+        for ext in ('vcf.gz', 'vcf.gz.tbi', 'vcf.gz.md5', 'bam', 'bam.bai', 'bam.md5'):
+            assert os.path.isfile(os.path.join(self.sample_output_dir, 'uid_a_sample.' + ext))
 
-        assert mocked_md5.call_count == 2
+        assert mocked_md5.call_count == 4
         mocked_archive.assert_called_with(self.sample_output_dir)
         mocked_executor.assert_called_with(
+            'an_md5_command',
+            'an_md5_command',
             'an_md5_command',
             'an_md5_command',
             job_name='md5sum',

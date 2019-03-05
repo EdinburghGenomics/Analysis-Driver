@@ -2,7 +2,7 @@ import os
 import csv
 from collections import defaultdict
 from egcg_core.config import cfg
-from egcg_core import executor, util, rest_communication, clarity
+from egcg_core import executor, util, rest_communication
 from analysis_driver import segmentation, transfer_data
 from analysis_driver.util import bash_commands
 
@@ -24,7 +24,7 @@ class Dragen(RapidStage):
                 '--dbsnp {dbsnp}; rsync -rLD {tmp_dir}/ {out_dir}; rm -r {tmp_dir}'.format(
                     dragen=cfg['dragen']['executable'],
                     ref=cfg['dragen']['reference'], run_dir=self.input_dir, lane=lane,
-                    out_dir=self.rapid_output_dir(lane), user_sample_id=clarity.get_user_sample_name(sample.name),
+                    out_dir=self.rapid_output_dir(lane), user_sample_id=sample.udf['User Sample Name'],
                     sample_id=sample.name, sample_sheet=self.dataset.sample_sheet_file,
                     tmp_dir=os.path.join(cfg['dragen']['staging'], self.dataset.name + '_' + lane),
                     dbsnp=cfg['dragen']['dbsnp']
@@ -120,7 +120,7 @@ class DragenOutput(RapidStage):
         return exit_status
 
     def output_data(self, lane, sample):
-        user_sample_id = clarity.get_user_sample_name(sample.name)
+        user_sample_id = sample.udf['User Sample Name']
         staging_dir = os.path.join(self.job_dir, 'linked_output_files_%s' % lane)
 
         os.makedirs(staging_dir, exist_ok=True)

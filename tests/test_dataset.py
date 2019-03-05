@@ -192,11 +192,11 @@ class TestDataset(TestAnalysisDriver):
             return_value={'toolset_type': 'a_toolset', 'toolset_version': 3, 'name': 'qc'}
         )
         with patch(ppath + 'toolset') as mocked_toolset:
-            pipeline = self.dataset.resolve_pipeline_and_toolset()
+            self.dataset.resolve_pipeline_and_toolset()
 
         mocked_toolset.select_type.assert_called_with('a_toolset')
         mocked_toolset.select_version.assert_called_with(3)
-        assert pipeline.name == 'qc'
+        assert self.dataset.pipeline.name == 'qc'
 
     @patch(ppath + 'toolset', new=Toolset())
     def test_pipeline_instruction(self):

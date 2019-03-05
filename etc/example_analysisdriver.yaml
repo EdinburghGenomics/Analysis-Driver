@@ -102,6 +102,8 @@ default:
     dragen:
         reference: /path/to/dragen_reference
         staging: /path/to/dragen_staging
+        executable: /path/to/dragen
+        dbsnp: /path/to/dbsnp
 
     genomes:
       genome_version:
