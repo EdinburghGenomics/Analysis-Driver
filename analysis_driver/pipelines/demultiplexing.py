@@ -238,10 +238,10 @@ class WaitForRead2(DemultiplexingStage):
         ])
 
         # get the last cycle extracted
-        current_cycle = sorted(interop_metrics.get_cycles_extracted(self.dataset.input_dir))[-1]
+        current_cycle = interop_metrics.get_last_cycles_with_existing_bcls(self.dataset.input_dir)
         while current_cycle < required_number_of_cycle and self.dataset.is_sequencing():
             time.sleep(1200)
-            current_cycle = sorted(interop_metrics.get_cycles_extracted(self.dataset.input_dir))[-1]
+            current_cycle = interop_metrics.get_last_cycles_with_existing_bcls(self.dataset.input_dir)
 
         # make sure the run is not aborted or errored before continuing with the rest of the pipeline
         run_status = self.dataset.lims_run.udf.get('Run Status')
