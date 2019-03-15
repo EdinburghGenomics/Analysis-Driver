@@ -130,4 +130,3 @@ def get_last_cycles_with_existing_bcls(run_dir):
             last_complete_cycles = cycle
             break
     return last_complete_cycles
-

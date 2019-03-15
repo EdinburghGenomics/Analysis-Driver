@@ -107,6 +107,3 @@ class TestBadTileCycleDetector(TestAnalysisDriver):
             )
             # cycle 3 only has 3 bcls so it should return cycle 2
             assert get_last_cycles_with_existing_bcls(self.job_dir) == 2
-
-
-
