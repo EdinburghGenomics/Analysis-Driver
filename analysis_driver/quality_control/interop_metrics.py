@@ -121,8 +121,9 @@ def get_last_cycles_with_existing_bcls(run_dir):
     run_metrics = RunMetrics()
     run_metrics.read(run_dir)
     extraction_metrics = run_metrics.extraction_metric_set()
-    all_cycles = extraction_metrics.cycles()
+    all_cycles = sorted(extraction_metrics.cycles())
     last_complete_cycles = 0
+    # start from the last cycle and walk back until found a cycle with all the bcl present.
     for cycle in all_cycles[::-1]:
         all_bcls = glob.glob(os.path.join(run_dir, 'Data/Intensities/BaseCalls/L00*/C%s.1/*.bcl.gz' % cycle))
         if len(all_bcls) == extraction_metrics.metrics_for_cycle(cycle).size():
