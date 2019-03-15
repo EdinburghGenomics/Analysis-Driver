@@ -114,7 +114,7 @@ class BadTileCycleDetector(AppLogger):
 def get_last_cycles_with_existing_bcls(run_dir):
     """
     This function checks the extracted cycle from the interop and confirm the presence of the bcl files on the filesystem.
-    the confirmation is only performed from the last cycles and the first full confirmed cycle is returned.
+    The confirmation is only performed from the last cycles and the first full confirmed cycle is returned.
     :param run_dir: The location where the run is stored
     :returns: the last cycle of the run with existing bcls
     """
