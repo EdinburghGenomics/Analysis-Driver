@@ -492,8 +492,8 @@ def build_pipeline(dataset):
                       previous_stages=[welldups, integrity_check, fastqc, seqtk, md5])
 
     qc_output2 = stage(QCOutput, stage_name='qcoutput2', run_crawler_stage=RunCrawler.STAGE_MAPPING,
-                       previous_stages=[stats_output, depth_output, md_output, is_output, gc_bias])
-    data_output = stage(DataOutput, previous_stages=[qc_output, qc_output2])
+                       previous_stages=[qc_output, stats_output, depth_output, md_output, is_output, gc_bias])
+    data_output = stage(DataOutput, previous_stages=[qc_output2])
     _cleanup = stage(Cleanup, previous_stages=[data_output])
     review = stage(RunReview, previous_stages=[_cleanup])
     return review
