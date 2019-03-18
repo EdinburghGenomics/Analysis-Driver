@@ -320,8 +320,8 @@ class TestRunDataset(TestDataset):
     @patch('builtins.open')
     def test_generate_samplesheet(self, mocked_open):
         fake_run_elements = [
-            {'lane': '1', 'sample_id': 'sample_1', 'library_id': 'lib_1', 'project_id': 'p', 'barcode': 'ATGC'},
-            {'lane': '2', 'sample_id': 'sample_2', 'library_id': 'lib_2', 'project_id': 'p', 'barcode': 'CTGA'}
+            {'lane': '2', 'sample_id': 'sample_2', 'library_id': 'lib_2', 'project_id': 'p', 'barcode': 'CTGA'},
+            {'lane': '1', 'sample_id': 'sample_1', 'library_id': 'lib_1', 'project_id': 'p', 'barcode': 'ATGC'}
         ]
         exp = [
             '[Header]', 'Date, now', 'Workflow, Generate FASTQ Only', '',
@@ -335,7 +335,6 @@ class TestRunDataset(TestDataset):
         with patched_datetime():
             self.dataset._generate_samplesheet('a_samplesheet')
             mocked_open.return_value.__enter__.return_value.write.assert_called_with('\n'.join(exp))
-
 
 
 class TestSampleDataset(TestDataset):
