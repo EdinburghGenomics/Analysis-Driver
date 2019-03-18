@@ -238,10 +238,10 @@ class WaitForRead2(DemultiplexingStage):
         ])
 
         # get the last cycle extracted
-        current_cycle = sorted(interop_metrics.get_cycles_extracted(self.dataset.input_dir))[-1]
+        current_cycle = interop_metrics.get_last_cycles_with_existing_bcls(self.dataset.input_dir)
         while current_cycle < required_number_of_cycle and self.dataset.is_sequencing():
             time.sleep(1200)
-            current_cycle = sorted(interop_metrics.get_cycles_extracted(self.dataset.input_dir))[-1]
+            current_cycle = interop_metrics.get_last_cycles_with_existing_bcls(self.dataset.input_dir)
 
         # make sure the run is not aborted or errored before continuing with the rest of the pipeline
         run_status = self.dataset.lims_run.udf.get('Run Status')
@@ -492,8 +492,8 @@ def build_pipeline(dataset):
                       previous_stages=[welldups, integrity_check, fastqc, seqtk, md5])
 
     qc_output2 = stage(QCOutput, stage_name='qcoutput2', run_crawler_stage=RunCrawler.STAGE_MAPPING,
-                       previous_stages=[stats_output, depth_output, md_output, is_output, gc_bias])
-    data_output = stage(DataOutput, previous_stages=[qc_output, qc_output2])
+                       previous_stages=[qc_output, stats_output, depth_output, md_output, is_output, gc_bias])
+    data_output = stage(DataOutput, previous_stages=[qc_output2])
     _cleanup = stage(Cleanup, previous_stages=[data_output])
     review = stage(RunReview, previous_stages=[_cleanup])
     return review
