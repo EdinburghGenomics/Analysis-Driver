@@ -148,7 +148,7 @@ class DragenOutput(RapidStage):
         ).join()
         self.dataset.end_stage('md5sum')
 
-        output_dir = os.path.join(cfg['sample']['output_dir'], sample.project.name, sample.name)
+        output_dir = os.path.join(cfg['sample']['output_dir'], sample.project.name, sample.name, 'rapid_analysis')
         transfer_exit_status = transfer_data.output_data_and_archive(
             staging_dir.rstrip('/') + '/',
             output_dir.rstrip('/')

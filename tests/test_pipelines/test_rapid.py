@@ -133,7 +133,7 @@ class TestDragenOutput(TestAnalysisDriver):
     def setUp(self):
         self.dragen_output_dir = os.path.join(test_run_dir, 'rapid_analysis_2')
         self.staging_dir = os.path.join(test_run_dir, 'linked_output_files_2')
-        self.sample_output_dir = os.path.join(cfg['sample']['output_dir'], 'a_rapid_project', 'a_sample')
+        self.sample_output_dir = os.path.join(cfg['sample']['output_dir'], 'a_rapid_project', 'a_sample', 'rapid_analysis')
         os.makedirs(self.staging_dir, exist_ok=True)
         os.makedirs(self.dragen_output_dir, exist_ok=True)
 
