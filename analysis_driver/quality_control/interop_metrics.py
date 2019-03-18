@@ -4,6 +4,7 @@ from collections import defaultdict
 from itertools import islice
 from egcg_core.config import cfg
 from egcg_core.app_logging import AppLogger
+from egcg_core import util
 from interop.py_interop_run_metrics import run_metrics as RunMetrics
 from analysis_driver.reader.run_info import Reads
 
@@ -125,7 +126,7 @@ def get_last_cycles_with_existing_bcls(run_dir):
     last_complete_cycles = 0
     # start from the last cycle and walk back until found a cycle with all the bcl present.
     for cycle in all_cycles[::-1]:
-        all_bcls = glob.glob(os.path.join(run_dir, 'Data/Intensities/BaseCalls/L00*/C%s.1/*.bcl.gz' % cycle))
+        all_bcls = util.find_files(run_dir, 'Data', 'Intensities', 'BaseCalls', 'L00*', 'C%s.1' % cycle, '*.bcl.gz')
         if len(all_bcls) == extraction_metrics.metrics_for_cycle(cycle).size():
             last_complete_cycles = cycle
             break
