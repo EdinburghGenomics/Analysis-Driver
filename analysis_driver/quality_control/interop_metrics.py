@@ -1,5 +1,3 @@
-import glob
-import os
 from collections import defaultdict
 from itertools import islice
 from egcg_core.config import cfg
@@ -114,7 +112,7 @@ class BadTileCycleDetector(AppLogger):
 
 def get_last_cycles_with_existing_bcls(run_dir):
     """
-    This function checks the extracted cycle from the interop and confirm the presence of the bcl files on the filesystem.
+    Check the extracted cycles from the interop and confirms the presence of the bcl files on the filesystem.
     The confirmation is only performed from the last cycles and the first full confirmed cycle is returned.
     :param run_dir: The location where the run is stored
     :returns: the last cycle of the run with existing bcls
@@ -124,7 +122,7 @@ def get_last_cycles_with_existing_bcls(run_dir):
     extraction_metrics = run_metrics.extraction_metric_set()
     all_cycles = sorted(extraction_metrics.cycles())
     last_complete_cycles = 0
-    # start from the last cycle and walk back until found a cycle with all the bcl present.
+    # start from the last cycle and walk back until found a cycle with all the bcls present.
     for cycle in all_cycles[::-1]:
         all_bcls = util.find_files(run_dir, 'Data', 'Intensities', 'BaseCalls', 'L00*', 'C%s.1' % cycle, '*.bcl.gz')
         if len(all_bcls) == extraction_metrics.metrics_for_cycle(cycle).size():
