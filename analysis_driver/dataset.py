@@ -294,7 +294,8 @@ class RunDataset(Dataset):
     def sample_sheet_file(self):
         if self._sample_sheet_file is None:
             self._sample_sheet_file = os.path.join(self.input_dir, 'SampleSheet_analysis_driver.csv')
-            self._generate_samplesheet(self._sample_sheet_file)
+            if not os.path.isfile(self._sample_sheet_file):
+                self._generate_samplesheet(self._sample_sheet_file)
         return self._sample_sheet_file
 
     def _generate_samplesheet(self, filename):
@@ -304,7 +305,8 @@ class RunDataset(Dataset):
             'AdapterRead2, AGATCGGAAGAGCGTCGTGTAGGGAAAGAGTGT', '', '[Data]',
             'Lane,Sample_ID,Sample_Name,Sample_Project,index'
         ]
-        for run_element in self.run_elements:
+        # order the run elements so they produce a deterministic samplesheet
+        for run_element in sorted(self.run_elements, key=lambda x: (x[ELEMENT_LANE], x[ELEMENT_BARCODE])):
             all_lines.append(','.join([
                 run_element[ELEMENT_LANE],
                 run_element[ELEMENT_SAMPLE_INTERNAL_ID],

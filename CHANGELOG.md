@@ -1,10 +1,21 @@
 Changelog for Analysis-Driver
 =============================
 
-0.23.2 (unreleased)
--------------------
+0.25 (unreleased)
+-----------------
 
 - Nothing changed yet.
+
+
+0.24 (2019-03-11)
+-----------------
+
+- Alignment during run processing start after the 50 cycles into read2 to speed up alignment metric generation 
+- Run picard GC bias detection tool anc calculate new metric to summarise each run element's GC-biais
+- Update Picard to version 2.18.23
+- Update bcl2fastq to version 2.20
+- Bugfix: Initialise analysis_driver_procs at the start to avoid missing embedded entities
+- Bugfix: Exceptions raised in Luigi are propagated to the main thread
 
 
 0.23.1 (2018-11-23)

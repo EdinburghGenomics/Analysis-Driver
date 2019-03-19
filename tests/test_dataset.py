@@ -320,8 +320,8 @@ class TestRunDataset(TestDataset):
     @patch('builtins.open')
     def test_generate_samplesheet(self, mocked_open):
         fake_run_elements = [
-            {'lane': '1', 'sample_id': 'sample_1', 'library_id': 'lib_1', 'project_id': 'p', 'barcode': 'ATGC'},
-            {'lane': '2', 'sample_id': 'sample_2', 'library_id': 'lib_2', 'project_id': 'p', 'barcode': 'CTGA'}
+            {'lane': '2', 'sample_id': 'sample_2', 'library_id': 'lib_2', 'project_id': 'p', 'barcode': 'CTGA'},
+            {'lane': '1', 'sample_id': 'sample_1', 'library_id': 'lib_1', 'project_id': 'p', 'barcode': 'ATGC'}
         ]
         exp = [
             '[Header]', 'Date, now', 'Workflow, Generate FASTQ Only', '',
@@ -336,6 +336,21 @@ class TestRunDataset(TestDataset):
             self.dataset._generate_samplesheet('a_samplesheet')
             mocked_open.return_value.__enter__.return_value.write.assert_called_with('\n'.join(exp))
 
+    def test_sample_sheet_file(self):
+        self.dataset.input_dir = os.path.join(self.assets_path)
+        sample_sheet_file = os.path.join(self.dataset.input_dir, 'SampleSheet_analysis_driver.csv')
+        with patch.object(RunDataset, '_generate_samplesheet') as mgenerate:
+            self.dataset.sample_sheet_file
+        mgenerate.assert_called_once_with(sample_sheet_file)
+
+    def test_sample_sheet_file_exists(self):
+        self.dataset.input_dir = os.path.join(self.assets_path)
+        sample_sheet_file = os.path.join(self.dataset.input_dir, 'SampleSheet_analysis_driver.csv')
+        open(sample_sheet_file, 'w').close()
+        with patch.object(RunDataset, '_generate_samplesheet') as mgenerate:
+            self.dataset.sample_sheet_file
+        assert mgenerate.call_count == 0
+        os.remove(sample_sheet_file)
 
 
 class TestSampleDataset(TestDataset):

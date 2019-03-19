@@ -291,7 +291,6 @@ class RunCrawler(Crawler):
                 ELEMENT_NB_READS_PASS_FILTER: int(clust_count)
             }
 
-
     def _populate_from_mapping_stats(self, run_dir):
         for run_element_id in self.barcodes_info:
             barcode_info = self.barcodes_info.get(run_element_id)
