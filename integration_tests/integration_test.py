@@ -35,7 +35,7 @@ class IntegrationTest(ReportingAppIntegrationTest):
                 detect_bad_tiles=Mock(return_value={})
             )
         ),
-        patch('analysis_driver.quality_control.interop_metrics.get_cycles_extracted', return_value=range(1, 311))
+        patch('analysis_driver.quality_control.interop_metrics.get_last_cycles_with_existing_bcls', return_value=310)
     )
 
     def __init__(self, *args):
