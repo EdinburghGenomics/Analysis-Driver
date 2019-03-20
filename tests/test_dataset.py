@@ -392,7 +392,7 @@ class TestSampleDataset(TestDataset):
 
     def test_report(self):
         expected_str = 'test_dataset -- this, that, other  ' \
-                       '(1500000000 / 1000000000 and 32 / 30 from a_run_id, another_run_id) ' \
+                       '(yield: 1500000000 / 1000000000 and coverage: 32 / 30 from a_run_id, another_run_id) ' \
                        '(non useable run elements in a_run_id, another_run_id)'
         with patched_stages:
             assert self.dataset.report() == expected_str

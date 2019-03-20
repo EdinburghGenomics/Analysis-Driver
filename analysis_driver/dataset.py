@@ -544,7 +544,7 @@ class SampleDataset(Dataset):
         runs = query_dict(self.sample, 'aggregated.run_ids')
         non_useable_runs = sorted(set(r[ELEMENT_RUN_NAME] for r in self.non_useable_run_elements))
 
-        s = '%s  (%s / %s and %s / %s from %s) ' % (
+        s = '%s  (yield: %s / %s and coverage: %s / %s from %s) ' % (
             super().report(), self._amount_data(), self.required_yield_threshold, self._amount_coverage(),
             self.required_coverage_threshold, ', '.join(runs)
         )
