@@ -1,10 +1,11 @@
 Changelog for Analysis-Driver
 =============================
 
-0.25 (unreleased)
------------------
+0.24.1 (2019-03-20)
+-------------------
 
-- Nothing changed yet.
+- Bugfix: ensure the bcls expected to exist exists before returning a completed cycle with interop
+- Bugfix: make the samplesheet deterministic and only generate it when required
 
 
 0.24 (2019-03-11)
