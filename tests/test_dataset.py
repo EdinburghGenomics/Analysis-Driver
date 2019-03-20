@@ -403,8 +403,7 @@ class TestSampleDataset(TestDataset):
         assert self.dataset._is_ready()
 
     def test_report(self):
-        expected_str = 'test_dataset -- this, that, other  (1500000000 / 1000000000  from a_run_id, another_run_id) ' \
-                       '(non useable run elements in a_run_id, another_run_id)'
+        expected_str = 'test_dataset -- this, that, other  (1500000000 / 1000000000  from a_run_id, another_run_id) (non useable run elements in a_run_id, another_run_id)'
         self.dataset._data_threshold = None
         with patched_required_yield(), patched_stages:
             assert self.dataset.report() == expected_str
