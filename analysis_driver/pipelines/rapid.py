@@ -154,3 +154,17 @@ class DragenOutput(RapidStage):
             output_dir.rstrip('/')
         )
         return md5sum_exit_status + transfer_exit_status
+
+
+class Review(RapidStage):
+    def _run(self):
+        for lane in sorted(self.dataset.rapid_samples_by_lane):
+            sample_id = self.dataset.rapid_samples_by_lane[lane].name
+
+            rest_communication.post_entry(
+                'actions',
+                {'action_type': 'automatic_rapid_review', 'sample_id': sample_id},
+                use_data=True
+            )
+
+        return 0

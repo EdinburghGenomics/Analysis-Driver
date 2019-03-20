@@ -488,7 +488,8 @@ def build_pipeline(dataset):
         dragen = stage(rapid.Dragen, previous_stages=[setup])
         dragen_metrics = stage(rapid.DragenMetrics, previous_stages=[dragen])
         dragen_output = stage(rapid.DragenOutput, previous_stages=[dragen_metrics])
-        final_checkpoint.append(dragen_output)
+        dragen_review = stage(rapid.Review, previous_stages=[dragen_output])
+        final_checkpoint.append(dragen_review)
 
     review = stage(RunReview, previous_stages=final_checkpoint)
     return review

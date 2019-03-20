@@ -239,7 +239,7 @@ class IntegrationTest(ReportingAppIntegrationTest):
                                 'md5sum', 'fastqc', 'integritycheck', 'qcoutput1', 'dataoutput', 'cleanup',
                                 'samtoolsdepthmulti', 'picardinsertsizemulti', 'qcoutput2', 'runreview',
                                 'picardmarkduplicatemulti', 'samtoolsstatsmulti', 'bwaalignmulti', 'waitforread2',
-                                'bcl2fastqhalfrun', 'picardgcbias'])
+                                'bcl2fastqpartialrun', 'picardgcbias'])
 
         proc = rest_communication.get_document('analysis_driver_procs')
         self.expect_equal(
@@ -497,7 +497,7 @@ class IntegrationTest(ReportingAppIntegrationTest):
                                 'md5sum', 'fastqc', 'integritycheck', 'qcoutput1', 'dataoutput', 'cleanup',
                                 'samtoolsdepthmulti', 'picardinsertsizemulti', 'qcoutput2', 'runreview',
                                 'picardmarkduplicatemulti', 'samtoolsstatsmulti', 'bwaalignmulti', 'waitforread2',
-                                'bcl2fastqhalfrun', 'picardgcbias', 'dragen', 'dragenmetrics', 'dragenoutput'])
+                                'bcl2fastqpartialrun', 'picardgcbias', 'dragen', 'dragenmetrics', 'dragenoutput'])
 
         proc = rest_communication.get_document('analysis_driver_procs')
         self.expect_equal(
