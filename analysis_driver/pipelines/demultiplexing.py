@@ -485,11 +485,7 @@ def build_pipeline(dataset):
     final_checkpoint = [cleanup]
 
     if dataset.rapid_samples_by_lane:
-        dragen = stage(rapid.Dragen, previous_stages=[setup])
-        dragen_metrics = stage(rapid.DragenMetrics, previous_stages=[dragen])
-        dragen_output = stage(rapid.DragenOutput, previous_stages=[dragen_metrics])
-        dragen_review = stage(rapid.Review, previous_stages=[dragen_output])
-        final_checkpoint.append(dragen_review)
+        final_checkpoint.append(rapid._build_pipeline(dataset, setup))
 
     review = stage(RunReview, previous_stages=final_checkpoint)
     return review

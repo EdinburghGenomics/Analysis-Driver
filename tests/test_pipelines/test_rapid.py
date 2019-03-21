@@ -7,8 +7,9 @@ from tests.test_analysisdriver import TestAnalysisDriver, NamedMock
 
 
 test_run_dir = os.path.join(TestAnalysisDriver.assets_path, 'rapid_analysis', 'a_run')
+ppath = 'analysis_driver.pipelines.rapid.'
 patched_executor = patch(
-    'analysis_driver.pipelines.demultiplexing.executor.execute',
+    ppath + 'executor.execute',
     return_value=Mock(join=Mock(return_value=0))
 )
 
@@ -45,7 +46,7 @@ class TestDragen(TestAnalysisDriver):
 
 
 class TestDragenMetrics(TestAnalysisDriver):
-    @patch('analysis_driver.pipelines.rapid.rest_communication.post_or_patch')
+    @patch(ppath + 'rest_communication.post_or_patch')
     def test_run(self, mocked_post_or_patch):
         d = rapid.DragenMetrics(
             dataset=NamedMock(
@@ -129,11 +130,45 @@ class TestDragenMetrics(TestAnalysisDriver):
         )
 
 
-class TestDragenOutput(TestAnalysisDriver):
+class TestPostDragen(TestAnalysisDriver):
     def setUp(self):
+        self.fake_sample = NamedMock(
+            real_name='a_sample',
+            project=NamedMock(real_name='a_rapid_project'),
+            udf={'User Sample Name': 'uid_a_sample'}
+        )
+        self.stage = rapid.DragenOutput(dataset=NamedMock(real_name='a_run', type='run'))
+        self.sample_output_dir = os.path.join(cfg['sample']['output_dir'], 'a_rapid_project', 'a_sample', 'rapid_analysis')
+
+
+class TestRapidReview(TestPostDragen):
+    @patch(ppath + 'rest_communication.post_entry')
+    @patch(ppath + 'rest_communication.get_document', return_value={'rapid_analysis': {'reviewed': 'pass'}})
+    def test_review(self, mocked_get, mocked_post):
+        assert self.stage.review('a_sample') is True
+        mocked_post.assert_called_with(
+            'actions',
+            {'action_type': 'automatic_rapid_review', 'sample_id': 'a_sample'},
+            use_data=True
+        )
+
+        mocked_get.return_value = {
+            'rapid_analysis': {
+                'reviewed': 'fail',
+                'review_comments': 'Failed due to this, that, other'
+            }
+        }
+        with patch.object(rapid.DragenOutput, 'warning') as mocked_warn:
+            assert self.stage.review('a_sample') is False
+            assert mocked_warn.call_count == 1
+
+
+class TestOutput(TestPostDragen):
+    def setUp(self):
+        super().setUp()
         self.dragen_output_dir = os.path.join(test_run_dir, 'rapid_analysis_2')
         self.staging_dir = os.path.join(test_run_dir, 'linked_output_files_2')
-        self.sample_output_dir = os.path.join(cfg['sample']['output_dir'], 'a_rapid_project', 'a_sample', 'rapid_analysis')
+
         os.makedirs(self.staging_dir, exist_ok=True)
         os.makedirs(self.dragen_output_dir, exist_ok=True)
 
@@ -149,15 +184,17 @@ class TestDragenOutput(TestAnalysisDriver):
     @patch('analysis_driver.pipelines.rapid.bash_commands.md5sum', return_value='an_md5_command')
     @patch('analysis_driver.transfer_data.archive_management.archive_directory', return_value=True)
     def test_output_data(self, mocked_archive, mocked_md5, mocked_executor):
-        d = rapid.DragenOutput(
-            dataset=NamedMock(real_name='a_run', type='run')
-        )
-
         for f in self.dragen_output_files:
             assert os.path.isfile(f)
 
-        with patch.object(d.__class__, 'job_dir', new=test_run_dir):
-            d.output_data(2, NamedMock(real_name='a_sample', project=NamedMock(real_name='a_rapid_project'), udf={'User Sample Name': 'uid_a_sample'}))
+        fake_sample = NamedMock(
+            real_name='a_sample',
+            project=NamedMock(real_name='a_rapid_project'),
+            udf={'User Sample Name': 'uid_a_sample'}
+        )
+        output_dir = os.path.join(cfg['sample']['output_dir'], fake_sample.project.name, fake_sample.name, 'rapid_analysis')
+        with patch.object(self.stage.__class__, 'job_dir', new=test_run_dir):
+            assert self.stage.output_data(2, fake_sample, output_dir) == 0
 
         for f in self.dragen_output_files:
             assert not os.path.isfile(f)
@@ -183,3 +220,29 @@ class TestDragenOutput(TestAnalysisDriver):
         for d in (self.sample_output_dir, self.staging_dir):
             if os.path.isdir(d):
                 rmtree(d)
+
+
+class TestDeliverData(TestPostDragen):
+    def setUp(self):
+        super().setUp()
+        os.makedirs(self.sample_output_dir, exist_ok=True)
+        for base in ('a_file.txt', 'another_file.txt'):
+            f = os.path.join(self.sample_output_dir, base)
+            open(f, 'w').close()
+
+        self.delivery_folder = os.path.join(cfg['delivery']['dest'], 'a_project', 'today_rapid', 'uid_a_sample')
+        if os.path.isdir(self.delivery_folder):
+            rmtree(self.delivery_folder)
+
+    @patch.object(rapid.DragenOutput, 'datestamp', new='today')
+    def test_deliver_data(self):
+        self.stage.deliver_data(
+            Mock(project=NamedMock(real_name='a_project'), udf={'User Sample Name': 'uid_a_sample'}),
+            self.sample_output_dir
+        )
+        assert os.listdir(self.delivery_folder) == os.listdir(self.sample_output_dir) == ['a_file.txt', 'another_file.txt']
+
+    def tearDown(self):
+        for base in ('a_file.txt', 'another_file.txt'):
+            os.remove(os.path.join(self.sample_output_dir, base))
+            os.remove(os.path.join(self.delivery_folder, base))

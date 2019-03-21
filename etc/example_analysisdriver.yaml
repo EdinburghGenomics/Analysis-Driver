@@ -87,10 +87,10 @@ default:
         genotypes_repository: path/to/genotype_validation/genotypes
 
     contamination-check:
-      fastqscreen_conf: path/to/fastqscreen/conf
-      population_vcf:   path/to/population_vcf
-      db_dir:           path/to/db/dir
-      ete_db:           path/to/ete_db
+        fastqscreen_conf: path/to/fastqscreen/conf
+        population_vcf:   path/to/population_vcf
+        db_dir:           path/to/db/dir
+        ete_db:           path/to/ete_db
 
     well_duplicates:
       coord_file: path/to/coord_file
@@ -106,12 +106,12 @@ default:
         dbsnp: /path/to/dbsnp
 
     genomes:
-      genome_version:
-        fasta: /path/to/genome.fa
-        dbsnp: /path/to/dbsnp.vcf.gz
-        known_indels: /path/to/known/indels
-      phix174:
-        fasta: /path/to/phix.fa
+        genome_version:
+            fasta: /path/to/genome.fa
+            dbsnp: /path/to/dbsnp.vcf.gz
+            known_indels: /path/to/known/indels
+        phix174:
+            fasta: /path/to/phix.fa
 
     clarity:
         baseuri: 'https://clarity.co.uk'
@@ -120,3 +120,6 @@ default:
 
     luigi:
         local_scheduler: True
+
+delivery:
+    dest: tests/assets/delivered_data

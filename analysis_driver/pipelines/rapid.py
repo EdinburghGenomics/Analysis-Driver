@@ -1,5 +1,6 @@
 import os
 import csv
+from datetime import date
 from collections import defaultdict
 from egcg_core.config import cfg
 from egcg_core import executor, util, rest_communication
@@ -112,14 +113,63 @@ class DragenMetrics(RapidStage):
 
 
 class DragenOutput(RapidStage):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._datestamp = None
+
+    @property
+    def datestamp(self):
+        if self._datestamp is None:
+            self._datestamp = date.today().isoformat()
+        return self._datestamp
+
+    def delivery_folder(self, sample):
+        return os.path.join(
+            cfg['delivery']['dest'],
+            sample.project.name,
+            self.datestamp + '_rapid',
+            sample.udf['User Sample Name']
+        )
+
     def _run(self):
         exit_status = 0
-        for lane, sample in self.dataset.rapid_samples_by_lane.items():
-            exit_status += self.output_data(lane, sample)
+
+        for lane in sorted(self.dataset.rapid_samples_by_lane):
+            sample = self.dataset.rapid_samples_by_lane[lane]
+
+            if not self.review(sample.name):
+                continue
+
+            output_dir = os.path.join(cfg['sample']['output_dir'], sample.project.name, sample.name, 'rapid_analysis')
+            output_status = self.output_data(lane, sample, output_dir)
+            if output_status != 0:
+                self.warning('Data output failed for sample %s', sample.name)
+                continue
+
+            exit_status += self.deliver_data(sample, output_dir)
 
         return exit_status
 
-    def output_data(self, lane, sample):
+    def review(self, sample_id):
+        rest_communication.post_entry(
+            'actions',
+            {'action_type': 'automatic_rapid_review', 'sample_id': sample_id},
+            use_data=True
+        )
+
+        rapid_metrics = rest_communication.get_document('samples', where={'sample_id': sample_id})['rapid_analysis']
+        if rapid_metrics['reviewed'] == 'pass':
+            return True
+        else:
+            self.warning(
+                'Sample %s has status %s: %s',
+                sample_id,
+                rapid_metrics['reviewed'],
+                rapid_metrics.get('review_comments', '(no comments)')
+            )
+            return False
+
+    def output_data(self, lane, sample, output_dir):
         user_sample_id = sample.udf['User Sample Name']
         staging_dir = os.path.join(self.job_dir, 'linked_output_files_%s' % lane)
 
@@ -148,23 +198,41 @@ class DragenOutput(RapidStage):
         ).join()
         self.dataset.end_stage('md5sum')
 
-        output_dir = os.path.join(cfg['sample']['output_dir'], sample.project.name, sample.name, 'rapid_analysis')
         transfer_exit_status = transfer_data.output_data_and_archive(
             staging_dir.rstrip('/') + '/',
             output_dir.rstrip('/')
         )
+
         return md5sum_exit_status + transfer_exit_status
 
+    def deliver_data(self, sample, output_dir):
+        today = self.datestamp + '_rapid'
+        delivery_folder = os.path.join(
+            cfg['delivery']['dest'],
+            sample.project.name,
+            today,
+            sample.udf['User Sample Name']
+        )
+        os.makedirs(delivery_folder, exist_ok=False)
 
-class Review(RapidStage):
-    def _run(self):
-        for lane in sorted(self.dataset.rapid_samples_by_lane):
-            sample_id = self.dataset.rapid_samples_by_lane[lane].name
+        exit_status = 0
+        for f in util.find_files(output_dir, '*'):  # for now, deliver everything that has been output
+            new_link = os.path.join(delivery_folder, os.path.basename(f))
+            exit_status += executor.local_execute('ln %s %s' % (f, new_link)).join()
 
-            rest_communication.post_entry(
-                'actions',
-                {'action_type': 'automatic_rapid_review', 'sample_id': sample_id},
-                use_data=True
-            )
+        return exit_status
 
-        return 0
+
+def _build_pipeline(dataset, setup):
+    """
+    Not currently intended for use on its own - used by demultiplexing.build_pipeline.
+    :param dataset.RunDataset dataset:
+    :param analysis_driver.segmentation.Stage setup: The Setup stage from demultiplexing
+    """
+    def stage(cls, **kwargs):
+        return cls(dataset=dataset, **kwargs)
+
+    dragen = stage(Dragen, previous_stages=[setup])
+    dragen_metrics = stage(DragenMetrics, previous_stages=[dragen])
+    dragen_output = stage(DragenOutput, previous_stages=[dragen_metrics])
+    return dragen_output
