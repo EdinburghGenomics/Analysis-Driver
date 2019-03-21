@@ -226,9 +226,10 @@ class TestDeliverData(TestPostDragen):
     def setUp(self):
         super().setUp()
         os.makedirs(self.sample_output_dir, exist_ok=True)
-        for base in ('a_file.txt', 'another_file.txt'):
-            f = os.path.join(self.sample_output_dir, base)
-            open(f, 'w').close()
+
+        self.file_bases = ('a_file.txt', 'another_file.txt')
+        for f in self.file_bases:
+            open(os.path.join(self.sample_output_dir, f), 'w').close()
 
         self.delivery_folder = os.path.join(cfg['delivery']['dest'], 'a_project', 'today_rapid', 'uid_a_sample')
         if os.path.isdir(self.delivery_folder):
@@ -237,12 +238,21 @@ class TestDeliverData(TestPostDragen):
     @patch.object(rapid.DragenOutput, 'datestamp', new='today')
     def test_deliver_data(self):
         self.stage.deliver_data(
-            Mock(project=NamedMock(real_name='a_project'), udf={'User Sample Name': 'uid_a_sample'}),
+            NamedMock(
+                real_name='a_sample',
+                project=NamedMock(real_name='a_project'),
+                udf={'User Sample Name': 'uid_a_sample'}
+            ),
             self.sample_output_dir
         )
-        assert os.listdir(self.delivery_folder) == os.listdir(self.sample_output_dir) == ['a_file.txt', 'another_file.txt']
+
+        for f in self.file_bases:
+            for d in (self.delivery_folder, self.sample_output_dir):
+                assert os.path.isfile(os.path.join(d, f))
+
+        self.stage.dataset.ntf.notify_rapid_completion.assert_called_with('a_sample')
 
     def tearDown(self):
-        for base in ('a_file.txt', 'another_file.txt'):
-            os.remove(os.path.join(self.sample_output_dir, base))
-            os.remove(os.path.join(self.delivery_folder, base))
+        for f in self.file_bases:
+            os.remove(os.path.join(self.sample_output_dir, f))
+            os.remove(os.path.join(self.delivery_folder, f))

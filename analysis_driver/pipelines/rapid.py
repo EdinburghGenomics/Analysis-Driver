@@ -220,6 +220,7 @@ class DragenOutput(RapidStage):
             new_link = os.path.join(delivery_folder, os.path.basename(f))
             exit_status += executor.local_execute('ln %s %s' % (f, new_link)).join()
 
+        self.dataset.ntf.notify_rapid_completion(sample.name)
         return exit_status
 
 
