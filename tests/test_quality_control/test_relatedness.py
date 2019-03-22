@@ -13,8 +13,7 @@ class TestGenotypeGVCFs(QCTester):
         super().setUp()
         self.g = GenotypeGVCFs(
             dataset=self.project_dataset,
-            gVCFs=['test_sample1.g.vcf.gz', 'test_sample2.g.vcf.gz', 'test_sample3.g.vcf.gz'],
-            reference='/path/to/reference.fa'
+            gVCFs=['test_sample1.g.vcf.gz', 'test_sample2.g.vcf.gz', 'test_sample3.g.vcf.gz']
         )
 
     def test_memory(self):
@@ -23,8 +22,8 @@ class TestGenotypeGVCFs(QCTester):
     def test_gatk_genotype_gvcfs_cmd(self):
         with patch(ppath + 'util.find_file', new=self.fake_find_file):
             assert self.g.gatk_genotype_gvcfs_cmd(50, number_threads=12) == (
-                'java -Djava.io.tmpdir=tests/assets/jobs/test_project_id -XX:+UseSerialGC -Xmx50G '
-                '-jar path/to/gatk -T GenotypeGVCFs -nt 12 -R /path/to/reference.fa '
+                'path/to/java_8 -Djava.io.tmpdir=tests/assets/jobs/test_project_id -XX:+UseSerialGC -Xmx50G '
+                '-jar path/to/gatk_4 -T GenotypeGVCFs -nt 12 -R /path/to/reference.fa '
                 '--variant test_sample1.g.vcf.gz --variant test_sample2.g.vcf.gz '
                 '--variant test_sample3.g.vcf.gz -o tests/assets/jobs/test_project_id/test_project_id_genotype_gvcfs.vcf'
             )

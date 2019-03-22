@@ -68,7 +68,7 @@ class BCBio(BCBioStage):
 
         original_dir = os.getcwd()
         os.chdir(self.job_dir)
-        self.debug('Using merged fastqs: %s', self.fastq_pair)
+        self.info('Using merged fastqs: %s', self.fastq_pair)
 
         bcbio_dir = os.path.join(self.job_dir, 'samples_' + self.dataset.name + '-merged')
 
@@ -81,7 +81,7 @@ class BCBio(BCBioStage):
         ] + util.find_files(self.fastq_pair)
 
         prep_status = executor.execute(' '.join(sample_prep), env='local').join()
-        self.info('BCBio sample prep exit status: ' + str(prep_status))
+        self.info('BCBio sample prep exit status: %s', prep_status)
 
         run_yaml = os.path.join(bcbio_dir, 'config', 'samples_' + self.dataset.name + '-merged.yaml')
         ext_sample_id = self.dataset.user_sample_id or self.dataset.name

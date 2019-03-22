@@ -153,7 +153,6 @@ class ParseRelatedness(RelatednessStage):
 
 class GenotypeGVCFs(RelatednessStage):
     gVCFs = ListParameter()
-    reference = Parameter()
 
     @property
     def memory(self):
@@ -166,7 +165,7 @@ class GenotypeGVCFs(RelatednessStage):
         gvcf_variants = ' '. join(['--variant ' + util.find_file(i) for i in self.gVCFs])
         return java_command(memory=memory, tmp_dir=self.job_dir, jar=toolset['gatk']) + \
             '-T GenotypeGVCFs -nt %s -R %s %s -o %s' % (
-                number_threads, self.reference, gvcf_variants, self.gatk_outfile
+                number_threads, self.dataset.reference_genome, gvcf_variants, self.gatk_outfile
             )
 
     def _run(self):

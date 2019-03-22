@@ -75,12 +75,11 @@ def _parse_args():
 
 def run_genotype_validation(dataset, args):
     # Get the sample specific config
-    cfg.merge(cfg['sample'])
     dataset = NoCommunicationSampleDataset(dataset.name)
     dataset.resolve_pipeline_and_toolset()
     os.makedirs(os.path.join(cfg['jobs_dir'], dataset.name), exist_ok=True)
 
-    sample_output_dir = os.path.join(cfg['output_dir'], args.project_id, dataset.name)
+    sample_output_dir = os.path.join(cfg['sample']['output_dir'], args.project_id, dataset.name)
     genotype_vcfs = util.find_files(sample_output_dir, '*_genotype_validation.vcf.gz')
     if not genotype_vcfs:
         fq_pattern = os.path.join(sample_output_dir, '*_R?.fastq.gz')
@@ -155,7 +154,6 @@ def contamination_blast(dataset, args):
 
 
 def detect_bad_cycles_and_tiles(dataset, args):
-    cfg.merge(cfg['run'])
     dataset = RunDataset(args.dataset_name)
     d = qc.BadTileCycleDetector(
         dataset=dataset,
@@ -187,20 +185,18 @@ def calculate_relatedness(dataset, args):
     all_gvcfs = []
     sample_ids = []
     if args.samples:
-        cfg.merge(cfg['sample'])
         for sample_id in args.samples:
             sample_ids.append(sample_id)
             s = get_document(sample_id)
             project_id = s.get('project_id')
             gvcf_file = s.get('user_sample_id') + '.g.vcf.gz'
-            gvcf = util.find_file(cfg['input_dir'], project_id, sample_id, gvcf_file)
+            gvcf = util.find_file(cfg['sample']['input_dir'], project_id, sample_id, gvcf_file)
             all_gvcfs.append(gvcf)
     elif args.projects:
-        cfg.merge(cfg['project'])
         for project_id in args.projects:
             samples_for_project = clarity.get_sample_names_from_project(project_id)
             sample_ids.extend(samples_for_project)
-            project_folder = util.find_file(cfg['input_dir'], project_id)
+            project_folder = util.find_file(cfg['project']['input_dir'], project_id)
             all_gvcfs.extend(get_all_project_gvcfs(project_folder))
 
     g = qc.GenotypeGVCFs(dataset=dataset, gVCFs=all_gvcfs, reference=args.reference)

@@ -45,7 +45,8 @@ toolsets:
             # Picard does not seem to be able to report its version, so MarkDuplicates' version will be used instead - these should be equivalent
             picard:
                 version: 2.18.23
-                version_cmd: 'java -jar {executable} MarkDuplicates -v 2>&1 | grep "Version: " | cut -d " " -f 2 | cut -d "-" -f 1'
+                version_cmd: '{dependency} -jar {executable} MarkDuplicates -v 2>&1 | grep "Version: " | cut -d " " -f 2 | cut -d "-" -f 1'
+                dependency: java
 
             pigz: null
 
@@ -86,7 +87,8 @@ toolsets:
 
             gatk:
                 version: v3.4-0-g7e26428
-                version_cmd: 'java -jar {executable} -h 2>&1 | grep "The Genome Analysis Toolkit (GATK)" | cut -d " " -f 6 | cut -d "," -f 1'
+                version_cmd: '{dependency} -jar {executable} -h 2>&1 | grep "The Genome Analysis Toolkit (GATK)" | cut -d " " -f 6 | cut -d "," -f 1'
+                dependency: java
 
             samtools:
                 version: 1.3.1
@@ -128,7 +130,8 @@ toolsets:
 
             gatk:
                 version: v3.4-0-g7e26428
-                version_cmd: 'java -jar {executable} -h 2>&1 | grep "The Genome Analysis Toolkit (GATK)" | cut -d " " -f 6 | cut -d "," -f 1'
+                version_cmd: '{dependency} -jar {executable} -h 2>&1 | grep "The Genome Analysis Toolkit (GATK)" | cut -d " " -f 6 | cut -d "," -f 1'
+                dependency: java
 
             rtg:
                 version: 3.6
@@ -167,7 +170,8 @@ toolsets:
 
             gatk:
                 version: v3.4-0-g7e26428
-                version_cmd: 'java -jar {executable} -h 2>&1 | grep "The Genome Analysis Toolkit (GATK)" | cut -d " " -f 6 | cut -d "," -f 1'
+                version_cmd: '{dependency} -jar {executable} -h 2>&1 | grep "The Genome Analysis Toolkit (GATK)" | cut -d " " -f 6 | cut -d "," -f 1'
+                dependency: java
 
             peddy:
                 version: 0.3.0

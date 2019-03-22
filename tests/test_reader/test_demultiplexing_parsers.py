@@ -1,5 +1,5 @@
-import json, os
-
+import os
+import json
 from analysis_driver.reader import demultiplexing_parsers as dm
 from tests.test_analysisdriver import TestAnalysisDriver
 from egcg_core.constants import ELEMENT_CONTAMINANT_UNIQUE_MAP, ELEMENT_PCNT_UNMAPPED_FOCAL,\

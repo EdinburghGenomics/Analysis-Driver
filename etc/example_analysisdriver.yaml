@@ -1,23 +1,22 @@
 
 ---
 default:
+    run:
+        input_dir: tests/assets/data_transfer/from/
+        output_dir: path/to/output_data
 
     sample:
-        input_dir:       /path/to/input/dir
-        output_dir:      tests/assets/test_projects/
-        delivery_source: /path/to/delivery/source
-        delivery_dest:   /path/to/delivery/destination
+        input_dir: path/to/input/dir
+        output_dir: tests/assets/test_projects/
 
     project:
-        input_dir:       tests/assets/test_projects/
-        output_dir:      /path/to/input/dir
+        input_dir: tests/assets/test_projects/
+        output_dir: path/to/input/dir
 
     rest_api:
         url: 'http://localhost:4999/api/0.1'
 
-    input_dir: tests/assets/data_transfer/from/
     jobs_dir: tests/assets/jobs/
-    output_dir: path/to/output_data
 
     data_deletion:
       raw_data: tests/assets/data_deletion/raw
@@ -37,31 +36,32 @@ default:
 
     tools:
         bcl2fastq: path/to/bcl2fastq_1.0.4
-        bwa:
-            - path/to/bwa_1.0
-            - path/to/bwa_1.1
-        gatk:
-            - path/to/GenomeAnalysisTK.jar_3
-            - path/to/GenomeAnalysisTK.jar_4
-
-        qsub: /bin/sh
-        fastqc: path/to/fastqc_v0.11.5
         bcbio: path/to/bcbio
-        seqtk: path/to/seqtk
-        samblaster: path/to/samblaster
-        biobambam_sortmapdup: path/to/bamsormadup
-        samtools: path/to/samtools_1.3.1
-        sambamba: path/to/sambamba
         bcftools: path/to/bcftools
-        tabix: path/to/tabix
+        biobambam_sortmapdup: path/to/sortmapdup
+        bgzip: path/to/bgzip
+        blastn: path/to/blastn
+        bwa: [path/to/bwa_1.0, path/to/bwa_1.1]
+        fastq_filterer: path/to/fastq_filterer
+        fastqc: path/to/fastqc_v0.11.5
         fastqscreen: path/to/fastqscreen
+        fix_dup_unmapped: path/to/fix_dup_unmapped
+        gatk: [path/to/gatk_3, path/to/gatk_4]
+        java: path/to/java_8
+        jdk: path/to/jdk
+        md5sum: path/to/md5sum
+        peddy: path/to/peddy
+        picard: path/to/picard
+        pigz: path/to/pigz
+        qsub: /bin/sh
+        sambamba: path/to/sambamba
+        samblaster: path/to/samblaster
+        samtools: path/to/samtools_1.3.1
+        seqtk: path/to/seqtk
+        tabix: path/to/tabix
+        vcftools: path/to/vcftools
         verifybamid: path/to/verifybamid
         well_duplicates: path/to/well_duplicates
-        fastq-filterer: path/to/fastq-filterer
-        vcftools: path/to/vcftools
-        blastn: path/to/blastn
-        peddy: path/to/peddy
-        fix_dup_unmapped: path/to/fix_dup_unmapped
 
     logging:
         format: '[%(asctime)s][%(processName)s][%(name)s][%(levelname)s] %(message)s'

@@ -45,11 +45,10 @@ def main():
 
 
 def run_crawler(args):
-    cfg.merge(cfg['run'])
     if args.run_dir:
         run_dir = args.run_dir
     else:
-        run_dir = os.path.join(cfg.query('output_dir'), args.run_id)
+        run_dir = os.path.join(cfg.query('run', 'output_dir'), args.run_id)
 
     dataset = RunDataset(args.run_id)
 
