@@ -3,7 +3,7 @@ from egcg_core.constants import *  # pylint: disable=unused-import
 from egcg_core.rest_communication import post_or_patch as pp
 from analysis_driver.reader import demultiplexing_parsers as dm, mapping_stats_parsers as mp
 from analysis_driver.config import output_file_config
-from .crawler import Crawler
+from .crawler import Crawler, sex_alias
 
 
 class SampleCrawler(Crawler):
@@ -58,12 +58,12 @@ class SampleCrawler(Crawler):
         else:
             self.critical('Missing *-sort-callable.bed')
 
-        sex_file_path = self.get_output_file('gender_call')
+        sex_file_path = self.get_output_file('sex_check')
         if sex_file_path:
             with open(sex_file_path) as f:
-                gender, het_x = f.read().strip().split()
-                sample[ELEMENT_CALLED_GENDER] = self.gender_alias(gender)
-                sample[ELEMENT_GENDER_VALIDATION] = {ELEMENT_GENDER_HETX: het_x}
+                sex, het_x = f.read().strip().split()
+                sample[ELEMENT_SEX_VALIDATION][ELEMENT_CALLED_SEX] = sex_alias(sex)
+                sample[ELEMENT_SEX_VALIDATION][ELEMENT_SEX_HETX] = het_x
 
         genotype_validation_path = self.get_output_file('genoval')
         if genotype_validation_path:
@@ -106,10 +106,10 @@ class SampleCrawler(Crawler):
             }
             sample[ELEMENT_COVERAGE_STATISTICS] = coverage_statistics
             sample[ELEMENT_MEDIAN_COVERAGE] = median
-            if ELEMENT_GENDER_VALIDATION in sample:
+            if ELEMENT_SEX_VALIDATION in sample:
                 cov_y = dm.get_coverage_y_chrom(coverage_statistics_path)
                 if cov_y:
-                    sample[ELEMENT_GENDER_VALIDATION][ELEMENT_GENDER_COVY] = cov_y
+                    sample[ELEMENT_SEX_VALIDATION][ELEMENT_SEX_COVY] = cov_y
         else:
             self.critical('coverage statistics unavailable for %s', self.sample_id)
 

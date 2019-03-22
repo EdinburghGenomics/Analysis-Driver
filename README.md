@@ -32,8 +32,8 @@ Classes that run checks on output files generated from the main pipeline.
 - GenotypeValidation - Uses bwa, samtools and gatk to validate called snps against a test dataset. Compares
   a sample's genotype with an expected, queries the LIMS for an expected genotype vcf, and writes a file containing the
   results of comparing the observed and expected vcfs
-- GenderValidation - Quantifies X-chromosome heterozygosity in BCBio's output haplotype vcf. Produces a file
-  containing the called gender, to be compared against the gender supplied in the Lims
+- SexCheck - Quantifies X-chromosome heterozygosity in BCBio's output haplotype vcf. Produces a file
+  containing the called sex, to be compared against that supplied in the Lims
 - FastqScreen - Checks fastqs for sample contamination using [fastqscreen](http://www.bioinformatics.babraham.ac.uk/projects/download.html#fastqscreen)
 - Blast - Checks a fastq file for contamination using NCBI Blast
 - VerifyBamID - Checks a Bam file for species contamination using [VerifyBamID](http://genome.sph.umich.edu/wiki/VerifyBamID)

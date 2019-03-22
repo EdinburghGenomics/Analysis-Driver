@@ -15,7 +15,7 @@ class IntegrationTest(ReportingAppIntegrationTest):
         patch('egcg_core.clarity.find_project_name_from_sample', return_value='10015AT'),
         patch('egcg_core.clarity.get_plate_id_and_well', new=mocked_data.fake_get_plate_id_and_well),
         patch('egcg_core.clarity.get_project', return_value=mocked_data.mocked_clarity_project),
-        patch('egcg_core.clarity.get_sample_gender'),
+        patch('egcg_core.clarity.get_sample_sex'),
         patch('egcg_core.clarity.get_sample_genotype', return_value=set()),
         patch('egcg_core.clarity.get_sample_names_from_project', return_value=set()),
         patch('egcg_core.clarity.get_samples_arrived_with', return_value=set()),
@@ -289,7 +289,7 @@ class IntegrationTest(ReportingAppIntegrationTest):
         )
 
         self.expect_stage_data(['mergefastqs', 'fastqc', 'genotypevalidation', 'bcbio', 'fastqscreen',
-                                'fixunmapped', 'blast', 'gendervalidation', 'vcfstats', 'samtoolsdepth',
+                                'fixunmapped', 'blast', 'sexcheck', 'vcfstats', 'samtoolsdepth',
                                 'verifybamid', 'sampledataoutput', 'md5sum', 'cleanup', 'samplereview'])
 
         self.expect_equal(
