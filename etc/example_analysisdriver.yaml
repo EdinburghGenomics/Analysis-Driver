@@ -62,6 +62,7 @@ default:
         vcftools: path/to/vcftools
         verifybamid: path/to/verifybamid
         well_duplicates: path/to/well_duplicates
+        grabix: path/to/grabix
 
     logging:
         format: '[%(asctime)s][%(processName)s][%(name)s][%(levelname)s] %(message)s'
