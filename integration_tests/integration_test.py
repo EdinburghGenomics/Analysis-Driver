@@ -476,15 +476,20 @@ class IntegrationTest(ReportingAppIntegrationTest):
         )
 
         self.setup_test('run', 'test_rapid', 'rapid')
+        cfg.content['delivery'] = {'dest': os.path.join(os.path.dirname(os.getcwd()), 'delivered_outputs', 'test_rapid')}
+        os.makedirs(cfg['delivery']['dest'])
         cfg.content['sample']['output_dir'] = os.path.join(os.path.dirname(os.getcwd()), 'outputs', 'test_rapid')
 
         exit_status = client.main(['--run'])
         self.assertEqual('exit status', exit_status, 0)
 
-        output_dir = os.path.join(cfg['sample']['output_dir'], self.project_id)
         self.expect_output_files(
             self.cfg['rapid']['files'],
-            base_dir=output_dir
+            base_dir=os.path.join(cfg['sample']['output_dir'], self.project_id)
+        )
+        self.expect_output_files(
+            self.cfg['rapid']['delivered_files'],
+            base_dir=util.find_file(cfg['delivery']['dest'], self.project_id, '*')
         )
         self.expect_qc_data(
             rest_communication.get_document(
