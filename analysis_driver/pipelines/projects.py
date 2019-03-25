@@ -20,16 +20,17 @@ def build_pipeline(dataset):
     gvcf_files = []
     for sample in dataset.samples_processed:
         # Only check if we have gvcf when the samples have been through human processing that generate a gvcf
-        if query_dict(sample, 'aggregated.most_recent_proc.pipeline_used.name') in ['bcbio']:
+        if query_dict(sample, 'aggregated.most_recent_proc.pipeline_used.name') == 'bcbio':
             gvcf_file = find_file(project_source, sample['sample_id'], sample['user_sample_id'] + '.g.vcf.gz')
             if not gvcf_file:
                 raise PipelineError('Unable to find gVCF file for sample %s in %s' % (sample['sample_id'], project_source))
             gvcf_files.append(gvcf_file)
+
     if len(gvcf_files) < 2:
-        # No need to run as there are not enough gvcf to process
+        # No need to run as there are not enough gvcfs to process
         cleanup = Cleanup(dataset=dataset)
     else:
-        genotype_gvcfs = GenotypeGVCFs(dataset=dataset, gVCFs=gvcf_files, reference=dataset.reference_genome)
+        genotype_gvcfs = GenotypeGVCFs(dataset=dataset, gVCFs=gvcf_files)
         relatedness = Relatedness(dataset=dataset, previous_stages=[genotype_gvcfs])
         peddy = Peddy(dataset=dataset, ids=sample_ids, previous_stages=[genotype_gvcfs])
         parse = ParseRelatedness(dataset=dataset, ids=sample_ids, parse_method='parse_both', previous_stages=[relatedness, peddy])

@@ -73,11 +73,11 @@ class Stage(BasicStage):
         if self.exit_status:
             raise PipelineError('Exit status for %s was %s. Stopping' % (self.stage_name, self.exit_status))
 
-        self.info('Finished stage %s' % self.stage_name)
+        self.info('Finished stage %s', self.stage_name)
 
     @property
     def input_dir(self):
-        return join(cfg['input_dir'], self.dataset.name)
+        return join(cfg[self.dataset.type]['input_dir'], self.dataset.name)
 
     def _run(self):
         return 0

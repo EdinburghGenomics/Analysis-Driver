@@ -25,10 +25,10 @@ class TestGenotypeValidation(QCTester):
     def test_bwa_aln(self):
         observed = self.validator._bwa_aln(self.fastq_files)
         expected = (
-            "path/to/bwa sampe -r '@RG\\tID:1\\tSM:test_sample' path/to/32_snps_600bp.fa "
-            '<(path/to/bwa aln path/to/32_snps_600bp.fa {fq1}) '
-            '<(path/to/bwa aln path/to/32_snps_600bp.fa {fq2}) '
-            '{fq1} {fq2} | path/to/samblaster --removeDups | path/to/samtools view -F 4 -Sb - | '
+            "path/to/bwa_1.1 sampe -r '@RG\\tID:1\\tSM:test_sample' path/to/32_snps_600bp.fa "
+            '<(path/to/bwa_1.1 aln path/to/32_snps_600bp.fa {fq1}) '
+            '<(path/to/bwa_1.1 aln path/to/32_snps_600bp.fa {fq2}) '
+            '{fq1} {fq2} | path/to/samblaster --removeDups | path/to/samtools_1.3.1 view -F 4 -Sb - | '
             'path/to/sambamba sort -t 16 -o tests/assets/jobs/test_sample/test_sample_geno_val.bam /dev/stdin'
         ).format(fq1=self.fastq_files[0], fq2=self.fastq_files[1])
         assert observed == expected
@@ -54,7 +54,7 @@ class TestGenotypeValidation(QCTester):
         self.validator._snp_calling(bam_file)
         assert self.validator.seq_vcf_file == expected_vcf
         command = (
-            'java -Djava.io.tmpdir={work_dir} -XX:+UseSerialGC -Xmx4G -jar path/to/gatk '
+            'path/to/java_8 -Djava.io.tmpdir={work_dir} -XX:+UseSerialGC -Xmx4G -jar path/to/gatk_4 '
             '-T UnifiedGenotyper -nt 4 -R path/to/32_snps_600bp.fa '
             '--standard_min_confidence_threshold_for_calling 30.0 '
             '--standard_min_confidence_threshold_for_emitting 0 -out_mode EMIT_ALL_SITES '
@@ -84,7 +84,7 @@ class TestGenotypeValidation(QCTester):
             }
 
         command_gatk = (
-            'java -Djava.io.tmpdir={work_dir} -XX:+UseSerialGC -Xmx4G -jar path/to/gatk '
+            'path/to/java_8 -Djava.io.tmpdir={work_dir} -XX:+UseSerialGC -Xmx4G -jar path/to/gatk_4 '
             '-T GenotypeConcordance -eval:VCF {genovcf} -comp:VCF {sample_vcf} '
             '-R path/to/32_snps_600bp.fa > {val_results}'
         ).format(work_dir=work_dir, genovcf=genotype_vcf, sample_vcf=vcf_file, val_results=validation_results)

@@ -71,7 +71,6 @@ class TestBCLValidator(TestAnalysisDriver):
         )
         mocked_execute.assert_has_calls([call_1, call().join(), call_2, call().join()])
 
-
     @patch('analysis_driver.quality_control.BCLValidator.call_bcl_check')
     def test_check_bcls(self, mocked_check_bcls):
         patched_cycles = patch(

@@ -42,7 +42,7 @@ class TestVerifyBamID(QCTester):
             self.vbi._run()
 
         mocked_execute.assert_any_call(
-            'path/to/samtools view -b test_bam_file.bam chr22 > tests/assets/jobs/test_sample/test_sample_chr22.bam',
+            'path/to/samtools_1.3.1 view -b test_bam_file.bam chr22 > tests/assets/jobs/test_sample/test_sample_chr22.bam',
             mem=2,
             job_name='filter_bam22',
             working_dir='tests/assets/jobs/test_sample',
@@ -50,7 +50,7 @@ class TestVerifyBamID(QCTester):
             log_commands=False
         )
         mocked_execute.assert_any_call(
-            'path/to/samtools index tests/assets/jobs/test_sample/test_sample_chr22.bam',
+            'path/to/samtools_1.3.1 index tests/assets/jobs/test_sample/test_sample_chr22.bam',
             mem=2,
             working_dir='tests/assets/jobs/test_sample',
             cpus=1,

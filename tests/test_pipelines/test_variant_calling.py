@@ -24,24 +24,23 @@ class TestGATKStage():
 
     def test_gatk_cmd(self):
         gatk_cmd_without_bam = self.g.gatk_cmd('GATKfunction', 'test_outfile')
-        assert gatk_cmd_without_bam == 'java -Djava.io.tmpdir=tests/assets/jobs/test_sample/gatk_var_calling ' \
-                           '-XX:+UseSerialGC -Xmx16G -jar path/to/gatk -R test_reference -T GATKfunction ' \
+        assert gatk_cmd_without_bam == 'path/to/java_8 -Djava.io.tmpdir=tests/assets/jobs/test_sample/gatk_var_calling ' \
+                           '-XX:+UseSerialGC -Xmx16G -jar path/to/gatk_4 -R test_reference -T GATKfunction ' \
                            '--read_filter BadCigar --read_filter NotPrimaryAlignment -o test_outfile ' \
                            '-l INFO -U LENIENT_VCF_PROCESSING -nct 16 -nt 16'
 
         gatk_cmd_with_bam = self.g.gatk_cmd('GATKfunction', 'test_outfile', 'test_bam')
-        assert gatk_cmd_with_bam == 'java -Djava.io.tmpdir=tests/assets/jobs/test_sample/gatk_var_calling ' \
-                           '-XX:+UseSerialGC -Xmx16G -jar path/to/gatk -R test_reference -T GATKfunction ' \
+        assert gatk_cmd_with_bam == 'path/to/java_8 -Djava.io.tmpdir=tests/assets/jobs/test_sample/gatk_var_calling ' \
+                           '-XX:+UseSerialGC -Xmx16G -jar path/to/gatk_4 -R test_reference -T GATKfunction ' \
                            '--read_filter BadCigar --read_filter NotPrimaryAlignment -o test_outfile ' \
                            '-l INFO -U LENIENT_VCF_PROCESSING -I test_bam -nct 16 -nt 16'
 
         gatk_option = 'option'
         gatk_cmd_with_ext = self.g.gatk_cmd('GATKfunction', 'test_outfile', ext=' --flag ' + gatk_option)
-        assert gatk_cmd_with_ext == 'java -Djava.io.tmpdir=tests/assets/jobs/test_sample/gatk_var_calling ' \
-                           '-XX:+UseSerialGC -Xmx16G -jar path/to/gatk -R test_reference -T GATKfunction ' \
+        assert gatk_cmd_with_ext == 'path/to/java_8 -Djava.io.tmpdir=tests/assets/jobs/test_sample/gatk_var_calling ' \
+                           '-XX:+UseSerialGC -Xmx16G -jar path/to/gatk_4 -R test_reference -T GATKfunction ' \
                            '--read_filter BadCigar --read_filter NotPrimaryAlignment -o test_outfile ' \
                            '-l INFO -U LENIENT_VCF_PROCESSING --flag option -nct 16 -nt 16'
-
 
     def test_basename(self):
         basename = self.g.basename
@@ -58,7 +57,7 @@ class TestGATKStage():
 
     def test_output_grp(self):
         output_grp = self.g.output_grp
-        assert output_grp  == 'tests/assets/jobs/test_sample/gatk_var_calling/test_user_sample_id.grp'
+        assert output_grp == 'tests/assets/jobs/test_sample/gatk_var_calling/test_user_sample_id.grp'
 
     def test_output_intervals(self):
         intervals = self.g.output_intervals
@@ -111,10 +110,10 @@ class TestBaseRecal(TestVariantCalling):
         with patch_executor as e:
             self.b._run()
             assert e.call_count == 1
-            e.assert_called_with("java -Djava.io.tmpdir=tests/assets/jobs/test_dataset/gatk_var_calling "
+            e.assert_called_with("path/to/java_8 -Djava.io.tmpdir=tests/assets/jobs/test_dataset/gatk_var_calling "
                                  "-XX:+UseSerialGC "
                                  "-Xmx48G "
-                                 "-jar path/to/gatk "
+                                 "-jar path/to/gatk_4 "
                                  "-R reference_genome "
                                  "-T BaseRecalibrator "
                                  "--read_filter BadCigar "
@@ -140,10 +139,10 @@ class TestPrintReads(TestVariantCalling):
         with patch_executor as e:
             self.p._run()
             assert e.call_count == 1
-            e.assert_called_with('java -Djava.io.tmpdir=tests/assets/jobs/test_dataset/gatk_var_calling '
+            e.assert_called_with('path/to/java_8 -Djava.io.tmpdir=tests/assets/jobs/test_dataset/gatk_var_calling '
                                  '-XX:+UseSerialGC '
                                  '-Xmx48G '
-                                 '-jar path/to/gatk '
+                                 '-jar path/to/gatk_4 '
                                  '-R reference_genome '
                                  '-T PrintReads '
                                  '--read_filter BadCigar '
@@ -167,10 +166,10 @@ class TestRealignTarget(TestVariantCalling):
         with patch_executor as e:
             self.p._run()
             assert e.call_count == 1
-            e.assert_called_with('java -Djava.io.tmpdir=tests/assets/jobs/test_dataset/gatk_var_calling '
+            e.assert_called_with('path/to/java_8 -Djava.io.tmpdir=tests/assets/jobs/test_dataset/gatk_var_calling '
                                  '-XX:+UseSerialGC '
                                  '-Xmx32G '
-                                 '-jar path/to/gatk '
+                                 '-jar path/to/gatk_4 '
                                  '-R reference_genome '
                                  '-T RealignerTargetCreator '
                                  '--read_filter BadCigar '
@@ -193,10 +192,10 @@ class TestRealign(TestVariantCalling):
         with patch_executor as e:
             self.p._run()
             assert e.call_count == 1
-            e.assert_called_with('java -Djava.io.tmpdir=tests/assets/jobs/test_dataset/gatk_var_calling '
+            e.assert_called_with('path/to/java_8 -Djava.io.tmpdir=tests/assets/jobs/test_dataset/gatk_var_calling '
                                  '-XX:+UseSerialGC '
                                  '-Xmx32G '
-                                 '-jar path/to/gatk '
+                                 '-jar path/to/gatk_4 '
                                  '-R reference_genome '
                                  '-T IndelRealigner'
                                  ' --read_filter BadCigar '
@@ -220,10 +219,10 @@ class TestHaplotypeCaller(TestVariantCalling):
             self.p._run()
             assert e.call_count == 3  # Command + bgzip + tabix
             assert e.call_args_list[0] == call(
-                'java -Djava.io.tmpdir=tests/assets/jobs/test_dataset/gatk_var_calling '
+                'path/to/java_8 -Djava.io.tmpdir=tests/assets/jobs/test_dataset/gatk_var_calling '
                 '-XX:+UseSerialGC '
                 '-Xmx48G '
-                '-jar path/to/gatk '
+                '-jar path/to/gatk_4 '
                 '-R reference_genome '
                 '-T HaplotypeCaller '
                 '--read_filter BadCigar '
@@ -269,10 +268,10 @@ class TestGenotypeGVCFs(TestVariantCalling):
             self.p._run()
             assert e.call_count == 3  # Command + bgzip + tabix
             assert e.call_args_list[0] == call(
-                'java -Djava.io.tmpdir=tests/assets/jobs/test_dataset/gatk_var_calling '
+                'path/to/java_8 -Djava.io.tmpdir=tests/assets/jobs/test_dataset/gatk_var_calling '
                 '-XX:+UseSerialGC '
                 '-Xmx16G '
-                '-jar path/to/gatk '
+                '-jar path/to/gatk_4 '
                 '-R reference_genome '
                 '-T GenotypeGVCFs '
                 '--read_filter BadCigar '
@@ -298,10 +297,10 @@ class TestSelectVariants(TestVariantCalling):
             self.p._run()
             assert e.call_count == 3  # Command + bgzip + tabix
             assert e.call_args_list[0] == call(
-                'java -Djava.io.tmpdir=tests/assets/jobs/test_dataset/gatk_var_calling '
+                'path/to/java_8 -Djava.io.tmpdir=tests/assets/jobs/test_dataset/gatk_var_calling '
                 '-XX:+UseSerialGC '
                 '-Xmx16G '
-                '-jar path/to/gatk '
+                '-jar path/to/gatk_4 '
                 '-R reference_genome '
                 '-T SelectVariants '
                 '--read_filter BadCigar '
@@ -327,10 +326,10 @@ class TestVariantFiltration(TestVariantCalling):
             self.p._run()
             assert e.call_count == 3  # Command + bgzip + tabix
             assert e.call_args_list[0] == call(
-                "java -Djava.io.tmpdir=tests/assets/jobs/test_dataset/gatk_var_calling "
+                "path/to/java_8 -Djava.io.tmpdir=tests/assets/jobs/test_dataset/gatk_var_calling "
                 "-XX:+UseSerialGC "
                 "-Xmx16G "
-                "-jar path/to/gatk "
+                "-jar path/to/gatk_4 "
                 "-R reference_genome "
                 "-T VariantFiltration "
                 "--read_filter BadCigar "

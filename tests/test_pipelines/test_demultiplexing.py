@@ -1,13 +1,11 @@
 import os
 import shutil
+import pytest
 from os.path import join
 from unittest.mock import Mock, patch
-
-import pytest
 from egcg_core.constants import ELEMENT_PROJECT_ID, ELEMENT_LANE, ELEMENT_SAMPLE_INTERNAL_ID
-
-from analysis_driver.exceptions import SequencingRunError
 from tests.test_analysisdriver import TestAnalysisDriver, NamedMock
+from analysis_driver.exceptions import SequencingRunError
 from analysis_driver.util import bash_commands
 from analysis_driver.pipelines import demultiplexing as dm
 
@@ -21,9 +19,7 @@ patched_ref_genome = patch('analysis_driver.dataset.RunDataset.reference_genome'
 
 class TestPhixDetection(TestAnalysisDriver):
     def test_run(self):
-        dataset = NamedMock(
-            real_name='test'
-        )
+        dataset = NamedMock(real_name='test')
         f = dm.PhixDetection(dataset=dataset)
         fake_fastq_pairs = [
             [('L1_R1_001.fastq.gz', 'L1_R2_001.fastq.gz')], [('L2_R1_001.fastq.gz', 'L2_R2_001.fastq.gz')]
@@ -35,8 +31,8 @@ class TestPhixDetection(TestAnalysisDriver):
             assert f._run() == 0
 
             assert pexecute.call_args[0][0] == (
-                'set -o pipefail; path/to/bwa mem -t 16 /path/to/phix.fa L1_R1_001.fastq.gz | '
-                'path/to/samtools view -F 4 | cut -f 1 | sort -u > L1_phix_read_name.list'
+                'set -o pipefail; path/to/bwa_1.1 mem -t 16 /path/to/phix.fa L1_R1_001.fastq.gz | '
+                'path/to/samtools_1.3.1 view -F 4 | cut -f 1 | sort -u > L1_phix_read_name.list'
             )
             prun_crawler.assert_called_with(
                 dataset, run_dir='tests/assets/jobs/test/fastq', stage=prun_crawler.STAGE_CONVERSION
@@ -98,51 +94,43 @@ class TestFastqFilter(TestAnalysisDriver):
 
 
 class TestWaitForRead2(TestAnalysisDriver):
+    ppath = 'analysis_driver.quality_control.interop_metrics.get_last_cycles_with_existing_bcls'
 
-    def test_run(self):
-
-        # Run info state 150 cycle for first read and 8 index cycle + 50 cycle for second read = 208
+    @patch('time.sleep')
+    def test_run(self, mocked_sleep):
+        # Run info states 150 cycles for first read, 8 index cycles, and 50 cycles for second read = 208
         run_info = Mock(reads=Mock(upstream_read=Mock(attrib={'NumCycles': '150'}), index_lengths=[8]))
         dataset = NamedMock(real_name='testrun', run_info=run_info, input_dir='path/to/input',
                             lims_run=Mock(udf={'Run Status': 'RunStarted'}))
 
-        # cycle extracted states 310 cycles done
-        pcycles = patch('analysis_driver.quality_control.interop_metrics.get_last_cycles_with_existing_bcls',
-                        return_value=310)
+        self.stage = dm.WaitForRead2(dataset=dataset)
 
-        with pcycles as mcycle:
-            # No sleep time
-            self.stage = dm.WaitForRead2(dataset=dataset)
+        with patch(self.ppath, return_value=310) as mcycles:
+            assert mocked_sleep.call_count == 0
             assert self.stage._run() == 0
-            assert mcycle.call_count == 1
-            mcycle.assert_called_once_with('path/to/input')
+            assert mcycles.call_count == 1
+            mcycles.assert_called_once_with('path/to/input')
 
-        # cycle extracted states first 207 then 208 cycles done
-        pcycles = patch('analysis_driver.quality_control.interop_metrics.get_last_cycles_with_existing_bcls',
-                        side_effect=[207, 208])
-        with pcycles as mcycle, patch('time.sleep') as msleep:
-            self.stage = dm.WaitForRead2(dataset=dataset)
+        # get_last_cycles_with_existing_bcls states first 207, then 208 cycles done
+        with patch(self.ppath, side_effect=[207, 208]) as mcycles:
             assert self.stage._run() == 0
-            assert mcycle.call_count == 2
-            mcycle.assert_called_with('path/to/input')
-            msleep.assert_called_with(1200)
+            assert mcycles.call_count == 2
+            mcycles.assert_called_with('path/to/input')
+            mocked_sleep.assert_called_with(1200)
 
     def test_run_aborted(self):
-        # Run info state 150 cycle for first read and 8 index cycle + 50 cycle for second read = 208
+        # Run info states 150 cycles for first read, 8 index cycles, and 50 cycles for second read = 208
         run_info = Mock(reads=Mock(upstream_read=Mock(attrib={'NumCycles': '150'}), index_lengths=[8]))
         dataset = NamedMock(real_name='testrun', run_info=run_info, input_dir='path/to/input',
                             lims_run=Mock(udf={'Run Status': 'RunAborted'}))
 
-        # cycle extracted states 208 cycles done
-        pcycles = patch('analysis_driver.quality_control.interop_metrics.get_last_cycles_with_existing_bcls',
-                        return_value=208)
-
-        with pcycles as mcycle:
+        # get_last_cycles_with_existing_bcls states 208 cycles done
+        with patch(self.ppath, return_value=208) as mcycles:
             with pytest.raises(SequencingRunError):
                 self.stage = dm.WaitForRead2(dataset=dataset)
                 self.stage._run()
-            assert mcycle.call_count == 1
-            mcycle.assert_called_once_with('path/to/input')
+            assert mcycles.call_count == 1
+            mcycles.assert_called_once_with('path/to/input')
 
 
 class TestPostDemultiplexing(TestAnalysisDriver):
@@ -298,7 +286,6 @@ class TestPicardGCBias(TestPostDemultiplexing):
     @patch_executor
     def test_run(self, mocked_executor):
         self.stage.dataset.reference_genome.return_value = 'a_genome.fa'
-        cmds = []
         with patch('analysis_driver.pipelines.demultiplexing.bash_commands.picard_gc_bias', return_value='a_cmd'):
             self.stage._run()
 

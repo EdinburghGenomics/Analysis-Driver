@@ -4,7 +4,7 @@ from unittest.mock import patch
 
 
 class TestSamtoolsDepth(QCTester):
-    exp_cmd = ('path/to/samtools depth -a -a -q 0 -Q 0 testfile.bam | '
+    exp_cmd = ('path/to/samtools_1.3.1 depth -a -a -q 0 -Q 0 testfile.bam | '
                'awk -F "\t" \'{array[$1"\t"$3]+=1} END{for (val in array){print val"\t"array[val]}}\' | '
                'sort -T tests/assets/jobs/test_sample -k 1,1 -nk 2,2 > testfile.depth')
 

@@ -31,7 +31,6 @@ def _parse_args():
 
 def remove_phix(sample_id):
     # Get the sample specific config
-    cfg.merge(cfg['sample'])
     run_elements = rest_communication.get_documents('run_elements', where={'sample_id': sample_id})
     rundataset = RunDataset(run_elements[0][c.ELEMENT_RUN_NAME])
 
@@ -42,7 +41,7 @@ def remove_phix(sample_id):
     # Find all fastq files
     fastq_pairs = []
     for run_element in run_elements:
-        run_dir = os.path.join(cfg['input_dir'], run_element[c.ELEMENT_RUN_NAME])
+        run_dir = os.path.join(cfg['sample']['input_dir'], run_element[c.ELEMENT_RUN_NAME])
         fqs = util.find_fastqs(
             run_dir,
             run_element[c.ELEMENT_PROJECT_ID],
@@ -131,7 +130,7 @@ def remove_phix(sample_id):
 
     for run_id in set(r[c.ELEMENT_RUN_NAME] for r in run_elements if r.get(c.ELEMENT_NB_READS_PASS_FILTER, 0) > 0):
         rd = RunDataset(run_id)
-        run_dir = os.path.join(cfg['input_dir'], run_id)
+        run_dir = os.path.join(cfg['run']['input_dir'], run_id)
         try:
             crawler = RunCrawler(rd, run_dir=run_dir, stage=RunCrawler.STAGE_MAPPING)
             crawler.send_data()

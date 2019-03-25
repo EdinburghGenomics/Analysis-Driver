@@ -138,6 +138,7 @@ def fastq_filterer(fastq_file_pair, read_name_file, tiles_to_filter=None, trim_r
     if trim_r2:
         cmd += ' --trim_r2 %s' % trim_r2
 
+    app_logger.debug('Writing: ' + cmd)
     return cmd
 
 
@@ -214,7 +215,10 @@ def picard_command(program, input_file, output_file, tmp_dir, memory, picard_par
         for k in sorted(picard_params):
             cmd += ' %s=%s' % (k, picard_params[k])
 
-    return cmd.format(input=input_file, output=output_file, program=program)
+    cmd = cmd.format(input=input_file, output=output_file, program=program)
+
+    app_logger.debug('Writing: ' + cmd)
+    return cmd
 
 
 def picard_gc_bias(input_file, metrics, summary, chart, ref, memory=8, tmp_dir=None):
@@ -269,10 +273,12 @@ def bcbio_prepare_samples(job_dir, bcbio_csv_file):
     :param str bcbio_csv_file: Full path to the BCBio csv
     """
     merged_dir = os.path.join(job_dir, 'merged')
-    return '{bcbio} --out {d} --csv {csv}'.format(
+    cmd = '{bcbio} --out {d} --csv {csv}'.format(
         bcbio=os.path.join(toolset['bcbio'], 'bin', 'bcbio_prepare_samples.py'),
         d=merged_dir, csv=bcbio_csv_file
     )
+    app_logger.debug('Writing: ' + cmd)
+    return cmd
 
 
 def is_remote_path(fp):
@@ -291,20 +297,28 @@ def rsync_from_to(source, dest, exclude=None, size_only=False):
         command += '-e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -c arcfour" '
 
     command += '%s %s' % (source, dest)
+    app_logger.debug('Writing: ' + command)
     return command
 
 
 def java_command(memory, tmp_dir, jar):
-    return 'java -Djava.io.tmpdir={tmp_dir} -XX:+UseSerialGC -Xmx{memory}G -jar {jar} '.format(
+    cmd = '{java} -Djava.io.tmpdir={tmp_dir} -XX:+UseSerialGC -Xmx{memory}G -jar {jar} '.format(
+        java=toolset['java'],
         memory=memory,
         tmp_dir=tmp_dir,
         jar=jar
     )
+    app_logger.debug('Writing: ' + cmd)
+    return cmd
 
 
 def bgzip_command(input_file):
-    return '%s -f %s' % (toolset['bgzip'], input_file)
+    cmd = '%s -f %s' % (toolset['bgzip'], input_file)
+    app_logger.debug('Writing: ' + cmd)
+    return cmd
 
 
 def tabix_vcf_command(input_file):
-    return '%s -f -p vcf %s' % (toolset['tabix'], input_file)
+    cmd = '%s -f -p vcf %s' % (toolset['tabix'], input_file)
+    app_logger.debug('Writing: ' + cmd)
+    return cmd
