@@ -2,15 +2,16 @@ import os
 from egcg_core import util, archive_management
 from egcg_core.app_logging import logging_default as log_cfg
 from analysis_driver.exceptions import AnalysisDriverError
+from analysis_driver.config import output_file_config
 
 app_logger = log_cfg.get_logger(__name__)
 
 
-def create_output_links(input_dir, output_cfg, link_dir, **kwargs):
+def create_output_links(input_dir, output_fileset, link_dir, **kwargs):
     exit_status = 0
     links = []
 
-    for output_record in output_cfg.content.values():
+    for output_record in output_file_config[output_fileset].values():
         src_pattern = os.path.join(
             input_dir,
             os.path.join(*output_record.get('location', [''])),
@@ -34,7 +35,7 @@ def create_output_links(input_dir, output_cfg, link_dir, **kwargs):
     if exit_status == 0:
         return links
     else:
-        raise AnalysisDriverError('link creation failed with exit status ' + str(exit_status))
+        raise AnalysisDriverError('Link creation failed with exit status ' + str(exit_status))
 
 
 def output_data_and_archive(source_dir, output_dir):

@@ -213,7 +213,7 @@ class Dataset(AppLogger):
         instruction = self._processing_instruction()
         toolset.select_type(instruction['toolset_type'])
         toolset.select_version(instruction['toolset_version'])
-        return pipeline_register[instruction['name']]
+        self.pipeline = pipeline_register[instruction['name']]
 
 
 class NoCommunicationDataset(Dataset):
