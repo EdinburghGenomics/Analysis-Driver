@@ -15,18 +15,18 @@ class TestBCLValidator(TestAnalysisDriver):
         if os.path.isfile(self.val.validation_log):
             os.remove(self.val.validation_log)
 
-    @patch('analysis_driver.quality_control.BCLValidator._all_cycles_from_interop')
+    @patch('analysis_driver.quality_control.interop_metrics.get_last_cycles_with_existing_bcls')
     def test_get_bcl_files_to_check(self, mocked_cycles):
-        mocked_cycles.return_value = [1, 1, 1]  # no completed cycles
+        mocked_cycles.return_value = 0  # no completed cycles
         assert self.val.get_bcls_to_check() == []
 
-        mocked_cycles.return_value.extend([1, 2, 2, 2])  # completed cycle 1, but not cycle 2
+        mocked_cycles.return_value = 1  # completed cycle 1
         assert self.val.get_bcls_to_check() == [
             'L001/C1.1/s_1_1101.bcl.gz', 'L002/C1.1/s_2_1101.bcl.gz',
             'L001/C1.1/s_1_1102.bcl.gz', 'L002/C1.1/s_2_1102.bcl.gz'
         ]
 
-        mocked_cycles.return_value.extend([2, 3, 3, 3, 3])
+        mocked_cycles.return_value = 3  # completed cycle 3
         obs = self.val.get_bcls_to_check()
         exp = [
             'L001/C1.1/s_1_1101.bcl.gz', 'L001/C1.1/s_1_1102.bcl.gz',
@@ -40,8 +40,8 @@ class TestBCLValidator(TestAnalysisDriver):
 
     @patch('analysis_driver.quality_control.bcl_validation.executor.execute')
     def test_run_bcl_check(self, mocked_execute):
-        with patch('analysis_driver.quality_control.BCLValidator._all_cycles_from_interop',
-                   return_value=[1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3]):
+        with patch('analysis_driver.quality_control.interop_metrics.get_last_cycles_with_existing_bcls',
+                   return_value=3):
             bcls = self.val.get_bcls_to_check()
         validation_log_tmp = os.path.join(self.val.job_dir, 'tmp_checked_bcls.csv')
         self.val.run_bcl_check(bcls, slice_size=2, max_job_number=5)
@@ -71,18 +71,11 @@ class TestBCLValidator(TestAnalysisDriver):
         )
         mocked_execute.assert_has_calls([call_1, call().join(), call_2, call().join()])
 
-    def test_cycles_from_interop(self):
-        interop_dir = os.path.join(self.run_dir, 'InterOp')
-        os.makedirs(interop_dir, exist_ok=True)
-        assert self.val._all_cycles_from_interop() == []  # no ExtractionMetrics
-        open(os.path.join(interop_dir, 'ExtractionMetricsOut.bin'), 'w').close()
-        assert self.val._all_cycles_from_interop() == []  # empty ExtractionMetrics
-
     @patch('analysis_driver.quality_control.BCLValidator.call_bcl_check')
     def test_check_bcls(self, mocked_check_bcls):
         patched_cycles = patch(
-            'analysis_driver.quality_control.BCLValidator._all_cycles_from_interop',
-            return_value=[1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3]
+            'analysis_driver.quality_control.interop_metrics.get_last_cycles_with_existing_bcls',
+            return_value=3
         )
         patched_execute = patch(
             'analysis_driver.quality_control.bcl_validation.executor.execute',

@@ -1,7 +1,7 @@
 import os
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
-from analysis_driver.quality_control.interop_metrics import BadTileCycleDetector
+from analysis_driver.quality_control.interop_metrics import BadTileCycleDetector, get_last_cycles_with_existing_bcls
 from tests.test_analysisdriver import TestAnalysisDriver
 
 
@@ -93,3 +93,17 @@ class TestBadTileCycleDetector(TestAnalysisDriver):
         ]
         self.detector.all_lanes = {1: ({}, {'1': list_q_hist1, '2': list_q_hist2})}
         assert dict(self.detector.detect_bad_cycles()) == {1: ['1']}
+
+    def test_get_last_cycles_with_existing_bcls(self):
+        # no valid Interop files
+        assert get_last_cycles_with_existing_bcls(self.job_dir) == 0
+
+        with patch('analysis_driver.quality_control.interop_metrics.RunMetrics.extraction_metric_set') as m_run_metrics:
+            cycles = [1, 2, 3]
+            m_run_metrics.return_value = Mock(
+                cycles=Mock(return_value=cycles),
+                # will need to find 1 file on first cycle tested then 0 file
+                metrics_for_cycle=Mock(return_value=Mock(size=Mock(return_value=4)))
+            )
+            # cycle 3 only has 3 bcls so it should return cycle 2
+            assert get_last_cycles_with_existing_bcls(self.job_dir) == 2

@@ -2,7 +2,7 @@ import os
 from shutil import rmtree
 from unittest.mock import Mock, patch
 from tests.test_analysisdriver import TestAnalysisDriver, NamedMock
-from analysis_driver.config import output_file_config, cfg
+from analysis_driver.config import OutputFileConfiguration, cfg
 from analysis_driver.pipelines import common
 
 
@@ -20,10 +20,12 @@ class TestSampleDataOutput(TestCommon):
         self.pseudo_links = os.path.join(self.data_output, 'pseudo_links')
         self.to_dir = os.path.join(self.data_output, 'to', '')
         os.makedirs(self.pseudo_links, exist_ok=True)
-        for k in output_file_config['non_human_qc']:
+        output_cfg = OutputFileConfiguration()
+        output_cfg.set_pipeline_type('non_human_qc')
+        for k in output_cfg.content:
             f = os.path.join(
                 self.pseudo_links,
-                output_file_config.output_dir_file('non_human_qc', k).format(
+                output_cfg.output_dir_file(k).format(
                     sample_id=self.sample_id, user_sample_id=self.sample_id
                 )
             )

@@ -49,24 +49,18 @@ class BCLValidator(Stage):
         cycle (i.e. has a full set of tiles), and find all bcls for those cycles/tiles that haven't yet been
         checked.
         """
-        all_cycles = self._all_cycles_from_interop()
-        ncycles = sum(Reads.num_cycles(r) for r in self.dataset.run_info.reads.reads)
-        if all_cycles and all_cycles[-1] > ncycles:
-            raise AnalysisDriverError('Number of cycles (%s) disagrees with RunInfo (%s)' % (all_cycles[-1], ncycles))
-
         tile_ids = self.dataset.run_info.tiles
-        last_completed_cycle = 0
-        for c in sorted(set(all_cycles), reverse=True):
-            if all_cycles.count(c) >= len(tile_ids):
-                last_completed_cycle = c + 1  # compensate for zero-indexing
-                break
-
+        last_completed_cycle = interop_metrics.get_last_cycles_with_existing_bcls(self.run_dir)
         if last_completed_cycle == 0:  # no cycles are complete, so do nothing
             return []
 
+        ncycles = sum(Reads.num_cycles(r) for r in self.dataset.run_info.reads.reads)
+        if last_completed_cycle > ncycles:
+            raise AnalysisDriverError('Number of cycles (%s) disagrees with RunInfo (%s)' % (last_completed_cycle, ncycles))
+
         validated_bcls = self.read_valid_files()
         bcls_to_check = []
-        for c in range(1, last_completed_cycle):
+        for c in range(1, last_completed_cycle + 1):  # compensate for zero-indexing
             cycle_id = 'C%s.1' % c
             for t in tile_ids:
                 lane = t[0]  # 1_1101
@@ -133,6 +127,3 @@ class BCLValidator(Stage):
             return [bcl for bcl, exit_status in self.read_check_bcl_files() if int(exit_status) == 0]
         else:
             return []
-
-    def _all_cycles_from_interop(self):
-        return interop_metrics.get_cycles_extracted(self.run_dir)

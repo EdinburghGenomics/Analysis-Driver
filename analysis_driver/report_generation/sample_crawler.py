@@ -2,26 +2,25 @@ from egcg_core import util, clarity
 from egcg_core.constants import *  # pylint: disable=unused-import
 from egcg_core.rest_communication import post_or_patch as pp
 from analysis_driver.reader import demultiplexing_parsers as dm, mapping_stats_parsers as mp
-from analysis_driver.config import output_file_config
 from .crawler import Crawler
 
 
 class SampleCrawler(Crawler):
-    def __init__(self, sample_id,  project_id, data_dir, output_fileset, post_pipeline=False):
+    def __init__(self, sample_id,  project_id, data_dir, output_cfg, post_pipeline=False):
         self.sample_id = sample_id
         self.user_sample_id = clarity.get_user_sample_name(sample_id, lenient=True)
         self.project_id = project_id
         self.all_info = []
         self.data_dir = data_dir
         self.post_pipeline = post_pipeline
-        self.output_fileset = output_fileset
+        self.output_cfg = output_cfg
         self.sample = self._populate_lib_info()
 
     def get_output_file(self, outfile_id):
         if self.post_pipeline:
-            fp = output_file_config.output_dir_file(self.output_fileset, outfile_id)
+            fp = self.output_cfg.output_dir_file(outfile_id)
         else:
-            fp = output_file_config.job_dir_file(self.output_fileset, outfile_id)
+            fp = self.output_cfg.job_dir_file(outfile_id)
 
         self.debug('Searching for %s in %s/%s' % (outfile_id, self.data_dir, fp))
         if fp:

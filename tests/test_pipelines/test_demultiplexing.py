@@ -1,9 +1,11 @@
 import os
 import shutil
+import pytest
 from os.path import join
 from unittest.mock import Mock, patch
 from egcg_core.constants import ELEMENT_PROJECT_ID, ELEMENT_LANE, ELEMENT_SAMPLE_INTERNAL_ID
 from tests.test_analysisdriver import TestAnalysisDriver, NamedMock
+from analysis_driver.exceptions import SequencingRunError
 from analysis_driver.util import bash_commands
 from analysis_driver.pipelines import demultiplexing as dm
 
@@ -92,29 +94,43 @@ class TestFastqFilter(TestAnalysisDriver):
 
 
 class TestWaitForRead2(TestAnalysisDriver):
+    ppath = 'analysis_driver.quality_control.interop_metrics.get_last_cycles_with_existing_bcls'
+
     @patch('time.sleep')
     def test_run(self, mocked_sleep):
-        ppath = 'analysis_driver.quality_control.interop_metrics.get_cycles_extracted'
         # Run info states 150 cycles for first read, 8 index cycles, and 50 cycles for second read = 208
         run_info = Mock(reads=Mock(upstream_read=Mock(attrib={'NumCycles': '150'}), index_lengths=[8]))
-        dataset = NamedMock(real_name='testrun', run_info=run_info, input_dir='path/to/input')
-        stage = dm.WaitForRead2(dataset=dataset)
+        dataset = NamedMock(real_name='testrun', run_info=run_info, input_dir='path/to/input',
+                            lims_run=Mock(udf={'Run Status': 'RunStarted'}))
 
-        # get_cycles_extracted states 310 cycles done
-        pcycles = patch(ppath, return_value=range(1, 311))
-        with pcycles as mcycles:
+        self.stage = dm.WaitForRead2(dataset=dataset)
+
+        with patch(self.ppath, return_value=310) as mcycles:
             assert mocked_sleep.call_count == 0
-            assert stage._run() == 0
+            assert self.stage._run() == 0
             assert mcycles.call_count == 1
             mcycles.assert_called_once_with('path/to/input')
 
-        # get_cycles_extracted states first 207, then 208 cycles done
-        pcycles = patch(ppath, side_effect=[range(1, 208), range(1, 209)])
-        with pcycles as mcycles:
-            assert stage._run() == 0
+        # get_last_cycles_with_existing_bcls states first 207, then 208 cycles done
+        with patch(self.ppath, side_effect=[207, 208]) as mcycles:
+            assert self.stage._run() == 0
             assert mcycles.call_count == 2
             mcycles.assert_called_with('path/to/input')
             mocked_sleep.assert_called_with(1200)
+
+    def test_run_aborted(self):
+        # Run info states 150 cycles for first read, 8 index cycles, and 50 cycles for second read = 208
+        run_info = Mock(reads=Mock(upstream_read=Mock(attrib={'NumCycles': '150'}), index_lengths=[8]))
+        dataset = NamedMock(real_name='testrun', run_info=run_info, input_dir='path/to/input',
+                            lims_run=Mock(udf={'Run Status': 'RunAborted'}))
+
+        # get_last_cycles_with_existing_bcls states 208 cycles done
+        with patch(self.ppath, return_value=208) as mcycles:
+            with pytest.raises(SequencingRunError):
+                self.stage = dm.WaitForRead2(dataset=dataset)
+                self.stage._run()
+            assert mcycles.call_count == 1
+            mcycles.assert_called_once_with('path/to/input')
 
 
 class TestPostDemultiplexing(TestAnalysisDriver):

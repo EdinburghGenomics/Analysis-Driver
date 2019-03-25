@@ -13,6 +13,7 @@ class TestTransferData(TestAnalysisDriver):
         self.link_dir = os.path.join(self.data_output, 'linked_output_files')
         os.makedirs(self.link_dir, exist_ok=True)
         self.output_cfg = OutputFileConfiguration()
+        self.output_cfg.set_pipeline_type('non_human_qc')
 
     def tearDown(self):
         if os.path.isdir(self.link_dir):
@@ -20,7 +21,7 @@ class TestTransferData(TestAnalysisDriver):
 
     def test_create_links(self):
         list_of_linked_files = transfer_data.create_output_links(
-            self.data_output, 'non_human_qc', self.link_dir, sample_id=self.sample_id, user_sample_id=self.sample_id
+            self.data_output, self.output_cfg, self.link_dir, sample_id=self.sample_id, user_sample_id=self.sample_id
         )
 
         output_files = os.path.join(self.data_output, 'linked_output_files')

@@ -188,7 +188,7 @@ class TestDataset(TestAnalysisDriver):
             self.dataset.raise_exceptions()
 
     def test_resolve_pipeline_and_toolset(self):
-        self.dataset._processing_instruction = Mock(
+        self.dataset._pipeline_instruction = Mock(
             return_value={'toolset_type': 'a_toolset', 'toolset_version': 3, 'name': 'qc'}
         )
         with patch(ppath + 'toolset') as mocked_toolset:
@@ -200,24 +200,22 @@ class TestDataset(TestAnalysisDriver):
 
     @patch(ppath + 'toolset', new=Toolset())
     def test_pipeline_instruction(self):
-        with patch.object(self.dataset.__class__, '_pipeline', new='qc'):
-            assert self.dataset._processing_instruction() == {
-                'name': 'qc',
-                'toolset_type': 'non_human_sample_processing',
-                'toolset_version': 1  # as per tests/assets/tool_versioning.yaml
-            }
+        self.dataset._default_pipeline = Mock(return_value='qc')
+        assert self.dataset._pipeline_instruction() == {
+            'name': 'qc',
+            'toolset_type': 'non_human_sample_processing',
+            'toolset_version': 1  # as per tests/assets/tool_versioning.yaml
+        }
 
 mocked_lane_user_prep_artifact1 = NamedMock(real_name='art1', reagent_labels=[], samples=[MockedSample(real_name='sample1')])
 mocked_lane_user_prep_artifact2 = NamedMock(real_name='art2', reagent_labels=[], samples=[MockedSample(real_name='sample2')])
 
-mocked_lane_artifact1 = NamedMock(real_name='art1', reagent_labels=['D701-D502 (ATTACTCG-ATAGAGGC)'], samples=[MockedSample(real_name='sample1', udf={})])
-mocked_lane_artifact2 = NamedMock(real_name='art2', reagent_labels=['D702-D502 (TCCGGAGA-ATAGAGGC)'], samples=[MockedSample(real_name='sample2', udf={'Rapid Analysis': True})])
-mocked_lane_artifact3 = NamedMock(real_name='art3', reagent_labels=['D703-D502 (CGCTCATT-ATAGAGGC)'], samples=[MockedSample(real_name='sample3', udf={})])
-mocked_lane_artifact4 = NamedMock(real_name='art4', reagent_labels=['D704-D502 (GAGATTCC-ATAGAGGC)'], samples=[MockedSample(real_name='sample4', udf={})])
-mocked_lane_artifact5 = NamedMock(real_name='art5', reagent_labels=['D705-D502 (ATTCAGAA-ATAGAGGC)'], samples=[MockedSample(real_name='sample5', udf={})])
-mocked_lane_artifact6 = NamedMock(real_name='art6', reagent_labels=['D706-D502 (GAATTCGT-ATAGAGGC)'], samples=[MockedSample(real_name='sample6', udf={})])
-mocked_lane_artifact7 = NamedMock(real_name='art7', reagent_labels=['D706-D502 (GAATTCGA-ATAGAGGC)'], samples=[MockedSample(real_name='sample7', udf={})])
-mocked_lane_artifact8 = NamedMock(real_name='art8', reagent_labels=['D706-D502 (GAATTCGG-ATAGAGGC)'], samples=[MockedSample(real_name='sample8', udf={})])
+mocked_lane_artifact1 = NamedMock(real_name='art1', reagent_labels=['D701-D502 (ATTACTCG-ATAGAGGC)'], samples=[MockedSample(real_name='sample1')])
+mocked_lane_artifact2 = NamedMock(real_name='art2', reagent_labels=['D702-D502 (TCCGGAGA-ATAGAGGC)'], samples=[MockedSample(real_name='sample2')])
+mocked_lane_artifact3 = NamedMock(real_name='art3', reagent_labels=['D703-D502 (CGCTCATT-ATAGAGGC)'], samples=[MockedSample(real_name='sample3')])
+mocked_lane_artifact4 = NamedMock(real_name='art4', reagent_labels=['D704-D502 (GAGATTCC-ATAGAGGC)'], samples=[MockedSample(real_name='sample4')])
+mocked_lane_artifact5 = NamedMock(real_name='art5', reagent_labels=['D705-D502 (ATTCAGAA-ATAGAGGC)'], samples=[MockedSample(real_name='sample5')])
+mocked_lane_artifact6 = NamedMock(real_name='art6', reagent_labels=['D706-D502 (GAATTCGT-ATAGAGGC)'], samples=[MockedSample(real_name='sample6')])
 mocked_lane_artifact_pool = NamedMock(real_name='artpool', reagent_labels=[
     'D703-D502 (CGCTCATT-ATAGAGGC)',
     'D704-D502 (GAGATTCC-ATAGAGGC)',
@@ -238,12 +236,12 @@ mocked_lane_artifact_pool = NamedMock(real_name='artpool', reagent_labels=[
 mocked_flowcell_non_pooling = Mock(placements={
     '1:1': mocked_lane_artifact1,
     '2:1': mocked_lane_artifact2,
-    '3:1': mocked_lane_artifact3,
-    '4:1': mocked_lane_artifact4,
-    '5:1': mocked_lane_artifact5,
-    '6:1': mocked_lane_artifact6,
-    '7:1': mocked_lane_artifact7,
-    '8:1': mocked_lane_artifact8
+    '3:1': mocked_lane_artifact1,
+    '4:1': mocked_lane_artifact2,
+    '5:1': mocked_lane_artifact1,
+    '6:1': mocked_lane_artifact2,
+    '7:1': mocked_lane_artifact1,
+    '8:1': mocked_lane_artifact2
 })
 
 mocked_flowcell_pooling = Mock(placements={
@@ -288,22 +286,13 @@ class TestRunDataset(TestDataset):
                               'dataset_name': 'None', 'dataset_type': 'None'}
         )
 
-    @patch('analysis_driver.dataset.clarity.get_run')
-    def test_rapid_samples_by_lane(self, mocked_get_run):
-        mocked_get_run.return_value = MockedRunProcess(container=mocked_flowcell_pooling)
-        assert self.dataset.rapid_samples_by_lane == {}
-
-        self.dataset._rapid_samples_by_lane = None
-        mocked_get_run.return_value.container = mocked_flowcell_non_pooling
-        assert self.dataset.rapid_samples_by_lane == {'2': mocked_lane_artifact2.samples[0]}
-
     def test_run_elements_from_lims(self):
         d = RunDataset('test_dataset')
         with patch('analysis_driver.dataset.clarity.get_run', return_value=MockedRunProcess(container=mocked_flowcell_non_pooling)), \
              patch.object(RunDataset, 'has_barcodes', new_callable=PropertyMock(return_value=False)):
             run_elements = d._run_elements_from_lims()
             assert len(set(r[c.ELEMENT_PROJECT_ID] for r in run_elements)) == 1
-            assert len(set(r[c.ELEMENT_SAMPLE_INTERNAL_ID] for r in run_elements)) == 8
+            assert len(set(r[c.ELEMENT_SAMPLE_INTERNAL_ID] for r in run_elements)) == 2
             barcodes_len = set(len(r[c.ELEMENT_BARCODE]) for r in run_elements)
             assert len(barcodes_len) == 1
             assert barcodes_len.pop() == 0
@@ -331,8 +320,8 @@ class TestRunDataset(TestDataset):
     @patch('builtins.open')
     def test_generate_samplesheet(self, mocked_open):
         fake_run_elements = [
-            {'lane': '1', 'sample_id': 'sample_1', 'library_id': 'lib_1', 'project_id': 'p', 'barcode': 'ATGC'},
-            {'lane': '2', 'sample_id': 'sample_2', 'library_id': 'lib_2', 'project_id': 'p', 'barcode': 'CTGA'}
+            {'lane': '2', 'sample_id': 'sample_2', 'library_id': 'lib_2', 'project_id': 'p', 'barcode': 'CTGA'},
+            {'lane': '1', 'sample_id': 'sample_1', 'library_id': 'lib_1', 'project_id': 'p', 'barcode': 'ATGC'}
         ]
         exp = [
             '[Header]', 'Date, now', 'Workflow, Generate FASTQ Only', '',
@@ -346,6 +335,22 @@ class TestRunDataset(TestDataset):
         with patched_datetime():
             self.dataset._generate_samplesheet('a_samplesheet')
             mocked_open.return_value.__enter__.return_value.write.assert_called_with('\n'.join(exp))
+
+    def test_sample_sheet_file(self):
+        self.dataset.input_dir = os.path.join(self.assets_path)
+        sample_sheet_file = os.path.join(self.dataset.input_dir, 'SampleSheet_analysis_driver.csv')
+        with patch.object(RunDataset, '_generate_samplesheet') as mgenerate:
+            self.dataset.sample_sheet_file
+        mgenerate.assert_called_once_with(sample_sheet_file)
+
+    def test_sample_sheet_file_exists(self):
+        self.dataset.input_dir = os.path.join(self.assets_path)
+        sample_sheet_file = os.path.join(self.dataset.input_dir, 'SampleSheet_analysis_driver.csv')
+        open(sample_sheet_file, 'w').close()
+        with patch.object(RunDataset, '_generate_samplesheet') as mgenerate:
+            self.dataset.sample_sheet_file
+        assert mgenerate.call_count == 0
+        os.remove(sample_sheet_file)
 
 
 class TestSampleDataset(TestDataset):
@@ -375,10 +380,11 @@ class TestSampleDataset(TestDataset):
 
     @patch(ppath + 'toolset', new=Toolset())
     @patch(ppath + 'SampleDataset.project_id', new='a_project')
-    @patch(ppath + 'SampleDataset._pipeline', new='qc')
     def test_pipeline_instruction(self):
+        self.dataset._default_pipeline = Mock(return_value='qc')
+
         with patched_get_doc({'sample_pipeline': 'some_data'}):
-            assert self.dataset._processing_instruction() == 'some_data'
+            assert self.dataset._pipeline_instruction() == 'some_data'
 
         exp = {
             'name': 'qc',
@@ -387,7 +393,7 @@ class TestSampleDataset(TestDataset):
         }
 
         with patched_get_doc(None), patched_patch as mocked_patch:
-            assert self.dataset._processing_instruction() == exp
+            assert self.dataset._pipeline_instruction() == exp
             mocked_patch.assert_called_with('projects', {'sample_pipeline': exp}, 'project_id', 'a_project')
 
     def test_is_ready(self):

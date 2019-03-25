@@ -40,33 +40,6 @@ def build_pipeline(dataset):
     return cleanup
 
 
-class CombineGVCFs(segmentation.Stage):
-    gvcfs = segmentation.ListParameter()
-    output_base = segmentation.Parameter()
-
-    @property
-    def output_file(self):
-        return os.path.join(self.job_dir, self.output_base)
-
-    def gatk_combine_gvcfs_cmd(self):
-        cmd = bash_commands.java_command(16, self.job_dir, toolset['gatk']) + \
-              '-T CombineGVCFs -R %s -o %s ' % (self.dataset.reference_genome, self.output_file)
-
-        for f in self.gvcfs:
-            cmd += ' -V ' + f
-
-        return cmd
-
-    def _run(self):
-        return executor.execute(
-            self.gatk_combine_gvcfs_cmd(),
-            job_name='combine_gvcfs',
-            working_dir=self.job_dir,
-            cpus=2,
-            mem=18
-        ).join()
-
-
 class MD5Sum(segmentation.Stage):
     def _run(self):
         dir_with_linked_files = os.path.join(self.job_dir, 'relatedness_outfiles')
