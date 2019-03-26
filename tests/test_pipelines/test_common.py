@@ -113,7 +113,7 @@ class TestMergeFastqs(TestCommon):
             command = 'path/to/bcbio/bin/bcbio_prepare_samples.py ' \
                       '--out tests/assets/jobs/test_dataset/merged' \
                       ' --csv tests/assets/jobs/test_dataset/samples_test_dataset.csv'
-            mock_execute.assert_any_call(command, job_name='bcbio_prepare_samples', working_dir='tests/assets/jobs/test_dataset'),
+            mock_execute.assert_any_call(command, cpus=1, mem=2, job_name='bcbio_prepare_samples', working_dir='tests/assets/jobs/test_dataset'),
 
 
 class TestSampleReview(TestCommon):

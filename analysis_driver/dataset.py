@@ -366,8 +366,23 @@ class RunDataset(Dataset):
                 if self.has_barcodes:
                     assert len(artifact.reagent_labels) == 1
                     reagent_label = artifact.reagent_labels[0]
-                    match = re.match('(\w{4})-(\w{4}) \(([ATCG]{8})-([ATCG]{8})\)', reagent_label)
-                    run_element[ELEMENT_BARCODE] = match.group(3)
+
+                    barcode = None
+                    for pattern in (
+                        # TruSeq label, e.g, A412-A208 (ATGCATGC-CTGACTGA)
+                        '(\w{4})-(\w{4}) \(([ATCG]{8})-([ATCG]{8})\)',
+                        # IDT label, e.g, 001A IDT-ILMN TruSeq DNA-RNA UD 96 Indexes Plate_UDI0001 (ATGCATGC-CTGACTGA)
+                        '(\w{4}) IDT-ILMN TruSeq DNA-RNA UD 96 Indexes (Plate_\w{7}) \(([ATGC]{8})-([ATGC]{8})\)'
+                    ):
+                        match = re.match(pattern, reagent_label)
+                        if match:
+                            barcode = match.group(3)
+
+                    if not barcode:
+                        raise AnalysisDriverError('Invalid reagent label found: %s' % reagent_label)
+
+                    run_element[ELEMENT_BARCODE] = barcode
+
                 run_elements.append(run_element)
         return run_elements
 

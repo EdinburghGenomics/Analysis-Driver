@@ -178,6 +178,8 @@ class MergeFastqs(VarCallingStage):
         exit_status = executor.execute(
             bash_commands.bcbio_prepare_samples(self.job_dir, bcbio_csv_file),
             job_name='bcbio_prepare_samples',
+            cpus=1,
+            mem=2,
             working_dir=self.job_dir
         ).join()
 
