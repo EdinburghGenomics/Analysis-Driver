@@ -295,7 +295,7 @@ class TestRunDataset(TestDataset):
 
         self.dataset._rapid_samples_by_lane = None
         mocked_get_run.return_value.container = mocked_flowcell_non_pooling
-        assert self.dataset.rapid_samples_by_lane == {'2': mocked_lane_artifact2.samples[0]}
+        assert self.dataset.rapid_samples_by_lane == {'2': {'sample_id': 'sample2', 'Rapid Analysis': True, 'project_id': '10015AT'}}
 
     def test_run_elements_from_lims(self):
         d = RunDataset('test_dataset')

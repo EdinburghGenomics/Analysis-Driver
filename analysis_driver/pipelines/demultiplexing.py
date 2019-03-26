@@ -487,12 +487,11 @@ def build_pipeline(dataset):
 
     qc_output2 = stage(QCOutput, stage_name='qcoutput2', run_crawler_stage=RunCrawler.STAGE_MAPPING,
                        previous_stages=[qc_output, stats_output, depth_output, md_output, is_output, gc_bias])
-    data_output = stage(DataOutput, previous_stages=[qc_output, qc_output2])
-    cleanup = stage(Cleanup, previous_stages=[data_output])
-    final_checkpoint = [cleanup]
-
+    data_output = stage(DataOutput, previous_stages=[qc_output2])
+    final_checkpoint = [data_output]
     if dataset.rapid_samples_by_lane:
         final_checkpoint.append(rapid._build_pipeline(dataset, setup))
 
-    review = stage(RunReview, previous_stages=final_checkpoint)
+    cleanup = stage(Cleanup, previous_stages=final_checkpoint)
+    review = stage(RunReview, previous_stages=[cleanup])
     return review

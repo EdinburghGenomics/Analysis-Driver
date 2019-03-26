@@ -351,6 +351,7 @@ class RunDataset(Dataset):
         if self._rapid_samples_by_lane is None:
             self._rapid_samples_by_lane = {}
 
+            # TODO: move away from using the Lims API
             flowcell = set(self.lims_run.parent_processes()).pop().output_containers()[0]
             for lane, artifact in flowcell.placements.items():
                 if len(artifact.reagent_labels) > 1:
@@ -359,7 +360,10 @@ class RunDataset(Dataset):
                 assert len(artifact.samples) == 1
                 sample = artifact.samples[0]
                 if sample.udf.get('Rapid Analysis'):
-                    self._rapid_samples_by_lane[lane.split(':')[0]] = sample
+                    s = sample.udf.copy()
+                    s['sample_id'] = sample.name
+                    s['project_id'] = sample.project.name
+                    self._rapid_samples_by_lane[lane.split(':')[0]] = s
 
         return self._rapid_samples_by_lane
 

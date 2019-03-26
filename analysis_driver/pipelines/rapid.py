@@ -20,15 +20,14 @@ class Dragen(RapidStage):
             cmds.append(
                 'if [ -d {tmp_dir} ]; then rm -r {tmp_dir}; fi; mkdir -p {tmp_dir}; {dragen} -r {ref} '
                 '--bcl-input-dir {run_dir} --bcl-only-lane {lane} --output-directory {tmp_dir} '
-                '--output-file-prefix {user_sample_id} --enable-variant-caller true --vc-sample-name {sample_id} '
+                '--output-file-prefix {user_sample_id} --enable-variant-caller true --vc-sample-name {user_sample_id} '
                 '--bcl-sample-sheet {sample_sheet} --enable-map-align-output true --enable-duplicate-marking true '
                 '--dbsnp {dbsnp}; rsync -rLD {tmp_dir}/ {out_dir}; rm -r {tmp_dir}'.format(
                     dragen=cfg['dragen']['executable'],
                     ref=cfg['dragen']['reference'], run_dir=self.input_dir, lane=lane,
-                    out_dir=self.rapid_output_dir(lane), user_sample_id=sample.udf['User Sample Name'],
-                    sample_id=sample.name, sample_sheet=self.dataset.sample_sheet_file,
-                    tmp_dir=os.path.join(cfg['dragen']['staging'], self.dataset.name + '_' + lane),
-                    dbsnp=cfg['dragen']['dbsnp']
+                    out_dir=self.rapid_output_dir(lane), user_sample_id=sample['User Sample Name'],
+                    sample_sheet=self.dataset.sample_sheet_file, dbsnp=cfg['dragen']['dbsnp'],
+                    tmp_dir=os.path.join(cfg['dragen']['staging'], self.dataset.name + '_' + lane)
                 )
             )
 
@@ -61,8 +60,7 @@ class DragenMetrics(RapidStage):
         data = []
         for lane in sorted(self.dataset.rapid_samples_by_lane):
             sample = self.dataset.rapid_samples_by_lane[lane]
-            sample_id = sample.name
-            user_sample_id = sample.udf['User Sample Name']
+            user_sample_id = sample['User Sample Name']
             output_dir = self.rapid_output_dir(lane)
             map_metrics = self.parse_metrics_file(
                 util.find_file(output_dir, '%s.mapping_metrics.csv' % user_sample_id)
@@ -74,7 +72,7 @@ class DragenMetrics(RapidStage):
 
             data.append(
                 {
-                    'sample_id': sample_id,
+                    'sample_id': sample['sample_id'],
                     'rapid_metrics': {
                         'var_calling': {
                              'ti_tv_ratio': float(vc_metrics['Ti/Tv ratio'][0]),
@@ -136,17 +134,18 @@ class DragenOutput(RapidStage):
 
         for lane in sorted(self.dataset.rapid_samples_by_lane):
             sample = self.dataset.rapid_samples_by_lane[lane]
+            sample_id = sample['sample_id']
 
-            if not self.review(sample.name):
+            if not self.review(sample_id):
                 continue
 
-            output_dir = os.path.join(cfg['sample']['output_dir'], sample.project.name, sample.name, 'rapid_analysis')
+            output_dir = os.path.join(cfg['sample']['output_dir'], sample['project_id'], sample_id, 'rapid_analysis')
             output_status = self.output_data(lane, sample, output_dir)
             if output_status != 0:
-                self.warning('Data output failed for sample %s', sample.name)
+                self.warning('Data output failed for sample %s', sample_id)
                 continue
 
-            exit_status += self.deliver_data(sample, output_dir)
+            exit_status += self.deliver_data(sample_id, sample['User Sample Name'], sample['project_id'], output_dir)
 
         return exit_status
 
@@ -205,13 +204,13 @@ class DragenOutput(RapidStage):
 
         return md5sum_exit_status + transfer_exit_status
 
-    def deliver_data(self, sample, output_dir):
+    def deliver_data(self, sample_id, user_sample_id, project_id, output_dir):
         today = self.datestamp + '_rapid'
         delivery_folder = os.path.join(
             cfg['delivery']['dest'],
-            sample.project.name,
+            project_id,
             today,
-            sample.udf['User Sample Name']
+            user_sample_id
         )
         os.makedirs(delivery_folder, exist_ok=False)
 
@@ -220,7 +219,7 @@ class DragenOutput(RapidStage):
             new_link = os.path.join(delivery_folder, os.path.basename(f))
             exit_status += executor.local_execute('ln %s %s' % (f, new_link)).join()
 
-        self.dataset.ntf.notify_rapid_completion(sample.name)
+        self.dataset.ntf.notify_rapid_completion(sample_id)
         return exit_status
 
 

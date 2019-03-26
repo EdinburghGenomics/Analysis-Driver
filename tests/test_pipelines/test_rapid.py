@@ -21,7 +21,7 @@ class TestDragen(TestAnalysisDriver):
             dataset=NamedMock(
                 real_name='a_run',
                 type='run',
-                rapid_samples_by_lane={'2': NamedMock(real_name='a_sample', udf={'User Sample Name': 'uid_a_sample'})},
+                rapid_samples_by_lane={'2': {'sample_id': 'a_sample', 'User Sample Name': 'uid_a_sample'}},
                 sample_sheet_file='path/to/SampleSheet_analysis_driver.csv'
             )
         )
@@ -31,7 +31,7 @@ class TestDragen(TestAnalysisDriver):
             'mkdir -p /path/to/dragen_staging/a_run_2; /path/to/dragen -r /path/to/dragen_reference '
             '--bcl-input-dir tests/assets/data_transfer/from/a_run --bcl-only-lane 2 '
             '--output-directory /path/to/dragen_staging/a_run_2 --output-file-prefix uid_a_sample '
-            '--enable-variant-caller true --vc-sample-name a_sample '
+            '--enable-variant-caller true --vc-sample-name uid_a_sample '
             '--bcl-sample-sheet path/to/SampleSheet_analysis_driver.csv --enable-map-align-output true '
             '--enable-duplicate-marking true --dbsnp /path/to/dbsnp; '
             'rsync -rLD /path/to/dragen_staging/a_run_2/ tests/assets/jobs/a_run/rapid_analysis_2; '
@@ -53,8 +53,8 @@ class TestDragenMetrics(TestAnalysisDriver):
                 real_name='a_run',
                 type='run',
                 rapid_samples_by_lane={
-                    '2': NamedMock(real_name='a_sample', udf={'User Sample Name': 'uid_a_sample'}),
-                    '4': NamedMock(real_name='another_sample', udf={'User Sample Name': 'uid_another_sample'})
+                    '2': {'sample_id': 'a_sample', 'User Sample Name': 'uid_a_sample'},
+                    '4': {'sample_id': 'another_sample', 'User Sample Name': 'uid_another_sample'}
                 }
             )
         )
@@ -238,11 +238,9 @@ class TestDeliverData(TestPostDragen):
     @patch.object(rapid.DragenOutput, 'datestamp', new='today')
     def test_deliver_data(self):
         self.stage.deliver_data(
-            NamedMock(
-                real_name='a_sample',
-                project=NamedMock(real_name='a_project'),
-                udf={'User Sample Name': 'uid_a_sample'}
-            ),
+            'a_sample',
+            'uid_a_sample',
+            'a_project',
             self.sample_output_dir
         )
 
