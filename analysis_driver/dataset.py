@@ -744,6 +744,9 @@ class MostRecentProc:
             if self.get('status') != DATASET_RESUME:
                 payload['start_date'] = now()
 
+            if self.dataset.type == 'sample':
+                payload['genome_used'] = self.dataset.genome_version
+
             self.update_entity(status=DATASET_PROCESSING, pid=os.getpid())
             rest_communication.patch_entry('analysis_driver_procs', payload, 'proc_id', self.proc_id)
 

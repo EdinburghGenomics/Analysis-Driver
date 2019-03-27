@@ -26,10 +26,6 @@ class Toolset(AppLogger):
         self.version = version
         self.tools = {}
         self.tool_versions = {}
-
-        for k in cfg['tools']:
-            self.add_tool(k)
-
         self.info('Selected %s toolset version %s', self.type, self.version)
 
     @property
@@ -40,7 +36,10 @@ class Toolset(AppLogger):
         if toolname in self.versioning_cfg['toolsets'][self.type][self.version]:
             self.tools[toolname] = self.add_versioned_tool(toolname)
         else:
-            config = cfg['tools'][toolname]
+            config = cfg['tools'].get(toolname)
+            if not config:
+                raise AnalysisDriverError('Referenced tool %s not present in config' % toolname)
+
             if isinstance(config, list):
                 config = sorted(config)[-1]
 
@@ -122,6 +121,7 @@ class Toolset(AppLogger):
         return stdout.strip().decode('utf-8')
 
     def __getitem__(self, item):
+        self.add_tool(item)
         return self.tools[item]
 
 

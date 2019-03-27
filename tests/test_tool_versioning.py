@@ -30,6 +30,7 @@ class TestToolset(TestAnalysisDriver):
         assert self.toolset['bwa'] == 'path/to/bwa_1.1'
         assert self.toolset['gatk'] == 'path/to/gatk_4'
         assert self.toolset['fastqc'] == 'path/to/fastqc_v0.11.5'
+        assert self.toolset['samtools'] == 'path/to/samtools_1.3.1'
         assert self.toolset['java'] == 'path/to/java_8'
         assert 'fastqc' in self.toolset.unversioned_tools  # no longer versioned
         assert self.toolset.tool_versions == {
@@ -42,6 +43,9 @@ class TestToolset(TestAnalysisDriver):
     @patch('analysis_driver.tool_versioning.Toolset.check_version')
     def test_tool_config_inheritance(self, mocked_check):
         self.toolset.select_version(1)
+        for t in ('bwa', 'gatk', 'samtools', 'java'):
+            _ = self.toolset[t]
+
         mocked_check.assert_any_call(
             'bwa',
             'path/to/bwa_1.0',  # a bit wonky here since we've patched check_version, but the main test still stands
@@ -77,4 +81,19 @@ class TestToolset(TestAnalysisDriver):
         assert not self.toolset.check_version('bwa', 'path/to/bwa_1.0', 1.1, 'grep_version')
         mocked_stdout.assert_called_with(
             'path/to/bwa_1.0 2>&1 | grep "Version" | cut -d " " -f 2'
+        )
+
+    @patch('builtins.open')
+    @patch('analysis_driver.tool_versioning.Toolset.check_version', new=fake_check_version)
+    def test_report(self, mocked_file):
+        self.toolset.select_version(0)
+        self.toolset.write_to_yaml('tools_used.yaml')
+        mocked_file.return_value.__enter__.return_value.write.assert_called_with('{}\n')
+
+        _ = self.toolset['fastqc']
+        _ = self.toolset['bcbio']  # should not appear below
+        _ = self.toolset['gatk']  # should appear below along with Java
+        self.toolset.write_to_yaml('tools_used.yaml')
+        mocked_file.return_value.__enter__.return_value.write.assert_called_with(
+            'fastqc: v0.11.5\ngatk: 3\njava: 8\n'
         )

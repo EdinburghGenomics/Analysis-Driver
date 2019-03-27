@@ -611,6 +611,8 @@ class TestMostRecentProc(TestAnalysisDriver):
     @patched_update
     def test_start(self, mocked_update, mocked_patch, mocked_now):
         self.proc.dataset.pipeline = NamedMock(real_name='some kind of variant calling')
+        self.proc.dataset.type = 'sample'
+        self.proc.dataset.genome_version = 'Tthi_1.0'
         with patched_pid:
             self.proc.start()
         mocked_update.assert_called_with(status=c.DATASET_PROCESSING, pid=1)
@@ -622,7 +624,8 @@ class TestMostRecentProc(TestAnalysisDriver):
                     'name': 'some kind of variant calling',
                     'toolset_type': 'some kind of toolset',
                     'toolset_version': 3
-                }
+                },
+                'genome_used': 'Tthi_1.0'
             },
             'proc_id',
             'a_proc_id'
