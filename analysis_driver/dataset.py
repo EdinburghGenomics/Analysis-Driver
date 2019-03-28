@@ -348,6 +348,10 @@ class RunDataset(Dataset):
 
     @property
     def rapid_samples_by_lane(self):
+        """
+        Search the sequencing run in the Lims for any samples with the UDF 'Rapid Analysis' set, and return their sample
+        ID, project ID and all UDFs.
+        """
         if self._rapid_samples_by_lane is None:
             self._rapid_samples_by_lane = {}
 
@@ -359,7 +363,7 @@ class RunDataset(Dataset):
 
                 assert len(artifact.samples) == 1
                 sample = artifact.samples[0]
-                if sample.udf.get('Rapid Analysis'):
+                if sample.udf.get('Rapid Analysis') == 'Yes':
                     s = sample.udf.copy()
                     s['sample_id'] = sample.name
                     s['project_id'] = sample.project.name

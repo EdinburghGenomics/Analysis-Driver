@@ -211,7 +211,7 @@ mocked_lane_user_prep_artifact1 = NamedMock(real_name='art1', reagent_labels=[],
 mocked_lane_user_prep_artifact2 = NamedMock(real_name='art2', reagent_labels=[], samples=[MockedSample(real_name='sample2')])
 
 mocked_lane_artifact1 = NamedMock(real_name='art1', reagent_labels=['D701-D502 (ATTACTCG-ATAGAGGC)'], samples=[MockedSample(real_name='sample1', udf={})])
-mocked_lane_artifact2 = NamedMock(real_name='art2', reagent_labels=['D702-D502 (TCCGGAGA-ATAGAGGC)'], samples=[MockedSample(real_name='sample2', udf={'Rapid Analysis': True})])
+mocked_lane_artifact2 = NamedMock(real_name='art2', reagent_labels=['D702-D502 (TCCGGAGA-ATAGAGGC)'], samples=[MockedSample(real_name='sample2', udf={'Rapid Analysis': 'Yes'})])
 mocked_lane_artifact3 = NamedMock(real_name='art3', reagent_labels=['D703-D502 (CGCTCATT-ATAGAGGC)'], samples=[MockedSample(real_name='sample3', udf={})])
 mocked_lane_artifact4 = NamedMock(real_name='art4', reagent_labels=['D704-D502 (GAGATTCC-ATAGAGGC)'], samples=[MockedSample(real_name='sample4', udf={})])
 mocked_lane_artifact5 = NamedMock(real_name='art5', reagent_labels=['D705-D502 (ATTCAGAA-ATAGAGGC)'], samples=[MockedSample(real_name='sample5', udf={})])
@@ -295,7 +295,7 @@ class TestRunDataset(TestDataset):
 
         self.dataset._rapid_samples_by_lane = None
         mocked_get_run.return_value.container = mocked_flowcell_non_pooling
-        assert self.dataset.rapid_samples_by_lane == {'2': {'sample_id': 'sample2', 'Rapid Analysis': True, 'project_id': '10015AT'}}
+        assert self.dataset.rapid_samples_by_lane == {'2': {'sample_id': 'sample2', 'Rapid Analysis': 'Yes', 'project_id': '10015AT'}}
 
     def test_run_elements_from_lims(self):
         d = RunDataset('test_dataset')

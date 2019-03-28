@@ -17,15 +17,23 @@ class Dragen(RapidStage):
     def _run(self): 
         cmds = []
         for lane, sample in self.dataset.rapid_samples_by_lane.items():
+            # clean up any previous run on the Dragen server's scratch space
+            cmd = 'if [ -d {tmp_dir} ]; then rm -r {tmp_dir}; fi; mkdir -p {tmp_dir}; '
+
+            # run Dragen on the lane with bam/vcf outputs, dbSNP and duplicate marking enabled
+            cmd += '{dragen} -r {ref} --bcl-input-dir {run_dir} --bcl-only-lane {lane} --output-directory {tmp_dir} ' \
+                   '--output-file-prefix {user_sample_id} --enable-variant-caller true ' \
+                   '--vc-sample-name {user_sample_id} --bcl-sample-sheet {sample_sheet} ' \
+                   '--enable-map-align-output true --enable-duplicate-marking true --dbsnp {dbsnp}; ' \
+
+            # somehow, writing the output data to scratch and then rsyncing to the main file system is faster than
+            # outputting directly
+            cmd += 'rsync -rLD {tmp_dir}/ {out_dir}; rm -r {tmp_dir}'
+
             cmds.append(
-                'if [ -d {tmp_dir} ]; then rm -r {tmp_dir}; fi; mkdir -p {tmp_dir}; {dragen} -r {ref} '
-                '--bcl-input-dir {run_dir} --bcl-only-lane {lane} --output-directory {tmp_dir} '
-                '--output-file-prefix {user_sample_id} --enable-variant-caller true --vc-sample-name {user_sample_id} '
-                '--bcl-sample-sheet {sample_sheet} --enable-map-align-output true --enable-duplicate-marking true '
-                '--dbsnp {dbsnp}; rsync -rLD {tmp_dir}/ {out_dir}; rm -r {tmp_dir}'.format(
-                    dragen=cfg['dragen']['executable'],
-                    ref=cfg['dragen']['reference'], run_dir=self.input_dir, lane=lane,
-                    out_dir=self.rapid_output_dir(lane), user_sample_id=sample['User Sample Name'],
+                cmd.format(
+                    dragen=cfg['dragen']['executable'], ref=cfg['dragen']['reference'], run_dir=self.input_dir,
+                    lane=lane, out_dir=self.rapid_output_dir(lane), user_sample_id=sample['User Sample Name'],
                     sample_sheet=self.dataset.sample_sheet_file, dbsnp=cfg['dragen']['dbsnp'],
                     tmp_dir=os.path.join(cfg['dragen']['staging'], self.dataset.name + '_' + lane)
                 )
@@ -52,7 +60,8 @@ class DragenMetrics(RapidStage):
                 if not line:
                     continue
 
-                data[line[0]][line[2]] = line[3:]
+                heading, sample, key, *values = line
+                data[heading][key] = values
 
         return data
 
@@ -136,7 +145,8 @@ class DragenOutput(RapidStage):
             sample = self.dataset.rapid_samples_by_lane[lane]
             sample_id = sample['sample_id']
 
-            if not self.review(sample_id):
+            qc_passed = self.review(sample_id)
+            if not qc_passed:
                 continue
 
             output_dir = os.path.join(cfg['sample']['output_dir'], sample['project_id'], sample_id, 'rapid_analysis')
