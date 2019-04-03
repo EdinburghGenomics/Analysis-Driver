@@ -1,4 +1,4 @@
-from os.path import join
+import os
 from unittest.mock import patch
 from analysis_driver.tool_versioning import Toolset
 from analysis_driver.config import Configuration
@@ -12,7 +12,7 @@ def fake_check_version(self, toolname, executable, exp_version, version_cmd, dep
 class TestToolset(TestAnalysisDriver):
     def setUp(self):
         self.toolset = Toolset()
-        self.toolset.versioning_cfg = Configuration(join(self.assets_path, 'tool_versioning.yaml'))
+        self.toolset.versioning_cfg = Configuration(os.path.join(self.assets_path, 'tool_versioning.yaml'))
         self.toolset.select_type('non_human_sample_processing')
 
     @patch('analysis_driver.tool_versioning.Toolset.check_version', new=fake_check_version)
@@ -83,17 +83,20 @@ class TestToolset(TestAnalysisDriver):
             'path/to/bwa_1.0 2>&1 | grep "Version" | cut -d " " -f 2'
         )
 
-    @patch('builtins.open')
     @patch('analysis_driver.tool_versioning.Toolset.check_version', new=fake_check_version)
-    def test_report(self, mocked_file):
-        self.toolset.select_version(0)
-        self.toolset.write_to_yaml('tools_used.yaml')
-        mocked_file.return_value.__enter__.return_value.write.assert_called_with('{}\n')
+    def test_report(self):
+        versions_file = os.path.join(self.assets_path, 'tool_versions.yaml')
+        if os.path.isfile(versions_file):
+            os.remove(versions_file)
 
-        _ = self.toolset['fastqc']
-        _ = self.toolset['bcbio']  # should not appear below
+        self.toolset.select_version(0)
+        _ = self.toolset['fastqc']  # reference a tool - should appear in versions_file
+        self.toolset.write_to_yaml(versions_file)
+        with open(versions_file, 'r') as f:
+            assert f.read() == 'fastqc: v0.11.5\n'
+
+        _ = self.toolset['bcbio']  # unversioned, should not appear below
         _ = self.toolset['gatk']  # should appear below along with Java
-        self.toolset.write_to_yaml('tools_used.yaml')
-        mocked_file.return_value.__enter__.return_value.write.assert_called_with(
-            'fastqc: v0.11.5\ngatk: 3\njava: 8\n'
-        )
+        self.toolset.write_to_yaml(versions_file)
+        with open(versions_file, 'r') as f:
+            assert f.read() == 'fastqc: v0.11.5\ngatk: 3\njava: 8\n'

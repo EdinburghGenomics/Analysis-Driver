@@ -1,5 +1,6 @@
 import yaml
 import subprocess
+from os.path import isfile
 from egcg_core.app_logging import AppLogger
 from analysis_driver.config import cfg, tool_versioning_cfg
 from analysis_driver.exceptions import AnalysisDriverError
@@ -111,8 +112,15 @@ class Toolset(AppLogger):
             return self.resolve(toolname, val, toolset_version - 1)
 
     def write_to_yaml(self, file_path):
+        if isfile(file_path):
+            with open(file_path, 'r') as f:
+                tool_versions = yaml.safe_load(f)
+        else:
+            tool_versions = {}
+
+        tool_versions.update(self.tool_versions)
         with open(file_path, 'w') as f:
-            f.write(yaml.safe_dump(self.tool_versions, default_flow_style=False))
+            f.write(yaml.safe_dump(tool_versions, default_flow_style=False))
 
     @staticmethod
     def _get_stdout(cmd):
