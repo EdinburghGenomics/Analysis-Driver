@@ -207,10 +207,12 @@ def md5sum(input_file):
     return cmd
 
 
-def picard_command(program, input_file, output_file, tmp_dir, memory, picard_params=None):
+def picard_command(program, input_file, output_file, tmp_dir, memory, assume_sorted=True, picard_params=None):
     cmd = (java_command(memory, tmp_dir or os.path.dirname(input_file), toolset['picard']) + '{program} '
-           'INPUT={input} OUTPUT={output} ASSUME_SORTED=true VALIDATION_STRINGENCY=LENIENT'
+           'INPUT={input} OUTPUT={output} VALIDATION_STRINGENCY=LENIENT'
            )
+    if assume_sorted:
+        picard_params['ASSUME_SORTED'] = 'true'
     if picard_params:
         for k in sorted(picard_params):
             cmd += ' %s=%s' % (k, picard_params[k])

@@ -204,8 +204,8 @@ class SampleReview(segmentation.Stage):
         return 0
 
 
-def bgzip_and_tabix(working_dir, vcf_file):
-    bgzip_status = executor.execute(
+def bgzip_vcf(working_dir, vcf_file):
+    return executor.execute(
         bash_commands.bgzip_command(vcf_file),
         job_name='bgzip',
         working_dir=working_dir,
@@ -213,12 +213,18 @@ def bgzip_and_tabix(working_dir, vcf_file):
         mem=8
     ).join()
 
-    tabix_status = executor.execute(
-        bash_commands.tabix_vcf_command(vcf_file + '.gz'),
+
+def tabix_vcf(working_dir, vcf_file):
+    return executor.execute(
+        bash_commands.tabix_vcf_command(vcf_file),
         job_name='tabix',
         working_dir=working_dir,
         cpus=1,
         mem=8
     ).join()
 
+
+def bgzip_and_tabix(working_dir, vcf_file):
+    bgzip_status = bgzip_vcf(working_dir, vcf_file)
+    tabix_status = tabix_vcf(working_dir, vcf_file + '.gz')
     return bgzip_status + tabix_status

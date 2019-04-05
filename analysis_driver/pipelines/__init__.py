@@ -1,11 +1,11 @@
 import luigi
 from egcg_core.config import cfg
 from egcg_core.app_logging import logging_default as log_cfg
-from analysis_driver.pipelines import demultiplexing, bcbio, qc, variant_calling, projects
+from analysis_driver.pipelines import demultiplexing, bcbio, qc, variant_calling, projects, variant_calling_gatk4
 
 register = {
     p.name: p
-    for p in (demultiplexing, bcbio, qc, variant_calling, projects)
+    for p in (demultiplexing, bcbio, qc, variant_calling, projects, variant_calling_gatk4)
 }
 
 

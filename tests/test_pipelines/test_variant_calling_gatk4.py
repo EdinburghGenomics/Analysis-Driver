@@ -4,32 +4,38 @@ from unittest.mock import patch
 
 from egcg_core.constants import ELEMENT_LANE, ELEMENT_NB_READS_CLEANED, ELEMENT_RUN_NAME, ELEMENT_RUN_ELEMENT_ID
 
-from analysis_driver.pipelines.variant_calling_gatk4 import SplitBWA
+from analysis_driver.pipelines.variant_calling_gatk4 import SplitBWA, SplitHaplotypeCaller, SplitFastqStage
 
 from tests.test_pipelines.test_variant_calling import TestVariantCalling
 
 patch_executor = patch('analysis_driver.pipelines.variant_calling_gatk4.executor.execute')
 
 
-class TestSplitBWA(TestVariantCalling):
-
+class TestGATK4(TestVariantCalling):
     def setUp(self):
         self.current_wd = os.curdir
         os.chdir(dirname(dirname(__file__)))
-        self.stage = SplitBWA(dataset=self.dataset)
 
     def tearDown(self):
         os.chdir(self.current_wd)
 
+
+class TestSplitFastqStage(TestGATK4):
+
     def test_chunks_from_fastq(self):
-        chunks = self.stage.chunks_from_fastq([os.path.join(self.assets_path, 'indexed_fastq_file1.gz')])
+        stage = SplitFastqStage(dataset=self.dataset)
+        chunks = stage.chunks_from_fastq([os.path.join(self.assets_path, 'indexed_fastq_file1.gz')])
         assert chunks == [
             (1, 100000000), (100000001, 200000000), (200000001, 300000000), (300000001, 400000000),
             (400000001, 500000000)
         ]
 
+
+class TestSplitBWA(TestVariantCalling):
+
     def test_bwa_command(self):
-        cmd = self.stage.bwa_command(
+        stage = SplitBWA(dataset=self.dataset)
+        cmd = stage.bwa_command(
             ['file_R1.fastq.gz', 'file_R2.fastq.gz'], 'reference.fa',
             'expected_output_bam', {'ID': '1', 'SM': 'sample1', 'PL': 'illumina'}, (1, 10000))
         exp = 'set -o pipefail; '\
@@ -60,3 +66,13 @@ class TestSplitBWA(TestVariantCalling):
             reference='reference_genome'
         )
         assert mcommand.call_count == 5
+
+
+class TestSplitHaplotypeCaller(TestVariantCalling):
+
+    def setUp(self):
+        self.stage = SplitHaplotypeCaller(dataset=self.dataset)
+
+    def test_split_genome_in_chunks(self):
+        self.dataset.reference_genome = join(self.assets_path, 'genome.fa')
+        print('\n'.join(str(e) for e in self.stage.split_genome_in_chunks()))

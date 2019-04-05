@@ -94,11 +94,11 @@ class TestGATKStage():
 
 class TestVariantCalling(TestAnalysisDriver):
     dataset = NamedMock(
-            real_name='test_dataset',
-            user_sample_id='test_user_sample_id',
-            genome_version='genome_version',
-            reference_genome='reference_genome'
-        )
+        real_name='test_dataset',
+        user_sample_id='test_user_sample_id',
+        genome_version='genome_version',
+        reference_genome='reference_genome'
+    )
 
 
 class TestBaseRecal(TestVariantCalling):

@@ -436,6 +436,7 @@ class SampleDataset(Dataset):
         super().__init__(name, most_recent_proc)
         self._run_elements = None
         self._sample = None
+        self._lims_sample_status = None
         self._non_useable_run_elements = None
         self._data_threshold = data_threshold
         self._species = None
@@ -488,6 +489,16 @@ class SampleDataset(Dataset):
         if self._sample is None:
             self._sample = rest_communication.get_document('samples', where={'sample_id': self.name})
         return self._sample
+
+    @property
+    def lims_sample_status(self):
+        if self._lims_sample_status is None:
+            self._lims_sample_status = rest_communication.get_document('lims/sample_status',
+                                                                       match={'sample_id': self.name})
+        return self._lims_sample_status
+
+    def library_preparation(self):
+        return self.lims_sample_status.get('library_type')
 
     @property
     def non_useable_run_elements(self):
