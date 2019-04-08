@@ -628,14 +628,15 @@ class ProjectDataset(Dataset):
     def genome_version(self):
         if self._genome_version is None:
             g = clarity.get_sample(self.samples_processed[0]['sample_id']).udf.get('Genome Version')
-            if not g:
-                g = cfg.query('species', self.species, 'default')
+            # if not g:
+            #     g = cfg.query('species', self.species, 'default')
             self._genome_version = g
         return self._genome_version
 
     @property
     def reference_genome(self):
-        return cfg['genomes'][self.genome_version]['fasta']
+        # return cfg['genomes'][self.genome_version]['fasta']
+        return
 
     def __str__(self):
         return '%s  (%s samples / %s) ' % (super().__str__(), len(self.samples_processed), self.number_of_samples)
