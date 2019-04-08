@@ -463,7 +463,8 @@ class SampleDataset(Dataset):
 
     @property
     def reference_genome(self):
-        return cfg['genomes'][self.genome_version]['fasta']
+        # return cfg['genomes'][self.genome_version]['fasta']
+        return
 
     @property
     def data_source(self):
