@@ -103,7 +103,6 @@ default:
       genome_version:
         fasta: /path/to/genome.fa
         dbsnp: /path/to/dbsnp.vcf.gz
-        known_indels: /path/to/known/indels
       phix174:
         fasta: /path/to/phix.fa
 

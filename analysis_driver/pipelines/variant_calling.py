@@ -92,14 +92,6 @@ class GATKStage(segmentation.Stage):
                 raise AnalysisDriverError('Could not find dbsnp file for %s' % self.dataset.name)
         return dbsnp
 
-    @property
-    def known_indels(self):
-        try:
-            known_indels = rest_communication.get_document('genomes', where={'assembly_name': self.dataset.genome_version})['known_indels']
-        except KeyError:
-            return None
-        return known_indels
-
 
 class BaseRecal(GATKStage):
     def _run(self):
@@ -136,9 +128,6 @@ class RealignTarget(GATKStage):
             input_bam=self.recal_bam, xmx=32, nct=1, nt=1
         )
 
-        if self.known_indels:
-            realign_target_cmd += ' --known ' + self.known_indels
-
         return executor.execute(
             realign_target_cmd,
             job_name='gatk_realign_target',
@@ -158,8 +147,6 @@ class Realign(GATKStage):
             nt=1,
             ext=' -targetIntervals ' + self.output_intervals
         )
-        if self.known_indels:
-            realign_cmd += ' --knownAlleles ' + self.known_indels
         return executor.execute(
             realign_cmd,
             job_name='gatk_indel_realign',

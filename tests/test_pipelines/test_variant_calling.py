@@ -87,10 +87,6 @@ class TestGATKStage():
         dbsnp = self.g.dbsnp
         assert dbsnp == '/path/to/dbsnp.vcf.gz'
 
-    def test_known_indels(self):
-        known_intervals = self.g.known_indels
-        assert known_intervals == '/path/to/known/indels'
-
 
 class TestVariantCalling(TestAnalysisDriver):
     dataset = NamedMock(
@@ -177,8 +173,7 @@ class TestRealignTarget(TestVariantCalling):
                                  '-o tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id.intervals '
                                  '-l INFO '
                                  '-U LENIENT_VCF_PROCESSING '
-                                 '-I tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id_recal.bam '
-                                 '--known /path/to/known/indels',
+                                 '-I tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id_recal.bam ',
                                  job_name='gatk_realign_target',
                                  mem=32,
                                  working_dir='tests/assets/jobs/test_dataset/gatk_var_calling')
@@ -203,8 +198,7 @@ class TestRealign(TestVariantCalling):
                                  '-o tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id_indel_realigned.bam '
                                  '-l INFO -U LENIENT_VCF_PROCESSING '
                                  '-I tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id_recal.bam '
-                                 '-targetIntervals tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id.intervals '
-                                 '--knownAlleles /path/to/known/indels',
+                                 '-targetIntervals tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id.intervals ',
                                  job_name='gatk_indel_realign',
                                  mem=32,
                                  working_dir='tests/assets/jobs/test_dataset/gatk_var_calling')
