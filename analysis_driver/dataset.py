@@ -637,9 +637,7 @@ class ProjectDataset(Dataset):
 
     @property
     def reference_genome(self):
-        # TODO: Change to use API
-        # return cfg['genomes'][self.genome_version]['fasta']
-        return
+        return rest_communication.get_document('genomes', where={'assembly_name': self.genome_version})['data_files']['fasta']
 
     def __str__(self):
         return '%s  (%s samples / %s) ' % (super().__str__(), len(self.samples_processed), self.number_of_samples)
