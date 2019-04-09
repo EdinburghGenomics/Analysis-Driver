@@ -463,9 +463,7 @@ class SampleDataset(Dataset):
 
     @property
     def reference_genome(self):
-        # TODO: Change to use API
-        # return cfg['genomes'][self.genome_version]['fasta']
-        return
+        return rest_communication.get_document('genomes', where={'assembly_name': self.genome_version})['data_files']['fasta']
 
     @property
     def data_source(self):
