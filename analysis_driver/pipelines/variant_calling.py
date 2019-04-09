@@ -1,7 +1,7 @@
 import os
 from analysis_driver import quality_control as qc
 from luigi import Parameter
-from egcg_core import executor
+from egcg_core import executor, rest_communication
 from analysis_driver import segmentation
 from analysis_driver.pipelines import common
 from analysis_driver.config import default as cfg
@@ -84,14 +84,21 @@ class GATKStage(segmentation.Stage):
 
     @property
     def dbsnp(self):
-        dbsnp = cfg.query('genomes', self.dataset.genome_version, 'dbsnp')
-        if not dbsnp and self.dataset.pipeline.name == 'variant_calling':
-            raise AnalysisDriverError('Could not find dbsnp file for %s' % self.dataset.name)
+        dbsnp = None
+        try:
+            dbsnp = rest_communication.get_document('genomes', where={'assembly_name': self.dataset.genome_version})['data_files']['variation']
+        except KeyError:
+            if self.dataset.pipeline.name == 'variant_calling':
+                raise AnalysisDriverError('Could not find dbsnp file for %s' % self.dataset.name)
         return dbsnp
 
     @property
     def known_indels(self):
-        return cfg.query('genomes', self.dataset.genome_version, 'known_indels')
+        try:
+            known_indels = rest_communication.get_document('genomes', where={'assembly_name': self.dataset.genome_version})['known_indels']
+        except KeyError:
+            return None
+        return known_indels
 
 
 class BaseRecal(GATKStage):
