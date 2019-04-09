@@ -463,6 +463,7 @@ class SampleDataset(Dataset):
 
     @property
     def reference_genome(self):
+        # TODO: Change to use API
         # return cfg['genomes'][self.genome_version]['fasta']
         return
 
@@ -629,13 +630,14 @@ class ProjectDataset(Dataset):
     def genome_version(self):
         if self._genome_version is None:
             g = clarity.get_sample(self.samples_processed[0]['sample_id']).udf.get('Genome Version')
-            # if not g:
-            #     g = cfg.query('species', self.species, 'default')
+            if not g:
+                g = rest_communication.get_document('species', where={'name': self.species})['default_version']
             self._genome_version = g
         return self._genome_version
 
     @property
     def reference_genome(self):
+        # TODO: Change to use API
         # return cfg['genomes'][self.genome_version]['fasta']
         return
 
