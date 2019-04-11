@@ -56,6 +56,7 @@ class TestPhixDetection(TestAnalysisDriver):
 
         patch_get_document.stop()
 
+
 class TestFastqFilter(TestAnalysisDriver):
     def test_run(self):
         run_info = Mock(

@@ -15,7 +15,23 @@ class TestGATKStage():
                         user_sample_id='test_user_sample_id',
                         genome_version='genome_version')
 
+    fake_genome_response = {
+        "_updated": "30_11_2018_15:13:43",
+        "assembly_name": "phix174",
+        "analyses_supported": ["qc"],
+        "data_source": "",
+        "_links": {"self": {"title": "genome", "href": "genomes/phix174"}},
+        "_etag": "175b41e3909a93a8298ac1d5d4dfc7292df4b580",
+        "data_files": {"fasta": "/path/to/phix.fa", "variation": "/path/to/dbsnp.vcf.gz"},
+        "_created": "30_11_2018_15:13:43",
+        "species": "PhiX",
+        "genome_size": 5386,
+        "_id": "5c0153a716a5772f9e9cfdcc"
+    }
+
     g = GATKStage(dataset=dataset)
+    patch_get_document = patch('egcg_core.rest_communication.get_document',
+                               return_value=fake_genome_response)
 
     def test_gatk_run_dir(self):
         run_dir = self.g.gatk_run_dir
@@ -84,7 +100,9 @@ class TestGATKStage():
         assert filter_snp_vcf == 'tests/assets/jobs/test_sample/gatk_var_calling/test_user_sample_id_filter_snp.vcf'
 
     def test_dbsnp(self):
+        self.patch_get_document.start()
         dbsnp = self.g.dbsnp
+        self.patch_get_document.stop()
         assert dbsnp == '/path/to/dbsnp.vcf.gz'
 
 
@@ -101,9 +119,26 @@ class TestBaseRecal(TestVariantCalling):
 
     def setUp(self):
         self.b = BaseRecal(dataset=self.dataset)
+        self.fake_genome_response = {
+            "_updated": "30_11_2018_15:13:43",
+            "assembly_name": "phix174",
+            "analyses_supported": ["qc"],
+            "data_source": "",
+            "_links": {"self": {"title": "genome", "href": "genomes/phix174"}},
+            "_etag": "175b41e3909a93a8298ac1d5d4dfc7292df4b580",
+            "data_files": {"fasta": "/path/to/phix.fa", "variation": "/path/to/dbsnp.vcf.gz"},
+            "_created": "30_11_2018_15:13:43",
+            "species": "PhiX",
+            "genome_size": 5386,
+            "_id": "5c0153a716a5772f9e9cfdcc"
+        }
+
+        self.patch_get_document = patch('egcg_core.rest_communication.get_document',
+                                   return_value=self.fake_genome_response)
 
     def test_run(self):
         with patch_executor as e:
+            self.patch_get_document.start()
             self.b._run()
             assert e.call_count == 1
             e.assert_called_with("path/to/java_8 -Djava.io.tmpdir=tests/assets/jobs/test_dataset/gatk_var_calling "
@@ -202,6 +237,7 @@ class TestRealign(TestVariantCalling):
                                  job_name='gatk_indel_realign',
                                  mem=32,
                                  working_dir='tests/assets/jobs/test_dataset/gatk_var_calling')
+
 
 
 class TestHaplotypeCaller(TestVariantCalling):
