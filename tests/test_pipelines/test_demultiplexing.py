@@ -24,8 +24,24 @@ class TestPhixDetection(TestAnalysisDriver):
         fake_fastq_pairs = [
             [('L1_R1_001.fastq.gz', 'L1_R2_001.fastq.gz')], [('L2_R1_001.fastq.gz', 'L2_R2_001.fastq.gz')]
         ]
+        fake_genome_response = {
+            "_updated": "30_11_2018_15:13:43",
+            "assembly_name": "phix174",
+            "analyses_supported": ["qc"],
+            "data_source": "",
+            "_links": {"self": {"title": "genome", "href": "genomes/phix174"}},
+            "_etag": "175b41e3909a93a8298ac1d5d4dfc7292df4b580",
+            "data_files": {"fasta": "/path/to/phix.fa"},
+            "_created": "30_11_2018_15:13:43",
+            "species": "PhiX",
+            "genome_size": 5386,
+            "_id": "5c0153a716a5772f9e9cfdcc"
+        }
         patch_run_crawler = patch('analysis_driver.pipelines.demultiplexing.RunCrawler', autospec=True)
         patch_find = patch('egcg_core.util.find_all_fastq_pairs', side_effect=fake_fastq_pairs)
+        patch_get_document = patch('egcg_core.rest_communication.get_document',
+                                   return_value=fake_genome_response)
+        patch_get_document.start()
 
         with patch_find, patch_executor as pexecute, patch_run_crawler as prun_crawler:
             assert f._run() == 0
@@ -38,6 +54,7 @@ class TestPhixDetection(TestAnalysisDriver):
                 dataset, run_dir='tests/assets/jobs/test/fastq', stage=prun_crawler.STAGE_CONVERSION
             )
 
+        patch_get_document.stop()
 
 class TestFastqFilter(TestAnalysisDriver):
     def test_run(self):
