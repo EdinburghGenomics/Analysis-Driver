@@ -42,7 +42,6 @@ class TestPhixDetection(TestAnalysisDriver):
         patch_get_document = patch('egcg_core.rest_communication.get_document',
                                    return_value=fake_genome_response)
         patch_get_document.start()
-
         with patch_find, patch_executor as pexecute, patch_run_crawler as prun_crawler:
             assert f._run() == 0
 
@@ -53,7 +52,6 @@ class TestPhixDetection(TestAnalysisDriver):
             prun_crawler.assert_called_with(
                 dataset, run_dir='tests/assets/jobs/test/fastq', stage=prun_crawler.STAGE_CONVERSION
             )
-
         patch_get_document.stop()
 
 
