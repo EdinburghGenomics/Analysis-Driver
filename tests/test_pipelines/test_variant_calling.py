@@ -205,10 +205,10 @@ class TestRealignTarget(TestVariantCalling):
                                  '-T RealignerTargetCreator '
                                  '--read_filter BadCigar '
                                  '--read_filter NotPrimaryAlignment '
-                                 '-o tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id.intervals '
-                                 '-l INFO '
+                                 '-o tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id.intervals'
+                                 ' -l INFO '
                                  '-U LENIENT_VCF_PROCESSING '
-                                 '-I tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id_recal.bam ',
+                                 '-I tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id_recal.bam',
                                  job_name='gatk_realign_target',
                                  mem=32,
                                  working_dir='tests/assets/jobs/test_dataset/gatk_var_calling')
@@ -233,7 +233,7 @@ class TestRealign(TestVariantCalling):
                                  '-o tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id_indel_realigned.bam '
                                  '-l INFO -U LENIENT_VCF_PROCESSING '
                                  '-I tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id_recal.bam '
-                                 '-targetIntervals tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id.intervals ',
+                                 '-targetIntervals tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id.intervals',
                                  job_name='gatk_indel_realign',
                                  mem=32,
                                  working_dir='tests/assets/jobs/test_dataset/gatk_var_calling')
