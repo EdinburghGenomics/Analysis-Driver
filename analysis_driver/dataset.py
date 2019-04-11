@@ -463,7 +463,8 @@ class SampleDataset(Dataset):
 
     @property
     def reference_genome(self):
-        return rest_communication.get_document('genomes', where={'assembly_name': self.genome_version})['data_files']['fasta']
+        return cfg.get('genomes_dir', '') + \
+               rest_communication.get_document('genomes', where={'assembly_name': self.genome_version})['data_files']['fasta']
 
     @property
     def data_source(self):
@@ -635,7 +636,8 @@ class ProjectDataset(Dataset):
 
     @property
     def reference_genome(self):
-        return rest_communication.get_document('genomes', where={'assembly_name': self.genome_version})['data_files']['fasta']
+        return cfg.get('genomes_dir', '') + \
+               rest_communication.get_document('genomes', where={'assembly_name': self.genome_version})['data_files']['fasta']
 
     def __str__(self):
         return '%s  (%s samples / %s) ' % (super().__str__(), len(self.samples_processed), self.number_of_samples)

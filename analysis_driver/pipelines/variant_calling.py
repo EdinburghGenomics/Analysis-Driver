@@ -86,7 +86,8 @@ class GATKStage(segmentation.Stage):
     def dbsnp(self):
         dbsnp = None
         try:
-            dbsnp = rest_communication.get_document('genomes', where={'assembly_name': self.dataset.genome_version})['data_files']['variation']
+            dbsnp = cfg.get('genomes_dir', '') + \
+                    rest_communication.get_document('genomes', where={'assembly_name': self.dataset.genome_version})['data_files']['variation']
         except KeyError:
             if self.dataset.pipeline.name == 'variant_calling':
                 raise AnalysisDriverError('Could not find dbsnp file for %s' % self.dataset.name)
