@@ -231,3 +231,72 @@ project_process:
     relatedness_output_gel:
         location: ['']
         basename: '{project_id}.relatedness_output.gel'
+
+gatk4_var_calling:
+    gvcf:
+        location: ['gatk4']
+        basename: '{user_sample_id}.g.vcf.gz'
+
+    gvcf_tbi:
+        location: ['gatk4']
+        basename: '{user_sample_id}.g.vcf.gz.tbi'
+
+    vcf:
+        location: ['gatk4']
+        basename: '{user_sample_id}_vqsr.vcf.gz'
+#        new_name: '{user_sample_id}.vcf.gz'
+
+    vcf_tbi:
+        location: ['gatk4']
+        basename: '{user_sample_id}_vqsr.vcf.gz.tbi'
+#        new_name: '{user_sample_id}.vcf.gz.tbi'
+
+    bam:
+        location: ['gatk4']
+        basename: '{user_sample_id}_recal.bam'
+        new_name: '{user_sample_id}.bam'
+
+    bam_bai:
+        location: ['gatk4']
+        basename: '{user_sample_id}_recal.bai'
+        new_name: '{user_sample_id}.bam.bai'
+
+    depth_file:
+        location: ['gatk4']
+        basename: '{user_sample_id}_recal.depth'
+        new_name: '{user_sample_id}.depth'
+
+    samtools_stats:
+        basename: 'samtools_stats.txt'
+
+    genoval:
+        basename: '{sample_id}_genotype_validation.txt'
+        new_name: '{user_sample_id}_genotype_validation.txt'
+        required: False
+
+    genoval_vcf:
+        basename: '{sample_id}_genotype_validation.vcf.gz'
+        new_name: '{user_sample_id}_genotype_validation.vcf.gz'
+        required: False
+
+    r1_fastqscreen:
+        location: ['merged']
+        basename: '{user_sample_id}_R1_screen.txt'
+
+    taxa_identified:
+        basename: 'taxa_identified.json'
+
+    self_sm:
+        location: ['gatk4']
+        basename: '{sample_id}-chr22-vbi.selfSM'
+        new_name: '{user_sample_id}-chr22-vbi.selfSM'
+
+    gender_call:
+        location: ['gatk4']
+        basename: '{user_sample_id}_vqsr.sex'
+        new_name: '{user_sample_id}.sex'
+
+    vcf_stats:
+        location: ['gatk4']
+        basename: '{user_sample_id}_vqsr.vcf.stats'
+        new_name: '{user_sample_id}.vcf.stats'

@@ -31,6 +31,20 @@ class TestSplitFastqStage(TestGATK4):
         ]
 
 
+class TestFastqIndex(TestVariantCalling):
+
+    def test_run(self):
+        self.dataset.run_elements = [
+            {ELEMENT_RUN_ELEMENT_ID: 'a_run_1', ELEMENT_NB_READS_CLEANED: 1, ELEMENT_RUN_NAME: 'a_run', ELEMENT_LANE: 1}
+        ]
+        index_fastq_files = [join(self.assets_path, 'indexed_fastq_file1.gz'),
+                             join(self.assets_path, 'indexed_fastq_file2.gz')]
+        stage = FastqIndex(dataset=self.dataset)
+        with patch.object(FastqIndex, '_indexed_fastq_for_run_element', return_value=index_fastq_files), \
+             patch_executor as e, patch.object(SplitBWA, 'bwa_command', return_value='command_bwa') as mcommand:
+            self.stage._run()
+
+
 class TestSplitBWA(TestVariantCalling):
 
     def test_bwa_command(self):
@@ -45,15 +59,17 @@ class TestSplitBWA(TestVariantCalling):
         assert cmd == exp
 
     def test_run(self):
+
         self.dataset.run_elements = [
             {ELEMENT_RUN_ELEMENT_ID: 'a_run_1', ELEMENT_NB_READS_CLEANED: 1, ELEMENT_RUN_NAME: 'a_run', ELEMENT_LANE: 1}
         ]
         index_fastq_files = [join(self.assets_path, 'indexed_fastq_file1.gz'),
                              join(self.assets_path, 'indexed_fastq_file2.gz')]
 
+        stage = SplitBWA(dataset=self.dataset)
         with patch.object(SplitBWA, '_indexed_fastq_for_run_element', return_value=index_fastq_files), \
              patch_executor as e, patch.object(SplitBWA, 'bwa_command', return_value='command_bwa') as mcommand:
-            self.stage._run()
+            stage._run()
         e.assert_any_call('command_bwa', 'command_bwa', 'command_bwa', 'command_bwa', 'command_bwa',
                           cpu=1, job_name='bwa_split', memory=2, working_dir='tests/assets/jobs/test_dataset')
         mcommand.assert_any_call(
@@ -68,6 +84,137 @@ class TestSplitBWA(TestVariantCalling):
         assert mcommand.call_count == 5
 
 
+class TestMergeBamAndDup(TestVariantCalling):
+    """
+    Merge bam file generated in bwa mem and defined in SplitFastqStage.
+    """
+
+    def test_all_chunk_bam_list_file(self):
+        pass
+
+    def test_merge_command(self):
+        pass
+
+    def _run(self):
+        pass
+
+
+class TestPostAlignmentScatter(TestVariantCalling):
+
+    def test_split_genome_files(self):
+       pass
+
+    def test_split_genome_in_chunks(self):
+        pass
+
+    def test_split_genome_chromosomes(self):
+        pass
+
+
+class TestScatterBaseRecalibrator(TestVariantCalling):
+
+    def test_base_recalibrator_cmd(self):
+        pass
+
+    def test_run(self):
+        pass
+
+
+class TestGatherBQSRReport(TestVariantCalling):
+    def test_run(self):
+        pass
+
+
+class TestScatterApplyBQSR(TestVariantCalling):
+
+    def test_apply_bqsr_cmd(self, chrom_names):
+        pass
+
+    def test_run(self):
+        pass
+
+
+class TestGatherRecalBam(TestVariantCalling):
+
+    def test_run(self):
+        pass
+
+
+class TestSplitHaplotypeCaller(TestVariantCalling):
+
+    def test_haplotype_caller_cmd(self, chunk, region_file):
+        pass
+
+    def test_run(self):
+        pass
+
+
+class TestGatherGVCF(TestVariantCalling):
+    def test_run(self):
+        pass
+
+
+class TestSplitGenotypeGVCFs(TestVariantCalling):
+
+    def test_genotypegvcf_cmd(self):
+        pass
+
+    def test_run(self):
+        pass
+
+
+class TestGatherVCF(TestVariantCalling):
+
+    def test_run(self):
+        pass
+
+
+class TestVariantAnnotation(TestVariantCalling):
+
+    def test_run(self):
+        pass
+
+
+class TestVQSRFiltrationSNPs(TestVariantCalling):
+    def test_run(self):
+        pass
+
+
+class TestVQSRFiltrationIndels(TestVariantCalling):
+    def test_run(self):
+        pass
+
+
+class TestApplyVQSRSNPs(TestVariantCalling):
+    def test_run(self):
+        pass
+
+
+class TestApplyVQSRIndels(TestVariantCalling):
+    def test_run(self):
+        pass
+
+
+class TestMergeVariants(TestVariantCalling):
+
+    def test_run(self):
+        pass
+
+
+class TestSelectVariants(TestVariantCalling):
+
+    def test_run(self):
+        pass
+
+class TestSNPsFiltration():
+    def test_run(self):
+        pass
+
+class TestIndelsFiltration(TestVariantCalling):
+    def test_run(self):
+        pass
+
+
 class TestSplitHaplotypeCaller(TestVariantCalling):
 
     def setUp(self):
@@ -76,3 +223,6 @@ class TestSplitHaplotypeCaller(TestVariantCalling):
     def test_split_genome_in_chunks(self):
         self.dataset.reference_genome = join(self.assets_path, 'genome.fa')
         print('\n'.join(str(e) for e in self.stage.split_genome_in_chunks()))
+
+
+

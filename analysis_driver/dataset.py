@@ -443,6 +443,7 @@ class SampleDataset(Dataset):
         self._genome_version = None
         self._user_sample_id = None
         self._lims_ntf = None
+        self.genome_version
 
     @property
     def lims_ntf(self):
@@ -452,6 +453,8 @@ class SampleDataset(Dataset):
 
     @property
     def species(self):
+        if self._species is None:
+            self._species = self.sample.get('species_name')
         if self._species is None:
             self._species = clarity.get_species_from_sample(self.name)
         return self._species

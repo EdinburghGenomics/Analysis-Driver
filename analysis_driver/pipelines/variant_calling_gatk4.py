@@ -14,10 +14,11 @@ from analysis_driver import segmentation
 from analysis_driver.config import load_config
 from analysis_driver.exceptions import AnalysisDriverError
 from analysis_driver import quality_control as qc
-from analysis_driver.pipelines.common import bgzip_and_tabix, tabix_vcf, MergeFastqs, SamtoolsStats
+from analysis_driver.pipelines import common
+from analysis_driver.pipelines.common import tabix_vcf, MergeFastqs, SamtoolsStats
 from analysis_driver.segmentation import Parameter
 from analysis_driver.tool_versioning import toolset
-from analysis_driver.util.bash_commands import picard_command
+from analysis_driver.util.bash_commands import picard_command, java_command
 
 toolset_type = 'gatk4_sample_processing'
 name = 'variant_calling_gatk4'
@@ -244,8 +245,8 @@ class GATK4Stage(segmentation.Stage):
             output_param = 'output'
         if output:
             base_cmd += '--{output_param} {output} '.format(output_param=output_param, output=output)
-        if input_bam:
-            base_cmd += '--{input_param} {input_bam} '.format(input_param=input_param, input_bam=input_bam)
+        if input:
+            base_cmd += '--{input_param} {input} '.format(input_param=input_param, input=input)
 
         if spark_core > 1 or 'Spark' in run_cls:
             base_cmd += '--spark-master local[{spark_core}] ' \
@@ -384,6 +385,7 @@ class PostAlignmentScatter(GATK4Stage):
 
         :return: list of list of chromosome names
         """
+        os.makedirs(self.split_file_dir, exist_ok=True)
         fai_file = self.dataset.reference_genome + '.fai'
         with open(fai_file) as open_file:
             sequence_tuple_list = []
@@ -518,7 +520,7 @@ class SplitHaplotypeCaller(PostAlignmentScatter):
             haplotype_cmd += ' --annotation ' + annot
         if self.dbsnp:
             haplotype_cmd += ' --dbsnp ' + self.dbsnp
-        if self.dataset.library_type == 'pcr-free':
+        if self.dataset.library_preparation == 'pcr-free':
             haplotype_cmd += '--pcr-indel-model NONE '
 
         return haplotype_cmd
@@ -552,7 +554,7 @@ class GatherGVCF(PostAlignmentScatter):
         ).join()
 
         if concat_vcf_status == 0:
-            concat_vcf_status = tabix_vcf(self.exec_dir, self.genotyped_vcf)
+            concat_vcf_status = tabix_vcf(self.exec_dir, self.sample_gvcf)
 
         return concat_vcf_status
 
@@ -608,6 +610,19 @@ class GatherVCF(PostAlignmentScatter):
 
 
 class GATK4VariantCall(GATK4Stage):
+
+    @property
+    def snps_effects_csv(self):
+        return self.basename + '_snpseff.csv'
+
+    @property
+    def snps_effects_html(self):
+        return self.basename + '_snpseff.html'
+
+    @property
+    def snps_effects_output_vcf(self):
+        return self.basename + '_snpseff' + '.vcf.gz'
+
     @property
     def vqsr_datasets(self):
         vqsr_datasets = cfg.query('genomes', self.dataset.genome_version, 'vqsr')
@@ -618,7 +633,7 @@ class GATK4VariantCall(GATK4Stage):
 
     @property
     def vqsr_snps_output_recall(self):
-        return self.basename + '_vqsr_snps_output.recall'
+        return self.basename + '_vqsr_snps_recall.vcf.gz'
 
     @property
     def vqsr_snps_tranches(self):
@@ -634,23 +649,62 @@ class GATK4VariantCall(GATK4Stage):
 
     @property
     def vqsr_indels_output_recall(self):
-        return self.basename + '_vqsr_indels_output.recall'
+        return self.basename + '_vqsr_indels_recall.vcf.gz'
 
     @property
-    def vqsr_indel_tranches(self):
+    def vqsr_indels_tranches(self):
         return self.basename + '_vqsr_indels_tranches'
 
     @property
-    def vqsr_indel_R_script(self):
+    def vqsr_indels_R_script(self):
         return self.basename + '_vqsr_indels.R'
 
     @property
-    def vqsr_filtered_indel_vcf(self):
+    def vqsr_filtered_indels_vcf(self):
         return self.basename + '_vqsr_indels.vcf.gz'
 
     @property
     def vqsr_filtered_vcf(self):
         return self.basename + '_vqsr.vcf.gz'
+
+    @property
+    def hard_filtered_snps_vcf(self):
+        return self.basename + '_hard_snps.vcf.gz'
+
+    @property
+    def hard_filtered_indels_vcf(self):
+        return self.basename + '_hardfilter_indels.vcf.gz'
+
+    @property
+    def hard_filtered_vcf(self):
+        return self.basename + '_hard_filter.vcf.gz'
+
+
+class VariantAnnotation(GATK4VariantCall):
+    """Annotate a vcf file using snpEff."""
+
+    def _run(self):
+        cmd = 'set -o pipefail; ' + java_command(20, self.job_dir, toolset['snpEff']) + \
+              (' eff -hgvs -noLog -i vcf -o vcf '
+               '-csvStats {effects_csv} -s {effects_html} {database_name} {input_vcf}'
+               ' | {bgzip} --threads 16 -c > {output_vcf}').format(
+                  effects_csv=self.snps_effects_csv,
+                  effects_html=self.snps_effects_html,
+                  database_name=cfg.query('genomes', self.dataset.genome_version, 'snpEff'),
+                  input_vcf=self.genotyped_vcf,
+                  bgzip=toolset['bgzip'],
+                  output_vcf=self.snps_effects_output_vcf
+              )
+        snpeff_status = executor.execute(
+            cmd,
+            job_name='snpeff',
+            working_dir=self.exec_dir,
+            cpus=2,
+            mem=20
+        ).join()
+        if snpeff_status == 0:
+            snpeff_status = tabix_vcf(self.exec_dir, self.snps_effects_output_vcf)
+        return snpeff_status
 
 
 class VQSRFiltrationSNPs(GATK4VariantCall):
@@ -665,10 +719,12 @@ class VQSRFiltrationSNPs(GATK4VariantCall):
                 '--resource:omni,known=false,training=true,truth=false,prior=12.0 {omni} '
                 '--resource:1000G,known=false,training=true,truth=false,prior=10.0 {thousand_genomes} '
                 '--resource:dbsnp,known=true,training=false,truth=false,prior=2.0 {dbsnp} '
-                '-tranche 100.0 -tranche 99.9 -tranche 99.0 -tranche 90.0 '
+                '--max-gaussians 4 -tranche 100.0 -tranche 99.99 -tranche 99.98 -tranche 99.97 -tranche 99.96 '
+                '-tranche 99.95 -tranche 99.94 -tranche 99.93 -tranche 99.92 -tranche 99.91 -tranche 99.9 '
+                '-tranche 99.8 -tranche 99.7 -tranche 99.6 -tranche 99.5 -tranche 99.0 -tranche 98.0 -tranche 90.0 '
                 '-an QD -an MQ -an MQRankSum -an ReadPosRankSum -an FS -an SOR -mode SNP '
                 '--tranches-file {ouput_tranches} --rscript-file {output_R_script}'.format(
-                    input_vcf=self.genotyped_vcf,
+                    input_vcf=self.snps_effects_output_vcf,
                     hapmap=vqsr_datasets.get('hapmap'),
                     omni=vqsr_datasets.get('omni'),
                     thousand_genomes=vqsr_datasets.get('thousand_genomes'),
@@ -681,7 +737,7 @@ class VQSRFiltrationSNPs(GATK4VariantCall):
             cmd,
             job_name='vqsr_snp',
             working_dir=self.exec_dir,
-            cpu=1,
+            cpus=1,
             mem=16
         ).join()
 
@@ -696,21 +752,23 @@ class VQSRFiltrationIndels(GATK4VariantCall):
             ext='-V {input_vcf} '
                 '--resource:mills,known=false,training=true,truth=true,prior=12.0 {mills} '
                 '--resource:dbsnp,known=true,training=false,truth=false,prior=2.0 {dbsnp} '
-                '-tranche 100.0 -tranche 99.9 -tranche 99.0 -tranche 90.0 '
+                '--max-gaussians 4 -tranche 100.0 -tranche 99.99 -tranche 99.98 -tranche 99.97 -tranche 99.96 '
+                '-tranche 99.95 -tranche 99.94 -tranche 99.93 -tranche 99.92 -tranche 99.91 -tranche 99.9 '
+                '-tranche 99.8 -tranche 99.7 -tranche 99.6 -tranche 99.5 -tranche 99.0 -tranche 98.0 -tranche 90.0 '
                 '-an QD -an MQRankSum -an ReadPosRankSum -an FS -an SOR -an DP -mode INDEL '
                 '--tranches-file {ouput_tranches} --rscript-file {output_R_script}'.format(
-                    input_vcf=self.genotyped_vcf,
+                    input_vcf=self.snps_effects_output_vcf,
                     mills=vqsr_datasets.get('mills'),
                     dbsnp=vqsr_datasets.get('dbsnp'),
-                    ouput_tranches=self.vqsr_indel_tranches,
-                    output_R_script=self.vqsr_indel_R_script,
+                    ouput_tranches=self.vqsr_indels_tranches,
+                    output_R_script=self.vqsr_indels_R_script,
                 )
         )
         return executor.execute(
             cmd,
             job_name='vqsr_indel',
             working_dir=self.exec_dir,
-            cpu=1,
+            cpus=1,
             mem=16
         ).join()
 
@@ -723,7 +781,7 @@ class ApplyVQSRSNPs(GATK4VariantCall):
             memory=16,
             ext='-V {input_vcf} -mode SNP --tranches-file {ouput_tranches} --truth-sensitivity-filter-level 99.0 '
                 '--recal-file {recal_file}'.format(
-                input_vcf=self.genotyped_vcf,
+                input_vcf=self.snps_effects_output_vcf,
                 ouput_tranches=self.vqsr_snps_tranches,
                 recal_file=self.vqsr_snps_output_recall
             )
@@ -732,7 +790,7 @@ class ApplyVQSRSNPs(GATK4VariantCall):
             cmd,
             job_name='apply_vqsr_snps',
             working_dir=self.exec_dir,
-            cpu=1,
+            cpus=1,
             mem=16
         ).join()
 
@@ -743,18 +801,18 @@ class ApplyVQSRIndels(GATK4VariantCall):
             'ApplyVQSR',
             self.vqsr_filtered_indels_vcf,
             memory=8,
-            ext='-V {input_vcf} -mode INDELS --tranches-file {ouput_tranches} --truth-sensitivity-filter-level 99.0 '
+            ext='-V {input_vcf} -mode INDEL --tranches-file {ouput_tranches} --truth-sensitivity-filter-level 99.0 '
                 '--recal-file {recal_file}'.format(
-                input_vcf=self.genotyped_vcf,
-                ouput_tranches=self.vqsr_indels_tranches,
-                recal_file=self.vqsr_indels_output_recall
-            )
+                    input_vcf=self.snps_effects_output_vcf,
+                    ouput_tranches=self.vqsr_indels_tranches,
+                    recal_file=self.vqsr_indels_output_recall
+                )
         )
         return executor.execute(
             cmd,
             job_name='apply_vqsr_indels',
             working_dir=self.exec_dir,
-            cpu=1,
+            cpus=1,
             mem=16
         ).join()
 
@@ -762,76 +820,30 @@ class ApplyVQSRIndels(GATK4VariantCall):
 class MergeVariants(GATK4VariantCall):
 
     def _run(self):
-        vcf_list = os.path.join(self.split_file_dir, self.dataset.name + 'vqsr_filtered.vcf.list')
+        vcf_list = os.path.join(self.job_dir, self.dataset.name + 'vqsr_filtered.vcf.list')
         with open(vcf_list, 'w') as open_file:
             open_file.write(self.vqsr_filtered_snps_vcf + '\n')
             open_file.write(self.vqsr_filtered_indels_vcf + '\n')
-        cmd = self.gatk_picard_cmd('MergeVcfs', self.vqsr_filtered_vcf, input=vcf_list)
+        cmd = self.gatk_picard_cmd('MergeVcfs', self.vqsr_filtered_vcf, input=vcf_list, reference=None)
         return executor.execute(
             cmd,
             job_name='merge_vqsr',
             working_dir=self.exec_dir,
-            cpu=1,
+            cpus=1,
             mem=8
         ).join()
 
 
-class VariantAnnotation(GATK4VariantCall):
-    """Annotate a vcf file using snpEff."""
-
+class SelectVariants(GATK4Stage):
     input_vcf = Parameter(default=None)
 
-    @property
-    def snpeff_basename(self):
-        base, ext = os.path.splitext(self.input_vcf)
-        if ext == '.gz':
-            base, ext = os.path.splitext(base)
-        return base
-
-    @property
-    def snps_effects_csv(self):
-        return self.snpeff_basename + '_snpseff.csv'
-
-    @property
-    def snps_effects_html(self):
-        return self.snpeff_basename + '_snpseff.html'
-
-    @property
-    def output_vcf(self):
-        return self.snpeff_basename + '_effects' + '.vcf.gz'
-
     def _run(self):
-        cmd = ('{snpEff} -Xmx{memory}g -Djava.io.tmpdir={tmp_dir} eff '
-               '-dataDir {snpEff_ressource} -hgvs -noLog -i vcf -o vcf '
-               '-csvStats {effects_csv} -s {effects_html} {database_name} {input_vcf)'
-               ' | {bgzip} --threads 16 -c > {output_vcf}').format(
-            snpEff=toolset['snpEff'],
-            bgzip=toolset['bgzip'],
-            memory=20,
-            tmp_dir=self.job_dir,
-            snpEff_ressource=cfg.query('snpEff','ressource'),
-            effects_csv=self.snps_effects_csv,
-            effects_html=self.snps_effects_html,
-            database_name=cfg.query('genomes', self.dataset.genome_version, 'snpEff'),
-            input_vcf=self.input_vcf,
-            output_vcf=self.output_vcf
-        )
-        return executor.execute(
-            cmd,
-            job_name='snpeff',
-            working_dir=self.exec_dir,
-            mem=20
-        ).join()
-
-
-class SelectVariants(GATK4Stage):
-    def _run(self):
-        select_var_command = self.gatk_cmd('SelectVariants', self.raw_snp_vcf, nct=1, nt=16)
-        select_var_command += ' -V ' + self.genotyped_vcf + '.gz'
+        select_var_command = self.gatk_cmd('SelectVariants', self.raw_snp_vcf)
+        select_var_command += ' -V ' + self.input_vcf
         select_var_command += ' -selectType SNP '
         select_variants_status = executor.exec_dir(
             select_var_command,
-            job_name='var_filtration',
+            job_name='var_select',
             working_dir=self.gatk_run_dir,
             mem=16
         ).join()
@@ -849,14 +861,14 @@ class SNPsFiltration(GATK4Stage):
             'SOR > 3.0'
         ]
         filters = "'" + ' || '.join(filter_array) + "'"
-        var_filter_command = self.gatk_cmd('VariantFiltration', self.filter_snp_vcf, nct=1, nt=1)
+        var_filter_command = self.gatk_cmd('VariantFiltration', self.filter_snp_vcf)
         var_filter_command += " -V " + self.raw_snp_vcf + '.gz'
         var_filter_command += " --filterExpression " + filters
         var_filter_command += " --filterName 'SNP_HARD_FILTER'"
         variant_filter_status = executor.exec_dir(
             var_filter_command,
             job_name='var_filtration',
-            working_dir=self.gatk_run_dir,
+            working_dir=self.exec_dir,
             mem=16
         ).join()
         return variant_filter_status
@@ -882,7 +894,6 @@ class IndelsFiltration(GATK4Stage):
             mem=16
         ).join()
         return variant_filter_status
-
 
 
 # class BamFileGenerationPipeline:
@@ -938,7 +949,7 @@ def build_pipeline(dataset):
 
     # bam file QC
     verify_bam_id = stage(qc.VerifyBamID, bam_file=merge_bam.recal_bam, previous_stages=[merge_bam])
-    samtools_stat = stage(SamtoolsStats, previous_stages=[merge_bam])
+    samtools_stat = stage(SamtoolsStats, bam_file=merge_bam.recal_bam, previous_stages=[merge_bam])
     samtools_depth = stage(qc.SamtoolsDepth, bam_file=merge_bam.recal_bam, previous_stages=[merge_bam])
 
     # variants call via scatter-gather strategy
@@ -947,10 +958,13 @@ def build_pipeline(dataset):
     genotype_gcvf = stage(SplitGenotypeGVCFs, previous_stages=[haplotype_caller])
     gather_vcf = stage(GatherVCF, previous_stages=[genotype_gcvf])
 
+    # variant annotation
+    annotate_vcf = stage(VariantAnnotation, previous_stages=[gather_vcf])
+
     # variant filtering
-    filter_snps = stage(VQSRFiltrationSNPs, previous_stages=[gather_vcf])
+    filter_snps = stage(VQSRFiltrationSNPs, previous_stages=[annotate_vcf])
     apply_vqsr_snps = stage(ApplyVQSRSNPs, previous_stages=[filter_snps])
-    filter_indels = stage(VQSRFiltrationIndels, previous_stages=[gather_vcf])
+    filter_indels = stage(VQSRFiltrationIndels, previous_stages=[annotate_vcf])
     apply_vqsr_indels = stage(ApplyVQSRIndels, previous_stages=[filter_indels])
 
     # final variant merge
@@ -963,9 +977,9 @@ def build_pipeline(dataset):
     final_stages = [contam, blast, geno_val, gender_val, vcfstats, verify_bam_id, samtools_depth, samtools_stat,
                     gather_gcvf]
 
-    # output = stage(common.SampleDataOutput, previous_stages=post_alignment_qc, output_fileset='bcbio')
+    output = stage(common.SampleDataOutput, previous_stages=final_stages, output_fileset='gatk4_var_calling')
+    review = stage(common.SampleReview, previous_stages=[output])
     # cleanup = stage(common.Cleanup, previous_stages=[output])
-    # review = stage(common.SampleReview, previous_stages=[cleanup])
 
-    return final_stages
+    return [review]
 
