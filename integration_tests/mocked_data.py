@@ -52,22 +52,22 @@ mocked_flowcell_pooling = Mock(
 )
 
 
-def fake_non_pooling_sample(i, rapid=False):
+def fake_non_pooling_artifact(i, rapid='no'):
     return Mock(
-        reagent_labels=['a_reagent'],
+        reagent_labels=['A001-B002 (ATGCATGC-CTGACTGA)'],
         samples=[MockedSample(real_name='non_pooling_sample_' + i, id='a_library', udf={'Rapid Analysis': rapid, 'User Sample Name': 'uid_non_pooling_sample_' + i})]
     )
 
 mocked_flowcell_non_pooling = Mock(
     placements={
-        '1:1': fake_non_pooling_sample('1', False),
-        '2:1': fake_non_pooling_sample('2', True),
-        '3:1': fake_non_pooling_sample('3', False),
-        '4:1': fake_non_pooling_sample('4', False),
-        '5:1': fake_non_pooling_sample('5', False),
-        '6:1': fake_non_pooling_sample('6', False),
-        '7:1': fake_non_pooling_sample('7', False),
-        '8:1': fake_non_pooling_sample('8', True)
+        '1:1': fake_non_pooling_artifact('1', 'no'),
+        '2:1': fake_non_pooling_artifact('2', 'yes'),
+        '3:1': fake_non_pooling_artifact('3', 'no'),
+        '4:1': fake_non_pooling_artifact('4', 'no'),
+        '5:1': fake_non_pooling_artifact('5', 'no'),
+        '6:1': fake_non_pooling_artifact('6', 'no'),
+        '7:1': fake_non_pooling_artifact('7', 'no'),
+        '8:1': fake_non_pooling_artifact('8', 'yes')
     }
 )
 

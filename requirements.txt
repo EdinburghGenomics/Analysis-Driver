@@ -1,4 +1,4 @@
-EGCG-Core==0.9.1
+EGCG-Core==0.10
 luigi==2.8.0
 ete3==3.0.0b35
 pandas<0.21

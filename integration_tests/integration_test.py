@@ -87,8 +87,8 @@ class IntegrationTest(ReportingAppIntegrationTest):
         if len(os.listdir(cfg[test_type]['input_dir'])) != 1:
             raise exceptions.EGCGError(
                 '%s input datasets found in input dir %s - 1 required' % (
-                    len(os.listdir(input_dir)),
-                    input_dir
+                    len(os.listdir(cfg[test_type]['input_dir'])),
+                    cfg[test_type]['input_dir']
                 )
             )
 
@@ -197,7 +197,7 @@ class IntegrationTest(ReportingAppIntegrationTest):
         self.setup_test('run', 'test_demultiplexing', 'demultiplexing')
         self._add_patches(
             patch('egcg_core.clarity.get_run', return_value=mocked_data.mocked_pooling_run),
-            patch('analysis_driver.quality_control.interop_metrics.get_cycles_extracted', return_value=range(1, 311))
+            patch('analysis_driver.quality_control.interop_metrics.get_last_cycles_with_existing_bcls', return_value=310)
         )
 
         exit_status = client.main(['--run'])
@@ -256,8 +256,11 @@ class IntegrationTest(ReportingAppIntegrationTest):
         assert self._test_success
 
     def test_demultiplexing_aborted(self):
-        self.setup_test('sample', 'test_demultiplexing_aborted', 'demultiplexing')
-        self._add_patches(patch('egcg_core.clarity.get_run', return_value=mocked_data.mocked_pooling_run))
+        self.setup_test('run', 'test_demultiplexing_aborted', 'demultiplexing')
+        self._add_patches(
+            patch('egcg_core.clarity.get_run', return_value=mocked_data.mocked_pooling_run),
+            patch('analysis_driver.quality_control.interop_metrics.get_last_cycles_with_existing_bcls', return_value=310)
+        )
 
         mocked_clarity_run = mocked_data.MockedRunProcess(
             udf={'Run Status': 'RunAborted'},
@@ -446,8 +449,7 @@ class IntegrationTest(ReportingAppIntegrationTest):
             base_dir=os.path.join(cfg['project']['output_dir'], self.project_id)
         )
 
-        self.expect_stage_data(['genotypegvcfs', 'relatedness', 'peddy', 'parserelatedness', 'md5sum', 'output',
-                                'cleanup'])
+        self.expect_stage_data(['genotypegvcfs', 'relatedness', 'peddy', 'parserelatedness', 'output', 'cleanup'])
         ad_procs = rest_communication.get_document('analysis_driver_procs', where={'dataset_name': self.project_id})
         self.expect_equal(
             ad_procs['pipeline_used'],
@@ -457,10 +459,10 @@ class IntegrationTest(ReportingAppIntegrationTest):
 
         assert self._test_success
 
-    def test_rapid_analyis(self):
+    def test_rapid_analysis(self):
         self._add_patches(
             patch('egcg_core.clarity.get_run', return_value=mocked_data.mocked_rapid_run),
-            patch('analysis_driver.quality_control.interop_metrics.get_cycles_extracted', return_value=range(1, 302))
+            patch('analysis_driver.quality_control.interop_metrics.get_last_cycles_with_existing_bcls', return_value=302)
         )
 
         sample_ids = ['non_pooling_sample_%s' % i for i in range(1, 9)]
