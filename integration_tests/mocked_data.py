@@ -60,14 +60,14 @@ def fake_non_pooling_artifact(i, rapid='no'):
 
 mocked_flowcell_non_pooling = Mock(
     placements={
-        '1:1': fake_non_pooling_artifact('1', 'no'),
-        '2:1': fake_non_pooling_artifact('2', 'yes'),
-        '3:1': fake_non_pooling_artifact('3', 'no'),
-        '4:1': fake_non_pooling_artifact('4', 'no'),
-        '5:1': fake_non_pooling_artifact('5', 'no'),
-        '6:1': fake_non_pooling_artifact('6', 'no'),
-        '7:1': fake_non_pooling_artifact('7', 'no'),
-        '8:1': fake_non_pooling_artifact('8', 'yes')
+        '1:1': fake_non_pooling_artifact('1', 'No'),
+        '2:1': fake_non_pooling_artifact('2', 'Yes'),
+        '3:1': fake_non_pooling_artifact('3', 'No'),
+        '4:1': fake_non_pooling_artifact('4', 'No'),
+        '5:1': fake_non_pooling_artifact('5', 'No'),
+        '6:1': fake_non_pooling_artifact('6', 'No'),
+        '7:1': fake_non_pooling_artifact('7', 'No'),
+        '8:1': fake_non_pooling_artifact('8', 'Yes')
     }
 )
 

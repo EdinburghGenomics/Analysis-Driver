@@ -1,6 +1,5 @@
 import os
-from egcg_core import executor
-from egcg_core.util import find_file, query_dict
+from egcg_core import executor, util
 from analysis_driver import segmentation
 from analysis_driver.util import bash_commands
 from analysis_driver.pipelines.common import Cleanup
@@ -20,8 +19,8 @@ def build_pipeline(dataset):
     gvcf_files = []
     for sample in dataset.samples_processed:
         # Only check if we have gvcf when the samples have been through human processing that generate a gvcf
-        if query_dict(sample, 'aggregated.most_recent_proc.pipeline_used.name') == 'bcbio':
-            gvcf_file = find_file(project_source, sample['sample_id'], sample['user_sample_id'] + '.g.vcf.gz')
+        if util.query_dict(sample, 'aggregated.most_recent_proc.pipeline_used.name') == 'bcbio':
+            gvcf_file = util.find_file(project_source, sample['sample_id'], sample['user_sample_id'] + '.g.vcf.gz')
             if not gvcf_file:
                 raise PipelineError('Unable to find gVCF file for sample %s in %s' % (sample['sample_id'], project_source))
             gvcf_files.append(gvcf_file)
@@ -53,7 +52,7 @@ class Output(segmentation.Stage):
         )
 
         md5_exit_status = executor.execute(
-            *[bash_commands.md5sum(os.path.join(dir_with_linked_files, f)) for f in os.listdir(dir_with_linked_files)],
+            *[bash_commands.md5sum(f) for f in sorted(util.find_files(dir_with_linked_files, '*'))],
             job_name='md5sum',
             working_dir=self.job_dir,
             cpus=1,

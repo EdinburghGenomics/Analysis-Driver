@@ -404,6 +404,7 @@ def parse_interop_summary(summary_file):
                     'phasing': float(sp_line[5].split('/')[0].strip()),  # Phasing
                     'prephasing': float(sp_line[5].split('/')[1].strip()),  # Prephasing
                     'pc_q30': float(sp_line[10]),  # '%>=Q30'
+                    'yield': float(sp_line[11]),  # Yield
                     'pc_aligned': float(sp_line[13].split()[0]),  # avg %aligned'
                     'pc_aligned_stdev': float(sp_line[13].split()[2]),  # std dev %aligned '
                     'pc_error': float(sp_line[14].split()[0]),  # 'avg %error'
