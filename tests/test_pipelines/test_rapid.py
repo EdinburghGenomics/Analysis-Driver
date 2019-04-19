@@ -46,8 +46,22 @@ class TestDragen(TestAnalysisDriver):
 
 
 class TestDragenMetrics(TestAnalysisDriver):
+    def test_interop_metrics(self):
+        interop_metrics = {
+            'pc_q30_r1': 93.12,
+            'yield_r1': 69.53,
+            'pc_q30_r2': 80.67,
+            'yield_r2': 69.43
+        }
+        assert rapid.DragenMetrics._interop_metrics(interop_metrics) == {
+            'yield': 138.96,
+            'pc_q30': 86.89947970639032
+        }
+
+    @patch('analysis_driver.pipelines.rapid.DragenMetrics._interop_metrics', return_value={'yield': 10, 'pc_q30': 90})
+    @patch('analysis_driver.pipelines.rapid.parse_interop_summary')
     @patch(ppath + 'rest_communication.post_or_patch')
-    def test_run(self, mocked_post_or_patch):
+    def test_run(self, mocked_post_or_patch, mocked_parse, mocked_interops):
         d = rapid.DragenMetrics(
             dataset=NamedMock(
                 real_name='a_run',
@@ -68,6 +82,9 @@ class TestDragenMetrics(TestAnalysisDriver):
                 {
                     'sample_id': 'a_sample',
                     'rapid_metrics': {
+                        'yield': 10,
+                        'pc_q30': 90,
+                        'data_source': 'a_run_2',
                         'var_calling': {'ti_tv_ratio': 1.9, 'het_hom_ratio': 1.53},
                         'mapping': {
                             'total_reads': 911979369,
@@ -98,6 +115,9 @@ class TestDragenMetrics(TestAnalysisDriver):
                 {
                     'sample_id': 'another_sample',
                     'rapid_metrics': {
+                        'yield': 10,
+                        'pc_q30': 90,
+                        'data_source': 'a_run_4',
                         'var_calling': {'ti_tv_ratio': 1.94, 'het_hom_ratio': 1.54},
                         'mapping': {
                             'total_reads': 911979370,

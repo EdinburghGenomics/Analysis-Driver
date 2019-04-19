@@ -6,6 +6,7 @@ from egcg_core.config import cfg
 from egcg_core import executor, util, rest_communication
 from analysis_driver import segmentation, transfer_data
 from analysis_driver.util import bash_commands
+from analysis_driver.reader.demultiplexing_parsers import parse_interop_summary
 
 
 class RapidStage(segmentation.Stage):
@@ -65,7 +66,26 @@ class DragenMetrics(RapidStage):
 
         return data
 
+    @staticmethod
+    def _interop_metrics(interop_metrics):
+        yield_r1 = interop_metrics.get('yield_r1')
+        yield_r2 = interop_metrics.get('yield_r2')
+        if not yield_r1 or not yield_r2:
+            return {}
+
+        pc_q30_r1 = interop_metrics['pc_q30_r1']
+        pc_q30_r2 = interop_metrics['pc_q30_r2']
+
+        projected_yield_q30_r1 = (yield_r1 * pc_q30_r1) / 100
+        projected_yield_q30_r2 = (yield_r2 * pc_q30_r2) / 100
+
+        projected_yield_q30 = projected_yield_q30_r1 + projected_yield_q30_r2
+        total_yield = yield_r1 + yield_r2
+        pc_q30 = (projected_yield_q30 / total_yield) * 100
+        return {'yield': total_yield, 'pc_q30': pc_q30}
+
     def _run(self):
+        interop_metrics = parse_interop_summary(util.find_file(self.job_dir, 'fastq', 'interop_summary.txt'))
         data = []
         for lane in sorted(self.dataset.rapid_samples_by_lane):
             sample = self.dataset.rapid_samples_by_lane[lane]
@@ -79,41 +99,42 @@ class DragenMetrics(RapidStage):
                 util.find_file(output_dir, '%s.vc_metrics.csv' % user_sample_id)
             )['VARIANT CALLER POSTFILTER']
 
-            data.append(
-                {
-                    'sample_id': sample['sample_id'],
-                    'rapid_metrics': {
-                        'var_calling': {
-                             'ti_tv_ratio': float(vc_metrics['Ti/Tv ratio'][0]),
-                             'het_hom_ratio': float(vc_metrics['Het/Hom ratio'][0]),
-                        },
-                        'mapping': {
-                            'total_reads': int(map_metrics['Total input reads'][0]),
-                            'duplicate_reads': int(map_metrics['Number of duplicate reads (marked)'][0]),
-                            'pc_duplicates': float(map_metrics['Number of duplicate reads (marked)'][1]),
-                            'mapped_reads': int(map_metrics['Mapped reads'][0]),
-                            'pc_mapped': float(map_metrics['Mapped reads'][1]),
-                            'unique_mapped_reads': int(map_metrics['Number of unique & mapped reads (excl. dups)'][0]),
-                            'pc_unique_mapped': float(map_metrics['Number of unique & mapped reads (excl. dups)'][1]),
-                            'mean_coverage': float(map_metrics['Average autosomal coverage'][0]),
-                            'median_coverage': float(map_metrics['Median autosomal coverage'][0]),
-                            'genome_size': int(map_metrics['Bases in reference genome'][0]),
-                            'pc_genome_with_coverage': {
-                                '100+': float(map_metrics['PCT of genome with coverage [100x:inf)'][0]),
-                                '50-100': float(map_metrics['PCT of genome with coverage [50x:100x)'][0]),
-                                '40-50': float(map_metrics['PCT of genome with coverage [40x:50x)'][0]),
-                                '30-40': float(map_metrics['PCT of genome with coverage [30x:40x)'][0]),
-                                '20-30': float(map_metrics['PCT of genome with coverage [20x:30x)'][0]),
-                                '10-20': float(map_metrics['PCT of genome with coverage [10x:20x)'][0]),
-                                '5-10': float(map_metrics['PCT of genome with coverage [ 5x:10x)'][0]),
-                                '2-5': float(map_metrics['PCT of genome with coverage [ 2x: 5x)'][0]),
-                                '1-2': float(map_metrics['PCT of genome with coverage [ 1x: 2x)'][0]),
-                                '0-1': float(map_metrics['PCT of genome with coverage [ 0x: 1x)'][0]),
-                            }
+            payload = {
+                'sample_id': sample['sample_id'],
+                'rapid_metrics': {
+                    'data_source': self.dataset.name + '_' + lane,
+                    'var_calling': {
+                         'ti_tv_ratio': float(vc_metrics['Ti/Tv ratio'][0]),
+                         'het_hom_ratio': float(vc_metrics['Het/Hom ratio'][0]),
+                    },
+                    'mapping': {
+                        'total_reads': int(map_metrics['Total input reads'][0]),
+                        'duplicate_reads': int(map_metrics['Number of duplicate reads (marked)'][0]),
+                        'pc_duplicates': float(map_metrics['Number of duplicate reads (marked)'][1]),
+                        'mapped_reads': int(map_metrics['Mapped reads'][0]),
+                        'pc_mapped': float(map_metrics['Mapped reads'][1]),
+                        'unique_mapped_reads': int(map_metrics['Number of unique & mapped reads (excl. dups)'][0]),
+                        'pc_unique_mapped': float(map_metrics['Number of unique & mapped reads (excl. dups)'][1]),
+                        'mean_coverage': float(map_metrics['Average autosomal coverage'][0]),
+                        'median_coverage': float(map_metrics['Median autosomal coverage'][0]),
+                        'genome_size': int(map_metrics['Bases in reference genome'][0]),
+                        'pc_genome_with_coverage': {
+                            '100+': float(map_metrics['PCT of genome with coverage [100x:inf)'][0]),
+                            '50-100': float(map_metrics['PCT of genome with coverage [50x:100x)'][0]),
+                            '40-50': float(map_metrics['PCT of genome with coverage [40x:50x)'][0]),
+                            '30-40': float(map_metrics['PCT of genome with coverage [30x:40x)'][0]),
+                            '20-30': float(map_metrics['PCT of genome with coverage [20x:30x)'][0]),
+                            '10-20': float(map_metrics['PCT of genome with coverage [10x:20x)'][0]),
+                            '5-10': float(map_metrics['PCT of genome with coverage [ 5x:10x)'][0]),
+                            '2-5': float(map_metrics['PCT of genome with coverage [ 2x: 5x)'][0]),
+                            '1-2': float(map_metrics['PCT of genome with coverage [ 1x: 2x)'][0]),
+                            '0-1': float(map_metrics['PCT of genome with coverage [ 0x: 1x)'][0]),
                         }
                     }
                 }
-            )
+            }
+            payload['rapid_metrics'].update(self._interop_metrics(interop_metrics[lane]))
+            data.append(payload)
 
         rest_communication.post_or_patch('samples', data, id_field='sample_id')
         return 0
