@@ -1,3 +1,8 @@
+import os
+import random
+import shutil
+import string
+
 import luigi
 import json
 from os.path import join
@@ -63,6 +68,11 @@ class BasicStage(luigi.Task, AppLogger):
 
 
 class Stage(BasicStage):
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.dir_to_delete = []
+
     def output(self):
         return [RestAPITarget(self)]
 
@@ -72,7 +82,9 @@ class Stage(BasicStage):
         self.dataset.end_stage(self.stage_name, self.exit_status)
         if self.exit_status:
             raise PipelineError('Exit status for %s was %s. Stopping' % (self.stage_name, self.exit_status))
-
+        # Remove temp directories
+        for d in self.dir_to_delete:
+            shutil.rmtree(d)
         self.info('Finished stage %s', self.stage_name)
 
     @property
@@ -81,6 +93,23 @@ class Stage(BasicStage):
 
     def _run(self):
         return 0
+
+    @property
+    def exec_dir(self):
+        """Directory where the slurm jobs and slurm logs are located."""
+        d = os.path.join(self.job_dir, 'slurm_and_logs')
+        os.makedirs(d, exist_ok=True)
+        return d
+
+    @staticmethod
+    def _id_generator(size=6, chars=string.ascii_lowercase + string.digits):
+        return ''.join(random.choice(chars) for _ in range(size))
+
+    def create_tmp_dir(self):
+        """Create a temporary directory that will be used during this stage and deleted at the end."""
+        tmp_dir = os.path.join(self.job_dir, self._id_generator())
+        os.makedirs(tmp_dir)
+        self.dir_to_delete.append(tmp_dir)
 
 
 class RestAPITarget(luigi.Target):

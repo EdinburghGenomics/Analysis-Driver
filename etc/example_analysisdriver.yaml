@@ -63,6 +63,8 @@ default:
         verifybamid: path/to/verifybamid
         well_duplicates: path/to/well_duplicates
         grabix: path/to/grabix
+        bamcat: path/to/bamcat
+        pbgzip: path/to/pbgzip
 
     logging:
         format: '[%(asctime)s][%(processName)s][%(name)s][%(levelname)s] %(message)s'

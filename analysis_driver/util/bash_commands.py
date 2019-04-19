@@ -211,6 +211,8 @@ def picard_command(program, input_file, output_file, tmp_dir, memory, assume_sor
     cmd = (java_command(memory, tmp_dir or os.path.dirname(input_file), toolset['picard']) + '{program} '
            'INPUT={input} OUTPUT={output} VALIDATION_STRINGENCY=LENIENT'
            )
+    if picard_params is None:
+        picard_params = {}
     if assume_sorted:
         picard_params['ASSUME_SORTED'] = 'true'
     if picard_params:
@@ -226,21 +228,21 @@ def picard_command(program, input_file, output_file, tmp_dir, memory, assume_sor
 def picard_gc_bias(input_file, metrics, summary, chart, ref, memory=8, tmp_dir=None):
     return picard_command(
         'CollectGcBiasMetrics', input_file, metrics, tmp_dir, memory,
-        {'SUMMARY_OUTPUT': summary, 'CHART': chart, 'R': ref}
+        picard_params={'SUMMARY_OUTPUT': summary, 'CHART': chart, 'R': ref}
     )
 
 
 def picard_mark_dup_command(input_file, output_file, metrics_file, memory=10, tmp_dir=None):
     return picard_command(
         'MarkDuplicates', input_file, output_file, tmp_dir, memory,
-        {'METRICS_FILE': metrics_file, 'OPTICAL_DUPLICATE_PIXEL_DISTANCE': '100'}
+        picard_params={'METRICS_FILE': metrics_file, 'OPTICAL_DUPLICATE_PIXEL_DISTANCE': '100'}
     )
 
 
 def picard_insert_size_command(input_file, metrics_file, histogram_file, memory=8, tmp_dir=None):
     return picard_command(
         'CollectInsertSizeMetrics', input_file, metrics_file, tmp_dir, memory,
-        {'HISTOGRAM_FILE': histogram_file}
+        picard_params={'HISTOGRAM_FILE': histogram_file}
     )
 
 
