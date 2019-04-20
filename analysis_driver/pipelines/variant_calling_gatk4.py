@@ -16,7 +16,7 @@ toolset_type = 'gatk4_sample_processing'
 name = 'variant_calling_gatk4'
 
 
-class PostAlignmentScatterVC(PostAlignmentScatter, GATK4FilePath):
+class PostAlignmentScatterVC(PostAlignmentScatter):
 
     def split_genome_chromosomes(self, with_unmapped=False):
         """
@@ -252,7 +252,6 @@ def build_pipeline(dataset):
     merge_fastqs = stage(MergeFastqs)
     contam = stage(qc.FastqScreen, previous_stages=[merge_fastqs], fq_pattern=merge_fastqs.fq_pattern)
     blast = stage(qc.Blast, previous_stages=[merge_fastqs], fastq_file=merge_fastqs.fq_pattern.replace('?', '1'))
-    geno_val = stage(qc.GenotypeValidation, fq_pattern=merge_fastqs.fq_pattern, previous_stages=[merge_fastqs])
 
     # create fastq index then align and recalibrate via scatter-gather strategy
     fastq_index = stage(FastqIndex)
@@ -278,8 +277,8 @@ def build_pipeline(dataset):
     annotate_vcf = stage(VariantAnnotation, previous_stages=[gather_vcf])
 
     # variant filtering with Hard Filters
-    select_snps = stage(SelectSNPs, previous_stages=[gather_vcf])
-    select_indels = stage(SelectIndels, previous_stages=[gather_vcf])
+    select_snps = stage(SelectSNPs, input_vcf=annotate_vcf.snps_effects_output_vcf, previous_stages=[annotate_vcf])
+    select_indels = stage(SelectIndels, input_vcf=annotate_vcf.snps_effects_output_vcf, previous_stages=[annotate_vcf])
     hard_filter_snps = stage(SNPsFiltration, previous_stages=[select_snps])
     hard_filter_indels = stage(IndelsFiltration, previous_stages=[select_indels])
 
@@ -289,12 +288,10 @@ def build_pipeline(dataset):
                      output_vcf_file=hard_filter_indels.hard_filtered_vcf,
                      previous_stages=[hard_filter_snps, hard_filter_indels])
 
-    # VQSR variant merge
-    gender_val = stage(qc.GenderValidation, vcf_file=merge_hf.hard_filtered_vcf, previous_stages=[merge_hf])
-
+    # Variant stats
     vcfstats = stage(qc.VCFStats, vcf_file=merge_hf.hard_filtered_vcf, previous_stages=[merge_hf])
 
-    final_stages = [contam, blast, geno_val, gender_val, vcfstats, verify_bam_id, samtools_depth, samtools_stat,
+    final_stages = [contam, blast, vcfstats, verify_bam_id, samtools_depth, samtools_stat,
                     gather_gcvf, merge_hf]
 
     output = stage(common.SampleDataOutput, previous_stages=final_stages, output_fileset='gatk4_var_calling')

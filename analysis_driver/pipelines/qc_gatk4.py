@@ -32,6 +32,10 @@ class GATK4FilePath(segmentation.Stage):
         return os.path.join(self.gatk_run_dir, self.dataset.user_sample_id)
 
     @property
+    def sorted_bam(self):
+        return os.path.join(self.job_dir, self.dataset.name + '.bam')
+
+    @property
     def recal_bam(self):
         return self.gatk4_basename + '_recal.bam'
 
@@ -140,7 +144,7 @@ class GATK4FilePath(segmentation.Stage):
         return self.gatk4_basename + '_vqsr.vcf.gz'
 
 
-class SplitFastqStage(segmentation.Stage):
+class SplitFastqStage(GATK4FilePath):
     """
     Generic stage that provides functionality to access
        - fastq files for each run element
@@ -302,10 +306,6 @@ class MergeBamAndDup(SplitFastqStage):
     @property
     def dup_tmp_dir(self):
         return os.path.join(self.job_dir, 'dup_tmp')
-
-    @property
-    def sorted_bam(self):
-        return os.path.join(self.job_dir, self.dataset.name + '.bam')
 
     def merge_command(self):
         cat_cmd = '{bamcat} level=0 tmpfile={cat_tmp} `cat {bam_list_file}`'.format(
@@ -501,9 +501,11 @@ class GatherVCF(PostAlignmentScatter):
 
 class SelectSNPs(GATK4Stage):
 
+    input_vcf = Parameter()
+
     def _run(self):
         select_var_command = self.gatk_cmd('SelectVariants', self.raw_snps_vcf)
-        select_var_command += ' -V ' + self.genotyped_vcf
+        select_var_command += ' -V ' + self.input_vcf
         select_var_command += ' -selectType SNP '
         select_variants_status = executor.execute(
             select_var_command,
@@ -516,9 +518,11 @@ class SelectSNPs(GATK4Stage):
 
 class SelectIndels(GATK4Stage):
 
+    input_vcf = Parameter()
+
     def _run(self):
         select_var_command = self.gatk_cmd('SelectVariants', self.raw_indels_vcf)
-        select_var_command += ' -V ' + self.genotyped_vcf
+        select_var_command += ' -V ' + self.input_vcf
         select_var_command += ' -selectType Indel '
         select_variants_status = executor.execute(
             select_var_command,
@@ -634,8 +638,8 @@ def build_pipeline(dataset):
     gather_vcf = stage(GatherVCF, previous_stages=[haplotype_caller])
 
     # variant filtering
-    select_snps = stage(SelectSNPs, previous_stages=[gather_vcf])
-    select_indels = stage(SelectIndels, previous_stages=[gather_vcf])
+    select_snps = stage(SelectSNPs, input_vcf=gather_vcf.genotyped_vcf, previous_stages=[gather_vcf])
+    select_indels = stage(SelectIndels, input_vcf=gather_vcf.genotyped_vcf, previous_stages=[gather_vcf])
     filter_snps = stage(SNPsFiltration, previous_stages=[select_snps])
     filter_indels = stage(IndelsFiltration, previous_stages=[select_indels])
 

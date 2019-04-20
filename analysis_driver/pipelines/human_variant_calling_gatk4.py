@@ -215,8 +215,8 @@ def build_pipeline(dataset):
     apply_vqsr_indels = stage(ApplyVQSRIndels, previous_stages=[filter_indels])
 
     # variant filtering with Hard Filters
-    select_snps = stage(SelectSNPs, previous_stages=[gather_vcf])
-    select_indels = stage(SelectIndels, previous_stages=[gather_vcf])
+    select_snps = stage(SelectSNPs, input_vcf=annotate_vcf.snps_effects_output_vcf, previous_stages=[annotate_vcf])
+    select_indels = stage(SelectIndels, input_vcf=annotate_vcf.snps_effects_output_vcf, previous_stages=[annotate_vcf])
     hard_filter_snps = stage(SNPsFiltration, previous_stages=[select_snps])
     hard_filter_indels = stage(IndelsFiltration, previous_stages=[select_indels])
 
