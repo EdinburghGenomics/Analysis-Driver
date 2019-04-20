@@ -215,6 +215,10 @@ class SplitGenotypeGVCFs(PostAlignmentScatterVC):
             mem=6
         ).join()
 
+#
+class GatherVCFVC(PostAlignmentScatterVC, GatherVCF):
+    pass
+
 
 class VariantAnnotation(GATK4Stage):
     """Annotate a vcf file using snpEff."""
@@ -271,7 +275,7 @@ def build_pipeline(dataset):
     haplotype_caller = stage(SplitHaplotypeCallerVC, bam_file=merge_bam.recal_bam, previous_stages=[merge_bam])
     gather_gcvf = stage(GatherGVCF, previous_stages=[haplotype_caller])
     genotype_gcvf = stage(SplitGenotypeGVCFs, previous_stages=[haplotype_caller])
-    gather_vcf = stage(GatherVCF, previous_stages=[genotype_gcvf])
+    gather_vcf = stage(GatherVCFVC, previous_stages=[genotype_gcvf])
 
     # variant annotation
     annotate_vcf = stage(VariantAnnotation, previous_stages=[gather_vcf])

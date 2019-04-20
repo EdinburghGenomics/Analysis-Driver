@@ -7,8 +7,8 @@ from analysis_driver.pipelines.common import tabix_vcf, MergeFastqs, SamtoolsSta
 from analysis_driver.pipelines.qc_gatk4 import SelectSNPs, SelectIndels, GATK4Stage, FastqIndex, SplitBWA, \
     MergeBamAndDup, SNPsFiltration, IndelsFiltration, MergeVariants
 from analysis_driver.pipelines.variant_calling_gatk4 import SplitHaplotypeCallerVC, PostAlignmentScatterVC, \
-    ScatterBaseRecalibrator, GatherBQSRReport, ScatterApplyBQSR, GatherRecalBam, GatherGVCF, VariantAnnotation
-
+    ScatterBaseRecalibrator, GatherBQSRReport, ScatterApplyBQSR, GatherRecalBam, GatherGVCF, VariantAnnotation, \
+    GatherVCFVC
 
 toolset_type = 'gatk4_sample_processing'
 name = 'human_variant_calling_gatk4'
@@ -203,7 +203,7 @@ def build_pipeline(dataset):
     haplotype_caller = stage(SplitHaplotypeCallerVC, bam_file=merge_bam.recal_bam, previous_stages=[merge_bam])
     gather_gcvf = stage(GatherGVCF, previous_stages=[haplotype_caller])
     genotype_gcvf = stage(SplitGenotypeGVCFs, previous_stages=[haplotype_caller])
-    gather_vcf = stage(GatherVCF, previous_stages=[genotype_gcvf])
+    gather_vcf = stage(GatherVCFVC, previous_stages=[genotype_gcvf])
 
     # variant annotation
     annotate_vcf = stage(VariantAnnotation, previous_stages=[gather_vcf])
