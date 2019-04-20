@@ -110,6 +110,7 @@ class Stage(BasicStage):
         tmp_dir = os.path.join(self.job_dir, self._id_generator())
         os.makedirs(tmp_dir)
         self.dir_to_delete.append(tmp_dir)
+        return tmp_dir
 
 
 class RestAPITarget(luigi.Target):
