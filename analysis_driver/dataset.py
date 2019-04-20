@@ -443,6 +443,7 @@ class SampleDataset(Dataset):
         self._genome_version = None
         self._user_sample_id = None
         self._lims_ntf = None
+        self.genome_version
 
     @property
     def lims_ntf(self):

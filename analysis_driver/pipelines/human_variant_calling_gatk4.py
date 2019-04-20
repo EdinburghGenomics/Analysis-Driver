@@ -240,7 +240,7 @@ def build_pipeline(dataset):
     final_stages = [contam, blast, geno_val, gender_val, vcfstats, verify_bam_id, samtools_depth, samtools_stat,
                     gather_gcvf, merge_hf]
 
-    output = stage(common.SampleDataOutput, previous_stages=final_stages, output_fileset='gatk4_var_calling')
+    output = stage(common.SampleDataOutput, previous_stages=final_stages, output_fileset='gatk4_human_var_calling')
     review = stage(common.SampleReview, previous_stages=[output])
     # cleanup = stage(common.Cleanup, previous_stages=[output])
 

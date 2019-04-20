@@ -58,7 +58,7 @@ class TestFastqIndex(TestGATK4):
                 job_name='compress_fastq',
                 log_commands=False,
                 mem=8,
-                working_dir='tests/assets/jobs/test_dataset')
+                working_dir='tests/assets/jobs/test_dataset/slurm_and_logs')
 
 
 class TestSplitBWA(TestGATK4):
@@ -87,7 +87,7 @@ class TestSplitBWA(TestGATK4):
              patch_executor as e, patch.object(SplitBWA, 'bwa_command', return_value='command_bwa') as mcommand:
             stage._run()
         e.assert_called_with('command_bwa', 'command_bwa', 'command_bwa', 'command_bwa', 'command_bwa',
-                             cpus=2, job_name='bwa_split', mem=12, working_dir='tests/assets/jobs/test_dataset')
+                             cpus=2, job_name='bwa_split', mem=12, working_dir='tests/assets/jobs/test_dataset/slurm_and_logs')
 
         mcommand.assert_any_call(
             chunk=(1, 100000000),

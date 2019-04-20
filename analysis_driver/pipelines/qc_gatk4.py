@@ -51,13 +51,6 @@ class GATK4FilePath(segmentation.Stage):
     def sample_gvcf(self):
         return self.gatk4_basename + '.g.vcf.gz'
 
-    @property
-    def raw_snp_vcf(self):
-        return self.gatk4_basename + '_raw_snp.vcf'
-
-    @property
-    def filter_snp_vcf(self):
-        return self.gatk4_basename + '_filter_snp.vcf'
 
     @property
     def raw_snps_vcf(self):
@@ -506,10 +499,10 @@ class SelectSNPs(GATK4Stage):
     def _run(self):
         select_var_command = self.gatk_cmd('SelectVariants', self.raw_snps_vcf)
         select_var_command += ' -V ' + self.input_vcf
-        select_var_command += ' -selectType SNP '
+        select_var_command += ' -select-type SNP '
         select_variants_status = executor.execute(
             select_var_command,
-            job_name='var_select',
+            job_name='snp_select',
             working_dir=self.exec_dir,
             mem=16
         ).join()
@@ -523,10 +516,10 @@ class SelectIndels(GATK4Stage):
     def _run(self):
         select_var_command = self.gatk_cmd('SelectVariants', self.raw_indels_vcf)
         select_var_command += ' -V ' + self.input_vcf
-        select_var_command += ' -selectType Indel '
+        select_var_command += ' -select-type INDEL '
         select_variants_status = executor.execute(
             select_var_command,
-            job_name='var_select',
+            job_name='indel_select',
             working_dir=self.exec_dir,
             mem=16
         ).join()
@@ -544,10 +537,10 @@ class SNPsFiltration(GATK4Stage):
             'SOR > 3.0'
         ]
         filters = "'" + ' || '.join(filter_array) + "'"
-        var_filter_command = self.gatk_cmd('VariantFiltration', self.filter_snp_vcf)
+        var_filter_command = self.gatk_cmd('VariantFiltration', self.hard_filtered_snps_vcf)
         var_filter_command += " -V " + self.raw_snps_vcf
-        var_filter_command += " --filterExpression " + filters
-        var_filter_command += " --filterName 'SNP_HARD_FILTER'"
+        var_filter_command += " --filter-expression " + filters
+        var_filter_command += " --filter-name 'SNP_HARD_FILTER'"
         variant_filter_status = executor.execute(
             var_filter_command,
             job_name='snps_filtration',
@@ -566,13 +559,13 @@ class IndelsFiltration(GATK4Stage):
             'SOR > 10.0'
         ]
         filters = "'" + ' || '.join(filter_array) + "'"
-        var_filter_command = self.gatk_cmd('VariantFiltration', self.filter_indel_vcf)
+        var_filter_command = self.gatk_cmd('VariantFiltration', self.hard_filtered_indels_vcf)
         var_filter_command += " -V " + self.raw_indels_vcf
-        var_filter_command += " --filterExpression " + filters
-        var_filter_command += " --filterName 'INDEL_HARD_FILTER'"
+        var_filter_command += " --filter-expression " + filters
+        var_filter_command += " --filter-name 'INDEL_HARD_FILTER'"
         variant_filter_status = executor.execute(
             var_filter_command,
-            job_name='var_filtration',
+            job_name='indel_filtration',
             working_dir=self.exec_dir,
             mem=16
         ).join()
