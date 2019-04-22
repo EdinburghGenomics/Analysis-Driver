@@ -66,6 +66,7 @@ default:
         grabix: path/to/grabix
         bamcat: path/to/bamcat
         pbgzip: path/to/pbgzip
+        snpEff: path/to/snpEff
 
     logging:
         format: '[%(asctime)s][%(processName)s][%(name)s][%(levelname)s] %(message)s'
@@ -108,6 +109,13 @@ default:
         fasta: /path/to/genome.fa
         dbsnp: /path/to/dbsnp.vcf.gz
         known_indels: /path/to/known/indels
+        snpEff: snpEffdb
+        vqsr:
+          hapmap:           /path/to/hapmap_annotation
+          omni:             /path/to/omni_annotation
+          thousand_genomes: /path/to/1000g_annotation
+          dbsnp:            /path/to/dbsnp_annotation
+          mills:            /path/to/mills_annotation
       phix174:
         fasta: /path/to/phix.fa
 

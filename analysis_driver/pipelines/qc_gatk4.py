@@ -366,7 +366,9 @@ class PostAlignmentScatter(GATK4Stage):
 
     @property
     def split_file_dir(self):
-        return os.path.join(self.job_dir, 'post_alignment_split')
+        d = os.path.join(self.job_dir, 'post_alignment_split')
+        os.makedirs(d, exist_ok=True)
+        return d
 
     def split_genome_files(self):
         """

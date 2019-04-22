@@ -133,7 +133,7 @@ class GatherRecalBam(PostAlignmentScatterVC):
 
         gather_bam_status = executor.execute(
             picard_command('GatherBamFiles', input_file=bam_file_list, output_file=self.recal_bam,
-                           tmp_dir=self.gatk_run_dir, memory=6, assume_sorted=False,
+                           tmp_dir=self.create_tmp_dir(), memory=6, assume_sorted=False,
                            picard_params={'CREATE_INDEX': 'true'}),
             job_name='gather_recal_bam',
             working_dir=self.exec_dir,
@@ -150,7 +150,7 @@ class SplitHaplotypeCallerVC(PostAlignmentScatterVC, SplitHaplotypeCaller):
         haplotype_cmd = self.gatk_cmd(
             'HaplotypeCaller',
             self.gvcf_per_chunk(chunk),
-            input=self.recal_bam,
+            input=self.bam_file,
             memory=6,
             spark_core=1,
             ext=' --sample-ploidy 2 --emit-ref-confidence GVCF --intervals ' + region_file
@@ -224,13 +224,13 @@ class VariantAnnotation(GATK4Stage):
     """Annotate a vcf file using snpEff."""
 
     def _run(self):
-        cmd = 'set -o pipefail; ' + java_command(20, self.job_dir, toolset['snpEff']) + \
-              (' eff -hgvs -noLog -i vcf -o vcf '
+        cmd = 'set -o pipefail; ' + java_command(20, self.create_tmp_dir(), toolset['snpEff']) + \
+              ('eff -hgvs -noLog -i vcf -o vcf '
                '-csvStats {effects_csv} -s {effects_html} {database_name} {input_vcf}'
                ' | {bgzip} --threads 16 -c > {output_vcf}').format(
                   effects_csv=self.snps_effects_csv,
                   effects_html=self.snps_effects_html,
-                  database_name=cfg.query('genomes', self.dataset.genome_version, 'snpEff'),
+                  database_name=cfg.query('genomes', self.dataset.genome_version)['snpEff'],  # to avoid getting None
                   input_vcf=self.genotyped_vcf,
                   bgzip=toolset['bgzip'],
                   output_vcf=self.snps_effects_output_vcf
