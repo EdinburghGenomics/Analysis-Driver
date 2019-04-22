@@ -47,6 +47,7 @@ default:
         fastqscreen: path/to/fastqscreen
         fix_dup_unmapped: path/to/fix_dup_unmapped
         gatk: [path/to/gatk_3, path/to/gatk_4]
+        gatk4_bin: path/to/gatk
         java: path/to/java_8
         jdk: path/to/jdk
         md5sum: path/to/md5sum

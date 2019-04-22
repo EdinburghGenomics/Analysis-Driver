@@ -352,8 +352,7 @@ gatk4_var_calling:
 
 gatk4_qc:
     depth_file:
-        location: ['gatk4']
-        basename: '{user_sample_id}_recal.depth'
+        basename: '{sample_id}.depth'
         new_name: '{user_sample_id}.depth'
 
     samtools_stats:

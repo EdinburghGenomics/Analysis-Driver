@@ -292,30 +292,20 @@ class MergeBamAndDup(SplitFastqStage):
             open_file.write('\n'.join(all_chunk_bams))
         return bam_list_file
 
-    @property
-    def cat_tmp_dir(self):
-        return os.path.join(self.job_dir, 'cat_tmp')
-
-    @property
-    def dup_tmp_dir(self):
-        return os.path.join(self.job_dir, 'dup_tmp')
-
     def merge_command(self):
         cat_cmd = '{bamcat} level=0 tmpfile={cat_tmp} `cat {bam_list_file}`'.format(
             bamcat=toolset['bamcat'],
-            cat_tmp=os.path.join(self.cat_tmp_dir, self.dataset.name),
+            cat_tmp=os.path.join(self.create_tmp_dir(), self.dataset.name),
             bam_list_file=self.all_chunk_bam_list_file()
         )
         bamsormadup_cmd = '{bamsormadup} threads=16 tmpfile={dup_tmp} indexfilename={merged_bam}.bai > {merged_bam}'.format(
             bamsormadup=toolset['biobambam_sortmapdup'],
-            dup_tmp=os.path.join(self.dup_tmp_dir, self.dataset.name),
+            dup_tmp=os.path.join(self.create_tmp_dir(), self.dataset.name),
             merged_bam=self.sorted_bam
         )
         return 'set -o pipefail; ' + ' | '.join([cat_cmd, bamsormadup_cmd])
 
     def _run(self):
-        os.makedirs(self.cat_tmp_dir, exist_ok=True)
-        os.makedirs(self.dup_tmp_dir, exist_ok=True)
         exit_status = executor.execute(
             self.merge_command(),
             job_name='merge_dup_bam',
@@ -323,8 +313,6 @@ class MergeBamAndDup(SplitFastqStage):
             cpus=6,
             mem=36
         ).join()
-        shutil.rmtree(self.cat_tmp_dir)
-        shutil.rmtree(self.dup_tmp_dir)
         return exit_status
 
 
@@ -473,7 +461,7 @@ class SplitHaplotypeCaller(PostAlignmentScatter):
 class GatherVCF(PostAlignmentScatter):
 
     def _run(self):
-        vcf_list = os.path.join(self.split_file_dir, self.dataset.name + '.vcf.list')
+        vcf_list = os.path.join(self.split_file_dir, self.dataset.name + '_vcf.list')
         with open(vcf_list, 'w') as open_file:
             for chunks in self.split_genome_in_chunks():
                 open_file.write(self.vcf_per_chunk(chunks[0]) + '\n')
@@ -572,29 +560,14 @@ class IndelsFiltration(GATK4Stage):
         return variant_filter_status
 
 
-# class MergeVariants(GATK4Stage):
-#
-#     def _run(self):
-#         vcf_list = os.path.join(self.job_dir, self.dataset.name + 'hard_filtered.vcf.list')
-#         with open(vcf_list, 'w') as open_file:
-#             open_file.write(self.hard_filtered_snps_vcf + '\n')
-#             open_file.write(self.hard_filtered_indels_vcf + '\n')
-#         cmd = self.gatk_picard_cmd('MergeVcfs', self.hard_filtered_vcf, input=vcf_list, reference=None)
-#         return executor.execute(
-#             cmd,
-#             job_name='merge_vqsr',
-#             working_dir=self.exec_dir,
-#             cpus=1,
-#             mem=8
-#         ).join()
-
-
 class MergeVariants(GATK4Stage):
     vcf_files = ListParameter()
     output_vcf_file = Parameter()
 
     def _run(self):
-        vcf_list = os.path.join(self.job_dir, self.dataset.name + 'vqsr_filtered.vcf.list')
+        # get the name of the list from the name of the first vcf to avoid overwriting another file
+        base_name = os.path.splitext(os.path.basename(self.vcf_files[0]))[0]
+        vcf_list = os.path.join(self.job_dir, base_name + '.list')
         with open(vcf_list, 'w') as open_file:
             for f in self.vcf_files:
                 open_file.write(f + '\n')

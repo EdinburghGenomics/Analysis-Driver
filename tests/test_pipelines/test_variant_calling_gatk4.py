@@ -7,6 +7,8 @@ from egcg_core.constants import ELEMENT_LANE, ELEMENT_NB_READS_CLEANED, ELEMENT_
 
 from analysis_driver.pipelines.qc_gatk4 import SplitBWA, SplitHaplotypeCaller, SplitFastqStage, FastqIndex, \
     MergeBamAndDup, PostAlignmentScatter
+from analysis_driver.pipelines.variant_calling_gatk4 import ScatterBaseRecalibrator, PostAlignmentScatterVC, \
+    GatherBQSRReport, ScatterApplyBQSR
 from tests.test_pipelines.test_variant_calling import TestVariantCalling
 
 patch_executor = patch('analysis_driver.pipelines.variant_calling_gatk4.executor.execute')
@@ -15,6 +17,7 @@ patch_executor = patch('analysis_driver.pipelines.variant_calling_gatk4.executor
 class TestGATK4(TestVariantCalling):
     def setUp(self):
         super().setUp()
+        self.dataset.reference_genome = join(self.assets_path, 'genome.fa')
         self.current_wd = os.curdir
         os.chdir(dirname(dirname(__file__)))
 
@@ -103,7 +106,7 @@ class TestSplitBWA(TestGATK4):
 
 class TestMergeBamAndDup(TestGATK4):
 
-    def _run(self):
+    def test_run(self):
         self.dataset.run_elements = [
             {ELEMENT_RUN_ELEMENT_ID: 'a_run_1', ELEMENT_NB_READS_CLEANED: 1, ELEMENT_RUN_NAME: 'a_run', ELEMENT_LANE: 1}
         ]
@@ -115,24 +118,26 @@ class TestMergeBamAndDup(TestGATK4):
              patch_executor as e:
             stage._run()
             command = 'set -o pipefail; ' \
-                      'path/to/bamcat level=0 tmpfile=tests/assets/jobs/test_dataset/cat_tmp/test_dataset ' \
+                      'path/to/bamcat level=0 tmpfile=%s ' \
                       '`cat tests/assets/jobs/test_dataset/test_dataset_all_bam_files.list` | ' \
-                      'path/to/sortmapdup threads=16 tmpfile=tests/assets/jobs/test_dataset/dup_tmp/test_dataset ' \
+                      'path/to/sortmapdup threads=16 tmpfile=%s ' \
                       'indexfilename=tests/assets/jobs/test_dataset/test_dataset.bam.bai ' \
-                      '> tests/assets/jobs/test_dataset/test_dataset.bam'
+                      '> tests/assets/jobs/test_dataset/test_dataset.bam' % (
+                os.path.join(stage.dir_to_delete[0], 'test_dataset'),
+                os.path.join(stage.dir_to_delete[1], 'test_dataset')
+            )
             e.assert_called_with(
                 command,
                 cpus=6,
                 job_name='merge_dup_bam',
                 mem=36,
-                working_dir='tests/assets/jobs/test_dataset'
+                working_dir='tests/assets/jobs/test_dataset/slurm_and_logs'
             )
 
 
 class TestPostAlignmentScatter(TestGATK4):
 
     def test_split_genome_files(self):
-        self.dataset.reference_genome = join(self.assets_path, 'genome.fa')
         stage = PostAlignmentScatter(dataset=self.dataset)
         split_dir = 'tests/assets/jobs/test_dataset/post_alignment_split'
         expected_output = {
@@ -159,28 +164,84 @@ class TestPostAlignmentScatter(TestGATK4):
             ]
 
 
+class TestPostAlignmentScatterVC(TestGATK4):
+
+    def test_split_genome_chromosomes(self):
+        stage = PostAlignmentScatterVC(dataset=self.dataset)
+        assert stage.split_genome_chromosomes() == [
+            ['bigchr1', 'bigchr2', 'smchr1', 'smchr2', 'smchr3', 'smchr4'],
+            ['bigchr3']
+        ]
+
 
 class TestScatterBaseRecalibrator(TestGATK4):
 
     def test_base_recalibrator_cmd(self):
-        pass
+        stage = ScatterBaseRecalibrator(dataset=self.dataset)
+        obs_cmd = stage.base_recalibrator_cmd(['chr1'])
+        cmd = 'path/to/gatk ' \
+              '--java-options "-Djava.io.tmpdir=%s -XX:+UseSerialGC -Xmx6G" BaseRecalibrator '  \
+              '--output tests/assets/jobs/test_dataset/post_alignment_split/test_dataset_base_recal_grp_chr1.grp ' \
+              '--input tests/assets/jobs/test_dataset/test_dataset.bam  ' \
+              '--reference %s --known-sites  /path/to/dbsnp.vcf.gz ' \
+              '--intervals chr1' % (stage.dir_to_delete[0], self.dataset.reference_genome)
+        assert obs_cmd == cmd
 
     def test_run(self):
-        pass
+        stage = ScatterBaseRecalibrator(dataset=self.dataset)
+        with patch.object(ScatterBaseRecalibrator, 'base_recalibrator_cmd', return_value='recal_cmd') as mcommand, \
+             patch_executor as e:
+            stage._run()
+            e.assert_called_with(
+                'recal_cmd', 'recal_cmd',
+                cpus=1, job_name='gatk_base_recal', mem=6, working_dir='tests/assets/jobs/test_dataset/slurm_and_logs'
+            )
+            assert mcommand.call_count == 2
 
 
 class TestGatherBQSRReport(TestGATK4):
+
     def test_run(self):
-        pass
+        stage = GatherBQSRReport(dataset=self.dataset)
+        with patch_executor as e:
+            stage._run()
+            e.assert_called_with(
+                'path/to/gatk --java-options "-Djava.io.tmpdir=%s -XX:+UseSerialGC -Xmx6G" GatherBQSRReports '
+                '--output tests/assets/jobs/test_dataset/gatk4/test_user_sample_id.grp '
+                '--input tests/assets/jobs/test_dataset/post_alignment_split/test_datasetbqsr_reports.list'
+                ' ' % (stage.dir_to_delete[0]), cpus=1, job_name='gather_bqsr', mem=6,
+                working_dir='tests/assets/jobs/test_dataset/slurm_and_logs')
 
 
 class TestScatterApplyBQSR(TestGATK4):
 
     def test_apply_bqsr_cmd(self):
-        pass
+        stage = ScatterApplyBQSR(dataset=self.dataset)
+        obs_cmd = stage.apply_bqsr_cmd(['chr1'])
+        exp_cmd = 'path/to/gatk --java-options "-Djava.io.tmpdir=%s -XX:+UseSerialGC -Xmx6G" ApplyBQSR ' \
+                  '--output tests/assets/jobs/test_dataset/post_alignment_split/test_dataset_recal_chr1.bam ' \
+                  '--input tests/assets/jobs/test_dataset/test_dataset.bam  ' \
+                  '--reference %s ' \
+                  '--bqsr-recal-file tests/assets/jobs/test_dataset/gatk4/test_user_sample_id.grp ' \
+                  '--jdk-deflater --jdk-inflater ' \
+                  '--static-quantized-quals 10 --static-quantized-quals 20 --static-quantized-quals 30 ' \
+                  '--static-quantized-quals 40 --intervals chr1' % (stage.dir_to_delete[0], self.dataset.reference_genome)
+        assert obs_cmd == exp_cmd
 
     def test_run(self):
-        pass
+        stage = ScatterApplyBQSR(dataset=self.dataset)
+        with patch.object(ScatterApplyBQSR, 'apply_bqsr_cmd', return_value='bqsr_cmd') as mcommand, \
+                patch_executor as e:
+            stage._run()
+            e.assert_called_with(
+                'bqsr_cmd', 'bqsr_cmd', 'bqsr_cmd',
+                cpus=1, job_name='apply_bqsr', mem=6, working_dir='tests/assets/jobs/test_dataset/slurm_and_logs'
+            )
+            # The two sets of chrom and the unmapped
+            mcommand.assert_any_call(['bigchr1', 'bigchr2', 'smchr1', 'smchr2', 'smchr3', 'smchr4'])
+            mcommand.assert_any_call(['bigchr3'])
+            mcommand.assert_any_call(['unmapped'])
+            assert mcommand.call_count == 3
 
 
 class TestGatherRecalBam(TestGATK4):

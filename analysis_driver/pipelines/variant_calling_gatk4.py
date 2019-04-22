@@ -86,7 +86,7 @@ class ScatterBaseRecalibrator(PostAlignmentScatterVC):
 
 class GatherBQSRReport(PostAlignmentScatterVC):
     def _run(self):
-        bqsr_reports_list = os.path.join(self.split_file_dir, self.dataset.name + 'bqsr_reports.list')
+        bqsr_reports_list = os.path.join(self.split_file_dir, self.dataset.name + '_bqsr_reports.list')
         with open(bqsr_reports_list, 'w') as open_file:
             for chrom_names in self.split_genome_chromosomes():
                 open_file.write(self.split_base_recal_grp(chrom_names[0]) + '\n')
@@ -126,7 +126,7 @@ class ScatterApplyBQSR(PostAlignmentScatterVC):
 class GatherRecalBam(PostAlignmentScatterVC):
 
     def _run(self):
-        bam_file_list = os.path.join(self.split_file_dir, self.dataset.name + 'recal_bam.list')
+        bam_file_list = os.path.join(self.split_file_dir, self.dataset.name + '_recal_bam.list')
         with open(bam_file_list, 'w') as open_file:
             for chrom_names in self.split_genome_chromosomes(with_unmapped=True):
                 open_file.write(self.split_recal_bam(chrom_names[0]) + '\n')
@@ -215,7 +215,7 @@ class SplitGenotypeGVCFs(PostAlignmentScatterVC):
             mem=6
         ).join()
 
-#
+
 class GatherVCFVC(PostAlignmentScatterVC, GatherVCF):
     pass
 
