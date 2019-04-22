@@ -153,7 +153,7 @@ class TestMergeBamAndDup(TestGATK4):
 
 class TestPostAlignmentScatter(TestGATK4):
 
-    def test_split_genome_in_chunks(self):
+    def test_split_genome_in_chunks1(self):
         stage = PostAlignmentScatter(dataset=self.dataset)
         exp_chunks = [
             [('bigchr1', 0, 15000000)],
@@ -169,6 +169,20 @@ class TestPostAlignmentScatter(TestGATK4):
             [('bigchr3', 60000000, 76000000)]
         ]
         assert exp_chunks == stage.split_genome_in_chunks()
+
+    def test_split_genome_in_chunks2(self):
+        ref_file = join(self.assets_path, 'genome_many_contigs.fa')
+        with open(ref_file + '.fai', 'w') as open_file:
+            for i in range(2400):
+                open_file.write('contig_%s\t1000\t-\t-\t-\n' % i)
+
+        self.dataset.reference_genome = ref_file
+        stage = PostAlignmentScatter(dataset=self.dataset)
+
+        obs_chunks = stage.split_genome_in_chunks()
+        # 3 sets of chunks because limit of 1000 chunk per file
+        assert len(obs_chunks) == 3
+        os.remove(ref_file + '.fai')
 
     def test_split_genome_files(self):
         stage = PostAlignmentScatter(dataset=self.dataset)

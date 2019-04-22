@@ -411,7 +411,7 @@ class PostAlignmentScatter(GATK4Stage):
         final_chunks.append(current_chunks)
         current_chunks_size = 0
         for chunk in chunks:
-            if current_chunks_size + (chunk[2] - chunk[1]) > chunk_size and len(current_chunks) < max_nb_contig_per_chunk:
+            if current_chunks_size + (chunk[2] - chunk[1]) > chunk_size or len(current_chunks) > max_nb_contig_per_chunk:
                 current_chunks = []
                 current_chunks_size = 0
                 final_chunks.append(current_chunks)
