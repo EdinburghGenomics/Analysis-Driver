@@ -464,13 +464,12 @@ class SampleDataset(Dataset):
     @property
     def reference_genome(self):
         # Getting reference genome data
-        reference_genome_data = cfg.get('genomes_dir', '') + \
-               rest_communication.get_document('genomes', where={'assembly_name': self.genome_version})
+        reference_genome_data = rest_communication.get_document('genomes', where={'assembly_name': self.genome_version})
         # Checking project whitelist to ensure reference genome can be used
-        if reference_genome_data['project_whitelist'] and not self.project_id in reference_genome_data['project_whitelist']:
+        if reference_genome_data['project_whitelist'] and self.project_id not in reference_genome_data['project_whitelist']:
             raise AnalysisDriverError('Project ID ' + self.project_id + ' not in whitelist for reference genome '
                                       + self.genome_version)
-        return reference_genome_data['data_files']['fasta']
+        return cfg.get('genomes_dir', '') + reference_genome_data['data_files']['fasta']
 
     @property
     def data_source(self):
