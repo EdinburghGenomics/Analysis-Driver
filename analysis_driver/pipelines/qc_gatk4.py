@@ -44,13 +44,8 @@ class GATK4FilePath(segmentation.Stage):
         return self.gatk4_basename + '.grp'
 
     @property
-    def output_intervals(self):
-        return self.gatk4_basename + '.intervals'
-
-    @property
     def sample_gvcf(self):
         return self.gatk4_basename + '.g.vcf.gz'
-
 
     @property
     def raw_snps_vcf(self):
@@ -109,7 +104,7 @@ class GATK4FilePath(segmentation.Stage):
         return self.gatk4_basename + '_vqsr_snps.tranches'
 
     @property
-    def vqsr_snps_R_script(self):
+    def vqsr_snps_r_script(self):
         return self.gatk4_basename + '_vqsr_snps.R'
 
     @property
@@ -125,7 +120,7 @@ class GATK4FilePath(segmentation.Stage):
         return self.gatk4_basename + '_vqsr_indels_tranches'
 
     @property
-    def vqsr_indels_R_script(self):
+    def vqsr_indels_r_script(self):
         return self.gatk4_basename + '_vqsr_indels.R'
 
     @property
@@ -161,7 +156,9 @@ class SplitFastqStage(GATK4FilePath):
 
     def _indexed_fastq_for_run_element(self, run_element):
         return [
-            os.path.join(self.indexed_fastq_dir, run_element.get(ELEMENT_RUN_ELEMENT_ID) + fastq_file[-len('_R1_001.fastq.gz'):])
+            os.path.join(
+                self.indexed_fastq_dir, run_element.get(ELEMENT_RUN_ELEMENT_ID) + fastq_file[-len('_R1_001.fastq.gz'):]
+            )
             for fastq_file in self._find_fastqs_for_run_element(run_element)
         ]
 
@@ -298,7 +295,8 @@ class MergeBamAndDup(SplitFastqStage):
             cat_tmp=os.path.join(self.create_tmp_dir(), self.dataset.name),
             bam_list_file=self.all_chunk_bam_list_file()
         )
-        bamsormadup_cmd = '{bamsormadup} threads=16 tmpfile={dup_tmp} indexfilename={merged_bam}.bai > {merged_bam}'.format(
+        bamsormadup_cmd = '{bamsormadup} threads=16 tmpfile={dup_tmp} indexfilename={merged_bam}.bai > ' \
+                          '{merged_bam}'.format(
             bamsormadup=toolset['biobambam_sortmapdup'],
             dup_tmp=os.path.join(self.create_tmp_dir(), self.dataset.name),
             merged_bam=self.sorted_bam

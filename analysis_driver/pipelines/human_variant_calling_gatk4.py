@@ -3,65 +3,15 @@ import os
 from egcg_core import executor
 from analysis_driver import quality_control as qc
 from analysis_driver.pipelines import common
-from analysis_driver.pipelines.common import tabix_vcf, MergeFastqs, SamtoolsStats
+from analysis_driver.pipelines.common import MergeFastqs, SamtoolsStats
 from analysis_driver.pipelines.qc_gatk4 import SelectSNPs, SelectIndels, GATK4Stage, FastqIndex, SplitBWA, \
     MergeBamAndDup, SNPsFiltration, IndelsFiltration, MergeVariants
-from analysis_driver.pipelines.variant_calling_gatk4 import SplitHaplotypeCallerVC, PostAlignmentScatterVC, \
+from analysis_driver.pipelines.variant_calling_gatk4 import SplitHaplotypeCallerVC, \
     ScatterBaseRecalibrator, GatherBQSRReport, ScatterApplyBQSR, GatherRecalBam, GatherGVCF, VariantAnnotation, \
-    GatherVCFVC
+    GatherVCFVC, SplitGenotypeGVCFs
 
 toolset_type = 'gatk4_sample_processing'
 name = 'human_variant_calling_gatk4'
-
-
-class SplitGenotypeGVCFs(PostAlignmentScatterVC):
-
-    def genotypegvcf_cmd(self, chunk, region_file):
-        genotypegvcf_cmd = self.gatk_cmd(
-            'GenotypeGVCFs',
-            self.vcf_per_chunk(chunk),
-            memory=6,
-            spark_core=1,
-            ext='--variant ' + self.gvcf_per_chunk(chunk) + ' --sample-ploidy 2 --intervals ' + region_file
-        )
-        for annot in ('BaseQualityRankSumTest', 'ClippingRankSumTest', 'Coverage', 'DepthPerAlleleBySample',
-                      'DepthPerSampleHC', 'FisherStrand', 'MappingQuality', 'MappingQualityRankSumTest',
-                      'MappingQualityZero', 'QualByDepth', 'ReadPosRankSumTest', 'RMSMappingQuality'):
-            genotypegvcf_cmd += ' --annotation ' + annot
-
-        return genotypegvcf_cmd
-
-    def _run(self):
-        return executor.execute(
-            *[self.genotypegvcf_cmd(chunk, region_file)
-              for chunk, region_file in self.split_genome_files().items()],
-            job_name='split_genotype_call',
-            working_dir=self.exec_dir,
-            cpus=1,
-            mem=6
-        ).join()
-
-
-class GatherVCF(PostAlignmentScatterVC):
-
-    def _run(self):
-        vcf_list = os.path.join(self.split_file_dir, self.dataset.name + '.vcf.list')
-        with open(vcf_list, 'w') as open_file:
-            for chunks in self.split_genome_in_chunks():
-                open_file.write(self.vcf_per_chunk(chunks[0]) + '\n')
-
-        concat_vcf_status = executor.execute(
-            self.gatk_picard_cmd('GatherVcfs', self.genotyped_vcf, input=vcf_list, memory=6, reference=None),
-            job_name='gather_geno_call',
-            working_dir=self.exec_dir,
-            cpus=1,
-            mem=6
-        ).join()
-
-        if concat_vcf_status == 0:
-            concat_vcf_status = tabix_vcf(self.exec_dir, self.genotyped_vcf)
-
-        return concat_vcf_status
 
 
 class VQSRFiltrationSNPs(GATK4Stage):
@@ -87,7 +37,7 @@ class VQSRFiltrationSNPs(GATK4Stage):
                     thousand_genomes=vqsr_datasets.get('thousand_genomes'),
                     dbsnp=vqsr_datasets.get('dbsnp'),
                     ouput_tranches=self.vqsr_snps_tranches,
-                    output_R_script=self.vqsr_snps_R_script
+                    output_R_script=self.vqsr_snps_r_script
             )
         )
         return executor.execute(
@@ -118,7 +68,7 @@ class VQSRFiltrationIndels(GATK4Stage):
                     mills=vqsr_datasets.get('mills'),
                     dbsnp=vqsr_datasets.get('dbsnp'),
                     ouput_tranches=self.vqsr_indels_tranches,
-                    output_R_script=self.vqsr_indels_R_script,
+                    output_R_script=self.vqsr_indels_r_script,
                 )
         )
         return executor.execute(

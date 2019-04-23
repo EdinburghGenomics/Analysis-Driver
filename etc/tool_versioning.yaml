@@ -133,7 +133,7 @@ toolsets:
                 version_cmd: '{executable} HaplotypeCaller 2>&1 | grep "Version" | cut -f 2 -d ":"'
 
             grabix:
-                version:
+                version: 0.1.6
                 version_cmd: '{executable} 2>&1 | grep "version" | cut -d " " -f 2'
 
             # Picard does not seem to be able to report its version, so MarkDuplicates' version will be used instead - these should be equivalent

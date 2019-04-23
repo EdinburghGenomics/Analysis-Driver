@@ -3,14 +3,16 @@ import shutil
 from os.path import join, dirname, abspath, isfile, isdir
 from unittest.mock import patch, Mock
 
+import pytest
 from egcg_core.constants import ELEMENT_LANE, ELEMENT_NB_READS_CLEANED, ELEMENT_RUN_NAME, ELEMENT_RUN_ELEMENT_ID, \
     ELEMENT_PROJECT_ID
 
+from analysis_driver.exceptions import AnalysisDriverError
 from analysis_driver.pipelines.human_variant_calling_gatk4 import VQSRFiltrationSNPs, VQSRFiltrationIndels, \
     ApplyVQSRSNPs, ApplyVQSRIndels
 from analysis_driver.pipelines.qc_gatk4 import SplitBWA, SplitHaplotypeCaller, SplitFastqStage, FastqIndex, \
     MergeBamAndDup, PostAlignmentScatter, GatherVCF, MergeVariants, SelectSNPs, SelectIndels, IndelsFiltration, \
-    SNPsFiltration
+    SNPsFiltration, GATK4FilePath
 from analysis_driver.pipelines.variant_calling_gatk4 import ScatterBaseRecalibrator, PostAlignmentScatterVC, \
     GatherBQSRReport, ScatterApplyBQSR, GatherRecalBam, SplitHaplotypeCallerVC, GatherGVCF, SplitGenotypeGVCFs, \
     VariantAnnotation
@@ -39,6 +41,26 @@ class TestGATK4(TestVariantCalling):
         os.chdir(self.current_wd)
 
 
+class TestGATK4FilePath(TestGATK4):
+    def setUp(self):
+        super().setUp()
+        self.stage = GATK4FilePath(dataset=self.dataset)
+
+    def test_file_paths(self):
+        assert self.stage.hard_filtered_vcf == 'tests/assets/jobs/test_dataset/gatk4/test_user_sample_id_hard_filter.vcf.gz'
+        assert self.stage.vqsr_filtered_vcf == 'tests/assets/jobs/test_dataset/gatk4/test_user_sample_id_vqsr.vcf.gz'
+        assert self.stage.vqsr_datasets == {
+            'hapmap': '/path/to/hapmap_annotation',
+            'omni': '/path/to/omni_annotation',
+            'thousand_genomes': '/path/to/1000g_annotation',
+            'dbsnp': '/path/to/dbsnp_annotation',
+            'mills': '/path/to/mills_annotation'
+        }
+        with pytest.raises(AnalysisDriverError):
+            self.stage.dataset.genome_version = 'do_not_exist'
+            print(self.stage.vqsr_datasets)
+
+
 class TestSplitFastqStage(TestGATK4):
 
     def test_chunks_from_fastq(self):
@@ -64,6 +86,7 @@ class TestFastqIndex(TestGATK4):
         with patch.object(FastqIndex, '_find_fastqs_for_run_element', return_value=fastq_files), \
                 patch.object(FastqIndex, '_indexed_fastq_for_run_element', return_value=index_fastq_files), \
                 patch_executor as e:
+            e.return_value = Mock(join=Mock(return_value=0))
             stage._run()
             commands = [
                 'gunzip -c fastq_file1.gz | path/to/pbgzip -n 16  -c /dev/stdin > ' + abspath(
@@ -71,12 +94,21 @@ class TestFastqIndex(TestGATK4):
                 'gunzip -c fastq_file2.gz | path/to/pbgzip -n 16  -c /dev/stdin > ' + abspath(
                     join(self.assets_path, 'indexed_fastq_file2.gz'))
             ]
-            e.assert_called_with(
+            e.assert_any_call(
                 *commands,
                 job_name='compress_fastq',
                 log_commands=False,
                 mem=8,
-                working_dir='tests/assets/jobs/test_dataset/slurm_and_logs')
+                working_dir='tests/assets/jobs/test_dataset/slurm_and_logs'
+            )
+            commands = [
+                'path/to/grabix index ' + join(self.assets_path, 'indexed_fastq_file1.gz'),
+                'path/to/grabix index ' + join(self.assets_path, 'indexed_fastq_file2.gz')
+            ]
+            e.assert_any_call(
+                *commands, job_name='index_fastq', working_dir='tests/assets/jobs/test_dataset/slurm_and_logs'
+            )
+
 
 
 class TestSplitBWA(TestGATK4):
