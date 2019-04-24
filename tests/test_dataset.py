@@ -348,6 +348,7 @@ class TestRunDataset(TestDataset):
         assert mgenerate.call_count == 0
         os.remove(sample_sheet_file)
 
+
 class TestSampleDataset(TestDataset):
     def test_dataset_status(self):
         super().test_dataset_status()

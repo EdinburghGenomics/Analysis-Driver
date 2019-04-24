@@ -1,4 +1,3 @@
-
 import os
 from tests.test_analysisdriver import NamedMock, TestAnalysisDriver
 from analysis_driver.pipelines.variant_calling import GATKStage, BaseRecal, PrintReads, \
@@ -98,9 +97,8 @@ class TestGATKStage():
         assert filter_snp_vcf == 'tests/assets/jobs/test_sample/gatk_var_calling/test_user_sample_id_filter_snp.vcf'
 
     def test_dbsnp(self):
-        patch_get_document.start()
-        dbsnp = self.g.dbsnp
-        patch_get_document.stop()
+        with patch_get_document:
+            dbsnp = self.g.dbsnp
         assert dbsnp == '/path/to/dbsnp.vcf.gz'
 
 
@@ -119,8 +117,7 @@ class TestBaseRecal(TestVariantCalling):
         self.b = BaseRecal(dataset=self.dataset)
 
     def test_run(self):
-        with patch_executor as e:
-            patch_get_document.start()
+        with patch_executor as e, patch_get_document:
             self.b._run()
             assert e.call_count == 1
             e.assert_called_with("path/to/java_8 -Djava.io.tmpdir=tests/assets/jobs/test_dataset/gatk_var_calling "
@@ -141,7 +138,6 @@ class TestBaseRecal(TestVariantCalling):
                                  job_name='gatk_base_recal',
                                  mem=64,
                                  working_dir='tests/assets/jobs/test_dataset/gatk_var_calling')
-            patch_get_document.stop()
 
 
 class TestPrintReads(TestVariantCalling):
@@ -227,8 +223,7 @@ class TestHaplotypeCaller(TestVariantCalling):
         self.p = HaplotypeCaller(dataset=self.dataset, input_bam='test_bam')
 
     def test_run(self):
-        with patch_executor as e:
-            patch_get_document.start()
+        with patch_executor as e, patch_get_document:
             self.p._run()
             assert e.call_count == 3  # Command + bgzip + tabix
             assert e.call_args_list[0] == call(
@@ -270,7 +265,6 @@ class TestHaplotypeCaller(TestVariantCalling):
                 working_dir='tests/assets/jobs/test_dataset/gatk_var_calling'
             )
             _test_bgzip_and_tabix(e, 'tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id.g.vcf')
-            patch_get_document.stop()
 
 
 class TestGenotypeGVCFs(TestVariantCalling):
