@@ -425,8 +425,8 @@ class TestSampleDataset(TestDataset):
             {'run_element_id': 'run_element2', 'run_id': 'another_run_id', 'clean_q30_bases_r1': 110, 'clean_q30_bases_r2': 135, 'q30_bases_r1': 170, 'q30_bases_r2': 150, 'bases_r1': 210, 'bases_r2': 205}
         ]
         self.dataset._sample = {
-            'aggregated': {'clean_yield_in_gb': 1.5, 'run_ids': ['a_run_id', 'another_run_id'], 'clean_pc_q30': 85},
-            'from_run_elements': {'mean_coverage': 32},
+            'aggregated': {'clean_yield_in_gb': 1.5, 'run_ids': ['a_run_id', 'another_run_id'], 'clean_pc_q30': 85,
+                           'from_run_elements': {'mean_coverage': 32}},
             'required_yield': 1000000000,
             'required_coverage': 30,
             'project_id': 'a_project'
