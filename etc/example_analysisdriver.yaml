@@ -113,3 +113,5 @@ default:
 
     luigi:
         local_scheduler: True
+
+    genomes_dir: path/to/genomes_dir
