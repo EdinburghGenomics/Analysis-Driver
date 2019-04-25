@@ -465,7 +465,7 @@ class SampleDataset(Dataset):
         # Getting reference genome data
         reference_genome_data = rest_communication.get_document('genomes', where={'assembly_name': self.genome_version})
         # Checking project whitelist to ensure reference genome can be used
-        if reference_genome_data['project_whitelist'] and self.project_id not in reference_genome_data['project_whitelist']:
+        if 'project_whitelist' in reference_genome_data and self.project_id not in reference_genome_data['project_whitelist']:
             raise AnalysisDriverError('Project ID ' + self.project_id + ' not in whitelist for reference genome '
                                       + self.genome_version)
         return cfg.get('genomes_dir', '') + reference_genome_data['data_files']['fasta']
@@ -654,7 +654,7 @@ class ProjectDataset(Dataset):
         # Getting reference genome data
         reference_genome_data = rest_communication.get_document('genomes', where={'assembly_name': self.genome_version})
         # Checking project whitelist to ensure reference genome can be used
-        if reference_genome_data['project_whitelist'] and self.id_field not in reference_genome_data['project_whitelist']:
+        if 'project_whitelist' in reference_genome_data and self.id_field not in reference_genome_data['project_whitelist']:
             raise AnalysisDriverError('Project ID ' + self.id_field + ' not in whitelist for reference genome '
                                       + self.genome_version)
         return cfg.get('genomes_dir', '') + reference_genome_data['data_files']['fasta']
