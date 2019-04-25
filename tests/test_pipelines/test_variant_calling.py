@@ -11,7 +11,7 @@ fake_genome_response = {
     "data_source": "",
     "_links": {"self": {"title": "genome", "href": "genomes/phix174"}},
     "_etag": "175b41e3909a93a8298ac1d5d4dfc7292df4b580",
-    "data_files": {"fasta": "/path/to/phix.fa", "variation": "/path/to/dbsnp.vcf.gz"},
+    "data_files": {"fasta": "path/to/phix.fa", "variation": "path/to/dbsnp.vcf.gz"},
     "_created": "30_11_2018_15:13:43",
     "species": "PhiX",
     "genome_size": 5386,
@@ -99,7 +99,7 @@ class TestGATKStage():
     def test_dbsnp(self):
         with patch_get_document:
             dbsnp = self.g.dbsnp
-        assert dbsnp == '/path/to/dbsnp.vcf.gz'
+        assert dbsnp == 'path/to/genomes_dir/path/to/dbsnp.vcf.gz'
 
 
 class TestVariantCalling(TestAnalysisDriver):
@@ -132,7 +132,7 @@ class TestBaseRecal(TestVariantCalling):
                                  "-l INFO "
                                  "-U LENIENT_VCF_PROCESSING "
                                  "-I tests/assets/jobs/test_dataset/test_dataset.bam "
-                                 "--knownSites /path/to/dbsnp.vcf.gz "
+                                 "--knownSites path/to/genomes_dir/path/to/dbsnp.vcf.gz "
                                  "-nct 16",
                                  cpus=16,
                                  job_name='gatk_base_recal',
@@ -258,7 +258,7 @@ class TestHaplotypeCaller(TestVariantCalling):
                 '--annotation Coverage '
                 '--annotation ClippingRankSumTest '
                 '--annotation DepthPerSampleHC '
-                '--dbsnp /path/to/dbsnp.vcf.gz',
+                '--dbsnp path/to/genomes_dir/path/to/dbsnp.vcf.gz',
                 cpus=16,
                 job_name='gatk_haplotype_call',
                 mem=64,

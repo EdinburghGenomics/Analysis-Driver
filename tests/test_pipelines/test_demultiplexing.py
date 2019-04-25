@@ -31,7 +31,7 @@ class TestPhixDetection(TestAnalysisDriver):
             "data_source": "",
             "_links": {"self": {"title": "genome", "href": "genomes/phix174"}},
             "_etag": "175b41e3909a93a8298ac1d5d4dfc7292df4b580",
-            "data_files": {"fasta": "/path/to/phix.fa"},
+            "data_files": {"fasta": "path/to/phix.fa"},
             "_created": "30_11_2018_15:13:43",
             "species": "PhiX",
             "genome_size": 5386,
@@ -45,7 +45,7 @@ class TestPhixDetection(TestAnalysisDriver):
             assert f._run() == 0
 
             assert pexecute.call_args[0][0] == (
-                'set -o pipefail; path/to/bwa_1.1 mem -t 16 /path/to/phix.fa L1_R1_001.fastq.gz | '
+                'set -o pipefail; path/to/bwa_1.1 mem -t 16 path/to/genomes_dir/path/to/phix.fa L1_R1_001.fastq.gz | '
                 'path/to/samtools_1.3.1 view -F 4 | cut -f 1 | sort -u > L1_phix_read_name.list'
             )
             prun_crawler.assert_called_with(

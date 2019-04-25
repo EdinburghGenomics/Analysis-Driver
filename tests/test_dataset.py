@@ -473,7 +473,7 @@ class TestSampleDataset(TestDataset):
                     'project_whitelist': ["a_project"], 'genome_size': 2064073682, 'data_source': "User provided",
                     'assembly_name': "John_Doe_20180326", 'species': "Teleogryllus oceanicus"}
         with patch('egcg_core.rest_communication.get_document', return_value=response):
-            assert self.dataset.reference_genome == "Teleogryllus_oceanicus/v_John_Doe_20180326_fake_linked/PBJ_PI.formatted.fa"
+            assert self.dataset.reference_genome == "path/to/genomes_dir/Teleogryllus_oceanicus/v_John_Doe_20180326_fake_linked/PBJ_PI.formatted.fa"
 
     def test_failing_reference_genome_whitelisting(self):
         response = {'data_files': {'fasta': "Teleogryllus_oceanicus/v_John_Doe_20180326_fake_linked/PBJ_PI.formatted.fa"},
