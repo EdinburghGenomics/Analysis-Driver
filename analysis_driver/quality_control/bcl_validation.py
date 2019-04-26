@@ -40,7 +40,9 @@ class BCLValidator(Stage):
         while self.dataset.is_sequencing():
             self.call_bcl_check()
             time.sleep(1200)
-        # call bcl check again in case the run is finished but not all bcl files have been checked
+        # Call bcl check again in case the run is finished but not all bcl files have been checked. Wait 20 minutes
+        # prior to starting to ensure files have been copied over entirely, once sequencing has been completed.
+        time.sleep(600)
         self.call_bcl_check()
 
     def get_bcls_to_check(self):
