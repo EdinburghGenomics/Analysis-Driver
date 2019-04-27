@@ -167,6 +167,11 @@ toolsets:
                 version: 1.1.2
                 version_cmd: '{executable} 2>&1 | grep "verifyBamID" | cut -d " " -f 2'
 
+            postalt:
+                version: r985
+                version_cmd: '{dependency} {executable} -v'
+                dependency: k8
+
     human_sample_processing:
         0:
             bcftools:
