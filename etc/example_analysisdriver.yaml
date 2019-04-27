@@ -67,6 +67,8 @@ default:
         bamcat: path/to/bamcat
         pbgzip: path/to/pbgzip
         snpEff: path/to/snpEff
+        k8: path/to/k8
+        postalt: path/to/postalt
 
     logging:
         format: '[%(asctime)s][%(processName)s][%(name)s][%(levelname)s] %(message)s'

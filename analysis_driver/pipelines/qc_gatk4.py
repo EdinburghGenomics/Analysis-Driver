@@ -1,5 +1,4 @@
 import os
-import shutil
 from os.path import join
 
 from egcg_core import executor, util
@@ -226,7 +225,7 @@ class FastqIndex(SplitFastqStage):
 
 class SplitBWA(SplitFastqStage):
     """
-    Run bwa on check of fastq file provided by SplitFastqStage.
+    Run bwa on chunk of fastq file provided by SplitFastqStage.
     """
 
     def bwa_command(self, fastq_pair, reference, expected_output_bam, read_group, chunk):
@@ -239,6 +238,15 @@ class SplitBWA(SplitFastqStage):
         command_bwa = command_bwa.format(bwa=toolset['bwa'], read_group=read_group_str, ref=reference,
                                          grabix=toolset['grabix'], fastq1=fastq_pair[0], fastq2=fastq_pair[1],
                                          chunk='%s %s' % (chunk[0], chunk[1]))
+        alt_file = reference + '.alt'
+        if os.path.isfile(alt_file):
+            hla_out = os.path.splitext(expected_output_bam)[0] + '.hla'
+            command_bwa += ' | {k8} {postalt} -p {hla_out} {alt_file}'.format(
+                k8=toolset['k8'],
+                postalt=toolset['postalt'],
+                hla_out=hla_out,
+                alt_file=alt_file
+            )
 
         command_samtools = '{samtools} sort -n -m 1G -O bam -T {tmp_file} -o {bam_file} -'
         command_samtools = command_samtools.format(samtools=toolset['samtools'], tmp_file=tmp_file,

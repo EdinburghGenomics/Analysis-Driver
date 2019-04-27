@@ -1,5 +1,3 @@
-import os
-
 from egcg_core import executor
 from analysis_driver import quality_control as qc
 from analysis_driver.pipelines import common

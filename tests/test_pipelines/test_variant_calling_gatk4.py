@@ -110,7 +110,6 @@ class TestFastqIndex(TestGATK4):
             )
 
 
-
 class TestSplitBWA(TestGATK4):
 
     def test_bwa_command(self):
@@ -151,6 +150,18 @@ class TestSplitBWA(TestGATK4):
         )
         assert mcommand.call_count == 5
 
+    def test_bwa_command_with_alt(self):
+        stage = SplitBWA(dataset=self.dataset)
+        with patch('os.path.isfile', return_value=True):
+            cmd = stage.bwa_command(
+                ['file_R1.fastq.gz', 'file_R2.fastq.gz'], 'reference.fa',
+                'expected_output_bam', {'ID': '1', 'SM': 'sample1', 'PL': 'illumina'}, (1, 10000))
+        exp = 'set -o pipefail; ' \
+              r'''path/to/bwa_1.1 mem -K 100000000 -Y -R '@RG\tID:1\tPL:illumina\tSM:sample1' -M -t 2 reference.fa '''\
+              '<(path/to/grabix grab file_R1.fastq.gz 1 10000) <(path/to/grabix grab file_R2.fastq.gz 1 10000) | ' \
+              'path/to/k8 path/to/postalt -p expected_output_bam.hla reference.fa.alt | ' \
+              'path/to/samtools_1.3.1 sort -n -m 1G -O bam -T expected_output_bam -o expected_output_bam -'
+        assert cmd == exp
 
 class TestMergeBamAndDup(TestGATK4):
 
