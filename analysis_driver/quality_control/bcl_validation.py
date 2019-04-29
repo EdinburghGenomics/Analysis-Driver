@@ -41,9 +41,24 @@ class BCLValidator(Stage):
             self.call_bcl_check()
             time.sleep(1200)
         # Call bcl check again in case the run is finished but not all bcl files have been checked. Wait 5 minutes
-        # prior to starting to ensure files have been copied over entirely, once sequencing has been completed.
-        time.sleep(300)
+        # prior to starting if the last cycle is not complete, to ensure files have been copied over entirely
+        # after sequencing has been completed.
+        if not self.last_cycle_complete():
+            time.sleep(300)
         self.call_bcl_check()
+
+    def last_cycle_complete(self):
+        """
+        Checks whether the last completed cycle is the the value of the total number of cycles expected, which
+        would mean that all cycles are complete.
+        :return: True if complete, or False if not.
+        """
+        last_completed_cycle = interop_metrics.get_last_cycles_with_existing_bcls(self.run_dir)
+        ncycles = sum(Reads.num_cycles(r) for r in self.dataset.run_info.reads.reads)
+
+        if last_completed_cycle == ncycles:
+            return True
+        return False
 
     def get_bcls_to_check(self):
         """
