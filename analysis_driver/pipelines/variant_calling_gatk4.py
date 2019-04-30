@@ -277,12 +277,17 @@ def build_pipeline(dataset):
     genotype_gcvf = stage(SplitGenotypeGVCFs, previous_stages=[haplotype_caller])
     gather_vcf = stage(GatherVCFVC, previous_stages=[genotype_gcvf])
 
-    # variant annotation
-    annotate_vcf = stage(VariantAnnotation, previous_stages=[gather_vcf])
+    variant_file = gather_vcf.genotyped_vcf
+    steps_required = [gather_vcf]
+    if 'snpEff' in cfg.query('genomes', dataset.genome_version):
+        # variant annotation
+        annotate_vcf = stage(VariantAnnotation, previous_stages=[gather_vcf])
+        variant_file = annotate_vcf.snps_effects_output_vcf
+        steps_required = [annotate_vcf]
 
     # variant filtering with Hard Filters
-    select_snps = stage(SelectSNPs, input_vcf=annotate_vcf.snps_effects_output_vcf, previous_stages=[annotate_vcf])
-    select_indels = stage(SelectIndels, input_vcf=annotate_vcf.snps_effects_output_vcf, previous_stages=[annotate_vcf])
+    select_snps = stage(SelectSNPs, input_vcf=variant_file, previous_stages=steps_required)
+    select_indels = stage(SelectIndels, input_vcf=variant_file, previous_stages=steps_required)
     hard_filter_snps = stage(SNPsFiltration, previous_stages=[select_snps])
     hard_filter_indels = stage(IndelsFiltration, previous_stages=[select_indels])
 
