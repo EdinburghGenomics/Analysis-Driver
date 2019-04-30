@@ -441,6 +441,7 @@ class SampleDataset(Dataset):
         self._genome_version = None
         self._user_sample_id = None
         self._lims_ntf = None
+        self._reference_genome = None
 
     @property
     def lims_ntf(self):
@@ -462,13 +463,15 @@ class SampleDataset(Dataset):
 
     @property
     def reference_genome(self):
-        # Getting reference genome data
-        reference_genome_data = rest_communication.get_document('genomes', where={'assembly_name': self.genome_version})
-        # Checking project whitelist to ensure reference genome can be used
-        if 'project_whitelist' in reference_genome_data and self.project_id not in reference_genome_data['project_whitelist']:
-            raise AnalysisDriverError('Project ID ' + self.project_id + ' not in whitelist for reference genome '
-                                      + self.genome_version)
-        return cfg.get('genomes_dir', '') + reference_genome_data['data_files']['fasta']
+        if self._reference_genome is None:
+            # Getting reference genome data from rest API
+            reference_genome_response = rest_communication.get_document('genomes', where={'assembly_name': self.genome_version})
+            # Checking project whitelist to ensure reference genome can be used
+            if 'project_whitelist' in reference_genome_response and self.project_id not in reference_genome_response['project_whitelist']:
+                raise AnalysisDriverError('Project ID ' + self.project_id + ' not in whitelist for reference genome '
+                                          + self.genome_version)
+            self._reference_genome = cfg.get('genomes_dir', '') + reference_genome_response['data_files']['fasta']
+        return self._reference_genome
 
     @property
     def data_source(self):
@@ -598,6 +601,7 @@ class ProjectDataset(Dataset):
         self._samples_processed = None
         self._species = None
         self._genome_version = None
+        self._reference_genome = None
 
     def _is_ready(self):
         return 0 < self.number_of_samples <= len(self.samples_processed)
@@ -651,13 +655,15 @@ class ProjectDataset(Dataset):
 
     @property
     def reference_genome(self):
-        # Getting reference genome data
-        reference_genome_data = rest_communication.get_document('genomes', where={'assembly_name': self.genome_version})
-        # Checking project whitelist to ensure reference genome can be used
-        if 'project_whitelist' in reference_genome_data and self.id_field not in reference_genome_data['project_whitelist']:
-            raise AnalysisDriverError('Project ID ' + self.id_field + ' not in whitelist for reference genome '
-                                      + self.genome_version)
-        return cfg.get('genomes_dir', '') + reference_genome_data['data_files']['fasta']
+        if self._reference_genome is None:
+            # Getting reference genome data
+            reference_genome_data = rest_communication.get_document('genomes', where={'assembly_name': self.genome_version})
+            # Checking project whitelist to ensure reference genome can be used
+            if 'project_whitelist' in reference_genome_data and self.id_field not in reference_genome_data['project_whitelist']:
+                raise AnalysisDriverError('Project ID ' + self.id_field + ' not in whitelist for reference genome '
+                                          + self.genome_version)
+            self._reference_genome = cfg.get('genomes_dir', '') + reference_genome_data['data_files']['fasta']
+        return self._reference_genome
 
     def __str__(self):
         return '%s  (%s samples / %s) ' % (super().__str__(), len(self.samples_processed), self.number_of_samples)
