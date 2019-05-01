@@ -461,7 +461,9 @@ class SampleDataset(Dataset):
             self._genome_version = clarity.get_genome_version(self.name, species=self.species)
         return self._genome_version
 
+    @property
     def reference_genome_obj(self, *args):
+        # Replicated in Project Dataset
         if self._reference_genome_obj is None:
             # Getting reference genome data from rest API
             reference_genome_response = rest_communication.get_document('genomes', where={'assembly_name': self.genome_version})
@@ -480,6 +482,7 @@ class SampleDataset(Dataset):
 
     @property
     def reference_genome(self):
+        # Replicated in Project Dataset
         return self.reference_genome_obj('data_files', 'fasta')
 
     @property
@@ -610,7 +613,7 @@ class ProjectDataset(Dataset):
         self._samples_processed = None
         self._species = None
         self._genome_version = None
-        self._reference_genome = None
+        self._reference_genome_obj = None
 
     def _is_ready(self):
         return 0 < self.number_of_samples <= len(self.samples_processed)
@@ -662,7 +665,9 @@ class ProjectDataset(Dataset):
             self._genome_version = g
         return self._genome_version
 
+    @property
     def reference_genome_obj(self, *args):
+        # Replicated in Sample Dataset
         if self._reference_genome_obj is None:
             # Getting reference genome data from rest API
             reference_genome_response = rest_communication.get_document('genomes', where={'assembly_name': self.genome_version})
@@ -681,6 +686,7 @@ class ProjectDataset(Dataset):
 
     @property
     def reference_genome(self):
+        # Replicated in Sample Dataset
         return self.reference_genome_obj('data_files', 'fasta')
 
     def __str__(self):
