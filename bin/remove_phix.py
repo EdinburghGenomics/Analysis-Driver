@@ -54,10 +54,12 @@ def remove_phix(sample_id):
             fastq_pairs.append(fqs)
 
     # bwa alignment
+    fasta = cfg.get('genomes_dir', '') + \
+            rest_communication.get_document('genomes', where={'assembly_name': 'phix174'})['data_files']['fasta']
     cmds = []
     for fqs in fastq_pairs:
         read_name_list = fqs[0][:-len('_R1_001.fastq.gz')] + '_phix_read_name.list'
-        cmds.append(bash_commands.bwa_mem_phix(fqs[0], read_name_list))
+        cmds.append(bash_commands.bwa_mem_phix(fqs[0], read_name_list, fasta))
     bwa_status = executor.execute(
         *cmds,
         job_name='phix_detection',
