@@ -17,6 +17,7 @@ name = 'variant_calling_gatk4'
 
 
 class PostAlignmentScatterVC(PostAlignmentScatter):
+    """Generic class providing ability to split the genome in chromosomes."""
 
     def split_genome_chromosomes(self, with_unmapped=False):
         """
@@ -66,6 +67,7 @@ class PostAlignmentScatterVC(PostAlignmentScatter):
 
 
 class ScatterBaseRecalibrator(PostAlignmentScatterVC):
+    """Run BaseRecalibrator on each Chromosome"""
 
     def base_recalibrator_cmd(self, chrom_names):
         return self.gatk_cmd(
@@ -85,6 +87,8 @@ class ScatterBaseRecalibrator(PostAlignmentScatterVC):
 
 
 class GatherBQSRReport(PostAlignmentScatterVC):
+    """Accumulate all reports created by BaseRecalibrator"""
+
     def _run(self):
         bqsr_reports_list = os.path.join(self.split_file_dir, self.dataset.name + '_bqsr_reports.list')
         with open(bqsr_reports_list, 'w') as open_file:
@@ -103,6 +107,7 @@ class GatherBQSRReport(PostAlignmentScatterVC):
 
 
 class ScatterApplyBQSR(PostAlignmentScatterVC):
+    """Run ApplyBQSR on each Chromosome"""
 
     def apply_bqsr_cmd(self, chrom_names):
         return self.gatk_cmd(
@@ -124,6 +129,7 @@ class ScatterApplyBQSR(PostAlignmentScatterVC):
 
 
 class GatherRecalBam(PostAlignmentScatterVC):
+    """Merge all recalibrated bam file created by ApplyBQSR."""
 
     def _run(self):
         bam_file_list = os.path.join(self.split_file_dir, self.dataset.name + '_recal_bam.list')
@@ -145,6 +151,10 @@ class GatherRecalBam(PostAlignmentScatterVC):
 
 
 class SplitHaplotypeCallerVC(PostAlignmentScatterVC, SplitHaplotypeCaller):
+    """
+    Run HaplotypeCaller on each chunk of genomes to create a GVCF file.
+    PostAlignmentScatterVC provides the file paths and SplitHaplotypeCaller the functions.
+    """
 
     def haplotype_caller_cmd(self, chunk, region_file):
         haplotype_cmd = self.gatk_cmd(
@@ -168,6 +178,8 @@ class SplitHaplotypeCallerVC(PostAlignmentScatterVC, SplitHaplotypeCaller):
 
 
 class GatherGVCF(PostAlignmentScatterVC):
+    """Collate all gvcf chunks into one."""
+
     def _run(self):
         gvcf_list = os.path.join(self.split_file_dir, self.dataset.name + '_g.vcf.list')
         with open(gvcf_list, 'w') as open_file:
@@ -189,6 +201,7 @@ class GatherGVCF(PostAlignmentScatterVC):
 
 
 class SplitGenotypeGVCFs(PostAlignmentScatterVC):
+    """Run GenotypeGVCFs on each chunk of the genome to create a VCF file."""
 
     def genotypegvcf_cmd(self, chunk, region_file):
         genotypegvcf_cmd = self.gatk_cmd(
@@ -217,6 +230,10 @@ class SplitGenotypeGVCFs(PostAlignmentScatterVC):
 
 
 class GatherVCFVC(PostAlignmentScatterVC, GatherVCF):
+    """
+    Collate all vcf chunks into one.
+    PostAlignmentScatterVC provide the file name and GatherVCF the functions.
+    """
     pass
 
 
@@ -248,6 +265,7 @@ class VariantAnnotation(GATK4Stage):
 
 
 def build_pipeline(dataset):
+    """Build the variant calling pipeline (for non human)."""
 
     def stage(cls, **params):
         return cls(dataset=dataset, **params)

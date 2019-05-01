@@ -19,6 +19,7 @@ name = 'qc_gatk4'
 
 
 class GATK4FilePath(segmentation.Stage):
+    """Provides hardcoded file path to subclasses"""
 
     @property
     def gatk_run_dir(self):
@@ -140,6 +141,7 @@ class SplitFastqStage(GATK4FilePath):
     """
 
     def _find_fastqs_for_run_element(self, run_element):
+        """Search existing fastq file for a specified run element."""
         local_fastq_dir = os.path.join(cfg['sample']['input_dir'], run_element.get(ELEMENT_RUN_NAME))
         self.debug('Searching for fastqs in ' + local_fastq_dir)
         return util.find_fastqs(
@@ -163,6 +165,10 @@ class SplitFastqStage(GATK4FilePath):
 
     @staticmethod
     def chunks_from_fastq(indexed_fq_files):
+        """
+        Provide a list of chunks (start, end) for a pair of fastq file by parsing the index (.gbi) file.
+        Each chunk contains 25M reads or less.
+        """
         split_lines = 100000000
         grabix_index = indexed_fq_files[0] + '.gbi'
         assert os.path.isfile(grabix_index)
@@ -224,9 +230,7 @@ class FastqIndex(SplitFastqStage):
 
 
 class SplitBWA(SplitFastqStage):
-    """
-    Run bwa on chunk of fastq file provided by SplitFastqStage.
-    """
+    """Run bwa on chunks of fastq file provided by SplitFastqStage."""
 
     def bwa_command(self, fastq_pair, reference, expected_output_bam, read_group, chunk):
         tmp_file = expected_output_bam
@@ -282,9 +286,7 @@ class SplitBWA(SplitFastqStage):
 
 
 class MergeBamAndDup(SplitFastqStage):
-    """
-    Merge bam file generated in bwa mem and defined in SplitFastqStage.
-    """
+    """Merge bam file generated in bwa mem and defined in SplitFastqStage."""
 
     def all_chunk_bam_list_file(self):
         all_chunk_bams = []
@@ -323,7 +325,7 @@ class MergeBamAndDup(SplitFastqStage):
 
 
 class GATK4Stage(GATK4FilePath):
-
+    """Generic class providing functions for running GATK commands"""
     def _gatk_cmd(self, run_cls, output=None, memory=2, input=None, spark_core=1, reference='default', ext=None,
                   picard_tool=False):
         base_cmd = toolset['gatk4_bin'] + \
@@ -369,7 +371,7 @@ class GATK4Stage(GATK4FilePath):
 
 
 class PostAlignmentScatter(GATK4Stage):
-
+    """Generic class providing ability to split the genome in chunks of approximately 20Mb"""
     @property
     def split_file_dir(self):
         d = os.path.join(self.job_dir, 'post_alignment_split')
@@ -430,6 +432,7 @@ class PostAlignmentScatter(GATK4Stage):
 
 
 class SplitHaplotypeCaller(PostAlignmentScatter):
+    """Run HaplotypeCaller on each chunk of genomes to create a VCF file"""
 
     bam_file = Parameter()
 
@@ -467,6 +470,7 @@ class SplitHaplotypeCaller(PostAlignmentScatter):
 
 
 class GatherVCF(PostAlignmentScatter):
+    """Collate all vcf chunks into one"""
 
     def _run(self):
         vcf_list = os.path.join(self.split_file_dir, self.dataset.name + '_vcf.list')
@@ -489,6 +493,7 @@ class GatherVCF(PostAlignmentScatter):
 
 
 class SelectSNPs(GATK4Stage):
+    """Extract the SNPs from a provided vcf file."""
 
     input_vcf = Parameter()
 
@@ -506,6 +511,7 @@ class SelectSNPs(GATK4Stage):
 
 
 class SelectIndels(GATK4Stage):
+    """Extract the Indels from a provided vcf file."""
 
     input_vcf = Parameter()
 
@@ -523,6 +529,8 @@ class SelectIndels(GATK4Stage):
 
 
 class SNPsFiltration(GATK4Stage):
+    """Filter the SNPs using generic Hard filter."""
+
     def _run(self):
         filter_array = [
             'QD < 2.0',
@@ -547,6 +555,8 @@ class SNPsFiltration(GATK4Stage):
 
 
 class IndelsFiltration(GATK4Stage):
+    """Filter the Indels using generic Hard filter."""
+
     def _run(self):
         filter_array = [
             'QD < 2.0',
@@ -569,6 +579,8 @@ class IndelsFiltration(GATK4Stage):
 
 
 class MergeVariants(GATK4Stage):
+    """Merge multiple vcf files into one."""
+
     vcf_files = ListParameter()
     output_vcf_file = Parameter()
 
@@ -588,7 +600,9 @@ class MergeVariants(GATK4Stage):
             mem=8
         ).join()
 
+
 def build_pipeline(dataset):
+    """Build the QC pipeline."""
 
     def stage(cls, **params):
         return cls(dataset=dataset, **params)

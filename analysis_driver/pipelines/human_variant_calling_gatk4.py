@@ -16,6 +16,7 @@ name = 'human_variant_calling_gatk4'
 
 
 class VQSRFiltrationSNPs(GATK4Stage):
+    """Run VariantRecalibrator on SNPs to create the error model."""
 
     input_vcf = Parameter()
 
@@ -54,6 +55,7 @@ class VQSRFiltrationSNPs(GATK4Stage):
 
 
 class VQSRFiltrationIndels(GATK4Stage):
+    """Run VariantRecalibrator on Indels to create the error model."""
 
     input_vcf = Parameter()
 
@@ -88,6 +90,7 @@ class VQSRFiltrationIndels(GATK4Stage):
 
 
 class ApplyVQSRSNPs(GATK4Stage):
+    """Apply error models to the SNPs."""
 
     input_vcf = Parameter()
 
@@ -113,6 +116,7 @@ class ApplyVQSRSNPs(GATK4Stage):
 
 
 class ApplyVQSRIndels(GATK4Stage):
+    """Apply error models to the Indels."""
 
     input_vcf = Parameter()
 
@@ -138,6 +142,7 @@ class ApplyVQSRIndels(GATK4Stage):
 
 
 def build_pipeline(dataset):
+    """Build the variant calling pipeline (for human)."""
 
     def stage(cls, **params):
         return cls(dataset=dataset, **params)
