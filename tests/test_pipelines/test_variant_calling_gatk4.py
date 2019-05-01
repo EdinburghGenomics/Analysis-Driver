@@ -484,13 +484,13 @@ class TestVariantAnnotation(TestGATK4):
 
 class TestVQSRFiltrationSNPs(TestGATK4):
     def test_run(self):
-        stage = VQSRFiltrationSNPs(dataset=self.dataset)
+        stage = VQSRFiltrationSNPs(dataset=self.dataset, input_vcf='input_file.vcf.gz')
         with patch_executor as e:
             stage._run()
             exp_cmd = 'path/to/gatk --java-options "-Djava.io.tmpdir=%s -XX:+UseSerialGC -Xmx16G" VariantRecalibrator ' \
                       '--output tests/assets/jobs/test_dataset/gatk4/test_user_sample_id_vqsr_snps_recall.vcf.gz  ' \
                       '--reference %s ' \
-                      '-V tests/assets/jobs/test_dataset/gatk4/test_user_sample_id_snpseff.vcf.gz ' \
+                      '-V input_file.vcf.gz ' \
                       '--resource:hapmap,known=false,training=true,truth=true,prior=15.0 /path/to/hapmap_annotation ' \
                       '--resource:omni,known=false,training=true,truth=false,prior=12.0 /path/to/omni_annotation ' \
                       '--resource:1000G,known=false,training=true,truth=false,prior=10.0 /path/to/1000g_annotation ' \
@@ -508,12 +508,12 @@ class TestVQSRFiltrationSNPs(TestGATK4):
 
 class TestVQSRFiltrationIndels(TestGATK4):
     def test_run(self):
-        stage = VQSRFiltrationIndels(dataset=self.dataset)
+        stage = VQSRFiltrationIndels(dataset=self.dataset, input_vcf='input_file.vcf.gz')
         with patch_executor as e:
             stage._run()
             exp_cmd = 'path/to/gatk --java-options "-Djava.io.tmpdir=%s -XX:+UseSerialGC -Xmx16G" VariantRecalibrator ' \
                       '--output tests/assets/jobs/test_dataset/gatk4/test_user_sample_id_vqsr_indels_recall.vcf.gz  ' \
-                      '--reference %s -V tests/assets/jobs/test_dataset/gatk4/test_user_sample_id_snpseff.vcf.gz ' \
+                      '--reference %s -V input_file.vcf.gz ' \
                       '--resource:mills,known=false,training=true,truth=true,prior=12.0 /path/to/mills_annotation ' \
                       '--resource:dbsnp,known=true,training=false,truth=false,prior=2.0 /path/to/dbsnp_annotation ' \
                       '--max-gaussians 4 -tranche 100.0 -tranche 99.99 -tranche 99.98 -tranche 99.97 -tranche 99.96 ' \
@@ -529,13 +529,12 @@ class TestVQSRFiltrationIndels(TestGATK4):
 
 class TestApplyVQSRSNPs(TestGATK4):
     def test_run(self):
-        stage = ApplyVQSRSNPs(dataset=self.dataset)
+        stage = ApplyVQSRSNPs(dataset=self.dataset, input_vcf='input_file.vcf.gz')
         with patch_executor as e:
             stage._run()
             exp_cmd = 'path/to/gatk --java-options "-Djava.io.tmpdir=%s -XX:+UseSerialGC -Xmx16G" ApplyVQSR ' \
                       '--output tests/assets/jobs/test_dataset/gatk4/test_user_sample_id_vqsr_snps.vcf.gz  ' \
-                      '--reference %s -V tests/assets/jobs/test_dataset/gatk4/test_user_sample_id_snpseff.vcf.gz ' \
-                      '-mode SNP ' \
+                      '--reference %s -V input_file.vcf.gz -mode SNP ' \
                       '--tranches-file tests/assets/jobs/test_dataset/gatk4/test_user_sample_id_vqsr_snps.tranches ' \
                       '--truth-sensitivity-filter-level 99.0 ' \
                       '--recal-file tests/assets/jobs/test_dataset/gatk4/test_user_sample_id_vqsr_snps_recall.vcf.gz'
@@ -546,13 +545,12 @@ class TestApplyVQSRSNPs(TestGATK4):
 
 class TestApplyVQSRIndels(TestGATK4):
     def test_run(self):
-        stage = ApplyVQSRIndels(dataset=self.dataset)
+        stage = ApplyVQSRIndels(dataset=self.dataset, input_vcf='input_file.vcf.gz')
         with patch_executor as e:
             stage._run()
             exp_cmd = 'path/to/gatk --java-options "-Djava.io.tmpdir=%s -XX:+UseSerialGC -Xmx8G" ApplyVQSR ' \
                       '--output tests/assets/jobs/test_dataset/gatk4/test_user_sample_id_vqsr_indels.vcf.gz  ' \
-                      '--reference %s ' \
-                      '-V tests/assets/jobs/test_dataset/gatk4/test_user_sample_id_snpseff.vcf.gz -mode INDEL ' \
+                      '--reference %s -V input_file.vcf.gz -mode INDEL ' \
                       '--tranches-file tests/assets/jobs/test_dataset/gatk4/test_user_sample_id_vqsr_indels_tranches ' \
                       '--truth-sensitivity-filter-level 99.0 ' \
                       '--recal-file tests/assets/jobs/test_dataset/gatk4/test_user_sample_id_vqsr_indels_recall.vcf.gz'
