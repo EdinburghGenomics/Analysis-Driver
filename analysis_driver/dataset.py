@@ -441,7 +441,7 @@ class SampleDataset(Dataset):
         self._genome_version = None
         self._user_sample_id = None
         self._lims_ntf = None
-        self._reference_genome_obj = None
+        self._genome_dict = None
 
     @property
     def lims_ntf(self):
@@ -463,7 +463,7 @@ class SampleDataset(Dataset):
 
     @property
     def genome_dict(self):
-        if self._reference_genome_obj is None:
+        if self._genome_dict is None:
             # Getting reference genome data from rest API
             reference_genome_response = rest_communication.get_document('genomes', where={'assembly_name': self.genome_version})
             # Checking project whitelist to ensure reference genome can be used
@@ -473,9 +473,8 @@ class SampleDataset(Dataset):
             # Appending genomes_dir to data_files items
             for item in reference_genome_response['data_files']:
                 reference_genome_response['data_files'][item] = cfg.get('genomes_dir', '') + reference_genome_response['data_files'][item]
-            self._reference_genome_obj = reference_genome_response
-
-        return self._reference_genome_obj
+            self._genome_dict = reference_genome_response
+        return self._genome_dict
 
     @property
     def reference_genome(self):
@@ -609,7 +608,6 @@ class ProjectDataset(Dataset):
         self._samples_processed = None
         self._species = None
         self._genome_version = None
-        self._reference_genome_obj = None
 
     def _is_ready(self):
         return 0 < self.number_of_samples <= len(self.samples_processed)
