@@ -26,7 +26,12 @@ class TestGATKStage():
     dataset = NamedMock(real_name='test_sample',
                         reference_genome='test_reference',
                         user_sample_id='test_user_sample_id',
-                        genome_version='genome_version')
+                        genome_version='genome_version',
+                        genome_dict={
+                            'data_files': {
+                                'variation': 'path/to/genomes_dir/path/to/dbsnp.vcf.gz'
+                            }
+                        })
 
     g = GATKStage(dataset=dataset)
 
@@ -107,8 +112,12 @@ class TestVariantCalling(TestAnalysisDriver):
             real_name='test_dataset',
             user_sample_id='test_user_sample_id',
             genome_version='genome_version',
-            reference_genome='reference_genome'
-        )
+            reference_genome='reference_genome',
+            genome_dict={
+                'data_files': {
+                    'variation': 'path/to/genomes_dir/path/to/dbsnp.vcf.gz'
+                }
+            })
 
 
 class TestBaseRecal(TestVariantCalling):
