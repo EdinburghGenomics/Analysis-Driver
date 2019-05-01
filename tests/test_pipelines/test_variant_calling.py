@@ -4,22 +4,7 @@ from analysis_driver.pipelines.variant_calling import GATKStage, BaseRecal, Prin
     RealignTarget, Realign, HaplotypeCaller, GenotypeGVCFs, SelectVariants, VariantFiltration
 from unittest.mock import patch, call
 
-fake_genome_response = {
-    "_updated": "30_11_2018_15:13:43",
-    "assembly_name": "phix174",
-    "analyses_supported": ["qc"],
-    "data_source": "",
-    "_links": {"self": {"title": "genome", "href": "genomes/phix174"}},
-    "_etag": "175b41e3909a93a8298ac1d5d4dfc7292df4b580",
-    "data_files": {"fasta": "path/to/phix.fa", "variation": "path/to/dbsnp.vcf.gz"},
-    "_created": "30_11_2018_15:13:43",
-    "species": "PhiX",
-    "genome_size": 5386,
-    "_id": "5c0153a716a5772f9e9cfdcc"
-}
-
 patch_executor = patch('analysis_driver.pipelines.variant_calling.executor.execute')
-patch_get_document = patch('egcg_core.rest_communication.get_document', return_value=fake_genome_response)
 
 
 class TestGATKStage():
@@ -102,8 +87,7 @@ class TestGATKStage():
         assert filter_snp_vcf == 'tests/assets/jobs/test_sample/gatk_var_calling/test_user_sample_id_filter_snp.vcf'
 
     def test_dbsnp(self):
-        with patch_get_document:
-            dbsnp = self.g.dbsnp
+        dbsnp = self.g.dbsnp
         assert dbsnp == 'path/to/genomes_dir/path/to/dbsnp.vcf.gz'
 
 
@@ -126,7 +110,7 @@ class TestBaseRecal(TestVariantCalling):
         self.b = BaseRecal(dataset=self.dataset)
 
     def test_run(self):
-        with patch_executor as e, patch_get_document:
+        with patch_executor as e:
             self.b._run()
             assert e.call_count == 1
             e.assert_called_with("path/to/java_8 -Djava.io.tmpdir=tests/assets/jobs/test_dataset/gatk_var_calling "
@@ -232,7 +216,7 @@ class TestHaplotypeCaller(TestVariantCalling):
         self.p = HaplotypeCaller(dataset=self.dataset, input_bam='test_bam')
 
     def test_run(self):
-        with patch_executor as e, patch_get_document:
+        with patch_executor as e:
             self.p._run()
             assert e.call_count == 3  # Command + bgzip + tabix
             assert e.call_args_list[0] == call(
