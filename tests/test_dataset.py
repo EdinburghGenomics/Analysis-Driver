@@ -194,8 +194,7 @@ class TestDataset(TestAnalysisDriver):
         with patch(ppath + 'toolset') as mocked_toolset:
             self.dataset.resolve_pipeline_and_toolset()
 
-        mocked_toolset.select_type.assert_called_with('a_toolset')
-        mocked_toolset.select_version.assert_called_with(3)
+        mocked_toolset.configure.assert_called_with('a_toolset', 3)
         assert self.dataset.pipeline.name == 'qc'
 
     @patch(ppath + 'toolset', new=Toolset())

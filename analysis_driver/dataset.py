@@ -210,8 +210,7 @@ class Dataset(AppLogger):
 
     def resolve_pipeline_and_toolset(self):
         instruction = self._pipeline_instruction()
-        toolset.select_type(instruction['toolset_type'])
-        toolset.select_version(instruction['toolset_version'])
+        toolset.configure(instruction['toolset_type'], instruction['toolset_version'])
         self.pipeline = pipeline_register[instruction['name']]
 
 
