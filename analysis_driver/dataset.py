@@ -462,7 +462,7 @@ class SampleDataset(Dataset):
         return self._genome_version
 
     @property
-    def reference_genome_obj(self, *args):
+    def genome_dict(self):
         # Replicated in Project Dataset
         if self._reference_genome_obj is None:
             # Getting reference genome data from rest API
@@ -471,19 +471,17 @@ class SampleDataset(Dataset):
             if 'project_whitelist' in reference_genome_response and self.project_id not in reference_genome_response['project_whitelist']:
                 raise AnalysisDriverError('Project ID ' + self.project_id + ' not in whitelist for reference genome '
                                           + self.genome_version)
+            # Appending genomes_dir to data_files items
+            for item in reference_genome_response['data_files']:
+                reference_genome_response['data_files'][item] = cfg.get('genomes_dir', '') + reference_genome_response['data_files'][item]
             self._reference_genome_obj = reference_genome_response
 
-        reference_genome_obj = self._reference_genome_obj
-        # nested querying dict calls
-        if args:
-            for arg in args:
-                reference_genome_obj = reference_genome_obj.get(arg)
-        return cfg.get('genomes_dir', '') + reference_genome_obj
+        return self._reference_genome_obj
 
     @property
     def reference_genome(self):
         # Replicated in Project Dataset
-        return self.reference_genome_obj('data_files', 'fasta')
+        return self.genome_dict['data_files']['fasta']
 
     @property
     def data_source(self):
@@ -666,28 +664,8 @@ class ProjectDataset(Dataset):
         return self._genome_version
 
     @property
-    def reference_genome_obj(self, *args):
-        # Replicated in Sample Dataset
-        if self._reference_genome_obj is None:
-            # Getting reference genome data from rest API
-            reference_genome_response = rest_communication.get_document('genomes', where={'assembly_name': self.genome_version})
-            # Checking project whitelist to ensure reference genome can be used
-            if 'project_whitelist' in reference_genome_response and self.id_field not in reference_genome_response['project_whitelist']:
-                raise AnalysisDriverError('Project ID ' + self.id_field + ' not in whitelist for reference genome '
-                                          + self.genome_version)
-            self._reference_genome_obj = reference_genome_response
-
-        reference_genome_obj = self._reference_genome_obj
-        # nested querying dict calls
-        if args:
-            for arg in args:
-                reference_genome_obj = reference_genome_obj.get(arg)
-        return cfg.get('genomes_dir', '') + reference_genome_obj
-
-    @property
     def reference_genome(self):
-        # Replicated in Sample Dataset
-        return self.reference_genome_obj('data_files', 'fasta')
+        return SampleDataset(self.samples_processed[0]['sample_id']).reference_genome
 
     def __str__(self):
         return '%s  (%s samples / %s) ' % (super().__str__(), len(self.samples_processed), self.number_of_samples)
