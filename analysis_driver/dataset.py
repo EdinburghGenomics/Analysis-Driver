@@ -573,15 +573,25 @@ class SampleDataset(Dataset):
         self.lims_ntf.remove_sample_from_workflow()
 
     def _default_pipeline(self):
+        analysis_type = clarity.get_sample(self.name).udf.get('Analysis Type')
+
         if self.species is None:
             raise AnalysisDriverError('No species information found in the LIMS for ' + self.name)
 
         elif self.species == 'Homo sapiens':
-            return 'bcbio'
-        elif clarity.get_sample(self.name).udf.get('Analysis Type') in ['Variant Calling', 'Variant Calling gatk']:
+            if 'Variant Calling gatk4' in analysis_type:
+                return 'human_variant_calling_gatk4'
+            else:
+                return 'bcbio'
+        elif analysis_type in ['Variant Calling gatk4']:
+            return 'variant_calling_gatk4'
+        elif analysis_type in ['Variant Calling', 'Variant Calling gatk', 'Variant Calling gatk3']:
             return 'variant_calling'
-        else:
+        elif analysis_type in ['QC GATK3']:
+            # This is unlikely to be used in production but allows us to trigger the GATK3 QC pipeline when needed
             return 'qc'
+        else:
+            return 'qc_gatk4'
 
 
 class ProjectDataset(Dataset):

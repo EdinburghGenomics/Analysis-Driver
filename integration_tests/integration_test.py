@@ -342,7 +342,7 @@ class IntegrationTest(ReportingAppIntegrationTest):
             )
 
     def test_qc(self):
-        self.setup_test('sample', 'test_qc', 'qc', 'Canis lupus familiaris', 'Not Variant Calling')
+        self.setup_test('sample', 'test_qc', 'qc', 'Canis lupus familiaris', 'QC GATK3')
 
         self._run_qc_test()
         self.expect_output_files(
@@ -353,7 +353,7 @@ class IntegrationTest(ReportingAppIntegrationTest):
         assert self._test_success
 
     def test_resume(self):
-        self.setup_test('sample', 'test_resume', 'qc', 'Canis lupus familiaris', 'Not Variant Calling')
+        self.setup_test('sample', 'test_resume', 'qc', 'Canis lupus familiaris', 'QC GATK3')
         with patch('analysis_driver.pipelines.common.BWAMem._run', return_value=1):
             exit_status = client.main(['--sample'])
             self.assertEqual('exit status', exit_status, 9)
@@ -428,6 +428,39 @@ class IntegrationTest(ReportingAppIntegrationTest):
             ad_procs['pipeline_used'],
             {'toolset_type': 'project_processing', 'name': 'project', 'toolset_version': 0},
             'pipeline used'
+        )
+
+        assert self._test_success
+
+    def test_gatk4_qc(self):
+        self.setup_test('sample', 'test_gatk4_qc', 'gatk4_qc', 'Canis lupus familiaris', 'Not Variant Calling')
+        exit_status = client.main(['--sample'])
+        self.assertEqual('exit status', exit_status, 0)
+
+        self.expect_qc_data(
+            rest_communication.get_document('samples', where={'sample_id': self.sample_id}),
+            self.cfg['gatk4_qc']['qc']
+        )
+
+        self.expect_output_files(
+            self.cfg['gatk4_qc']['files'],
+            base_dir=os.path.join(cfg['sample']['output_dir'], self.project_id, self.sample_id)
+        )
+        self.expect_stage_data(['mergefastqs', 'fastqscreen', 'blast', 'fastqindex', 'splitbwa', 'mergebamanddup',
+                                'samtoolsstats', 'samtoolsdepth', 'splithaplotypecaller', 'gathervcf', 'selectsnps',
+                                'selectindels', 'snpsfiltration', 'indelsfiltration', 'mergevariants', 'vcfstats',
+                                'sampledataoutput', 'samplereview', 'cleanup', ])
+
+        self.expect_equal(
+            rest_communication.get_document('analysis_driver_procs')['pipeline_used'],
+            {'toolset_type': 'gatk4_sample_processing', 'name': 'qc_gatk4', 'toolset_version': 0},
+            'pipeline used'
+        )
+
+        self.expect_equal(
+            rest_communication.get_document('analysis_driver_procs')['data_source'],
+            ['_'.join([self.run_id, str(i), self.barcode]) for i in range(1, 9)],
+            'data source'
         )
 
         assert self._test_success

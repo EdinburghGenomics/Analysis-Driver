@@ -1,4 +1,6 @@
 from egcg_core import executor
+from egcg_core.config import cfg
+
 from analysis_driver import quality_control as qc
 from analysis_driver.pipelines import common
 from analysis_driver.pipelines.common import MergeFastqs, SamtoolsStats
@@ -7,12 +9,16 @@ from analysis_driver.pipelines.qc_gatk4 import SelectSNPs, SelectIndels, GATK4St
 from analysis_driver.pipelines.variant_calling_gatk4 import SplitHaplotypeCallerVC, \
     ScatterBaseRecalibrator, GatherBQSRReport, ScatterApplyBQSR, GatherRecalBam, GatherGVCF, VariantAnnotation, \
     GatherVCFVC, SplitGenotypeGVCFs
+from analysis_driver.segmentation import Parameter
 
 toolset_type = 'gatk4_sample_processing'
 name = 'human_variant_calling_gatk4'
 
 
 class VQSRFiltrationSNPs(GATK4Stage):
+
+    input_vcf = Parameter()
+
     def _run(self):
         vqsr_datasets = self.vqsr_datasets
         cmd = self.gatk_cmd(
@@ -29,7 +35,7 @@ class VQSRFiltrationSNPs(GATK4Stage):
                 '-tranche 99.8 -tranche 99.7 -tranche 99.6 -tranche 99.5 -tranche 99.0 -tranche 98.0 -tranche 90.0 '
                 '-an QD -an MQ -an MQRankSum -an ReadPosRankSum -an FS -an SOR -mode SNP '
                 '--tranches-file {ouput_tranches} --rscript-file {output_R_script}'.format(
-                    input_vcf=self.snps_effects_output_vcf,
+                    input_vcf=self.input_vcf,
                     hapmap=vqsr_datasets.get('hapmap'),
                     omni=vqsr_datasets.get('omni'),
                     thousand_genomes=vqsr_datasets.get('thousand_genomes'),
@@ -48,6 +54,9 @@ class VQSRFiltrationSNPs(GATK4Stage):
 
 
 class VQSRFiltrationIndels(GATK4Stage):
+
+    input_vcf = Parameter()
+
     def _run(self):
         vqsr_datasets = self.vqsr_datasets
         cmd = self.gatk_cmd(
@@ -62,7 +71,7 @@ class VQSRFiltrationIndels(GATK4Stage):
                 '-tranche 99.8 -tranche 99.7 -tranche 99.6 -tranche 99.5 -tranche 99.0 -tranche 98.0 -tranche 90.0 '
                 '-an QD -an MQRankSum -an ReadPosRankSum -an FS -an SOR -an DP -mode INDEL '
                 '--tranches-file {ouput_tranches} --rscript-file {output_R_script}'.format(
-                    input_vcf=self.snps_effects_output_vcf,
+                    input_vcf=self.input_vcf,
                     mills=vqsr_datasets.get('mills'),
                     dbsnp=vqsr_datasets.get('dbsnp'),
                     ouput_tranches=self.vqsr_indels_tranches,
@@ -79,6 +88,9 @@ class VQSRFiltrationIndels(GATK4Stage):
 
 
 class ApplyVQSRSNPs(GATK4Stage):
+
+    input_vcf = Parameter()
+
     def _run(self):
         cmd = self.gatk_cmd(
             'ApplyVQSR',
@@ -86,7 +98,7 @@ class ApplyVQSRSNPs(GATK4Stage):
             memory=16,
             ext='-V {input_vcf} -mode SNP --tranches-file {ouput_tranches} --truth-sensitivity-filter-level 99.0 '
                 '--recal-file {recal_file}'.format(
-                input_vcf=self.snps_effects_output_vcf,
+                input_vcf=self.input_vcf,
                 ouput_tranches=self.vqsr_snps_tranches,
                 recal_file=self.vqsr_snps_output_recall
             )
@@ -101,6 +113,9 @@ class ApplyVQSRSNPs(GATK4Stage):
 
 
 class ApplyVQSRIndels(GATK4Stage):
+
+    input_vcf = Parameter()
+
     def _run(self):
         cmd = self.gatk_cmd(
             'ApplyVQSR',
@@ -108,7 +123,7 @@ class ApplyVQSRIndels(GATK4Stage):
             memory=8,
             ext='-V {input_vcf} -mode INDEL --tranches-file {ouput_tranches} --truth-sensitivity-filter-level 99.0 '
                 '--recal-file {recal_file}'.format(
-                    input_vcf=self.snps_effects_output_vcf,
+                    input_vcf=self.input_vcf,
                     ouput_tranches=self.vqsr_indels_tranches,
                     recal_file=self.vqsr_indels_output_recall
                 )
@@ -153,18 +168,23 @@ def build_pipeline(dataset):
     genotype_gcvf = stage(SplitGenotypeGVCFs, previous_stages=[haplotype_caller])
     gather_vcf = stage(GatherVCFVC, previous_stages=[genotype_gcvf])
 
-    # variant annotation
-    annotate_vcf = stage(VariantAnnotation, previous_stages=[gather_vcf])
+    variant_file = gather_vcf.genotyped_vcf
+    steps_required = [gather_vcf]
+    if 'snpEff' in cfg.query('genomes', dataset.genome_version):
+        # variant annotation
+        annotate_vcf = stage(VariantAnnotation, previous_stages=[gather_vcf])
+        variant_file = annotate_vcf.snps_effects_output_vcf
+        steps_required = [annotate_vcf]
 
     # variant filtering with VQSR
-    filter_snps = stage(VQSRFiltrationSNPs, previous_stages=[annotate_vcf])
-    apply_vqsr_snps = stage(ApplyVQSRSNPs, previous_stages=[filter_snps])
-    filter_indels = stage(VQSRFiltrationIndels, previous_stages=[annotate_vcf])
-    apply_vqsr_indels = stage(ApplyVQSRIndels, previous_stages=[filter_indels])
+    filter_snps = stage(VQSRFiltrationSNPs, input_vcf=variant_file, previous_stages=steps_required)
+    apply_vqsr_snps = stage(ApplyVQSRSNPs, input_vcf=variant_file, previous_stages=[filter_snps])
+    filter_indels = stage(VQSRFiltrationIndels, input_vcf=variant_file, previous_stages=steps_required)
+    apply_vqsr_indels = stage(ApplyVQSRIndels, input_vcf=variant_file, previous_stages=[filter_indels])
 
     # variant filtering with Hard Filters
-    select_snps = stage(SelectSNPs, input_vcf=annotate_vcf.snps_effects_output_vcf, previous_stages=[annotate_vcf])
-    select_indels = stage(SelectIndels, input_vcf=annotate_vcf.snps_effects_output_vcf, previous_stages=[annotate_vcf])
+    select_snps = stage(SelectSNPs, input_vcf=variant_file, previous_stages=steps_required)
+    select_indels = stage(SelectIndels, input_vcf=variant_file, previous_stages=steps_required)
     hard_filter_snps = stage(SNPsFiltration, previous_stages=[select_snps])
     hard_filter_indels = stage(IndelsFiltration, previous_stages=[select_indels])
 
