@@ -441,7 +441,7 @@ class SampleDataset(Dataset):
         self._genome_version = None
         self._user_sample_id = None
         self._lims_ntf = None
-        self._reference_genome = None
+        self._reference_genome_obj = None
 
     @property
     def lims_ntf(self):
@@ -461,17 +461,26 @@ class SampleDataset(Dataset):
             self._genome_version = clarity.get_genome_version(self.name, species=self.species)
         return self._genome_version
 
-    @property
-    def reference_genome(self):
-        if self._reference_genome is None:
+    def reference_genome_obj(self, *args):
+        if self._reference_genome_obj is None:
             # Getting reference genome data from rest API
             reference_genome_response = rest_communication.get_document('genomes', where={'assembly_name': self.genome_version})
             # Checking project whitelist to ensure reference genome can be used
             if 'project_whitelist' in reference_genome_response and self.project_id not in reference_genome_response['project_whitelist']:
                 raise AnalysisDriverError('Project ID ' + self.project_id + ' not in whitelist for reference genome '
                                           + self.genome_version)
-            self._reference_genome = cfg.get('genomes_dir', '') + reference_genome_response['data_files']['fasta']
-        return self._reference_genome
+            self._reference_genome_obj = reference_genome_response
+
+        reference_genome_obj = self._reference_genome_obj
+        # nested querying dict calls
+        if args:
+            for arg in args:
+                reference_genome_obj = reference_genome_obj.get(arg)
+        return cfg.get('genomes_dir', '') + reference_genome_obj
+
+    @property
+    def reference_genome(self):
+        return self.reference_genome_obj('data_files', 'fasta')
 
     @property
     def data_source(self):
