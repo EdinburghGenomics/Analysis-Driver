@@ -463,7 +463,6 @@ class SampleDataset(Dataset):
 
     @property
     def genome_dict(self):
-        # Replicated in Project Dataset
         if self._reference_genome_obj is None:
             # Getting reference genome data from rest API
             reference_genome_response = rest_communication.get_document('genomes', where={'assembly_name': self.genome_version})
@@ -480,7 +479,6 @@ class SampleDataset(Dataset):
 
     @property
     def reference_genome(self):
-        # Replicated in Project Dataset
         return self.genome_dict['data_files']['fasta']
 
     @property

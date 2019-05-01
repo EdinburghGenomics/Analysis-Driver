@@ -86,7 +86,7 @@ class GATKStage(segmentation.Stage):
     def dbsnp(self):
         dbsnp = None
         try:
-            dbsnp = self.dataset.reference_genome_obj('data_files', 'variation')
+            dbsnp = self.dataset.reference_genome_obj['data_files']['variation']
         except KeyError:
             if self.dataset.pipeline.name == 'variant_calling':
                 raise AnalysisDriverError('Could not find dbsnp file for %s' % self.dataset.name)
