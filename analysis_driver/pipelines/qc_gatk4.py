@@ -291,9 +291,10 @@ class MergeBamAndDup(SplitFastqStage):
     def all_chunk_bam_list_file(self):
         all_chunk_bams = []
         for run_element in self.dataset.run_elements:
-            indexed_fq_files = self._indexed_fastq_for_run_element(run_element)
-            for chunk in self.chunks_from_fastq(indexed_fq_files):
-                all_chunk_bams.append(self.chuncked_bam_file(run_element, chunk))
+            if int(run_element.get(ELEMENT_NB_READS_CLEANED, 0)) > 0:
+                indexed_fq_files = self._indexed_fastq_for_run_element(run_element)
+                for chunk in self.chunks_from_fastq(indexed_fq_files):
+                    all_chunk_bams.append(self.chuncked_bam_file(run_element, chunk))
         bam_list_file = os.path.join(self.job_dir, self.dataset.name + '_all_bam_files.list')
         with open(bam_list_file, 'w') as open_file:
             open_file.write('\n'.join(all_chunk_bams))

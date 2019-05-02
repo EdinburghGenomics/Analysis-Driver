@@ -52,15 +52,24 @@ class IntegrationTest(ReportingAppIntegrationTest):
         super().setUp()
         cfg.load_config_file(os.getenv('ANALYSISDRIVERCONFIG'), env_var='ANALYSISDRIVERENV')
         run_elements = []
-        for lane in range(1, 9):
+        for lane in range(1, 8):
             run_elements.append(
                 {'run_id': self.run_id, 'project_id': self.project_id, 'sample_id': self.sample_id,
                  'library_id': self.library_id, 'run_element_id': '%s_%s_%s' % (self.run_id, lane, self.barcode),
-                 'useable': 'yes', 'barcode': self.barcode, 'lane': lane, 'bases_r1': 60000000, 'bases_r2': 60000000,
-                 'clean_bases_r1': 58000000, 'clean_bases_r2': 58000000, 'q30_bases_r1': 57000000,
-                 'q30_bases_r2': 57000000, 'clean_q30_bases_r1': 56000000, 'clean_q30_bases_r2': 56000000,
+                 'useable': 'yes', 'barcode': self.barcode, 'lane': lane, 'bases_r1': 70000000, 'bases_r2': 70000000,
+                 'clean_bases_r1': 66000000, 'clean_bases_r2': 66000000, 'q30_bases_r1': 64000000,
+                 'q30_bases_r2': 64000000, 'clean_q30_bases_r1': 64000000, 'clean_q30_bases_r2': 64000000,
                  'clean_reads': 1}
             )
+        # Lane 8 has no data
+        run_elements.append(
+            {'run_id': self.run_id, 'project_id': self.project_id, 'sample_id': self.sample_id,
+             'library_id': self.library_id, 'run_element_id': '%s_%s_%s' % (self.run_id, 8, self.barcode),
+             'useable': 'yes', 'barcode': self.barcode, 'lane': 8, 'bases_r1': 0, 'bases_r2': 0,
+             'clean_bases_r1': 0, 'clean_bases_r2': 0, 'q30_bases_r1': 0,
+             'q30_bases_r2': 0, 'clean_q30_bases_r1': 0, 'clean_q30_bases_r2': 0,
+             'clean_reads': 0}
+        )
         for e in run_elements:
             rest_communication.post_entry('run_elements', e)
 
