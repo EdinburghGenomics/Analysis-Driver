@@ -1,15 +1,28 @@
-
 import os
 from tests.test_analysisdriver import NamedMock, TestAnalysisDriver
 from analysis_driver.pipelines.variant_calling import GATKStage, BaseRecal, PrintReads, \
     RealignTarget, Realign, HaplotypeCaller, GenotypeGVCFs, SelectVariants, VariantFiltration
 from unittest.mock import patch, call
 
+fake_genome_response = {
+    "_updated": "30_11_2018_15:13:43",
+    "assembly_name": "phix174",
+    "analyses_supported": ["qc"],
+    "data_source": "",
+    "_links": {"self": {"title": "genome", "href": "genomes/phix174"}},
+    "_etag": "175b41e3909a93a8298ac1d5d4dfc7292df4b580",
+    "data_files": {"fasta": "path/to/phix.fa", "variation": "path/to/dbsnp.vcf.gz"},
+    "_created": "30_11_2018_15:13:43",
+    "species": "PhiX",
+    "genome_size": 5386,
+    "_id": "5c0153a716a5772f9e9cfdcc"
+}
+
 patch_executor = patch('analysis_driver.pipelines.variant_calling.executor.execute')
+patch_get_document = patch('egcg_core.rest_communication.get_document', return_value=fake_genome_response)
 
 
 class TestGATKStage():
-
     dataset = NamedMock(real_name='test_sample',
                         reference_genome='test_reference',
                         user_sample_id='test_user_sample_id',
@@ -84,12 +97,9 @@ class TestGATKStage():
         assert filter_snp_vcf == 'tests/assets/jobs/test_sample/gatk_var_calling/test_user_sample_id_filter_snp.vcf'
 
     def test_dbsnp(self):
-        dbsnp = self.g.dbsnp
-        assert dbsnp == '/path/to/dbsnp.vcf.gz'
-
-    def test_known_indels(self):
-        known_intervals = self.g.known_indels
-        assert known_intervals == '/path/to/known/indels'
+        with patch_get_document:
+            dbsnp = self.g.dbsnp
+        assert dbsnp == 'path/to/genomes_dir/path/to/dbsnp.vcf.gz'
 
 
 class TestVariantCalling(TestAnalysisDriver):
@@ -107,7 +117,7 @@ class TestBaseRecal(TestVariantCalling):
 
     def test_run(self):
         b = BaseRecal(dataset=self.dataset)
-        with patch_executor as e:
+        with patch_executor as e,  patch_get_document:
             b._run()
             assert e.call_count == 1
             e.assert_called_with("path/to/java_8 -Djava.io.tmpdir=tests/assets/jobs/test_dataset/gatk_var_calling "
@@ -122,7 +132,7 @@ class TestBaseRecal(TestVariantCalling):
                                  "-l INFO "
                                  "-U LENIENT_VCF_PROCESSING "
                                  "-I tests/assets/jobs/test_dataset/test_dataset.bam "
-                                 "--knownSites /path/to/dbsnp.vcf.gz "
+                                 "--knownSites path/to/genomes_dir/path/to/dbsnp.vcf.gz "
                                  "-nct 16",
                                  cpus=16,
                                  job_name='gatk_base_recal',
@@ -176,8 +186,7 @@ class TestRealignTarget(TestVariantCalling):
                                  '-o tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id.intervals '
                                  '-l INFO '
                                  '-U LENIENT_VCF_PROCESSING '
-                                 '-I tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id_recal.bam '
-                                 '--known /path/to/known/indels',
+                                 '-I tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id_recal.bam',
                                  job_name='gatk_realign_target',
                                  mem=32,
                                  working_dir='tests/assets/jobs/test_dataset/gatk_var_calling')
@@ -201,8 +210,7 @@ class TestRealign(TestVariantCalling):
                                  '-o tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id_indel_realigned.bam '
                                  '-l INFO -U LENIENT_VCF_PROCESSING '
                                  '-I tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id_recal.bam '
-                                 '-targetIntervals tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id.intervals '
-                                 '--knownAlleles /path/to/known/indels',
+                                 '-targetIntervals tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id.intervals',
                                  job_name='gatk_indel_realign',
                                  mem=32,
                                  working_dir='tests/assets/jobs/test_dataset/gatk_var_calling')
@@ -213,7 +221,7 @@ class TestHaplotypeCaller(TestVariantCalling):
     def test_run(self):
         p = HaplotypeCaller(dataset=self.dataset, input_bam='test_bam')
 
-        with patch_executor as e:
+        with patch_executor as e, patch_get_document:
             p._run()
             assert e.call_count == 3  # Command + bgzip + tabix
             assert e.call_args_list[0] == call(
@@ -248,7 +256,7 @@ class TestHaplotypeCaller(TestVariantCalling):
                 '--annotation Coverage '
                 '--annotation ClippingRankSumTest '
                 '--annotation DepthPerSampleHC '
-                '--dbsnp /path/to/dbsnp.vcf.gz',
+                '--dbsnp path/to/genomes_dir/path/to/dbsnp.vcf.gz',
                 cpus=16,
                 job_name='gatk_haplotype_call',
                 mem=64,

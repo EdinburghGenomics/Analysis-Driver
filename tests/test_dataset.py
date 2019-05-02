@@ -44,10 +44,6 @@ def patched_datetime(time='now'):
     return patch(ppath + 'now', return_value=time)
 
 
-def patched_required_yield(y=1000000000):
-    return patch(ppath + 'rest_communication.get_document', return_value={'required_yield': y})
-
-
 class TestDataset(TestAnalysisDriver):
     base_dir = os.path.join(TestAnalysisDriver.assets_path, 'dataset_scanner')
 
@@ -367,16 +363,23 @@ class TestSampleDataset(TestDataset):
     def test_amount_data(self):
         assert self.dataset._amount_data() == 1500000000
 
-    def test_data_threshold(self):
-        self.dataset._data_threshold = None
-        assert self.dataset.data_threshold == 1000000000
+    def test_required_yield_threshold(self):
+        assert self.dataset.required_yield_threshold == 1000000000
 
-    def test_no_data_threshold(self):
-        self.dataset._data_threshold = None
+    def test_no_required_yield_threshold(self):
         with pytest.raises(AnalysisDriverError) as e:
             self.dataset._sample.pop('required_yield')
-            _ = self.dataset.data_threshold
-        assert 'Could not find data threshold' in str(e)
+            _ = self.dataset.required_yield_threshold
+        assert 'Could not find required yield threshold' in str(e)
+
+    def test_required_coverage_threshold(self):
+        assert self.dataset.required_coverage_threshold == 30
+
+    def test_no_required_coverage_threshold(self):
+        with pytest.raises(AnalysisDriverError) as e:
+            self.dataset._sample.pop('required_coverage')
+            _ = self.dataset.required_coverage_threshold
+        assert 'Could not find required coverage threshold' in str(e)
 
     @patch(ppath + 'toolset', new=Toolset())
     @patch(ppath + 'SampleDataset.project_id', new='a_project')
@@ -397,15 +400,17 @@ class TestSampleDataset(TestDataset):
             mocked_patch.assert_called_with('projects', {'sample_pipeline': exp}, 'project_id', 'a_project')
 
     def test_is_ready(self):
-        self.dataset._data_threshold = 20000000000
+        self.dataset.sample['required_yield'] = 20000000000
+        self.dataset.sample['required_coverage'] = 60
         assert not self.dataset._is_ready()
-        self.dataset._data_threshold = 100
+        self.dataset.sample['required_yield'] = 100
         assert self.dataset._is_ready()
 
     def test_report(self):
-        expected_str = 'test_dataset -- this, that, other  (1500000000 / 1000000000  from a_run_id, another_run_id) (non useable run elements in a_run_id, another_run_id)'
-        self.dataset._data_threshold = None
-        with patched_required_yield(), patched_stages:
+        expected_str = 'test_dataset -- this, that, other  ' \
+                       '(yield: 1500000000 / 1000000000 and coverage: 32 / 30 from a_run_id, another_run_id) ' \
+                       '(non useable run elements in a_run_id, another_run_id)'
+        with patched_stages:
             assert self.dataset.report() == expected_str
 
     def setup_dataset(self):
@@ -420,10 +425,16 @@ class TestSampleDataset(TestDataset):
             {'run_element_id': 'run_element2', 'run_id': 'another_run_id', 'clean_q30_bases_r1': 110, 'clean_q30_bases_r2': 135, 'q30_bases_r1': 170, 'q30_bases_r2': 150, 'bases_r1': 210, 'bases_r2': 205}
         ]
         self.dataset._sample = {
-            'aggregated': {'clean_yield_in_gb': 1.5, 'run_ids': ['a_run_id', 'another_run_id'], 'clean_pc_q30': 85},
-            'required_yield': 1000000000
+            'aggregated': {'clean_yield_in_gb': 1.5, 'run_ids': ['a_run_id', 'another_run_id'], 'clean_pc_q30': 85,
+                           'from_run_elements': {'mean_coverage': 32}},
+            'required_yield': 1000000000,
+            'required_coverage': 30,
+            'project_id': 'a_project'
         }
+        self.dataset._species = 'Teleogryllus oceanicus'
+        self.dataset._genome_version = '1'
         self.dataset._data_threshold = 1000000000
+
 
     @patched_initialise
     @patch(ppath + 'MostRecentProc.start')
@@ -455,6 +466,24 @@ class TestSampleDataset(TestDataset):
     def test_data_source(self):
         data_source = self.dataset.data_source
         assert data_source == ['run_element1', 'run_element2']
+
+    def test_passing_reference_genome_whitelisting_pass(self):
+        response = {'data_files': {'fasta': "Teleogryllus_oceanicus/v_John_Doe_20180326_fake_linked/PBJ_PI.formatted.fa"},
+                    'analyses_supported': ["qc"],
+                    'project_whitelist': ["a_project"], 'genome_size': 2064073682, 'data_source': "User provided",
+                    'assembly_name': "John_Doe_20180326", 'species': "Teleogryllus oceanicus"}
+        with patch('egcg_core.rest_communication.get_document', return_value=response):
+            assert self.dataset.reference_genome == "path/to/genomes_dir/Teleogryllus_oceanicus/v_John_Doe_20180326_fake_linked/PBJ_PI.formatted.fa"
+
+    def test_failing_reference_genome_whitelisting(self):
+        response = {'data_files': {'fasta': "Teleogryllus_oceanicus/v_John_Doe_20180326_fake_linked/PBJ_PI.formatted.fa"},
+                    'analyses_supported': ["qc"],
+                    'project_whitelist': ["b_project"], 'genome_size': 2064073682, 'data_source': "User provided",
+                    'assembly_name': "John_Doe_20180326", 'species': "Teleogryllus oceanicus"}
+        with patch('egcg_core.rest_communication.get_document', return_value=response), \
+             self.assertRaises(AnalysisDriverError) as error:
+            assert self.dataset.reference_genome is None
+        self.assertEqual(error.exception.args[0], 'Project ID a_project not in whitelist for reference genome 1')
 
 
 class TestMostRecentProc(TestAnalysisDriver):
