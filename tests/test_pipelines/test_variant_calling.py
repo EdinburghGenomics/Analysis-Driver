@@ -4,29 +4,19 @@ from analysis_driver.pipelines.variant_calling import GATKStage, BaseRecal, Prin
     RealignTarget, Realign, HaplotypeCaller, GenotypeGVCFs, SelectVariants, VariantFiltration
 from unittest.mock import patch, call
 
-fake_genome_response = {
-    "_updated": "30_11_2018_15:13:43",
-    "assembly_name": "phix174",
-    "analyses_supported": ["qc"],
-    "data_source": "",
-    "_links": {"self": {"title": "genome", "href": "genomes/phix174"}},
-    "_etag": "175b41e3909a93a8298ac1d5d4dfc7292df4b580",
-    "data_files": {"fasta": "path/to/phix.fa", "variation": "path/to/dbsnp.vcf.gz"},
-    "_created": "30_11_2018_15:13:43",
-    "species": "PhiX",
-    "genome_size": 5386,
-    "_id": "5c0153a716a5772f9e9cfdcc"
-}
-
 patch_executor = patch('analysis_driver.pipelines.variant_calling.executor.execute')
-patch_get_document = patch('egcg_core.rest_communication.get_document', return_value=fake_genome_response)
 
 
 class TestGATKStage():
     dataset = NamedMock(real_name='test_sample',
                         reference_genome='test_reference',
                         user_sample_id='test_user_sample_id',
-                        genome_version='genome_version')
+                        genome_version='genome_version',
+                        genome_dict={
+                            'data_files': {
+                                'variation': 'path/to/genomes_dir/path/to/dbsnp.vcf.gz'
+                            }
+                        })
 
     g = GATKStage(dataset=dataset)
 
@@ -97,8 +87,7 @@ class TestGATKStage():
         assert filter_snp_vcf == 'tests/assets/jobs/test_sample/gatk_var_calling/test_user_sample_id_filter_snp.vcf'
 
     def test_dbsnp(self):
-        with patch_get_document:
-            dbsnp = self.g.dbsnp
+        dbsnp = self.g.dbsnp
         assert dbsnp == 'path/to/genomes_dir/path/to/dbsnp.vcf.gz'
 
 
@@ -109,15 +98,19 @@ class TestVariantCalling(TestAnalysisDriver):
             real_name='test_dataset',
             user_sample_id='test_user_sample_id',
             genome_version='genome_version',
-            reference_genome='reference_genome'
-        )
+            reference_genome='reference_genome',
+            genome_dict={
+                'data_files': {
+                    'variation': 'path/to/genomes_dir/path/to/dbsnp.vcf.gz'
+                }
+            })
 
 
 class TestBaseRecal(TestVariantCalling):
 
     def test_run(self):
         b = BaseRecal(dataset=self.dataset)
-        with patch_executor as e,  patch_get_document:
+        with patch_executor as e:
             b._run()
             assert e.call_count == 1
             e.assert_called_with("path/to/java_8 -Djava.io.tmpdir=tests/assets/jobs/test_dataset/gatk_var_calling "
@@ -221,7 +214,7 @@ class TestHaplotypeCaller(TestVariantCalling):
     def test_run(self):
         p = HaplotypeCaller(dataset=self.dataset, input_bam='test_bam')
 
-        with patch_executor as e, patch_get_document:
+        with patch_executor as e:
             p._run()
             assert e.call_count == 3  # Command + bgzip + tabix
             assert e.call_args_list[0] == call(

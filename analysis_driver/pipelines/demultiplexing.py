@@ -96,10 +96,12 @@ class Bcl2Fastq(DemultiplexingStage):
 
 class PhixDetection(DemultiplexingStage):
     def _run(self):
+        fasta = cfg.get('genomes_dir', '') + \
+                rest_communication.get_document('genomes', where={'assembly_name': 'phix174'})['data_files']['fasta']
         cmds = []
         for fq1, fq2 in util.find_all_fastq_pairs(self.fastq_dir):
             read_name_list = fq1[:-len('_R1_001.fastq.gz')] + '_phix_read_name.list'
-            cmds.append(bash_commands.bwa_mem_phix(fq1, read_name_list))
+            cmds.append(bash_commands.bwa_mem_phix(fq1, read_name_list, fasta))
 
         exit_status = executor.execute(
             *cmds,
