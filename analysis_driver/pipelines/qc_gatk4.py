@@ -644,7 +644,7 @@ def build_pipeline(dataset):
 
     output = stage(common.SampleDataOutput, previous_stages=final_stages, output_fileset='gatk4_qc')
     review = stage(common.SampleReview, previous_stages=[output])
-    # cleanup = stage(common.Cleanup, previous_stages=[output])
+    cleanup = stage(common.Cleanup, previous_stages=[review])
 
-    return [review]
+    return cleanup
 
