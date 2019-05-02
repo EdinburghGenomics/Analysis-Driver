@@ -104,10 +104,6 @@ toolsets:
 
     gatk4_sample_processing:
         0:
-            gatk_bin:
-                version: 4.1.0
-                version_cmd: "{executable} HaplotypeCaller -h 2>&1 |  grep 'Version' | cut -f 2 -d ':'"
-
             bamcat:
                 version: 2.0.87
                 version_cmd: "{executable} -v 2>&1 | head -1 | awk '{{print substr($5,1,length($5)-1)}}'"
