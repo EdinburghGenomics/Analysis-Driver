@@ -73,7 +73,7 @@ class GATK4FilePath(segmentation.Stage):
 
     @property
     def dbsnp(self):
-        return cfg.query('genomes', self.dataset.genome_version, 'dbsnp')
+        return self.dataset.genome_dict['data_files'].get('variation')
 
     @property
     def snps_effects_csv(self):
@@ -89,7 +89,7 @@ class GATK4FilePath(segmentation.Stage):
 
     @property
     def vqsr_datasets(self):
-        vqsr_datasets = cfg.query('genomes', self.dataset.genome_version, 'vqsr')
+        vqsr_datasets = self.dataset.genome_dict['data_files'].get('vqsr')
         if not vqsr_datasets:
             raise AnalysisDriverError(
                 'Could not find VQSR training and evaluation sets file for genome %s' % self.dataset.genome_version)

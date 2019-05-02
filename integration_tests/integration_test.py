@@ -75,9 +75,21 @@ class IntegrationTest(ReportingAppIntegrationTest):
         rest_communication.post_entry('species', {'name': 'Homo sapiens', 'default_version': 'hg38'})
         rest_communication.post_entry('species', {'name': 'Canis lupus familiaris', 'default_version': 'CanFam3.1'})
 
-        rest_communication.post_entry('genomes', {'assembly_name': 'hg38',
-                                                  'data_files': {'fasta': 'Homo_sapiens/hg38.fa',
-                                                                 'variation': 'Homo_sapiens/hg38/variation/dbsnp-147.vcf.gz'}})
+        rest_communication.post_entry('genomes', {
+            'assembly_name': 'hg38',
+            'snpsEff': 'GRCh38.86',
+            'data_files': {
+                'fasta': 'Homo_sapiens/hg38.fa',
+                'variation': 'Homo_sapiens/hg38/variation/dbsnp-147.vcf.gz',
+                'vqsr': {
+                    'hapmap': 'Homo_sapiens/hg38/gatk_bundle/hapmap_3.3.hg38.vcf.gz',
+                    'omni': 'Homo_sapiens/hg38/gatk_bundle/1000G_omni2.5.hg38.vcf.gz',
+                    'thousand_genomes': 'Homo_sapiens/hg38/gatk_bundle/1000G_phase1.snps.high_confidence.hg38.vcf.gz',
+                    'dbsnp': 'Homo_sapiens/hg38/gatk_bundle/dbsnp_146.hg38.vcf.gz',
+                    'mills': 'Homo_sapiens/hg38/gatk_bundle/Mills_and_1000G_gold_standard.indels.hg38.vcf.gz'
+                }
+            }
+        })
         rest_communication.post_entry('genomes', {'assembly_name': 'CanFam3.1',
                                                   'data_files': {'fasta': 'Homo_sapiens/hg38.fa',
                                                                  'variation': 'Homo_sapiens/hg38/variation/dbsnp-147.vcf.gz'}})

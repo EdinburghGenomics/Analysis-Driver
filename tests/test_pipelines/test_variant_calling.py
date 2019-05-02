@@ -101,7 +101,14 @@ class TestVariantCalling(TestAnalysisDriver):
             reference_genome='reference_genome',
             genome_dict={
                 'data_files': {
-                    'variation': 'path/to/genomes_dir/path/to/dbsnp.vcf.gz'
+                    'variation': 'path/to/genomes_dir/path/to/dbsnp.vcf.gz',
+                    'vqsr': {
+                        'hapmap': 'path/to/hapmap_annotation',
+                        'omni': 'path/to/omni_annotation',
+                        'thousand_genomes': 'path/to/1000g_annotation',
+                        'dbsnp': 'path/to/dbsnp_annotation',
+                        'mills': 'path/to/mills_annotation'
+                    },
                 }
             })
 

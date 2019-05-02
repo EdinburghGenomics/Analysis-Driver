@@ -50,15 +50,15 @@ class TestGATK4FilePath(TestGATK4):
         assert self.stage.hard_filtered_vcf == 'tests/assets/jobs/test_dataset/gatk4/test_user_sample_id_hard_filter.vcf.gz'
         assert self.stage.vqsr_filtered_vcf == 'tests/assets/jobs/test_dataset/gatk4/test_user_sample_id_vqsr.vcf.gz'
         assert self.stage.vqsr_datasets == {
-            'hapmap': '/path/to/hapmap_annotation',
-            'omni': '/path/to/omni_annotation',
-            'thousand_genomes': '/path/to/1000g_annotation',
-            'dbsnp': '/path/to/dbsnp_annotation',
-            'mills': '/path/to/mills_annotation'
+            'hapmap': 'path/to/hapmap_annotation',
+            'omni': 'path/to/omni_annotation',
+            'thousand_genomes': 'path/to/1000g_annotation',
+            'dbsnp': 'path/to/dbsnp_annotation',
+            'mills': 'path/to/mills_annotation'
         }
+        self.stage.dataset.genome_dict = {'data_files': {}}
         with pytest.raises(AnalysisDriverError):
-            self.stage.dataset.genome_version = 'do_not_exist'
-            print(self.stage.vqsr_datasets)
+            self.stage.vqsr_datasets
 
 
 class TestSplitFastqStage(TestGATK4):
@@ -273,7 +273,7 @@ class TestScatterBaseRecalibrator(TestGATK4):
               '--java-options "-Djava.io.tmpdir=%s -XX:+UseSerialGC -Xmx6G" BaseRecalibrator ' \
               '--output tests/assets/jobs/test_dataset/post_alignment_split/test_dataset_base_recal_grp_chr1.grp ' \
               '--input tests/assets/jobs/test_dataset/test_dataset.bam  ' \
-              '--reference %s --known-sites  /path/to/dbsnp.vcf.gz ' \
+              '--reference %s --known-sites  path/to/genomes_dir/path/to/dbsnp.vcf.gz ' \
               '--intervals chr1' % (stage.dir_to_delete[0], self.dataset.reference_genome)
         assert obs_cmd == cmd
 
@@ -364,7 +364,8 @@ class TestSplitHaplotypeCaller(TestGATK4):
                   '--annotation ClippingRankSumTest --annotation Coverage --annotation DepthPerAlleleBySample ' \
                   '--annotation DepthPerSampleHC --annotation FisherStrand --annotation MappingQuality ' \
                   '--annotation MappingQualityRankSumTest --annotation MappingQualityZero --annotation QualByDepth ' \
-                  '--annotation ReadPosRankSumTest --annotation RMSMappingQuality --dbsnp /path/to/dbsnp.vcf.gz'
+                  '--annotation ReadPosRankSumTest --annotation RMSMappingQuality ' \
+                  '--dbsnp path/to/genomes_dir/path/to/dbsnp.vcf.gz'
         assert exp_cmd % (stage.dir_to_delete[0], self.dataset.reference_genome) == obs_cmd
 
     def test_run(self):
@@ -395,7 +396,7 @@ class TestSplitHaplotypeCallerVC(TestGATK4):
                   '--annotation DepthPerAlleleBySample --annotation DepthPerSampleHC --annotation FisherStrand ' \
                   '--annotation MappingQuality --annotation MappingQualityRankSumTest --annotation MappingQualityZero '\
                   '--annotation QualByDepth --annotation ReadPosRankSumTest --annotation RMSMappingQuality ' \
-                  '--dbsnp /path/to/dbsnp.vcf.gz'
+                  '--dbsnp path/to/genomes_dir/path/to/dbsnp.vcf.gz'
         assert exp_cmd % (stage.dir_to_delete[0], self.dataset.reference_genome) == obs_cmd
 
 
@@ -491,10 +492,10 @@ class TestVQSRFiltrationSNPs(TestGATK4):
                       '--output tests/assets/jobs/test_dataset/gatk4/test_user_sample_id_vqsr_snps_recall.vcf.gz  ' \
                       '--reference %s ' \
                       '-V input_file.vcf.gz ' \
-                      '--resource:hapmap,known=false,training=true,truth=true,prior=15.0 /path/to/hapmap_annotation ' \
-                      '--resource:omni,known=false,training=true,truth=false,prior=12.0 /path/to/omni_annotation ' \
-                      '--resource:1000G,known=false,training=true,truth=false,prior=10.0 /path/to/1000g_annotation ' \
-                      '--resource:dbsnp,known=true,training=false,truth=false,prior=2.0 /path/to/dbsnp_annotation ' \
+                      '--resource:hapmap,known=false,training=true,truth=true,prior=15.0 path/to/hapmap_annotation ' \
+                      '--resource:omni,known=false,training=true,truth=false,prior=12.0 path/to/omni_annotation ' \
+                      '--resource:1000G,known=false,training=true,truth=false,prior=10.0 path/to/1000g_annotation ' \
+                      '--resource:dbsnp,known=true,training=false,truth=false,prior=2.0 path/to/dbsnp_annotation ' \
                       '--max-gaussians 4 -tranche 100.0 -tranche 99.99 -tranche 99.98 -tranche 99.97 -tranche 99.96 ' \
                       '-tranche 99.95 -tranche 99.94 -tranche 99.93 -tranche 99.92 -tranche 99.91 -tranche 99.9 ' \
                       '-tranche 99.8 -tranche 99.7 -tranche 99.6 -tranche 99.5 -tranche 99.0 -tranche 98.0 ' \
@@ -514,8 +515,8 @@ class TestVQSRFiltrationIndels(TestGATK4):
             exp_cmd = 'path/to/gatk --java-options "-Djava.io.tmpdir=%s -XX:+UseSerialGC -Xmx16G" VariantRecalibrator ' \
                       '--output tests/assets/jobs/test_dataset/gatk4/test_user_sample_id_vqsr_indels_recall.vcf.gz  ' \
                       '--reference %s -V input_file.vcf.gz ' \
-                      '--resource:mills,known=false,training=true,truth=true,prior=12.0 /path/to/mills_annotation ' \
-                      '--resource:dbsnp,known=true,training=false,truth=false,prior=2.0 /path/to/dbsnp_annotation ' \
+                      '--resource:mills,known=false,training=true,truth=true,prior=12.0 path/to/mills_annotation ' \
+                      '--resource:dbsnp,known=true,training=false,truth=false,prior=2.0 path/to/dbsnp_annotation ' \
                       '--max-gaussians 4 -tranche 100.0 -tranche 99.99 -tranche 99.98 -tranche 99.97 -tranche 99.96 ' \
                       '-tranche 99.95 -tranche 99.94 -tranche 99.93 -tranche 99.92 -tranche 99.91 -tranche 99.9 ' \
                       '-tranche 99.8 -tranche 99.7 -tranche 99.6 -tranche 99.5 -tranche 99.0 -tranche 98.0 ' \

@@ -17,6 +17,7 @@ from analysis_driver.exceptions import AnalysisDriverError
 from analysis_driver.notification import NotificationCentre, LimsNotification
 from analysis_driver.pipelines import register as pipeline_register
 from analysis_driver.tool_versioning import toolset
+from analysis_driver.util.helper_functions import prepend_path_to_data_files
 
 
 def now(datefmt='%d_%m_%Y_%H:%M:%S'):
@@ -468,15 +469,16 @@ class SampleDataset(Dataset):
     def genome_dict(self):
         if self._genome_dict is None:
             # Getting reference genome data from rest API
-            reference_genome_response = rest_communication.get_document('genomes', where={'assembly_name': self.genome_version})
+            genome_response = rest_communication.get_document('genomes', where={'assembly_name': self.genome_version})
             # Checking project whitelist to ensure reference genome can be used
-            if 'project_whitelist' in reference_genome_response and self.project_id not in reference_genome_response['project_whitelist']:
+            if 'project_whitelist' in genome_response and self.project_id not in genome_response['project_whitelist']:
                 raise AnalysisDriverError('Project ID ' + self.project_id + ' not in whitelist for reference genome '
                                           + self.genome_version)
             # Appending genomes_dir to data_files items
-            for item in reference_genome_response['data_files']:
-                reference_genome_response['data_files'][item] = cfg.get('genomes_dir', '') + reference_genome_response['data_files'][item]
-            self._genome_dict = reference_genome_response
+            genome_response['data_files'] = prepend_path_to_data_files(
+                cfg.get('genomes_dir', ''), genome_response['data_files']
+            )
+            self._genome_dict = genome_response
         return self._genome_dict
 
     @property

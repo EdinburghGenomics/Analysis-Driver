@@ -175,7 +175,7 @@ def build_pipeline(dataset):
 
     variant_file = gather_vcf.genotyped_vcf
     steps_required = [gather_vcf]
-    if 'snpEff' in cfg.query('genomes', dataset.genome_version):
+    if 'snpEff' in dataset.genome_dict:
         # variant annotation
         annotate_vcf = stage(VariantAnnotation, previous_stages=[gather_vcf])
         variant_file = annotate_vcf.snps_effects_output_vcf

@@ -247,7 +247,7 @@ class VariantAnnotation(GATK4Stage):
                ' | {bgzip} --threads 16 -c > {output_vcf}').format(
                   effects_csv=self.snps_effects_csv,
                   effects_html=self.snps_effects_html,
-                  database_name=cfg.query('genomes', self.dataset.genome_version)['snpEff'],  # to avoid getting None
+                  database_name=self.dataset.genome_dict['snpEff'],  # to avoid getting None
                   input_vcf=self.genotyped_vcf,
                   bgzip=toolset['bgzip'],
                   output_vcf=self.snps_effects_output_vcf
@@ -297,7 +297,7 @@ def build_pipeline(dataset):
 
     variant_file = gather_vcf.genotyped_vcf
     steps_required = [gather_vcf]
-    if 'snpEff' in cfg.query('genomes', dataset.genome_version):
+    if 'snpEff' in dataset.genome_dict:
         # variant annotation
         annotate_vcf = stage(VariantAnnotation, previous_stages=[gather_vcf])
         variant_file = annotate_vcf.snps_effects_output_vcf

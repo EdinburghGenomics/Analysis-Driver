@@ -1,5 +1,7 @@
 from unittest.mock import patch, Mock
 from analysis_driver.util import find_all_fastq_pairs_for_lane, get_ranges, get_trim_values_for_bad_cycles
+from analysis_driver.util.helper_functions import prepend_path_to_data_files
+from tests import TestAnalysisDriver
 
 
 def test_get_range():
@@ -52,3 +54,23 @@ def test_trim_values_for_bad_cycles():
 
     bad_cycle_list = [302, 301]
     assert get_trim_values_for_bad_cycles(bad_cycle_list, run_info) == (None, 149)
+
+
+class TestHelperFunctions(TestAnalysisDriver):
+
+    def test_prepend_path_to_data_files(self):
+        file_paths = {'f1': 'path/file.1', 'file_set': {'f2': 'path/file.2', 'f3': 'path/file.3'}}
+        full_file_paths = {
+            'f1': '/full/path/file.1',
+            'file_set': {'f2': '/full/path/file.2', 'f3': '/full/path/file.3'}
+        }
+        # Keeps relative path when appending nothing
+        assert prepend_path_to_data_files('', file_paths) == file_paths
+
+        # Prepend path if provided
+        assert prepend_path_to_data_files('/full', file_paths) == full_file_paths
+
+        # Does not prepend anything on already full path
+        assert prepend_path_to_data_files('/fuller', full_file_paths) == full_file_paths
+
+
