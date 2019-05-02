@@ -348,6 +348,7 @@ class TestRunDataset(TestDataset):
         assert mgenerate.call_count == 0
         os.remove(sample_sheet_file)
 
+
 class TestSampleDataset(TestDataset):
     def test_dataset_status(self):
         super().test_dataset_status()
@@ -426,8 +427,14 @@ class TestSampleDataset(TestDataset):
         self.dataset._sample = {
             'aggregated': {'clean_yield_in_gb': 1.5, 'run_ids': ['a_run_id', 'another_run_id'], 'clean_pc_q30': 85,
                            'from_run_elements': {'mean_coverage': 32}},
-            'required_yield': 1000000000, 'required_coverage': 30
+            'required_yield': 1000000000,
+            'required_coverage': 30,
+            'project_id': 'a_project'
         }
+        self.dataset._species = 'Teleogryllus oceanicus'
+        self.dataset._genome_version = '1'
+        self.dataset._data_threshold = 1000000000
+
 
     @patched_initialise
     @patch(ppath + 'MostRecentProc.start')
@@ -459,6 +466,24 @@ class TestSampleDataset(TestDataset):
     def test_data_source(self):
         data_source = self.dataset.data_source
         assert data_source == ['run_element1', 'run_element2']
+
+    def test_passing_reference_genome_whitelisting_pass(self):
+        response = {'data_files': {'fasta': "Teleogryllus_oceanicus/v_John_Doe_20180326_fake_linked/PBJ_PI.formatted.fa"},
+                    'analyses_supported': ["qc"],
+                    'project_whitelist': ["a_project"], 'genome_size': 2064073682, 'data_source': "User provided",
+                    'assembly_name': "John_Doe_20180326", 'species': "Teleogryllus oceanicus"}
+        with patch('egcg_core.rest_communication.get_document', return_value=response):
+            assert self.dataset.reference_genome == "path/to/genomes_dir/Teleogryllus_oceanicus/v_John_Doe_20180326_fake_linked/PBJ_PI.formatted.fa"
+
+    def test_failing_reference_genome_whitelisting(self):
+        response = {'data_files': {'fasta': "Teleogryllus_oceanicus/v_John_Doe_20180326_fake_linked/PBJ_PI.formatted.fa"},
+                    'analyses_supported': ["qc"],
+                    'project_whitelist': ["b_project"], 'genome_size': 2064073682, 'data_source': "User provided",
+                    'assembly_name': "John_Doe_20180326", 'species': "Teleogryllus oceanicus"}
+        with patch('egcg_core.rest_communication.get_document', return_value=response), \
+             self.assertRaises(AnalysisDriverError) as error:
+            assert self.dataset.reference_genome is None
+        self.assertEqual(error.exception.args[0], 'Project ID a_project not in whitelist for reference genome 1')
 
 
 class TestMostRecentProc(TestAnalysisDriver):

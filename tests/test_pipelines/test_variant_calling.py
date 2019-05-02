@@ -1,4 +1,3 @@
-
 import os
 from tests.test_analysisdriver import NamedMock, TestAnalysisDriver
 from analysis_driver.pipelines.variant_calling import GATKStage, BaseRecal, PrintReads, \
@@ -9,11 +8,15 @@ patch_executor = patch('analysis_driver.pipelines.variant_calling.executor.execu
 
 
 class TestGATKStage():
-
     dataset = NamedMock(real_name='test_sample',
                         reference_genome='test_reference',
                         user_sample_id='test_user_sample_id',
-                        genome_version='genome_version')
+                        genome_version='genome_version',
+                        genome_dict={
+                            'data_files': {
+                                'variation': 'path/to/genomes_dir/path/to/dbsnp.vcf.gz'
+                            }
+                        })
 
     g = GATKStage(dataset=dataset)
 
@@ -85,11 +88,7 @@ class TestGATKStage():
 
     def test_dbsnp(self):
         dbsnp = self.g.dbsnp
-        assert dbsnp == '/path/to/dbsnp.vcf.gz'
-
-    def test_known_indels(self):
-        known_intervals = self.g.known_indels
-        assert known_intervals == '/path/to/known/indels'
+        assert dbsnp == 'path/to/genomes_dir/path/to/dbsnp.vcf.gz'
 
 
 class TestVariantCalling(TestAnalysisDriver):
@@ -97,8 +96,12 @@ class TestVariantCalling(TestAnalysisDriver):
             real_name='test_dataset',
             user_sample_id='test_user_sample_id',
             genome_version='genome_version',
-            reference_genome='reference_genome'
-        )
+            reference_genome='reference_genome',
+            genome_dict={
+                'data_files': {
+                    'variation': 'path/to/genomes_dir/path/to/dbsnp.vcf.gz'
+                }
+            })
 
 
 class TestBaseRecal(TestVariantCalling):
@@ -122,7 +125,7 @@ class TestBaseRecal(TestVariantCalling):
                                  "-l INFO "
                                  "-U LENIENT_VCF_PROCESSING "
                                  "-I tests/assets/jobs/test_dataset/test_dataset.bam "
-                                 "--knownSites /path/to/dbsnp.vcf.gz "
+                                 "--knownSites path/to/genomes_dir/path/to/dbsnp.vcf.gz "
                                  "-nct 16",
                                  cpus=16,
                                  job_name='gatk_base_recal',
@@ -177,8 +180,7 @@ class TestRealignTarget(TestVariantCalling):
                                  '-o tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id.intervals '
                                  '-l INFO '
                                  '-U LENIENT_VCF_PROCESSING '
-                                 '-I tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id_recal.bam '
-                                 '--known /path/to/known/indels',
+                                 '-I tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id_recal.bam',
                                  job_name='gatk_realign_target',
                                  mem=32,
                                  working_dir='tests/assets/jobs/test_dataset/gatk_var_calling')
@@ -203,8 +205,7 @@ class TestRealign(TestVariantCalling):
                                  '-o tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id_indel_realigned.bam '
                                  '-l INFO -U LENIENT_VCF_PROCESSING '
                                  '-I tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id_recal.bam '
-                                 '-targetIntervals tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id.intervals '
-                                 '--knownAlleles /path/to/known/indels',
+                                 '-targetIntervals tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id.intervals',
                                  job_name='gatk_indel_realign',
                                  mem=32,
                                  working_dir='tests/assets/jobs/test_dataset/gatk_var_calling')
@@ -250,7 +251,7 @@ class TestHaplotypeCaller(TestVariantCalling):
                 '--annotation Coverage '
                 '--annotation ClippingRankSumTest '
                 '--annotation DepthPerSampleHC '
-                '--dbsnp /path/to/dbsnp.vcf.gz',
+                '--dbsnp path/to/genomes_dir/path/to/dbsnp.vcf.gz',
                 cpus=16,
                 job_name='gatk_haplotype_call',
                 mem=64,
