@@ -108,8 +108,9 @@ class TestVariantCalling(TestAnalysisDriver):
                         'thousand_genomes': 'path/to/1000g_annotation',
                         'dbsnp': 'path/to/dbsnp_annotation',
                         'mills': 'path/to/mills_annotation'
-                    },
-                }
+                    }
+                },
+                'snpEff': 'snpEffdb'
             })
 
 

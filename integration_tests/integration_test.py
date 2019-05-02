@@ -77,7 +77,7 @@ class IntegrationTest(ReportingAppIntegrationTest):
 
         rest_communication.post_entry('genomes', {
             'assembly_name': 'hg38',
-            'snpsEff': 'GRCh38.86',
+            'snpEff': 'GRCh38.86',
             'data_files': {
                 'fasta': 'Homo_sapiens/hg38.fa',
                 'variation': 'Homo_sapiens/hg38/variation/dbsnp-147.vcf.gz',
