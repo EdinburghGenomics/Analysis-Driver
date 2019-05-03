@@ -65,7 +65,7 @@ class IntegrationTest(ReportingAppIntegrationTest):
         run_elements.append(
             {'run_id': self.run_id, 'project_id': self.project_id, 'sample_id': self.sample_id,
              'library_id': self.library_id, 'run_element_id': '%s_%s_%s' % (self.run_id, 8, self.barcode),
-             'useable': 'yes', 'barcode': self.barcode, 'lane': 8, 'bases_r1': 0, 'bases_r2': 0,
+             'useable': 'no', 'barcode': self.barcode, 'lane': 8, 'bases_r1': 0, 'bases_r2': 0,
              'clean_bases_r1': 0, 'clean_bases_r2': 0, 'q30_bases_r1': 0,
              'q30_bases_r2': 0, 'clean_q30_bases_r1': 0, 'clean_q30_bases_r2': 0,
              'clean_reads': 0}
@@ -482,7 +482,7 @@ class IntegrationTest(ReportingAppIntegrationTest):
         self.expect_stage_data(['mergefastqs', 'fastqscreen', 'blast', 'fastqindex', 'splitbwa', 'mergebamanddup',
                                 'samtoolsstats', 'samtoolsdepth', 'splithaplotypecaller', 'gathervcf', 'selectsnps',
                                 'selectindels', 'snpsfiltration', 'indelsfiltration', 'mergevariants', 'vcfstats',
-                                'sampledataoutput', 'samplereview', 'cleanup', ])
+                                'sampledataoutput', 'samplereview', 'cleanup'])
 
         self.expect_equal(
             rest_communication.get_document('analysis_driver_procs')['pipeline_used'],
@@ -492,7 +492,76 @@ class IntegrationTest(ReportingAppIntegrationTest):
 
         self.expect_equal(
             rest_communication.get_document('analysis_driver_procs')['data_source'],
-            ['_'.join([self.run_id, str(i), self.barcode]) for i in range(1, 9)],
+            ['_'.join([self.run_id, str(i), self.barcode]) for i in range(1, 8)],
+            'data source'
+        )
+
+        assert self._test_success
+
+    def test_gatk4_var_calling(self):
+        self.setup_test(test_type='sample', test_name='test_gatk4', integration_section='gatk4_var_calling',
+                        species='Canis lupus familiaris', analysis_type='Variant Calling gatk4')
+        exit_status = client.main(['--sample'])
+        self.assertEqual('exit status', exit_status, 0)
+
+        self.expect_qc_data(
+            rest_communication.get_document('samples', where={'sample_id': self.sample_id}),
+            self.cfg['gatk4_var_calling']['qc']
+        )
+
+        self.expect_output_files(
+            self.cfg['gatk4_var_calling']['files'],
+            base_dir=os.path.join(cfg['sample']['output_dir'], self.project_id, self.sample_id)
+        )
+
+        self.expect_stage_data(['mergefastqs', 'fastqscreen', 'blast', 'fastqindex', 'splitbwa', 'mergebamanddup',
+                                'samtoolsstats', 'samtoolsdepth', 'splithaplotypecaller', 'gathervcf', 'selectsnps',
+                                'selectindels', 'snpsfiltration', 'indelsfiltration', 'mergevariants', 'vcfstats',
+                                'sampledataoutput', 'samplereview', 'cleanup'])
+
+        self.expect_equal(
+            rest_communication.get_document('analysis_driver_procs')['pipeline_used'],
+            {'toolset_type': 'gatk4_sample_processing', 'name': 'variant_calling_gatk4', 'toolset_version': 0},
+            'pipeline used'
+        )
+
+        self.expect_equal(
+            rest_communication.get_document('analysis_driver_procs')['data_source'],
+            ['_'.join([self.run_id, str(i), self.barcode]) for i in range(1, 8)],
+            'data source'
+        )
+        assert self._test_success
+
+    def test_gatk4_var_calling_human(self):
+        self.setup_test(test_type='sample', test_name='test_gatk4', integration_section='gatk4_var_calling',
+                        species='Homo sapiens', analysis_type='Variant Calling gatk4')
+        exit_status = client.main(['--sample'])
+        self.assertEqual('exit status', exit_status, 0)
+
+        self.expect_qc_data(
+            rest_communication.get_document('samples', where={'sample_id': self.sample_id}),
+            self.cfg['gatk4_var_calling_human']['qc']
+        )
+
+        self.expect_output_files(
+            self.cfg['gatk4_var_calling_human']['files'],
+            base_dir=os.path.join(cfg['sample']['output_dir'], self.project_id, self.sample_id)
+        )
+
+        self.expect_stage_data(['mergefastqs', 'fastqscreen', 'blast', 'fastqindex', 'splitbwa', 'mergebamanddup',
+                                'samtoolsstats', 'samtoolsdepth', 'splithaplotypecaller', 'gathervcf', 'selectsnps',
+                                'selectindels', 'snpsfiltration', 'indelsfiltration', 'mergevariants', 'vcfstats',
+                                'sampledataoutput', 'samplereview', 'cleanup'])
+
+        self.expect_equal(
+            rest_communication.get_document('analysis_driver_procs')['pipeline_used'],
+            {'toolset_type': 'gatk4_sample_processing', 'name': 'human_variant_calling_gatk4', 'toolset_version': 0},
+            'pipeline used'
+        )
+
+        self.expect_equal(
+            rest_communication.get_document('analysis_driver_procs')['data_source'],
+            ['_'.join([self.run_id, str(i), self.barcode]) for i in range(1, 8)],
             'data source'
         )
 
