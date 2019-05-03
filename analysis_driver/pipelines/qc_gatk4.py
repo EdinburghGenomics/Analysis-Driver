@@ -57,7 +57,7 @@ class GATK4FilePath(segmentation.Stage):
 
     @property
     def hard_filtered_snps_vcf(self):
-        return self.gatk4_basename + '_hard_snps.vcf.gz'
+        return self.gatk4_basename + '_hard_filter_snps.vcf.gz'
 
     @property
     def hard_filtered_indels_vcf(self):
