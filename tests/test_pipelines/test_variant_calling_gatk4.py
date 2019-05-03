@@ -392,10 +392,6 @@ class TestSplitHaplotypeCallerVC(TestGATK4):
                   '--input a_bam_file.bam  ' \
                   '--reference %s  ' \
                   '--sample-ploidy 2 --emit-ref-confidence GVCF --intervals path/to/region/file ' \
-                  '--annotation BaseQualityRankSumTest --annotation ClippingRankSumTest --annotation Coverage ' \
-                  '--annotation DepthPerAlleleBySample --annotation DepthPerSampleHC --annotation FisherStrand ' \
-                  '--annotation MappingQuality --annotation MappingQualityRankSumTest --annotation MappingQualityZero '\
-                  '--annotation QualByDepth --annotation ReadPosRankSumTest --annotation RMSMappingQuality ' \
                   '--dbsnp path/to/genomes_dir/path/to/dbsnp.vcf.gz'
         assert exp_cmd % (stage.dir_to_delete[0], self.dataset.reference_genome) == obs_cmd
 
@@ -425,11 +421,13 @@ class TestSplitGenotypeGVCFs(TestGATK4):
                   '--output tests/assets/jobs/test_dataset/post_alignment_split/test_dataset_genotype_gvcf_chr1-1-1000.vcf.gz  ' \
                   '--reference %s ' \
                   '--variant tests/assets/jobs/test_dataset/post_alignment_split/test_dataset_haplotype_caller_chr1-1-1000.g.vcf.gz ' \
-                  '--sample-ploidy 2 --intervals path/to/region/file --annotation BaseQualityRankSumTest ' \
+                  '--sample-ploidy 2 --intervals path/to/region/file ' \
+                  '--dbsnp path/to/genomes_dir/path/to/dbsnp.vcf.gz --annotation BaseQualityRankSumTest ' \
                   '--annotation ClippingRankSumTest --annotation Coverage --annotation DepthPerAlleleBySample ' \
                   '--annotation DepthPerSampleHC --annotation FisherStrand --annotation MappingQuality ' \
                   '--annotation MappingQualityRankSumTest --annotation MappingQualityZero --annotation QualByDepth ' \
                   '--annotation ReadPosRankSumTest --annotation RMSMappingQuality'
+        print(obs_cmd)
         assert exp_cmd % (stage.dir_to_delete[0], self.dataset.reference_genome) == obs_cmd
 
     def test_run(self):
