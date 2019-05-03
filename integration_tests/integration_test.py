@@ -101,7 +101,7 @@ class IntegrationTest(ReportingAppIntegrationTest):
         })
         rest_communication.post_entry('genomes', {'assembly_name': 'CanFam3.1',
                                                   'data_files': {'fasta': 'Homo_sapiens/hg38.fa',
-                                                                 'variation': 'Homo_sapiens/hg38/variation/dbsnp-147.vcf.gz'}})
+                                                                 'variation': 'Homo_sapiens/hg38/dbsnp-147.vcf.gz'}})
         rest_communication.post_entry('genomes', {'assembly_name': 'phix174',
                                                   'data_files': {'fasta': 'PhiX/GCA_000819615.1_ViralProj14015_genomic.fna'}})
 
