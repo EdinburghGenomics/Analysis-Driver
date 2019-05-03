@@ -89,7 +89,7 @@ class IntegrationTest(ReportingAppIntegrationTest):
             'snpEff': 'GRCh38.86',
             'data_files': {
                 'fasta': 'Homo_sapiens/hg38.fa',
-                'variation': 'Homo_sapiens/hg38/variation/dbsnp-147.vcf.gz',
+                'variation': 'Homo_sapiens/hg38/dbsnp-147.vcf.gz',
                 'vqsr': {
                     'hapmap': 'Homo_sapiens/hg38/gatk_bundle/hapmap_3.3.hg38.vcf.gz',
                     'omni': 'Homo_sapiens/hg38/gatk_bundle/1000G_omni2.5.hg38.vcf.gz',

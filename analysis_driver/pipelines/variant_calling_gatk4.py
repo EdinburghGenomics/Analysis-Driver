@@ -165,10 +165,6 @@ class SplitHaplotypeCallerVC(PostAlignmentScatterVC, SplitHaplotypeCaller):
             spark_core=1,
             ext=' --sample-ploidy 2 --emit-ref-confidence GVCF --intervals ' + region_file
         )
-        for annot in ('BaseQualityRankSumTest', 'ClippingRankSumTest', 'Coverage', 'DepthPerAlleleBySample',
-                      'DepthPerSampleHC', 'FisherStrand', 'MappingQuality', 'MappingQualityRankSumTest',
-                      'MappingQualityZero', 'QualByDepth', 'ReadPosRankSumTest', 'RMSMappingQuality'):
-            haplotype_cmd += ' --annotation ' + annot
         if self.dbsnp:
             haplotype_cmd += ' --dbsnp ' + self.dbsnp
         if self.dataset.library_preparation == 'pcr-free':
@@ -211,6 +207,8 @@ class SplitGenotypeGVCFs(PostAlignmentScatterVC):
             spark_core=1,
             ext='--variant ' + self.gvcf_per_chunk(chunk) + ' --sample-ploidy 2 --intervals ' + region_file
         )
+        if self.dbsnp:
+            genotypegvcf_cmd += ' --dbsnp ' + self.dbsnp
         for annot in ('BaseQualityRankSumTest', 'ClippingRankSumTest', 'Coverage', 'DepthPerAlleleBySample',
                       'DepthPerSampleHC', 'FisherStrand', 'MappingQuality', 'MappingQualityRankSumTest',
                       'MappingQualityZero', 'QualByDepth', 'ReadPosRankSumTest', 'RMSMappingQuality'):
