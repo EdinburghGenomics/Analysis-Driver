@@ -482,7 +482,7 @@ class IntegrationTest(ReportingAppIntegrationTest):
         self.expect_stage_data(['mergefastqs', 'fastqscreen', 'blast', 'fastqindex', 'splitbwa', 'mergebamanddup',
                                 'samtoolsstats', 'samtoolsdepth', 'splithaplotypecaller', 'gathervcf', 'selectsnps',
                                 'selectindels', 'snpsfiltration', 'indelsfiltration', 'mergevariants', 'vcfstats',
-                                'sampledataoutput', 'samplereview', 'cleanup'])
+                                'sampledataoutput', 'md5sum', 'samplereview', 'cleanup'])
 
         self.expect_equal(
             rest_communication.get_document('analysis_driver_procs')['pipeline_used'],
@@ -517,7 +517,7 @@ class IntegrationTest(ReportingAppIntegrationTest):
         self.expect_stage_data(['mergefastqs', 'fastqscreen', 'blast', 'fastqindex', 'splitbwa', 'mergebamanddup',
                                 'samtoolsstats', 'samtoolsdepth', 'splithaplotypecaller', 'gathervcf', 'selectsnps',
                                 'selectindels', 'snpsfiltration', 'indelsfiltration', 'mergevariants', 'vcfstats',
-                                'sampledataoutput', 'samplereview', 'cleanup'])
+                                'sampledataoutput', 'md5sum', 'samplereview', 'cleanup'])
 
         self.expect_equal(
             rest_communication.get_document('analysis_driver_procs')['pipeline_used'],
@@ -551,7 +551,7 @@ class IntegrationTest(ReportingAppIntegrationTest):
         self.expect_stage_data(['mergefastqs', 'fastqscreen', 'blast', 'fastqindex', 'splitbwa', 'mergebamanddup',
                                 'samtoolsstats', 'samtoolsdepth', 'splithaplotypecaller', 'gathervcf', 'selectsnps',
                                 'selectindels', 'snpsfiltration', 'indelsfiltration', 'mergevariants', 'vcfstats',
-                                'sampledataoutput', 'samplereview', 'cleanup'])
+                                'sampledataoutput', 'md5sum', 'samplereview', 'cleanup'])
 
         self.expect_equal(
             rest_communication.get_document('analysis_driver_procs')['pipeline_used'],
