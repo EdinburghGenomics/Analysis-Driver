@@ -446,16 +446,16 @@ class SampleDataset(Dataset):
     endpoint = 'samples'
     id_field = 'sample_id'
 
-    def __init__(self, name, most_recent_proc=None, data_threshold=None):
+    def __init__(self, name, most_recent_proc=None):
         super().__init__(name, most_recent_proc)
         self._run_elements = None
         self._sample = None
         self._non_useable_run_elements = None
-        self._data_threshold = data_threshold
         self._species = None
         self._genome_version = None
         self._user_sample_id = None
         self._lims_ntf = None
+        self._genome_dict = None
 
     @property
     def lims_ntf(self):
@@ -476,8 +476,23 @@ class SampleDataset(Dataset):
         return self._genome_version
 
     @property
+    def genome_dict(self):
+        if self._genome_dict is None:
+            # Getting reference genome data from rest API
+            reference_genome_response = rest_communication.get_document('genomes', where={'assembly_name': self.genome_version})
+            # Checking project whitelist to ensure reference genome can be used
+            if 'project_whitelist' in reference_genome_response and self.project_id not in reference_genome_response['project_whitelist']:
+                raise AnalysisDriverError('Project ID ' + self.project_id + ' not in whitelist for reference genome '
+                                          + self.genome_version)
+            # Appending genomes_dir to data_files items
+            for item in reference_genome_response['data_files']:
+                reference_genome_response['data_files'][item] = cfg.get('genomes_dir', '') + reference_genome_response['data_files'][item]
+            self._genome_dict = reference_genome_response
+        return self._genome_dict
+
+    @property
     def reference_genome(self):
-        return cfg['genomes'][self.genome_version]['fasta']
+        return self.genome_dict['data_files']['fasta']
 
     @property
     def data_source(self):
@@ -522,17 +537,24 @@ class SampleDataset(Dataset):
         else:
             return 0
 
+    def _amount_coverage(self):
+        return query_dict(self.sample, 'aggregated.from_run_elements.mean_coverage') or 0
+
     @property
     def pc_q30(self):
         return self.sample.get('aggregated', {}).get('clean_pc_q30') or 0
 
     @property
-    def data_threshold(self):
-        if self._data_threshold is None:
-            self._data_threshold = self.sample.get('required_yield')
-        if not self._data_threshold:
-            raise AnalysisDriverError('Could not find data threshold for ' + self.name)
-        return self._data_threshold
+    def required_yield_threshold(self):
+        if 'required_yield' in self.sample:
+            return self.sample.get('required_yield')
+        raise AnalysisDriverError('Could not find required yield threshold for ' + self.name)
+
+    @property
+    def required_coverage_threshold(self):
+        if 'required_coverage' in self.sample:
+            return self.sample.get('required_coverage')
+        raise AnalysisDriverError('Could not find required coverage threshold for ' + self.name)
 
     def _pipeline_instruction(self):
         instruction = rest_communication.get_document(
@@ -546,14 +568,18 @@ class SampleDataset(Dataset):
         return instruction
 
     def _is_ready(self):
-        return self.data_threshold and self.pc_q30 > 75 and self._amount_data() > self.data_threshold
+        return self.pc_q30 > 75 and (
+            (self.required_yield_threshold and self._amount_data() > self.required_yield_threshold) or
+            (self.required_coverage_threshold and self._amount_coverage() > self.required_coverage_threshold)
+        )
 
     def report(self):
         runs = query_dict(self.sample, 'aggregated.run_ids')
         non_useable_runs = sorted(set(r[ELEMENT_RUN_NAME] for r in self.non_useable_run_elements))
 
-        s = '%s  (%s / %s  from %s) ' % (
-            super().report(), self._amount_data(), self.data_threshold, ', '.join(runs)
+        s = '%s  (yield: %s / %s and coverage: %s / %s from %s) ' % (
+            super().report(), self._amount_data(), self.required_yield_threshold, self._amount_coverage(),
+            self.required_coverage_threshold, ', '.join(runs)
         )
         if non_useable_runs:
             s += '(non useable run elements in %s)' % ', '.join(non_useable_runs)
@@ -643,13 +669,13 @@ class ProjectDataset(Dataset):
         if self._genome_version is None:
             g = clarity.get_sample(self.samples_processed[0]['sample_id']).udf.get('Genome Version')
             if not g:
-                g = cfg.query('species', self.species, 'default')
+                g = rest_communication.get_document('species', where={'name': self.species})['default_version']
             self._genome_version = g
         return self._genome_version
 
     @property
     def reference_genome(self):
-        return cfg['genomes'][self.genome_version]['fasta']
+        return SampleDataset(self.samples_processed[0]['sample_id']).reference_genome
 
     def __str__(self):
         return '%s  (%s samples / %s) ' % (super().__str__(), len(self.samples_processed), self.number_of_samples)
