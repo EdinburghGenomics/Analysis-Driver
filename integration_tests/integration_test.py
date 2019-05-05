@@ -499,8 +499,9 @@ class IntegrationTest(ReportingAppIntegrationTest):
         assert self._test_success
 
     def test_gatk4_var_calling(self):
-        self.setup_test(test_type='sample', test_name='test_gatk4', integration_section='gatk4_var_calling',
-                        species='Canis lupus familiaris', analysis_type='Variant Calling gatk4')
+        self.setup_test(test_type='sample', test_name='test_gatk4_var_calling',
+                        integration_section='gatk4_var_calling', species='Canis lupus familiaris',
+                        analysis_type='Variant Calling gatk4')
         exit_status = client.main(['--sample'])
         self.assertEqual('exit status', exit_status, 0)
 
@@ -533,7 +534,8 @@ class IntegrationTest(ReportingAppIntegrationTest):
         assert self._test_success
 
     def test_gatk4_var_calling_human(self):
-        self.setup_test(test_type='sample', test_name='test_gatk4', integration_section='gatk4_var_calling_human',
+        self.setup_test(test_type='sample', test_name='test_gatk4_var_calling_human',
+                        integration_section='gatk4_var_calling_human',
                         species='Homo sapiens', analysis_type='Variant Calling gatk4')
         exit_status = client.main(['--sample'])
         self.assertEqual('exit status', exit_status, 0)
