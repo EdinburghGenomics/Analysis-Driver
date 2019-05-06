@@ -19,7 +19,8 @@ class Dragen(RapidStage):
         cmds = []
         for lane, sample in self.dataset.rapid_samples_by_lane.items():
             # clean up any previous run on the Dragen server's scratch space
-            cmd = 'if [ -d {tmp_dir} ]; then rm -r {tmp_dir}; fi; mkdir -p {tmp_dir}; '
+            cmd = 'if [ -d {tmp_dir} ]; then rm -r {tmp_dir}; fi; mkdir -p {tmp_dir}; ' \
+                  'echo "Starting at $(date +%Y-%m-%d\ %H:%M:%S)"; '
 
             # run Dragen on the lane with bam/vcf outputs, dbSNP and duplicate marking enabled
             cmd += '{dragen} -r {ref} --bcl-input-dir {run_dir} --bcl-only-lane {lane} --output-directory {tmp_dir} ' \
@@ -29,7 +30,9 @@ class Dragen(RapidStage):
 
             # somehow, writing the output data to scratch and then rsyncing to the main file system is faster than
             # outputting directly
-            cmd += 'rsync -rLD {tmp_dir}/ {out_dir}; rm -r {tmp_dir}'
+            cmd += 'echo "Outputting data at $(date +%Y-%m-%d\ %H:%M:%S)"; ' \
+                   'rsync -rLD {tmp_dir}/ {out_dir}; rm -r {tmp_dir}; ' \
+                   'echo "Done at $(date +%Y-%m-%d\ %H:%M:%S)"'
 
             cmds.append(
                 cmd.format(
@@ -101,8 +104,8 @@ class DragenMetrics(RapidStage):
 
             payload = {
                 'sample_id': sample['sample_id'],
-                'rapid_metrics': {
-                    'data_source': self.dataset.name + '_' + lane,
+                'rapid_analysis': {
+                    'data_source': [self.dataset.name + '_' + lane],
                     'var_calling': {
                          'ti_tv_ratio': float(vc_metrics['Ti/Tv ratio'][0]),
                          'het_hom_ratio': float(vc_metrics['Het/Hom ratio'][0]),
@@ -133,7 +136,7 @@ class DragenMetrics(RapidStage):
                     }
                 }
             }
-            payload['rapid_metrics'].update(self._interop_metrics(interop_metrics[lane]))
+            payload['rapid_analysis'].update(self._interop_metrics(interop_metrics[lane]))
             data.append(payload)
 
         rest_communication.post_or_patch('samples', data, id_field='sample_id')
@@ -200,7 +203,7 @@ class DragenOutput(RapidStage):
             return False
 
     def output_data(self, lane, sample, output_dir):
-        user_sample_id = sample.udf['User Sample Name']
+        user_sample_id = sample['User Sample Name']
         staging_dir = os.path.join(self.job_dir, 'linked_output_files_%s' % lane)
 
         os.makedirs(staging_dir, exist_ok=True)
