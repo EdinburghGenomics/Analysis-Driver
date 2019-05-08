@@ -27,22 +27,27 @@ class BadTileCycleDetector(AppLogger):
     def read_interop_metrics(self):
         run_metrics = RunMetrics()
         run_metrics.read(self.run_dir)
-        q_metric_set = run_metrics.q_metric_set()
-        metrics = q_metric_set.metrics()
+        metrics = run_metrics.q_metric_set().metrics()
 
         self.all_lanes = {}
         for lane in range(1, 9):
             self.all_lanes[lane] = ({}, {})
 
         for i in range(metrics.size()):
-            tile_dict, cycle_dict = self.all_lanes[metrics[i].lane()]
-            if metrics[i].tile() not in tile_dict:
-                tile_dict[metrics[i].tile()] = [None] * self.ncycles
-            if metrics[i].cycle() not in cycle_dict:
-                cycle_dict[metrics[i].cycle()] = []
+            m = metrics[i]
+            lane = m.lane()
+            tile = m.tile()
+            cycle = m.cycle()
 
-            tile_dict[metrics[i].tile()][metrics[i].cycle()-1] = metrics[i].qscore_hist()
-            cycle_dict[metrics[i].cycle()].append(metrics[i].qscore_hist())
+            tile_dict, cycle_dict = self.all_lanes[lane]
+            if tile not in tile_dict:
+                tile_dict[tile] = [None] * self.ncycles
+            if cycle not in cycle_dict:
+                cycle_dict[cycle] = []
+
+            qscore = m.qscore_hist()
+            tile_dict[tile][cycle-1] = qscore
+            cycle_dict[cycle].append(qscore)
 
     @staticmethod
     def windows(l, window_size):

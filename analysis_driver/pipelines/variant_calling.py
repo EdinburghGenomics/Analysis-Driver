@@ -132,6 +132,7 @@ class RealignTarget(GATKStage):
             realign_target_cmd,
             job_name='gatk_realign_target',
             working_dir=self.gatk_run_dir,
+            cpus=1,
             mem=32
         ).join()
 
@@ -151,6 +152,7 @@ class Realign(GATKStage):
             realign_cmd,
             job_name='gatk_indel_realign',
             working_dir=self.gatk_run_dir,
+            cpus=1,
             mem=32
         ).join()
 
@@ -194,6 +196,7 @@ class GenotypeGVCFs(GATKStage):
             genotype_gvcfs_cmd,
             job_name='gatk_genotype_gvcfs',
             working_dir=self.gatk_run_dir,
+            cpus=1,
             mem=16
         ).join()
 
@@ -209,6 +212,7 @@ class SelectVariants(GATKStage):
             select_var_command,
             job_name='var_filtration',
             working_dir=self.gatk_run_dir,
+            cpus=1,
             mem=16
         ).join()
         return select_variants_status + bgzip_and_tabix(self.gatk_run_dir, self.raw_snp_vcf)
@@ -232,6 +236,7 @@ class VariantFiltration(GATKStage):
             var_filter_command,
             job_name='var_filtration',
             working_dir=self.gatk_run_dir,
+            cpus=1,
             mem=16
         ).join()
         return variant_filter_status + bgzip_and_tabix(self.gatk_run_dir, self.filter_snp_vcf)

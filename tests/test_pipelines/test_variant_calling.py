@@ -189,6 +189,7 @@ class TestRealignTarget(TestVariantCalling):
                                  '-U LENIENT_VCF_PROCESSING '
                                  '-I tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id_recal.bam',
                                  job_name='gatk_realign_target',
+                                 cpus=1,
                                  mem=32,
                                  working_dir='tests/assets/jobs/test_dataset/gatk_var_calling')
 
@@ -213,6 +214,7 @@ class TestRealign(TestVariantCalling):
                                  '-I tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id_recal.bam '
                                  '-targetIntervals tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id.intervals',
                                  job_name='gatk_indel_realign',
+                                 cpus=1,
                                  mem=32,
                                  working_dir='tests/assets/jobs/test_dataset/gatk_var_calling')
 
@@ -258,8 +260,8 @@ class TestHaplotypeCaller(TestVariantCalling):
                 '--annotation ClippingRankSumTest '
                 '--annotation DepthPerSampleHC '
                 '--dbsnp path/to/genomes_dir/path/to/dbsnp.vcf.gz',
-                cpus=16,
                 job_name='gatk_haplotype_call',
+                cpus=16,
                 mem=64,
                 working_dir='tests/assets/jobs/test_dataset/gatk_var_calling'
             )
@@ -289,6 +291,7 @@ class TestGenotypeGVCFs(TestVariantCalling):
                 '--variant tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id.g.vcf.gz '
                 '-nt 16',
                 job_name='gatk_genotype_gvcfs',
+                cpus=1,
                 mem=16,
                 working_dir='tests/assets/jobs/test_dataset/gatk_var_calling'
             )
@@ -318,6 +321,7 @@ class TestSelectVariants(TestVariantCalling):
                 '-V tests/assets/jobs/test_dataset/gatk_var_calling/test_user_sample_id.vcf.gz '
                 '-selectType SNP ',
                 job_name='var_filtration',
+                cpus=1,
                 mem=16,
                 working_dir='tests/assets/jobs/test_dataset/gatk_var_calling'
             )
@@ -348,6 +352,7 @@ class TestVariantFiltration(TestVariantCalling):
                 "--filterExpression 'QD < 2.0 || FS > 60.0 || MQ < 40.0 || MQRankSum < -12.5 || ReadPosRankSum < -8.0' "
                 "--filterName 'SNP_FILTER'",
                 job_name='var_filtration',
+                cpus=1,
                 mem=16,
                 working_dir='tests/assets/jobs/test_dataset/gatk_var_calling'
             )

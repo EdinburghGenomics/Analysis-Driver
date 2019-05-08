@@ -190,8 +190,7 @@ class TestDataset(TestAnalysisDriver):
         with patch(ppath + 'toolset') as mocked_toolset:
             self.dataset.resolve_pipeline_and_toolset()
 
-        mocked_toolset.select_type.assert_called_with('a_toolset')
-        mocked_toolset.select_version.assert_called_with(3)
+        mocked_toolset.configure.assert_called_with('a_toolset', 3)
         assert self.dataset.pipeline.name == 'qc'
 
     @patch(ppath + 'toolset', new=Toolset())
@@ -212,6 +211,11 @@ mocked_lane_artifact3 = NamedMock(real_name='art3', reagent_labels=['D703-D502 (
 mocked_lane_artifact4 = NamedMock(real_name='art4', reagent_labels=['D704-D502 (GAGATTCC-ATAGAGGC)'], samples=[MockedSample(real_name='sample4')])
 mocked_lane_artifact5 = NamedMock(real_name='art5', reagent_labels=['D705-D502 (ATTCAGAA-ATAGAGGC)'], samples=[MockedSample(real_name='sample5')])
 mocked_lane_artifact6 = NamedMock(real_name='art6', reagent_labels=['D706-D502 (GAATTCGT-ATAGAGGC)'], samples=[MockedSample(real_name='sample6')])
+mocked_idt_artifact = NamedMock(
+    real_name='idt_art',
+    reagent_labels=['001A IDT-ILMN TruSeq DNA-RNA UD 96 Indexes Plate_UDI0001 (CCGCGGTT-AGCGCTAG)'],
+    samples=[MockedSample(real_name='idt_sample')]
+)
 mocked_lane_artifact_pool = NamedMock(real_name='artpool', reagent_labels=[
     'D703-D502 (CGCTCATT-ATAGAGGC)',
     'D704-D502 (GAGATTCC-ATAGAGGC)',
@@ -262,6 +266,8 @@ mocked_flowcell_user_prepared = Mock(placements={
     '8:1': mocked_lane_user_prep_artifact2
 })
 
+mocked_flowcell_idt = Mock(placements={'%s:1' % i: mocked_idt_artifact for i in range(1, 9)})
+
 
 class TestRunDataset(TestDataset):
     def test_is_ready(self):
@@ -283,9 +289,17 @@ class TestRunDataset(TestDataset):
         )
 
     def test_run_elements_from_lims(self):
+        def patched_run(fake_flowcell):
+            return patch(
+                'analysis_driver.dataset.clarity.get_run',
+                return_value=MockedRunProcess(container=fake_flowcell)
+            )
+
+        def patched_barcodes(has_barcodes):
+            return patch.object(RunDataset, 'has_barcodes', new_callable=PropertyMock(return_value=has_barcodes))
+
         d = RunDataset('test_dataset')
-        with patch('analysis_driver.dataset.clarity.get_run', return_value=MockedRunProcess(container=mocked_flowcell_non_pooling)), \
-             patch.object(RunDataset, 'has_barcodes', new_callable=PropertyMock(return_value=False)):
+        with patched_run(mocked_flowcell_non_pooling), patched_barcodes(False):
             run_elements = d._run_elements_from_lims()
             assert len(set(r[c.ELEMENT_PROJECT_ID] for r in run_elements)) == 1
             assert len(set(r[c.ELEMENT_SAMPLE_INTERNAL_ID] for r in run_elements)) == 2
@@ -294,8 +308,7 @@ class TestRunDataset(TestDataset):
             assert barcodes_len.pop() == 0
 
         d = RunDataset('test_dataset')
-        with patch('egcg_core.clarity.get_run', return_value=MockedRunProcess(container=mocked_flowcell_pooling)), \
-             patch.object(RunDataset, 'has_barcodes', new_callable=PropertyMock(return_value=True)):
+        with patched_run(mocked_flowcell_pooling), patched_barcodes(True):
             run_elements = d._run_elements_from_lims()
             assert len(set(r[c.ELEMENT_PROJECT_ID] for r in run_elements)) == 1
             assert len(set(r[c.ELEMENT_SAMPLE_INTERNAL_ID] for r in run_elements)) == 4
@@ -304,14 +317,22 @@ class TestRunDataset(TestDataset):
             assert barcodes_len.pop() == 8
 
         d = RunDataset('test_dataset')
-        with patch('analysis_driver.dataset.clarity.get_run', return_value=MockedRunProcess(container=mocked_flowcell_user_prepared)), \
-             patch.object(RunDataset, 'has_barcodes', new_callable=PropertyMock(return_value=False)):
+        with patched_run(mocked_flowcell_user_prepared), patched_barcodes(False):
             run_elements = d._run_elements_from_lims()
             assert len(set(r[c.ELEMENT_PROJECT_ID] for r in run_elements)) == 1
             assert len(set(r[c.ELEMENT_SAMPLE_INTERNAL_ID] for r in run_elements)) == 2
             barcodes_len = set(len(r[c.ELEMENT_BARCODE]) for r in run_elements)
             assert len(barcodes_len) == 1
             assert barcodes_len.pop() == 0
+
+        d = RunDataset('test_dataset')
+        with patched_run(mocked_flowcell_idt), patched_barcodes(True):
+            run_elements = d._run_elements_from_lims()
+            assert len(set(r[c.ELEMENT_PROJECT_ID] for r in run_elements)) == 1
+            assert len(set(r[c.ELEMENT_SAMPLE_INTERNAL_ID] for r in run_elements)) == 1
+            barcodes_len = set(len(r[c.ELEMENT_BARCODE]) for r in run_elements)
+            assert len(barcodes_len) == 1
+            assert barcodes_len.pop() == 8
 
     @patch('builtins.open')
     def test_generate_samplesheet(self, mocked_open):
@@ -618,6 +639,8 @@ class TestMostRecentProc(TestAnalysisDriver):
     @patched_update
     def test_start(self, mocked_update, mocked_patch, mocked_now):
         self.proc.dataset.pipeline = NamedMock(real_name='some kind of variant calling')
+        self.proc.dataset.type = 'sample'
+        self.proc.dataset.genome_version = 'Tthi_1.0'
         with patched_pid:
             self.proc.start()
         mocked_update.assert_called_with(status=c.DATASET_PROCESSING, pid=1)
@@ -629,7 +652,8 @@ class TestMostRecentProc(TestAnalysisDriver):
                     'name': 'some kind of variant calling',
                     'toolset_type': 'some kind of toolset',
                     'toolset_version': 3
-                }
+                },
+                'genome_used': 'Tthi_1.0'
             },
             'proc_id',
             'a_proc_id'
