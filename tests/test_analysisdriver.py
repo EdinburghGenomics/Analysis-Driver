@@ -23,5 +23,5 @@ class TestAnalysisDriver(TestCase):
     def setUpClass(cls):
         cfg.load_config_file(etc_config('example_analysisdriver.yaml'))
         tool_versioning.toolset.versioning_cfg.load_config_file(join(cls.assets_path, 'tool_versioning.yaml'))
-        tool_versioning.toolset.select_type('fake_tools')
-        tool_versioning.toolset.select_version(0)
+        tool_versioning.toolset.configure('fake_tools', 0, None)
+        tool_versioning.toolset.update_versions_file = Mock()

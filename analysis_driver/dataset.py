@@ -210,8 +210,7 @@ class Dataset(AppLogger):
 
     def resolve_pipeline_and_toolset(self):
         instruction = self._pipeline_instruction()
-        toolset.select_type(instruction['toolset_type'])
-        toolset.select_version(instruction['toolset_version'])
+        toolset.configure(instruction['toolset_type'], instruction['toolset_version'])
         self.pipeline = pipeline_register[instruction['name']]
 
 
@@ -366,8 +365,23 @@ class RunDataset(Dataset):
                 if self.has_barcodes:
                     assert len(artifact.reagent_labels) == 1
                     reagent_label = artifact.reagent_labels[0]
-                    match = re.match('(\w{4})-(\w{4}) \(([ATCG]{8})-([ATCG]{8})\)', reagent_label)
-                    run_element[ELEMENT_BARCODE] = match.group(3)
+
+                    barcode = None
+                    for pattern in (
+                        # TruSeq label, e.g, A412-A208 (ATGCATGC-CTGACTGA)
+                        '(\w{4})-(\w{4}) \(([ATCG]{8})-([ATCG]{8})\)',
+                        # IDT label, e.g, 001A IDT-ILMN TruSeq DNA-RNA UD 96 Indexes Plate_UDI0001 (ATGCATGC-CTGACTGA)
+                        '(\w{4}) IDT-ILMN TruSeq DNA-RNA UD 96 Indexes (Plate_\w{7}) \(([ATGC]{8})-([ATGC]{8})\)'
+                    ):
+                        match = re.match(pattern, reagent_label)
+                        if match:
+                            barcode = match.group(3)
+
+                    if not barcode:
+                        raise AnalysisDriverError('Invalid reagent label found: %s' % reagent_label)
+
+                    run_element[ELEMENT_BARCODE] = barcode
+
                 run_elements.append(run_element)
         return run_elements
 
@@ -754,6 +768,9 @@ class MostRecentProc:
             }
             if self.get('status') != DATASET_RESUME:
                 payload['start_date'] = now()
+
+            if self.dataset.type == 'sample':
+                payload['genome_used'] = self.dataset.genome_version
 
             self.update_entity(status=DATASET_PROCESSING, pid=os.getpid())
             rest_communication.patch_entry('analysis_driver_procs', payload, 'proc_id', self.proc_id)

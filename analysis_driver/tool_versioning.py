@@ -1,5 +1,8 @@
 import yaml
 import subprocess
+from os.path import isfile
+from shutil import copyfile
+from multiprocessing import Lock
 from egcg_core.app_logging import AppLogger
 from analysis_driver.config import cfg, tool_versioning_cfg
 from analysis_driver.exceptions import AnalysisDriverError
@@ -12,24 +15,19 @@ class Toolset(AppLogger):
         self.versioning_cfg = tool_versioning_cfg
         self.version = None
         self.type = None
+        self.versions_file = None
+        self.lock = Lock()
 
     def latest_version(self, toolset_type):
         return max(self.versioning_cfg['toolsets'][toolset_type])
 
-    def select_type(self, toolset_type):
+    def configure(self, toolset_type, toolset_version, versions_file):
         self.type = toolset_type
+        self.version = toolset_version
+        self.versions_file = versions_file
 
-    def select_version(self, version):
-        if self.type is None:
-            raise AnalysisDriverError('Tried to select a toolset version with no type set')
-
-        self.version = version
         self.tools = {}
         self.tool_versions = {}
-
-        for k in cfg['tools']:
-            self.add_tool(k)
-
         self.info('Selected %s toolset version %s', self.type, self.version)
 
     @property
@@ -40,11 +38,14 @@ class Toolset(AppLogger):
         if toolname in self.versioning_cfg['toolsets'][self.type][self.version]:
             self.tools[toolname] = self.add_versioned_tool(toolname)
         else:
-            config = cfg['tools'][toolname]
-            if isinstance(config, list):
-                config = sorted(config)[-1]
+            executable = cfg['tools'].get(toolname)
+            if not executable:
+                raise AnalysisDriverError('Referenced tool %s not present in config' % toolname)
 
-            self.tools[toolname] = config
+            if isinstance(executable, list):
+                executable = sorted(executable)[-1]
+
+            self.tools[toolname] = executable
 
     def add_versioned_tool(self, toolname):
         """
@@ -52,9 +53,6 @@ class Toolset(AppLogger):
         in cfg['tools'].
         :param str toolname:
         """
-        if toolname in self.tools:
-            self.debug('Tried to add %s - already added')
-            return self.tools[toolname]
 
         version = self.resolve(toolname, 'version')
         version_cmd = self.resolve(toolname, 'version_cmd')
@@ -62,15 +60,16 @@ class Toolset(AppLogger):
         if dependency:
             self.add_tool(dependency)
 
-        config = cfg['tools'][toolname]
-        if type(config) is str:
-            config = [config]
+        executables = cfg['tools'][toolname]
+        if type(executables) is str:
+            executables = [executables]
 
-        for c in config:
-            if self.check_version(toolname, c, version, version_cmd, self.tools.get(dependency)):
+        for e in executables:
+            if self.check_version(toolname, e, version, version_cmd, self.tools.get(dependency)):
                 self.tool_versions[toolname] = version
-                self.debug('Resolved %s version %s: %s', toolname, version, c)
-                return c
+                self.update_versions_file(toolname, version)
+                self.debug('Resolved %s version %s: %s', toolname, version, e)
+                return e
 
         raise AnalysisDriverError('Could not find version %s for %s' % (version, toolname))
 
@@ -112,8 +111,20 @@ class Toolset(AppLogger):
             return self.resolve(toolname, val, toolset_version - 1)
 
     def write_to_yaml(self, file_path):
-        with open(file_path, 'w') as f:
-            f.write(yaml.safe_dump(self.tool_versions, default_flow_style=False))
+        copyfile(self.versions_file, file_path)
+
+    def update_versions_file(self, toolname, version):
+        with self.lock:
+            if isfile(self.versions_file):
+                with open(self.versions_file, 'r') as f:
+                    tool_versions = yaml.safe_load(f)
+            else:
+                tool_versions = {}
+
+            tool_versions[toolname] = version
+
+            with open(self.versions_file, 'w') as f:
+                f.write(yaml.safe_dump(tool_versions, default_flow_style=False))
 
     @staticmethod
     def _get_stdout(cmd):
@@ -122,6 +133,9 @@ class Toolset(AppLogger):
         return stdout.strip().decode('utf-8')
 
     def __getitem__(self, item):
+        if item not in self.tools:
+            self.add_tool(item)
+
         return self.tools[item]
 
 
