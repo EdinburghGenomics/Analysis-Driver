@@ -121,3 +121,6 @@ default:
         local_scheduler: True
 
     genomes_dir: path/to/genomes_dir/
+
+    delivery:
+        dest: tests/assets/delivered_data

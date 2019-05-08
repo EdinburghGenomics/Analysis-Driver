@@ -215,7 +215,7 @@ class DragenOutput(RapidStage):
             lane=lane
         )
 
-        # TODO: implement generic MD5Sum stage
+        # TODO: #274 - implement generic MD5Sum stage
         self.dataset.start_stage('md5sum')
         md5sum_exit_status = executor.execute(
             *[

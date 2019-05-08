@@ -354,7 +354,7 @@ class RunDataset(Dataset):
         if self._rapid_samples_by_lane is None:
             self._rapid_samples_by_lane = {}
 
-            # TODO: move away from using the Lims API
+            # TODO: #394 - move away from using the Lims API
             flowcell = set(self.lims_run.parent_processes()).pop().output_containers()[0]
             for lane, artifact in flowcell.placements.items():
                 if len(artifact.reagent_labels) > 1:
