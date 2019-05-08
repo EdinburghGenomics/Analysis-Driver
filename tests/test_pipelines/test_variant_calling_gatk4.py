@@ -592,11 +592,11 @@ class TestSNPsFiltration(TestGATK4):
         with patch_executor as e:
             stage._run()
             exp_cmd = 'path/to/gatk --java-options "-Djava.io.tmpdir=%s -XX:+UseSerialGC -Xmx2G" VariantFiltration ' \
-                      '--output tests/assets/jobs/test_dataset/gatk4/test_user_sample_id_hard_snps.vcf.gz  ' \
+                      '--output tests/assets/jobs/test_dataset/gatk4/test_user_sample_id_hard_filter_snps.vcf.gz  ' \
                       '--reference %s ' \
                       '-V tests/assets/jobs/test_dataset/gatk4/test_user_sample_id_raw_snp.vcf ' \
-                      '--filter-expression \'QD < 2.0 || FS > 60.0 || MQ < 40.0 || MQRankSum < -12.5 || ReadPosRankSum < -8.0 || SOR > 3.0\' ' \
-                      '--filter-name \'SNP_HARD_FILTER\''
+                      '--filter-expression \'QD < 2.0 || FS > 60.0 || MQ < 40.0 || MQRankSum < -12.5 || ' \
+                      'ReadPosRankSum < -8.0 || SOR > 3.0\' --filter-name \'SNP_HARD_FILTER\''
             e.assert_called_with(exp_cmd % (stage.dir_to_delete[0], self.dataset.reference_genome),
                                  job_name='snps_filtration', mem=8,
                                  working_dir='tests/assets/jobs/test_dataset/slurm_and_logs')

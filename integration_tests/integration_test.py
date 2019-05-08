@@ -515,10 +515,13 @@ class IntegrationTest(ReportingAppIntegrationTest):
             base_dir=os.path.join(cfg['sample']['output_dir'], self.project_id, self.sample_id)
         )
 
-        self.expect_stage_data(['mergefastqs', 'fastqscreen', 'blast', 'fastqindex', 'splitbwa', 'mergebamanddup',
-                                'samtoolsstats', 'samtoolsdepth', 'splithaplotypecaller', 'gathervcf', 'selectsnps',
-                                'selectindels', 'snpsfiltration', 'indelsfiltration', 'mergevariants', 'vcfstats',
-                                'sampledataoutput', 'md5sum', 'samplereview', 'cleanup'])
+        self.expect_stage_data([
+            'gathervcfvc','scatterbaserecalibrator','samplereview','vcfstats','indelsfiltration','md5sum',
+             'selectindels','cleanup','splitgenotypegvcfs','fastqindex','gatherrecalbam',
+             'merge_variants_hard_filter','verifybamid','samtoolsstats','gatherbqsrreport',
+             'gathergvcf','splithaplotypecallervc','fastqscreen','selectsnps','snpsfiltration','splitbwa',
+             'blast','scatterapplybqsr','mergefastqs','samtoolsdepth','sampledataoutput','mergebamanddup'
+        ])
 
         self.expect_equal(
             rest_communication.get_document('analysis_driver_procs')['pipeline_used'],
