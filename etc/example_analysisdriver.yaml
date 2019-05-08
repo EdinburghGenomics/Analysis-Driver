@@ -110,14 +110,6 @@ default:
       genome_version:
         fasta: path/to/genome.fa
         dbsnp: path/to/dbsnp.vcf.gz
-        known_indels: path/to/known/indels
-        snpEff: snpEffdb
-        vqsr:
-          hapmap:           path/to/hapmap_annotation
-          omni:             path/to/omni_annotation
-          thousand_genomes: path/to/1000g_annotation
-          dbsnp:            path/to/dbsnp_annotation
-          mills:            path/to/mills_annotation
       phix174:
         fasta: path/to/phix.fa
 

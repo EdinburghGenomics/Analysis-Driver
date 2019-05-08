@@ -21,13 +21,12 @@ class PostAlignmentScatterVC(PostAlignmentScatter):
 
     def split_genome_chromosomes(self, with_unmapped=False):
         """
-        Split the genome per chromosomes aggregating smaller chromosomes to similar length as the longuest chromsome
+        Split the genome per chromosomes aggregating smaller chromosomes to similar length as the longest chromosome
         Code inspired from GATK best practice workflow:
         https://github.com/gatk-workflows/broad-prod-wgs-germline-snps-indels/blob/190945e358a6ee7a8c65bacd7b28c66527383376/PairedEndSingleSampleWf.wdl#L969
 
         :return: list of list of chromosome names
         """
-        os.makedirs(self.split_file_dir, exist_ok=True)
         fai_file = self.dataset.reference_genome + '.fai'
         with open(fai_file) as open_file:
             sequence_tuple_list = []

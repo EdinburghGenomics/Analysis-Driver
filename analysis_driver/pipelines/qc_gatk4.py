@@ -288,7 +288,7 @@ class SplitBWA(SplitFastqStage):
 class MergeBamAndDup(SplitFastqStage):
     """Merge bam file generated in bwa mem and defined in SplitFastqStage."""
 
-    def all_chunk_bam_list_file(self):
+    def all_bam_chunks_file(self):
         all_chunk_bams = []
         for run_element in self.dataset.run_elements:
             if int(run_element.get(ELEMENT_NB_READS_CLEANED, 0)) > 0:
@@ -304,7 +304,7 @@ class MergeBamAndDup(SplitFastqStage):
         cat_cmd = '{bamcat} level=0 tmpfile={cat_tmp} `cat {bam_list_file}`'.format(
             bamcat=toolset['bamcat'],
             cat_tmp=os.path.join(self.create_tmp_dir(), self.dataset.name),
-            bam_list_file=self.all_chunk_bam_list_file()
+            bam_list_file=self.all_bam_chunks_file()
         )
         bamsormadup_cmd = '{bamsormadup} threads=16 tmpfile={dup_tmp} indexfilename={merged_bam}.bai > ' \
                           '{merged_bam}'.format(
@@ -384,7 +384,6 @@ class PostAlignmentScatter(GATK4Stage):
         This function create the bed file representing all the chunks of genomes required.
         It also create a dictionary where keys are the first chunk of each bed file and values are the file path.
         """
-        os.makedirs(self.split_file_dir, exist_ok=True)
         chunk_to_file = {}
         for chunks in self.split_genome_in_chunks():
             chunk_file = os.path.join(self.split_file_dir, self.dataset.name + '_region_%s-%s-%s.bed' % chunks[0])
@@ -399,6 +398,7 @@ class PostAlignmentScatter(GATK4Stage):
         """
         Split a genome in chunks of a specific size or at the end of chromosome and the aggregate the small chunks to
         roughly match the other chunk size.
+        :return: list of list
         """
         fai_file = self.dataset.reference_genome + '.fai'
         chunk_size = 20000000
@@ -407,12 +407,11 @@ class PostAlignmentScatter(GATK4Stage):
             chunks = []
             for line in open_file:
                 sp_line = line.strip().split()
-                chromosome = sp_line[0]
                 length = int(sp_line[1])
                 last = 0
                 for chunki in range(length // chunk_size + min(1, length % chunk_size)):
                     new = last + chunk_size
-                    chunks.append((chromosome, last, min(new, length)))
+                    chunks.append((sp_line[0], last, min(new, length)))
                     last = new
         # merge small consecutive chunks together with an upper limit set by max_nb_contig_per_chunk
         final_chunks = []
