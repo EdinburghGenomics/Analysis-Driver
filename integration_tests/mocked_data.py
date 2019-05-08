@@ -22,7 +22,7 @@ mocked_lane_artifact_pool = NamedMock(
                  samples=[MockedSample(real_name='10015AT0002', id='LP6002014-DTP_A02')]),
             Mock(reagent_labels=['D703-D502 (CGCTCATT-ATAGAGGC)'],
                  samples=[MockedSample(real_name='10015AT0003', id='LP6002014-DTP_A03')]),
-            Mock(reagent_labels=['D704-D502 (GAGATTCC-ATAGAGGC)'],
+            Mock(reagent_labels=['001A IDT-ILMN TruSeq DNA-RNA UD 96 Indexes Plate_UDI0001 (GAGATTCC-ATAGAGGC)'],
                  samples=[MockedSample(real_name='10015AT0004', id='LP6002014-DTP_A04')]),
             Mock(reagent_labels=['D705-D502 (ATTCAGAA-ATAGAGGC)'],
                  samples=[MockedSample(real_name='10015AT0006', id='LP6002014-DTP_A05')]),

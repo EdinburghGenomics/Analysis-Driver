@@ -1,7 +1,7 @@
 import os
 from analysis_driver import quality_control as qc
 from luigi import Parameter
-from egcg_core import executor
+from egcg_core import executor, rest_communication
 from analysis_driver import segmentation
 from analysis_driver.pipelines import common
 from analysis_driver.config import default as cfg
@@ -84,14 +84,13 @@ class GATKStage(segmentation.Stage):
 
     @property
     def dbsnp(self):
-        dbsnp = cfg.query('genomes', self.dataset.genome_version, 'dbsnp')
-        if not dbsnp and self.dataset.pipeline.name == 'variant_calling':
-            raise AnalysisDriverError('Could not find dbsnp file for %s' % self.dataset.name)
+        dbsnp = None
+        try:
+            dbsnp = self.dataset.genome_dict['data_files']['variation']
+        except KeyError:
+            if self.dataset.pipeline.name == 'variant_calling':
+                raise AnalysisDriverError('Could not find dbsnp file for %s' % self.dataset.name)
         return dbsnp
-
-    @property
-    def known_indels(self):
-        return cfg.query('genomes', self.dataset.genome_version, 'known_indels')
 
 
 class BaseRecal(GATKStage):
@@ -129,13 +128,11 @@ class RealignTarget(GATKStage):
             input_bam=self.recal_bam, xmx=32, nct=1, nt=1
         )
 
-        if self.known_indels:
-            realign_target_cmd += ' --known ' + self.known_indels
-
         return executor.execute(
             realign_target_cmd,
             job_name='gatk_realign_target',
             working_dir=self.gatk_run_dir,
+            cpus=1,
             mem=32
         ).join()
 
@@ -151,12 +148,11 @@ class Realign(GATKStage):
             nt=1,
             ext=' -targetIntervals ' + self.output_intervals
         )
-        if self.known_indels:
-            realign_cmd += ' --knownAlleles ' + self.known_indels
         return executor.execute(
             realign_cmd,
             job_name='gatk_indel_realign',
             working_dir=self.gatk_run_dir,
+            cpus=1,
             mem=32
         ).join()
 
@@ -200,6 +196,7 @@ class GenotypeGVCFs(GATKStage):
             genotype_gvcfs_cmd,
             job_name='gatk_genotype_gvcfs',
             working_dir=self.gatk_run_dir,
+            cpus=1,
             mem=16
         ).join()
 
@@ -215,6 +212,7 @@ class SelectVariants(GATKStage):
             select_var_command,
             job_name='var_filtration',
             working_dir=self.gatk_run_dir,
+            cpus=1,
             mem=16
         ).join()
         return select_variants_status + bgzip_and_tabix(self.gatk_run_dir, self.raw_snp_vcf)
@@ -238,6 +236,7 @@ class VariantFiltration(GATKStage):
             var_filter_command,
             job_name='var_filtration',
             working_dir=self.gatk_run_dir,
+            cpus=1,
             mem=16
         ).join()
         return variant_filter_status + bgzip_and_tabix(self.gatk_run_dir, self.filter_snp_vcf)

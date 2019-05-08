@@ -107,11 +107,10 @@ default:
 
     genomes:
         genome_version:
-            fasta: /path/to/genome.fa
-            dbsnp: /path/to/dbsnp.vcf.gz
-            known_indels: /path/to/known/indels
+            fasta: path/to/genome.fa
+            dbsnp: path/to/dbsnp.vcf.gz
         phix174:
-            fasta: /path/to/phix.fa
+            fasta: path/to/phix.fa
 
     clarity:
         baseuri: 'https://clarity.co.uk'
@@ -121,5 +120,4 @@ default:
     luigi:
         local_scheduler: True
 
-delivery:
-    dest: tests/assets/delivered_data
+    genomes_dir: path/to/genomes_dir/

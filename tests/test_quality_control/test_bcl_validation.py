@@ -86,3 +86,13 @@ class TestBCLValidator(TestAnalysisDriver):
             self.val.check_bcls()
             assert mocked_check_bcls.called is True
             assert mocked_check_bcls.call_count == 3
+
+    @patch('analysis_driver.quality_control.interop_metrics.get_last_cycles_with_existing_bcls')
+    def test_last_cycle_complete_true(self, mocked_cycles):
+        mocked_cycles.return_value = 3  # 3 completed cycles
+        assert self.val.last_cycle_complete() is True
+
+    @patch('analysis_driver.quality_control.interop_metrics.get_last_cycles_with_existing_bcls')
+    def test_last_cycle_complete_false(self, mocked_cycles):
+        mocked_cycles.return_value = 2  # 2 completed cycles
+        assert self.val.last_cycle_complete() is False

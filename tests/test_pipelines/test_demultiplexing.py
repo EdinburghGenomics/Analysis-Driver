@@ -24,14 +24,28 @@ class TestPhixDetection(TestAnalysisDriver):
         fake_fastq_pairs = [
             [('L1_R1_001.fastq.gz', 'L1_R2_001.fastq.gz')], [('L2_R1_001.fastq.gz', 'L2_R2_001.fastq.gz')]
         ]
+        fake_genome_response = {
+            "_updated": "30_11_2018_15:13:43",
+            "assembly_name": "phix174",
+            "analyses_supported": ["qc"],
+            "data_source": "",
+            "_links": {"self": {"title": "genome", "href": "genomes/phix174"}},
+            "_etag": "175b41e3909a93a8298ac1d5d4dfc7292df4b580",
+            "data_files": {"fasta": "path/to/phix.fa"},
+            "_created": "30_11_2018_15:13:43",
+            "species": "PhiX",
+            "genome_size": 5386,
+            "_id": "5c0153a716a5772f9e9cfdcc"
+        }
         patch_run_crawler = patch('analysis_driver.pipelines.demultiplexing.RunCrawler', autospec=True)
         patch_find = patch('egcg_core.util.find_all_fastq_pairs', side_effect=fake_fastq_pairs)
-
-        with patch_find, patch_executor as pexecute, patch_run_crawler as prun_crawler:
+        patch_get_document = patch('egcg_core.rest_communication.get_document',
+                                   return_value=fake_genome_response)
+        with patch_find, patch_executor as pexecute, patch_run_crawler as prun_crawler, patch_get_document:
             assert f._run() == 0
 
             assert pexecute.call_args[0][0] == (
-                'set -o pipefail; path/to/bwa_1.1 mem -t 16 /path/to/phix.fa L1_R1_001.fastq.gz | '
+                'set -o pipefail; path/to/bwa_1.1 mem -t 16 path/to/genomes_dir/path/to/phix.fa L1_R1_001.fastq.gz | '
                 'path/to/samtools_1.3.1 view -F 4 | cut -f 1 | sort -u > L1_phix_read_name.list'
             )
             prun_crawler.assert_called_with(
