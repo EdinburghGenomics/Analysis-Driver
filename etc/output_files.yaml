@@ -241,25 +241,25 @@ gatk4_human_var_calling:
         location: ['gatk4']
         basename: '{user_sample_id}.g.vcf.gz.tbi'
 
-#    vcf:
-#        location: ['gatk4']
-#        basename: '{user_sample_id}_vqsr.vcf.gz'
-#        new_name: '{user_sample_id}.vcf.gz'
-#
-#    vcf_tbi:
-#        location: ['gatk4']
-#        basename: '{user_sample_id}_vqsr.vcf.gz.tbi'
-#        new_name: '{user_sample_id}.vcf.gz.tbi'
+    vcf:
+        location: ['gatk4']
+        basename: '{user_sample_id}_vqsr.vcf.gz'
+        new_name: '{user_sample_id}.vcf.gz'
+
+    vcf_tbi:
+        location: ['gatk4']
+        basename: '{user_sample_id}_vqsr.vcf.gz.tbi'
+        new_name: '{user_sample_id}.vcf.gz.tbi'
 
     vcf2:
         location: ['gatk4']
         basename: '{user_sample_id}_hard_filter.vcf.gz'
-        new_name: '{user_sample_id}.vcf.gz'
+#        new_name: '{user_sample_id}.vcf.gz'
 
     vcf2_tbi:
         location: ['gatk4']
         basename: '{user_sample_id}_hard_filter.vcf.gz.tbi'
-        new_name: '{user_sample_id}.vcf.gz.tbi'
+#        new_name: '{user_sample_id}.vcf.gz.tbi'
 
     bam:
         location: ['gatk4']
@@ -303,14 +303,14 @@ gatk4_human_var_calling:
 
     gender_call:
         location: ['gatk4']
-        basename: '{user_sample_id}_hard_filter.sex'
-#        basename: '{user_sample_id}_vqsr.sex'
+#        basename: '{user_sample_id}_hard_filter.sex'
+        basename: '{user_sample_id}_vqsr.sex'
         new_name: '{user_sample_id}.sex'
 
     vcf_stats:
         location: ['gatk4']
-        basename: '{user_sample_id}_hard_filter.vcf.stats'
-#        basename: '{user_sample_id}_vqsr.vcf.stats'
+#        basename: '{user_sample_id}_hard_filter.vcf.stats'
+        basename: '{user_sample_id}_vqsr.vcf.stats'
         new_name: '{user_sample_id}.vcf.stats'
 
 gatk4_var_calling:
