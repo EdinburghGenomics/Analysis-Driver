@@ -494,7 +494,7 @@ class TestVQSRFiltrationSNPs(TestGATK4):
                       '--resource:omni,known=false,training=true,truth=false,prior=12.0 path/to/omni_annotation ' \
                       '--resource:1000G,known=false,training=true,truth=false,prior=10.0 path/to/1000g_annotation ' \
                       '--resource:dbsnp,known=true,training=false,truth=false,prior=2.0 path/to/dbsnp_annotation ' \
-                      '--max-gaussians 6 -tranche 100.0 -tranche 99.99 -tranche 99.98 -tranche 99.97 -tranche 99.96 ' \
+                      '--max-gaussians 4 -tranche 100.0 -tranche 99.99 -tranche 99.98 -tranche 99.97 -tranche 99.96 ' \
                       '-tranche 99.95 -tranche 99.94 -tranche 99.93 -tranche 99.92 -tranche 99.91 -tranche 99.9 ' \
                       '-tranche 99.8 -tranche 99.7 -tranche 99.6 -tranche 99.5 -tranche 99.0 -tranche 98.0 ' \
                       '-tranche 90.0 -an QD -an MQ -an MQRankSum -an ReadPosRankSum -an FS -an SOR -mode SNP ' \
@@ -515,7 +515,7 @@ class TestVQSRFiltrationIndels(TestGATK4):
                       '--reference %s -V input_file.vcf.gz ' \
                       '--resource:mills,known=false,training=true,truth=true,prior=12.0 path/to/mills_annotation ' \
                       '--resource:dbsnp,known=true,training=false,truth=false,prior=2.0 path/to/dbsnp_annotation ' \
-                      '--max-gaussians 6 -tranche 100.0 -tranche 99.99 -tranche 99.98 -tranche 99.97 -tranche 99.96 ' \
+                      '--max-gaussians 4 -tranche 100.0 -tranche 99.99 -tranche 99.98 -tranche 99.97 -tranche 99.96 ' \
                       '-tranche 99.95 -tranche 99.94 -tranche 99.93 -tranche 99.92 -tranche 99.91 -tranche 99.9 ' \
                       '-tranche 99.8 -tranche 99.7 -tranche 99.6 -tranche 99.5 -tranche 99.0 -tranche 98.0 ' \
                       '-tranche 90.0 -an QD -an MQRankSum -an ReadPosRankSum -an FS -an SOR -an DP -mode INDEL ' \
