@@ -108,10 +108,6 @@ class GATK4FilePath(segmentation.Stage):
         return self.gatk4_basename + '_vqsr_snps.R'
 
     @property
-    def vqsr_filtered_snps_vcf(self):
-        return self.gatk4_basename + '_vqsr_snps.vcf.gz'
-
-    @property
     def vqsr_indels_output_recall(self):
         return self.gatk4_basename + '_vqsr_indels_recall.vcf.gz'
 

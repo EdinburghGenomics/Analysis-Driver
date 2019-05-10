@@ -189,8 +189,7 @@ class TestDataset(TestAnalysisDriver):
         )
         with patch(ppath + 'toolset') as mocked_toolset:
             self.dataset.resolve_pipeline_and_toolset()
-
-        mocked_toolset.configure.assert_called_with('a_toolset', 3)
+        mocked_toolset.configure.assert_called_with('a_toolset', 3, 'tests/assets/jobs/test_dataset/tool_version.yaml')
         assert self.dataset.pipeline.name == 'qc'
 
     @patch(ppath + 'toolset', new=Toolset())
@@ -201,6 +200,7 @@ class TestDataset(TestAnalysisDriver):
             'toolset_type': 'non_human_sample_processing',
             'toolset_version': 1  # as per tests/assets/tool_versioning.yaml
         }
+
 
 mocked_lane_user_prep_artifact1 = NamedMock(real_name='art1', reagent_labels=[], samples=[MockedSample(real_name='sample1')])
 mocked_lane_user_prep_artifact2 = NamedMock(real_name='art2', reagent_labels=[], samples=[MockedSample(real_name='sample2')])

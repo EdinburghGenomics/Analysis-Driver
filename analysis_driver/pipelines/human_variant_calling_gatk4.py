@@ -16,7 +16,7 @@ name = 'human_variant_calling_gatk4'
 
 
 class VQSRFiltrationSNPs(GATK4Stage):
-    """Run VariantRecalibrator on SNPs to create the error model."""
+    """Run VariantRecalibrator on SNPs to create the truth and error models."""
 
     input_vcf = Parameter()
 
@@ -31,7 +31,7 @@ class VQSRFiltrationSNPs(GATK4Stage):
                 '--resource:omni,known=false,training=true,truth=false,prior=12.0 {omni} '
                 '--resource:1000G,known=false,training=true,truth=false,prior=10.0 {thousand_genomes} '
                 '--resource:dbsnp,known=true,training=false,truth=false,prior=2.0 {dbsnp} '
-                '--max-gaussians 4 -tranche 100.0 -tranche 99.99 -tranche 99.98 -tranche 99.97 -tranche 99.96 '
+                '--max-gaussians 6 -tranche 100.0 -tranche 99.99 -tranche 99.98 -tranche 99.97 -tranche 99.96 '
                 '-tranche 99.95 -tranche 99.94 -tranche 99.93 -tranche 99.92 -tranche 99.91 -tranche 99.9 '
                 '-tranche 99.8 -tranche 99.7 -tranche 99.6 -tranche 99.5 -tranche 99.0 -tranche 98.0 -tranche 90.0 '
                 '-an QD -an MQ -an MQRankSum -an ReadPosRankSum -an FS -an SOR -mode SNP '
@@ -55,7 +55,7 @@ class VQSRFiltrationSNPs(GATK4Stage):
 
 
 class VQSRFiltrationIndels(GATK4Stage):
-    """Run VariantRecalibrator on Indels to create the error model."""
+    """Run VariantRecalibrator on Indels to create the truth and error models."""
 
     input_vcf = Parameter()
 
@@ -68,7 +68,7 @@ class VQSRFiltrationIndels(GATK4Stage):
             ext='-V {input_vcf} '
                 '--resource:mills,known=false,training=true,truth=true,prior=12.0 {mills} '
                 '--resource:dbsnp,known=true,training=false,truth=false,prior=2.0 {dbsnp} '
-                '--max-gaussians 4 -tranche 100.0 -tranche 99.99 -tranche 99.98 -tranche 99.97 -tranche 99.96 '
+                '--max-gaussians 6 -tranche 100.0 -tranche 99.99 -tranche 99.98 -tranche 99.97 -tranche 99.96 '
                 '-tranche 99.95 -tranche 99.94 -tranche 99.93 -tranche 99.92 -tranche 99.91 -tranche 99.9 '
                 '-tranche 99.8 -tranche 99.7 -tranche 99.6 -tranche 99.5 -tranche 99.0 -tranche 98.0 -tranche 90.0 '
                 '-an QD -an MQRankSum -an ReadPosRankSum -an FS -an SOR -an DP -mode INDEL '
@@ -89,56 +89,54 @@ class VQSRFiltrationIndels(GATK4Stage):
         ).join()
 
 
-class ApplyVQSRSNPs(GATK4Stage):
-    """Apply error models to the SNPs."""
+class ApplyVQSR(GATK4Stage):
+    """Apply truth and error models to the SNPs and INDELs"""
 
     input_vcf = Parameter()
 
     def _run(self):
-        cmd = self.gatk_cmd(
-            'ApplyVQSR',
-            self.vqsr_filtered_snps_vcf,
-            memory=16,
-            ext='-V {input_vcf} -mode SNP --tranches-file {ouput_tranches} --truth-sensitivity-filter-level 99.0 '
-                '--recal-file {recal_file}'.format(
-                input_vcf=self.input_vcf,
-                ouput_tranches=self.vqsr_snps_tranches,
-                recal_file=self.vqsr_snps_output_recall
-            )
-        )
-        return executor.execute(
-            cmd,
-            job_name='apply_vqsr_snps',
-            working_dir=self.exec_dir,
-            cpus=1,
-            mem=16
-        ).join()
 
-
-class ApplyVQSRIndels(GATK4Stage):
-    """Apply error models to the Indels."""
-
-    input_vcf = Parameter()
-
-    def _run(self):
+        # Recalibrate the indels first
         cmd = self.gatk_cmd(
             'ApplyVQSR',
             self.vqsr_filtered_indels_vcf,
             memory=8,
             ext='-V {input_vcf} -mode INDEL --tranches-file {ouput_tranches} --truth-sensitivity-filter-level 99.0 '
                 '--recal-file {recal_file}'.format(
-                    input_vcf=self.input_vcf,
-                    ouput_tranches=self.vqsr_indels_tranches,
-                    recal_file=self.vqsr_indels_output_recall
-                )
+                input_vcf=self.input_vcf,
+                ouput_tranches=self.vqsr_indels_tranches,
+                recal_file=self.vqsr_indels_output_recall
+            )
         )
-        return executor.execute(
+        recal_status = executor.execute(
             cmd,
             job_name='apply_vqsr_indels',
             working_dir=self.exec_dir,
             cpus=1,
             mem=16
         ).join()
+        if recal_status == 0 :
+            # Then recalibrate the SNPs
+            cmd = self.gatk_cmd(
+                'ApplyVQSR',
+                self.vqsr_filtered_vcf,
+                memory=16,
+                ext='-V {input_vcf} -mode SNP --tranches-file {ouput_tranches} --truth-sensitivity-filter-level 99.0 '
+                    '--recal-file {recal_file}'.format(
+                    input_vcf=self.vqsr_filtered_indels_vcf,
+                    ouput_tranches=self.vqsr_snps_tranches,
+                    recal_file=self.vqsr_snps_output_recall
+                )
+            )
+            recal_status = executor.execute(
+                cmd,
+                job_name='apply_vqsr_snps',
+                working_dir=self.exec_dir,
+                cpus=1,
+                mem=16
+            ).join()
+
+        return recal_status
 
 
 def build_pipeline(dataset):
@@ -183,9 +181,8 @@ def build_pipeline(dataset):
 
     # variant filtering with VQSR
     filter_snps = stage(VQSRFiltrationSNPs, input_vcf=variant_file, previous_stages=steps_required)
-    apply_vqsr_snps = stage(ApplyVQSRSNPs, input_vcf=variant_file, previous_stages=[filter_snps])
     filter_indels = stage(VQSRFiltrationIndels, input_vcf=variant_file, previous_stages=steps_required)
-    apply_vqsr_indels = stage(ApplyVQSRIndels, input_vcf=variant_file, previous_stages=[filter_indels])
+    apply_vqsr = stage(ApplyVQSR, input_vcf=variant_file, previous_stages=[filter_indels, filter_snps])
 
     # variant filtering with Hard Filters
     select_snps = stage(SelectSNPs, input_vcf=variant_file, previous_stages=steps_required)
@@ -199,16 +196,9 @@ def build_pipeline(dataset):
                      output_vcf_file=hard_filter_indels.hard_filtered_vcf,
                      previous_stages=[hard_filter_snps, hard_filter_indels])
 
-    # # VQSR variant merge
-    merge_vqsr = stage(MergeVariants, stage_name='merge_variants_vqsr',
-                       vcf_files=[filter_snps.vqsr_filtered_snps_vcf, filter_indels.vqsr_filtered_indels_vcf],
-                       output_vcf_file=filter_indels.vqsr_filtered_vcf,
-                       previous_stages=[apply_vqsr_snps, apply_vqsr_indels])
+    gender_val = stage(qc.GenderValidation, vcf_file=apply_vqsr.vqsr_filtered_vcf, previous_stages=[apply_vqsr])
 
-    #
-    gender_val = stage(qc.GenderValidation, vcf_file=merge_hf.vqsr_filtered_vcf, previous_stages=[merge_vqsr])
-
-    vcfstats = stage(qc.VCFStats, vcf_file=merge_hf.vqsr_filtered_vcf, previous_stages=[merge_vqsr])
+    vcfstats = stage(qc.VCFStats, vcf_file=merge_hf.vqsr_filtered_vcf, previous_stages=[apply_vqsr])
 
     final_stages = [contam, blast, geno_val, gender_val, vcfstats, verify_bam_id, samtools_depth, samtools_stat,
                     gather_gcvf, merge_hf]

@@ -9,7 +9,7 @@ from egcg_core.constants import ELEMENT_LANE, ELEMENT_NB_READS_CLEANED, ELEMENT_
 
 from analysis_driver.exceptions import AnalysisDriverError
 from analysis_driver.pipelines.human_variant_calling_gatk4 import VQSRFiltrationSNPs, VQSRFiltrationIndels, \
-    ApplyVQSRSNPs, ApplyVQSRIndels
+    ApplyVQSR
 from analysis_driver.pipelines.qc_gatk4 import SplitBWA, SplitHaplotypeCaller, SplitFastqStage, FastqIndex, \
     MergeBamAndDup, PostAlignmentScatter, GatherVCF, MergeVariants, SelectSNPs, SelectIndels, IndelsFiltration, \
     SNPsFiltration, GATK4FilePath
@@ -494,7 +494,7 @@ class TestVQSRFiltrationSNPs(TestGATK4):
                       '--resource:omni,known=false,training=true,truth=false,prior=12.0 path/to/omni_annotation ' \
                       '--resource:1000G,known=false,training=true,truth=false,prior=10.0 path/to/1000g_annotation ' \
                       '--resource:dbsnp,known=true,training=false,truth=false,prior=2.0 path/to/dbsnp_annotation ' \
-                      '--max-gaussians 4 -tranche 100.0 -tranche 99.99 -tranche 99.98 -tranche 99.97 -tranche 99.96 ' \
+                      '--max-gaussians 6 -tranche 100.0 -tranche 99.99 -tranche 99.98 -tranche 99.97 -tranche 99.96 ' \
                       '-tranche 99.95 -tranche 99.94 -tranche 99.93 -tranche 99.92 -tranche 99.91 -tranche 99.9 ' \
                       '-tranche 99.8 -tranche 99.7 -tranche 99.6 -tranche 99.5 -tranche 99.0 -tranche 98.0 ' \
                       '-tranche 90.0 -an QD -an MQ -an MQRankSum -an ReadPosRankSum -an FS -an SOR -mode SNP ' \
@@ -515,7 +515,7 @@ class TestVQSRFiltrationIndels(TestGATK4):
                       '--reference %s -V input_file.vcf.gz ' \
                       '--resource:mills,known=false,training=true,truth=true,prior=12.0 path/to/mills_annotation ' \
                       '--resource:dbsnp,known=true,training=false,truth=false,prior=2.0 path/to/dbsnp_annotation ' \
-                      '--max-gaussians 4 -tranche 100.0 -tranche 99.99 -tranche 99.98 -tranche 99.97 -tranche 99.96 ' \
+                      '--max-gaussians 6 -tranche 100.0 -tranche 99.99 -tranche 99.98 -tranche 99.97 -tranche 99.96 ' \
                       '-tranche 99.95 -tranche 99.94 -tranche 99.93 -tranche 99.92 -tranche 99.91 -tranche 99.9 ' \
                       '-tranche 99.8 -tranche 99.7 -tranche 99.6 -tranche 99.5 -tranche 99.0 -tranche 98.0 ' \
                       '-tranche 90.0 -an QD -an MQRankSum -an ReadPosRankSum -an FS -an SOR -an DP -mode INDEL ' \
@@ -526,36 +526,37 @@ class TestVQSRFiltrationIndels(TestGATK4):
                                  working_dir='tests/assets/jobs/test_dataset/slurm_and_logs')
 
 
-class TestApplyVQSRSNPs(TestGATK4):
+class TestApplyVQSR(TestGATK4):
     def test_run(self):
-        stage = ApplyVQSRSNPs(dataset=self.dataset, input_vcf='input_file.vcf.gz')
+        stage = ApplyVQSR(dataset=self.dataset, input_vcf='input_file.vcf.gz')
         with patch_executor as e:
+            e.return_value = Mock(join=Mock(return_value=0))
             stage._run()
+
+            indel_cmd = 'path/to/gatk --java-options "-Djava.io.tmpdir=%s -XX:+UseSerialGC -Xmx8G" ApplyVQSR ' \
+                        '--output tests/assets/jobs/test_dataset/gatk4/test_user_sample_id_vqsr_indels.vcf.gz  ' \
+                        '--reference %s -V input_file.vcf.gz -mode INDEL ' \
+                        '--tranches-file tests/assets/jobs/test_dataset/gatk4/test_user_sample_id_vqsr_indels_tranches ' \
+                        '--truth-sensitivity-filter-level 99.0 ' \
+                        '--recal-file tests/assets/jobs/test_dataset/gatk4/test_user_sample_id_vqsr_indels_recall.vcf.gz'
+            e.assert_any_call(
+                indel_cmd % (stage.dir_to_delete[0], self.dataset.reference_genome), cpus=1,
+                job_name='apply_vqsr_indels', mem=16,
+                working_dir='tests/assets/jobs/test_dataset/slurm_and_logs'
+            )
+
             exp_cmd = 'path/to/gatk --java-options "-Djava.io.tmpdir=%s -XX:+UseSerialGC -Xmx16G" ApplyVQSR ' \
-                      '--output tests/assets/jobs/test_dataset/gatk4/test_user_sample_id_vqsr_snps.vcf.gz  ' \
-                      '--reference %s -V input_file.vcf.gz -mode SNP ' \
+                      '--output tests/assets/jobs/test_dataset/gatk4/test_user_sample_id_vqsr.vcf.gz  ' \
+                      '--reference %s ' \
+                      '-V tests/assets/jobs/test_dataset/gatk4/test_user_sample_id_vqsr_indels.vcf.gz ' \
+                      '-mode SNP ' \
                       '--tranches-file tests/assets/jobs/test_dataset/gatk4/test_user_sample_id_vqsr_snps.tranches ' \
                       '--truth-sensitivity-filter-level 99.0 ' \
                       '--recal-file tests/assets/jobs/test_dataset/gatk4/test_user_sample_id_vqsr_snps_recall.vcf.gz'
-            e.assert_called_with(exp_cmd % (stage.dir_to_delete[0], self.dataset.reference_genome), cpus=1,
+            e.assert_any_call(exp_cmd % (stage.dir_to_delete[1], self.dataset.reference_genome), cpus=1,
                                  job_name='apply_vqsr_snps', mem=16,
                                  working_dir='tests/assets/jobs/test_dataset/slurm_and_logs')
-
-
-class TestApplyVQSRIndels(TestGATK4):
-    def test_run(self):
-        stage = ApplyVQSRIndels(dataset=self.dataset, input_vcf='input_file.vcf.gz')
-        with patch_executor as e:
-            stage._run()
-            exp_cmd = 'path/to/gatk --java-options "-Djava.io.tmpdir=%s -XX:+UseSerialGC -Xmx8G" ApplyVQSR ' \
-                      '--output tests/assets/jobs/test_dataset/gatk4/test_user_sample_id_vqsr_indels.vcf.gz  ' \
-                      '--reference %s -V input_file.vcf.gz -mode INDEL ' \
-                      '--tranches-file tests/assets/jobs/test_dataset/gatk4/test_user_sample_id_vqsr_indels_tranches ' \
-                      '--truth-sensitivity-filter-level 99.0 ' \
-                      '--recal-file tests/assets/jobs/test_dataset/gatk4/test_user_sample_id_vqsr_indels_recall.vcf.gz'
-            e.assert_called_with(exp_cmd % (stage.dir_to_delete[0], self.dataset.reference_genome), cpus=1,
-                                 job_name='apply_vqsr_indels', mem=16,
-                                 working_dir='tests/assets/jobs/test_dataset/slurm_and_logs')
+            assert e.call_count == 2
 
 
 class TestSelectSNPs(TestGATK4):

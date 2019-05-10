@@ -211,7 +211,10 @@ class Dataset(AppLogger):
 
     def resolve_pipeline_and_toolset(self):
         instruction = self._pipeline_instruction()
-        toolset.configure(instruction['toolset_type'], instruction['toolset_version'])
+        toolset.configure(
+            instruction['toolset_type'],
+            instruction['toolset_version'],
+            os.path.join(cfg['jobs_dir'], self.name, 'tool_version.yaml'))
         self.pipeline = pipeline_register[instruction['name']]
 
 
