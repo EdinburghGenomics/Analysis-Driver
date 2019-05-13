@@ -13,6 +13,7 @@ from analysis_driver.pipelines import common
 from analysis_driver.pipelines.common import tabix_vcf, MergeFastqs, SamtoolsStats
 from analysis_driver.segmentation import Parameter, ListParameter
 from analysis_driver.tool_versioning import toolset
+from analysis_driver.util.helper_functions import split_in_chunks
 
 toolset_type = 'gatk4_sample_processing'
 name = 'qc_gatk4'
@@ -171,13 +172,8 @@ class SplitFastqStage(GATK4FilePath):
         with open(grabix_index) as open_file:
             next(open_file)  # discard first line of the file
             nb_lines = int(next(open_file))  # second line contains the number of lines in the file
-        chunks = []
-        last = 1
-        for chunki in range(nb_lines // split_lines + min(1, nb_lines % split_lines)):
-            new = last + split_lines - 1
-            chunks.append((last, min(new, nb_lines)))
-            last = new + 1
-        return chunks
+        # Indices are 1 based end inclusive
+        return split_in_chunks(nb_lines, split_lines, zero_based=False, end_inclusive=True)
 
     @property
     def split_alignment_dir(self):
@@ -404,11 +400,12 @@ class PostAlignmentScatter(GATK4Stage):
             for line in open_file:
                 sp_line = line.strip().split()
                 length = int(sp_line[1])
-                last = 0
-                for chunki in range(length // chunk_size + min(1, length % chunk_size)):
-                    new = last + chunk_size
-                    chunks.append((sp_line[0], last, min(new, length)))
-                    last = new
+                # The indices in bed files are 0 based and end excluded
+                # https://genome.ucsc.edu/FAQ/FAQformat.html#format1
+                chunks.extend([
+                    (sp_line[0], start, end)
+                    for start, end in split_in_chunks(length, chunk_size, zero_based=True, end_inclusive=False)
+                ])
         # merge small consecutive chunks together with an upper limit set by max_nb_contig_per_chunk
         final_chunks = []
         current_chunks = []

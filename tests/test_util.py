@@ -1,6 +1,6 @@
 from unittest.mock import patch, Mock
 from analysis_driver.util import find_all_fastq_pairs_for_lane, get_ranges, get_trim_values_for_bad_cycles
-from analysis_driver.util.helper_functions import prepend_path_to_data_files
+from analysis_driver.util.helper_functions import prepend_path_to_data_files, split_in_chunks
 from tests import TestAnalysisDriver
 
 
@@ -72,5 +72,31 @@ class TestHelperFunctions(TestAnalysisDriver):
 
         # Does not prepend anything on already full path
         assert prepend_path_to_data_files('/fuller', full_file_paths) == full_file_paths
+
+    def test_split_in_chunks(self):
+        chunks = split_in_chunks(total_length=15, chunksize=20, zero_based=True, end_inclusive=True)
+        assert chunks == [(0, 14)]
+
+        chunks = split_in_chunks(total_length=15, chunksize=20, zero_based=False, end_inclusive=True)
+        assert chunks == [(1, 15)]
+
+        chunks = split_in_chunks(total_length=15, chunksize=20, zero_based=True, end_inclusive=False)
+        assert chunks == [(0, 15)]
+
+        chunks = split_in_chunks(total_length=15, chunksize=20, zero_based=False, end_inclusive=False)
+        assert chunks == [(1, 16)]
+
+        chunks = split_in_chunks(total_length=122, chunksize=20, zero_based=True, end_inclusive=True)
+        assert chunks == [(0, 19), (20, 39), (40, 59), (60, 79), (80, 99), (100, 119), (120, 121)]
+
+        chunks = split_in_chunks(total_length=122, chunksize=20, zero_based=False, end_inclusive=True)
+        assert chunks == [(1, 20), (21, 40), (41, 60), (61, 80), (81, 100), (101, 120), (121, 122)]
+
+        chunks = split_in_chunks(total_length=122, chunksize=20, zero_based=True, end_inclusive=False)
+        assert chunks == [(0, 20), (20, 40), (40, 60), (60, 80), (80, 100), (100, 120), (120, 122)]
+
+        chunks = split_in_chunks(total_length=122, chunksize=20, zero_based=False, end_inclusive=False)
+        assert chunks == [(1, 21), (21, 41), (41, 61), (61, 81), (81, 101), (101, 121), (121, 123)]
+
 
 

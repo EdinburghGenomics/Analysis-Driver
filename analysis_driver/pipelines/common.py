@@ -210,6 +210,9 @@ class SampleReview(segmentation.Stage):
 
 
 def bgzip_vcf(working_dir, vcf_file):
+    """
+    Compress a vcf file using block gzip (bgzip) and returns the exit status
+    """
     return executor.execute(
         bash_commands.bgzip_command(vcf_file),
         job_name='bgzip',
@@ -220,6 +223,9 @@ def bgzip_vcf(working_dir, vcf_file):
 
 
 def tabix_vcf(working_dir, vcf_file):
+    """
+    Index a vcf file using tabix and returns the exit status
+    """
     return executor.execute(
         bash_commands.tabix_vcf_command(vcf_file),
         job_name='tabix',
@@ -230,6 +236,9 @@ def tabix_vcf(working_dir, vcf_file):
 
 
 def bgzip_and_tabix(working_dir, vcf_file):
+    """
+    Compress and index a vcf file using block gzip (bgzip) and tabix then returns the exit status for both program
+    """
     bgzip_status = bgzip_vcf(working_dir, vcf_file)
     tabix_status = tabix_vcf(working_dir, vcf_file + '.gz')
     return bgzip_status + tabix_status

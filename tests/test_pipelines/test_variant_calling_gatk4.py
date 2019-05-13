@@ -68,7 +68,7 @@ class TestSplitFastqStage(TestGATK4):
         chunks = stage.chunks_from_fastq([os.path.join(self.assets_path, 'indexed_fastq_file1.gz')])
         assert chunks == [
             (1, 100000000), (100000001, 200000000), (200000001, 300000000), (300000001, 400000000),
-            (400000001, 500000000)
+            (400000001, 500000000),  (500000001, 500000002)
         ]
 
 
@@ -134,7 +134,7 @@ class TestSplitBWA(TestGATK4):
         with patch.object(SplitBWA, '_indexed_fastq_for_run_element', return_value=index_fastq_files), \
                 patch_executor as e, patch.object(SplitBWA, 'bwa_command', return_value='command_bwa') as mcommand:
             stage._run()
-        e.assert_called_with('command_bwa', 'command_bwa', 'command_bwa', 'command_bwa', 'command_bwa',
+        e.assert_called_with('command_bwa', 'command_bwa', 'command_bwa', 'command_bwa', 'command_bwa', 'command_bwa',
                              cpus=2, job_name='bwa_split', mem=12,
                              working_dir='tests/assets/jobs/test_dataset/slurm_and_logs')
 
@@ -148,7 +148,7 @@ class TestSplitBWA(TestGATK4):
             read_group={'ID': 'a_run_1', 'PU': 'a_run_1', 'SM': 'test_user_sample_id', 'PL': 'illumina'},
             reference=self.dataset.reference_genome
         )
-        assert mcommand.call_count == 5
+        assert mcommand.call_count == 6
 
     def test_bwa_command_with_alt(self):
         stage = SplitBWA(dataset=self.dataset)
@@ -240,7 +240,7 @@ class TestPostAlignmentScatter(TestGATK4):
             ('bigchr3', 40000000, 60000000): join(split_dir, 'test_dataset_region_bigchr3-40000000-60000000.bed'),
             ('bigchr3', 60000000, 76000000): join(split_dir, 'test_dataset_region_bigchr3-60000000-76000000.bed')
         }
-
+        print(stage.split_genome_files())
         assert stage.split_genome_files() == expected_output
 
         # Small chroms are added along the larger ones in order
