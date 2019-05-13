@@ -377,7 +377,7 @@ class PostAlignmentScatter(GATK4Stage):
 
     def split_genome_files(self):
         """
-        This function create the bed file representing all the chunks of genomes required.
+        This function creates the bed file representing all the chunks of genomes required.
         It also create a dictionary where keys are the first chunk of each bed file and values are the file path.
         """
         chunk_to_file = {}
