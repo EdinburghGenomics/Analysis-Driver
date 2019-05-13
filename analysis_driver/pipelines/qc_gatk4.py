@@ -388,7 +388,7 @@ class PostAlignmentScatter(GATK4Stage):
 
     def split_genome_in_chunks(self):
         """
-        Split a genome in chunks of a specific size or at the end of chromosome and the aggregate the small chunks to
+        Split a genome in chunks of a specific size or at the end of chromosome and then aggregate the small chunks to
         roughly match the other chunk size.
         :return: list of list
         """
