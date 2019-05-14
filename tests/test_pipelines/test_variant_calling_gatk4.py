@@ -551,7 +551,7 @@ class TestApplyVQSR(TestGATK4):
                       '-V tests/assets/jobs/test_dataset/gatk4/test_user_sample_id_vqsr_indels.vcf.gz ' \
                       '-mode SNP ' \
                       '--tranches-file tests/assets/jobs/test_dataset/gatk4/test_user_sample_id_vqsr_snps.tranches ' \
-                      '--truth-sensitivity-filter-level 99.0 ' \
+                      '--truth-sensitivity-filter-level 99.7 ' \
                       '--recal-file tests/assets/jobs/test_dataset/gatk4/test_user_sample_id_vqsr_snps_recall.vcf.gz'
             e.assert_any_call(exp_cmd % (stage.dir_to_delete[1], self.dataset.reference_genome), cpus=1,
                                  job_name='apply_vqsr_snps', mem=16,

@@ -115,13 +115,13 @@ class ApplyVQSR(GATK4Stage):
             cpus=1,
             mem=16
         ).join()
-        if recal_status == 0 :
+        if recal_status == 0:
             # Then recalibrate the SNPs
             cmd = self.gatk_cmd(
                 'ApplyVQSR',
                 self.vqsr_filtered_vcf,
                 memory=16,
-                ext='-V {input_vcf} -mode SNP --tranches-file {ouput_tranches} --truth-sensitivity-filter-level 99.0 '
+                ext='-V {input_vcf} -mode SNP --tranches-file {ouput_tranches} --truth-sensitivity-filter-level 99.7 '
                     '--recal-file {recal_file}'.format(
                     input_vcf=self.vqsr_filtered_indels_vcf,
                     ouput_tranches=self.vqsr_snps_tranches,
