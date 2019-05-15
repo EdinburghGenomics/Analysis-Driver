@@ -12,7 +12,7 @@ def get_run_element_id(run_id, lane_number, barcode=None):
 def prepend_path_to_data_files(prepend_path, data_structure):
     """
     Iterate over a dictionary containing relative file paths and prepend a path then store in a new data structure.
-    It recurse if one of the value is found to be a dict.
+    It recurses if one of the value is found to be a dict.
     This function does not modify the provided data_structure.
     """
     new_data_structure = {}
