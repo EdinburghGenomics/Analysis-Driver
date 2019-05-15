@@ -240,7 +240,6 @@ class TestPostAlignmentScatter(TestGATK4):
             ('bigchr3', 40000000, 60000000): join(split_dir, 'test_dataset_region_bigchr3-40000000-60000000.bed'),
             ('bigchr3', 60000000, 76000000): join(split_dir, 'test_dataset_region_bigchr3-60000000-76000000.bed')
         }
-        print(stage.split_genome_files())
         assert stage.split_genome_files() == expected_output
 
         # Small chroms are added along the larger ones in order
