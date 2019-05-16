@@ -48,6 +48,7 @@ class Dragen(RapidStage):
 
         return executor.execute(
             *cmds,
+            # mimic the ulimits set on the Dragen server
             prelim_cmds=['ulimit -n 65535', 'ulimit -c 0', 'ulimit -s 8192', 'ulimit -u 16384', 'ulimit -i 1029522'],
             job_name='dragen',
             job_queue='dragen',
@@ -260,7 +261,7 @@ class DragenOutput(RapidStage):
         return exit_status
 
 
-def _build_pipeline(dataset, setup):
+def build_pipeline(dataset, setup):
     """
     Not currently intended for use on its own - used by demultiplexing.build_pipeline.
     :param dataset.RunDataset dataset:

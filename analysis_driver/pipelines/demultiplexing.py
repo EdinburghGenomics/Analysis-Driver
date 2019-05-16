@@ -492,7 +492,7 @@ def build_pipeline(dataset):
     data_output = stage(DataOutput, previous_stages=[qc_output2])
     final_checkpoint = [data_output]
     if dataset.rapid_samples_by_lane:
-        final_checkpoint.append(rapid._build_pipeline(dataset, setup))
+        final_checkpoint.append(rapid.build_pipeline(dataset, setup))
 
     cleanup = stage(Cleanup, previous_stages=final_checkpoint)
     review = stage(RunReview, previous_stages=[cleanup])

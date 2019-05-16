@@ -55,7 +55,13 @@ mocked_flowcell_pooling = Mock(
 def fake_non_pooling_artifact(i, rapid='no'):
     return Mock(
         reagent_labels=['A001-B002 (ATGCATGC-CTGACTGA)'],
-        samples=[MockedSample(real_name='non_pooling_sample_' + i, id='a_library', udf={'Rapid Analysis': rapid, 'User Sample Name': 'uid_non_pooling_sample_' + i})]
+        samples=[
+            MockedSample(
+                real_name='non_pooling_sample_' + i,
+                id='a_library',
+                udf={'Rapid Analysis': rapid, 'User Sample Name': 'uid_non_pooling_sample_' + i}
+            )
+        ]
     )
 
 mocked_flowcell_non_pooling = Mock(
