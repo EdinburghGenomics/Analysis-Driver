@@ -27,18 +27,20 @@ class TestDragen(TestAnalysisDriver):
         )
         d._run()
         mocked_execute.assert_called_with(
-            'if [ -d /path/to/dragen_staging/a_run_2 ]; then rm -r /path/to/dragen_staging/a_run_2; fi; '
-            'mkdir -p /path/to/dragen_staging/a_run_2; echo "Starting at $(date +%Y-%m-%d\ %H:%M:%S)"; '
+            'if [ -d /path/to/dragen_staging/a_run_2 ]; then rm -r /path/to/dragen_staging/a_run_2; fi && '
+            'mkdir -p /path/to/dragen_staging/a_run_2 && echo "Starting at $(date +%Y-%m-%d\ %H:%M:%S)" && '
             '/path/to/dragen -r /path/to/dragen_reference '
             '--bcl-input-dir tests/assets/data_transfer/from/a_run --bcl-only-lane 2 '
             '--output-directory /path/to/dragen_staging/a_run_2 --output-file-prefix uid_a_sample '
             '--enable-variant-caller true --vc-sample-name uid_a_sample '
             '--bcl-sample-sheet path/to/SampleSheet_analysis_driver.csv --enable-map-align-output true '
-            '--enable-duplicate-marking true --dbsnp /path/to/dbsnp; '
-            'echo "Outputting data at $(date +%Y-%m-%d\ %H:%M:%S)"; ' 
+            '--enable-duplicate-marking true --dbsnp /path/to/dbsnp; exit_status=$?; '
+            'echo "Finished setup/Dragen with exit status $exit_status at $(date +%Y-%m-%d\ %H:%M:%S)"; '
+            'echo "Outputting data and cleaning up"; '
             'rsync -rLD /path/to/dragen_staging/a_run_2/ tests/assets/jobs/a_run/rapid_analysis_2; '
             'rm -r /path/to/dragen_staging/a_run_2; '
-            'echo "Done at $(date +%Y-%m-%d\ %H:%M:%S)"',
+            'echo "Done at $(date +%Y-%m-%d\ %H:%M:%S)"; '
+            'exit $exit_status',
             prelim_cmds=['ulimit -n 65535', 'ulimit -c 0', 'ulimit -s 8192', 'ulimit -u 16384', 'ulimit -i 1029522'],
             job_name='dragen',
             job_queue='dragen',

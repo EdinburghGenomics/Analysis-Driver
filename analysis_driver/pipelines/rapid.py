@@ -19,20 +19,23 @@ class Dragen(RapidStage):
         cmds = []
         for lane, sample in self.dataset.rapid_samples_by_lane.items():
             # clean up any previous run on the Dragen server's scratch space
-            cmd = 'if [ -d {tmp_dir} ]; then rm -r {tmp_dir}; fi; mkdir -p {tmp_dir}; ' \
-                  'echo "Starting at $(date +%Y-%m-%d\ %H:%M:%S)"; '
+            cmd = 'if [ -d {tmp_dir} ]; then rm -r {tmp_dir}; fi && mkdir -p {tmp_dir} && ' \
+                  'echo "Starting at $(date +%Y-%m-%d\ %H:%M:%S)" && '
 
             # run Dragen on the lane with bam/vcf outputs, dbSNP and duplicate marking enabled
             cmd += '{dragen} -r {ref} --bcl-input-dir {run_dir} --bcl-only-lane {lane} --output-directory {tmp_dir} ' \
                    '--output-file-prefix {user_sample_id} --enable-variant-caller true ' \
                    '--vc-sample-name {user_sample_id} --bcl-sample-sheet {sample_sheet} ' \
                    '--enable-map-align-output true --enable-duplicate-marking true --dbsnp {dbsnp}; ' \
+                   'exit_status=$?; '
 
             # somehow, writing the output data to scratch and then rsyncing to the main file system is faster than
             # outputting directly
-            cmd += 'echo "Outputting data at $(date +%Y-%m-%d\ %H:%M:%S)"; ' \
+            cmd += 'echo "Finished setup/Dragen with exit status $exit_status at $(date +%Y-%m-%d\ %H:%M:%S)"; ' \
+                   'echo "Outputting data and cleaning up"; ' \
                    'rsync -rLD {tmp_dir}/ {out_dir}; rm -r {tmp_dir}; ' \
-                   'echo "Done at $(date +%Y-%m-%d\ %H:%M:%S)"'
+                   'echo "Done at $(date +%Y-%m-%d\ %H:%M:%S)"; ' \
+                   'exit $exit_status'
 
             cmds.append(
                 cmd.format(
