@@ -180,9 +180,9 @@ def build_pipeline(dataset):
         steps_required = [annotate_vcf]
 
     # variant filtering with VQSR
-    filter_snps = stage(VQSRFiltrationSNPs, input_vcf=variant_file, previous_stages=steps_required)
-    filter_indels = stage(VQSRFiltrationIndels, input_vcf=variant_file, previous_stages=steps_required)
-    apply_vqsr = stage(ApplyVQSR, input_vcf=variant_file, previous_stages=[filter_indels, filter_snps])
+    # filter_snps = stage(VQSRFiltrationSNPs, input_vcf=variant_file, previous_stages=steps_required)
+    # filter_indels = stage(VQSRFiltrationIndels, input_vcf=variant_file, previous_stages=steps_required)
+    # apply_vqsr = stage(ApplyVQSR, input_vcf=variant_file, previous_stages=[filter_indels, filter_snps])
 
     # variant filtering with Hard Filters
     select_snps = stage(SelectSNPs, input_vcf=variant_file, previous_stages=steps_required)
@@ -196,12 +196,12 @@ def build_pipeline(dataset):
                      output_vcf_file=hard_filter_indels.hard_filtered_vcf,
                      previous_stages=[hard_filter_snps, hard_filter_indels])
 
-    gender_val = stage(qc.GenderValidation, vcf_file=apply_vqsr.vqsr_filtered_vcf, previous_stages=[apply_vqsr])
+    gender_val = stage(qc.GenderValidation, vcf_file=merge_hf.hard_filtered_vcf, previous_stages=[merge_hf])
 
-    vcfstats = stage(qc.VCFStats, vcf_file=merge_hf.vqsr_filtered_vcf, previous_stages=[apply_vqsr])
+    vcfstats = stage(qc.VCFStats, vcf_file=merge_hf.hard_filtered_vcf, previous_stages=[merge_hf])
 
     final_stages = [contam, blast, geno_val, gender_val, vcfstats, verify_bam_id, samtools_depth, samtools_stat,
-                    gather_gcvf, merge_hf]
+                    gather_gcvf]
 
     output = stage(common.SampleDataOutput, previous_stages=final_stages, output_fileset='gatk4_human_var_calling')
     review = stage(common.SampleReview, previous_stages=[output])

@@ -587,7 +587,7 @@ class MergeVariants(GATK4Stage):
         cmd = self.gatk_picard_cmd('MergeVcfs', self.output_vcf_file, input=vcf_list, reference=None)
         return executor.execute(
             cmd,
-            job_name='merge_vqsr',
+            job_name='merge_vcf',
             working_dir=self.exec_dir,
             cpus=1,
             mem=8
@@ -625,13 +625,13 @@ def build_pipeline(dataset):
     filter_indels = stage(IndelsFiltration, previous_stages=[select_indels])
 
     # final variant merge
-    merge_vqsr = stage(MergeVariants,
+    merge_vcf = stage(MergeVariants,
                        vcf_files=[filter_snps.hard_filtered_snps_vcf, filter_indels.hard_filtered_indels_vcf],
                        output_vcf_file=filter_indels.hard_filtered_vcf,
                        previous_stages=[filter_snps, filter_indels])
 
     # variant file QC
-    vcfstats = stage(qc.VCFStats, vcf_file=merge_vqsr.hard_filtered_vcf, previous_stages=[merge_vqsr])
+    vcfstats = stage(qc.VCFStats, vcf_file=merge_vcf.hard_filtered_vcf, previous_stages=[merge_vcf])
 
     final_stages = [contam, blast, vcfstats, samtools_depth, samtools_stat]
 

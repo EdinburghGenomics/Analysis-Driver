@@ -57,7 +57,7 @@ class SamtoolsStats(VarCallingStage):
     def _run(self):
         return executor.execute(
             bash_commands.samtools_stats(
-                self.exp_bam_path,
+                self.bam_file,
                 os.path.join(self.job_dir, 'samtools_stats.txt')
             ),
             job_name='samtools',
