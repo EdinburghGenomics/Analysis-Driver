@@ -628,5 +628,5 @@ class TestMergeVariants(TestGATK4):
             exp_cmd = 'path/to/gatk --java-options "-Djava.io.tmpdir=%s -XX:+UseSerialGC -Xmx2G" MergeVcfs ' \
                       '--OUTPUT output.vcf.gz ' \
                       '--INPUT tests/assets/jobs/test_dataset/file1.vcf.list '
-            e.assert_called_with(exp_cmd % stage.dir_to_delete[0], cpus=1, job_name='merge_vqsr', mem=8,
+            e.assert_called_with(exp_cmd % stage.dir_to_delete[0], cpus=1, job_name='merge_vcf', mem=8,
                                  working_dir='tests/assets/jobs/test_dataset/slurm_and_logs')
