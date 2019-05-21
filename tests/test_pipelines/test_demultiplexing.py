@@ -117,17 +117,17 @@ class TestWaitForRead2(TestAnalysisDriver):
         dataset = NamedMock(real_name='testrun', run_info=run_info, input_dir='path/to/input',
                             lims_run=Mock(udf={'Run Status': 'RunStarted'}))
 
-        self.stage = dm.WaitForRead2(dataset=dataset)
+        stage = dm.WaitForRead2(dataset=dataset)
 
         with patch(self.ppath, return_value=310) as mcycles:
             assert mocked_sleep.call_count == 0
-            assert self.stage._run() == 0
+            assert stage._run() == 0
             assert mcycles.call_count == 1
             mcycles.assert_called_once_with('path/to/input')
 
         # get_last_cycles_with_existing_bcls states first 207, then 208 cycles done
         with patch(self.ppath, side_effect=[207, 208]) as mcycles:
-            assert self.stage._run() == 0
+            assert stage._run() == 0
             assert mcycles.call_count == 2
             mcycles.assert_called_with('path/to/input')
             mocked_sleep.assert_called_with(1200)
@@ -141,8 +141,8 @@ class TestWaitForRead2(TestAnalysisDriver):
         # get_last_cycles_with_existing_bcls states 208 cycles done
         with patch(self.ppath, return_value=208) as mcycles:
             with pytest.raises(SequencingRunError):
-                self.stage = dm.WaitForRead2(dataset=dataset)
-                self.stage._run()
+                stage = dm.WaitForRead2(dataset=dataset)
+                stage._run()
             assert mcycles.call_count == 1
             mcycles.assert_called_once_with('path/to/input')
 

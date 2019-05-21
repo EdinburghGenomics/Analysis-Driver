@@ -1,5 +1,4 @@
 import os.path
-from egcg_core import rest_communication
 from egcg_core.app_logging import logging_default as log_cfg
 from analysis_driver.config import default as cfg
 from analysis_driver.tool_versioning import toolset
@@ -211,8 +210,8 @@ def md5sum(input_file):
 
 def picard_command(program, input_file, output_file, tmp_dir, memory, picard_params=None):
     cmd = (java_command(memory, tmp_dir or os.path.dirname(input_file), toolset['picard']) + '{program} '
-           'INPUT={input} OUTPUT={output} ASSUME_SORTED=true VALIDATION_STRINGENCY=LENIENT'
-           )
+           'INPUT={input} OUTPUT={output} ASSUME_SORTED=true VALIDATION_STRINGENCY=LENIENT')
+
     if picard_params:
         for k in sorted(picard_params):
             cmd += ' %s=%s' % (k, picard_params[k])

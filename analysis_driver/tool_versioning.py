@@ -100,10 +100,10 @@ class Toolset(AppLogger):
         if toolset_version is None:
             toolset_version = self.version  # place to start scanning backwards to 0
         elif toolset_version < 0:  # finished scanning backwards and found nothing
-            self.warning('Could not resolve %s for %s', val, toolname)
+            self.debug('%s not resolved for %s', val, toolname)
             return None
 
-        config = self.versioning_cfg['toolsets'][self.type][toolset_version][toolname] or {}
+        config = self.versioning_cfg['toolsets'][self.type][toolset_version].get(toolname) or {}
 
         if val in config:
             return config[val]
