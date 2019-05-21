@@ -1,10 +1,12 @@
 import os
 import subprocess
-from egcg_core import rest_communication, util
-from egcg_core.config import cfg
-from egcg_core.app_logging import logging_default
-from egcg_core.integration_testing import ReportingAppIntegrationTest
 from unittest.mock import Mock, patch
+
+from egcg_core import rest_communication, util
+from egcg_core.app_logging import logging_default
+from egcg_core.config import cfg
+from egcg_core.integration_testing import ReportingAppIntegrationTest
+
 from analysis_driver import client
 from integration_tests import mocked_data
 
@@ -103,7 +105,8 @@ class IntegrationTest(ReportingAppIntegrationTest):
                                                   'data_files': {'fasta': 'Homo_sapiens/hg38.fa',
                                                                  'variation': 'Homo_sapiens/hg38/dbsnp-147.vcf.gz'}})
         rest_communication.post_entry('genomes', {'assembly_name': 'phix174',
-                                                  'data_files': {'fasta': 'PhiX/GCA_000819615.1_ViralProj14015_genomic.fna'}})
+                                                  'data_files': {
+                                                      'fasta': 'PhiX/GCA_000819615.1_ViralProj14015_genomic.fna'}})
 
         self.dynamic_patches = []
         self._test_success = True
@@ -114,7 +117,8 @@ class IntegrationTest(ReportingAppIntegrationTest):
         for p in self.dynamic_patches:
             p.stop()
 
-    def setup_test(self, test_type, test_name, integration_section, species='Homo sapiens', analysis_type='Variant Calling gatk'):
+    def setup_test(self, test_type, test_name, integration_section, species='Homo sapiens',
+                   analysis_type='Variant Calling gatk'):
         cfg.content['jobs_dir'] = os.path.join(os.path.dirname(os.getcwd()), 'jobs', test_name)
         cfg.content[test_type]['output_dir'] = os.path.join(os.path.dirname(os.getcwd()), 'outputs', test_name)
         if 'input_dir' in self.cfg[integration_section]:
@@ -369,10 +373,10 @@ class IntegrationTest(ReportingAppIntegrationTest):
         )
 
         self.expect_equal(
-                rest_communication.get_document('analysis_driver_procs')['data_source'],
-                ['_'.join([self.run_id, str(i), self.barcode]) for i in range(1, 9)],
-                'data source'
-            )
+            rest_communication.get_document('analysis_driver_procs')['data_source'],
+            ['_'.join([self.run_id, str(i), self.barcode]) for i in range(1, 9)],
+            'data source'
+        )
 
     def test_qc(self):
         self.setup_test('sample', 'test_qc', 'qc', 'Canis lupus familiaris', 'QC GATK3')
@@ -516,11 +520,11 @@ class IntegrationTest(ReportingAppIntegrationTest):
         )
 
         self.expect_stage_data([
-            'gathervcfvc','scatterbaserecalibrator','samplereview','vcfstats','indelsfiltration','md5sum',
-             'selectindels','cleanup','splitgenotypegvcfs','fastqindex','gatherrecalbam',
-             'merge_variants_hard_filter','verifybamid','samtoolsstats','gatherbqsrreport',
-             'gathergvcf','splithaplotypecallervc','fastqscreen','selectsnps','snpsfiltration','splitbwa',
-             'blast','scatterapplybqsr','mergefastqs','samtoolsdepth','sampledataoutput','mergebamanddup'
+            'gathervcfvc', 'scatterbaserecalibrator', 'samplereview', 'vcfstats', 'indelsfiltration', 'md5sum',
+            'selectindels', 'cleanup', 'splitgenotypegvcfs', 'fastqindex', 'gatherrecalbam',
+            'merge_variants_hard_filter', 'verifybamid', 'samtoolsstats', 'gatherbqsrreport',
+            'gathergvcf', 'splithaplotypecallervc', 'fastqscreen', 'selectsnps', 'snpsfiltration', 'splitbwa',
+            'blast', 'scatterapplybqsr', 'mergefastqs', 'samtoolsdepth', 'sampledataoutput', 'mergebamanddup'
         ])
 
         self.expect_equal(
