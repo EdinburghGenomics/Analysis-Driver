@@ -198,11 +198,12 @@ class Dataset(AppLogger):
     def __lt__(self, other):
         return self.name < other.name
 
-    def _default_pipeline(self):
-        raise NotImplementedError
+    @property
+    def _pipeline(self):
+        return None
 
-    def _pipeline_instruction(self):
-        pipeline = pipeline_register[self._default_pipeline()]
+    def _processing_instruction(self):
+        pipeline = pipeline_register[self._pipeline]
         return {
             'name': pipeline.name,
             'toolset_type': pipeline.toolset_type,
@@ -210,11 +211,12 @@ class Dataset(AppLogger):
         }
 
     def resolve_pipeline_and_toolset(self):
-        instruction = self._pipeline_instruction()
+        instruction = self._processing_instruction()
         toolset.configure(
             instruction['toolset_type'],
             instruction['toolset_version'],
-            os.path.join(cfg['jobs_dir'], self.name, 'tool_version.yaml'))
+            os.path.join(cfg['jobs_dir'], self.name, 'program_versions.yaml')
+        )
         self.pipeline = pipeline_register[instruction['name']]
 
 
@@ -234,7 +236,7 @@ class NoCommunicationDataset(Dataset):
     def _is_ready(self):
         pass
 
-    def _default_pipeline(self):
+    def _pipeline(self):
         return None
 
 
@@ -255,7 +257,7 @@ class NoCommunicationSampleDataset(NoCommunicationDataset):
     def project_id(self):
         return self.run_elements[0]['project_id']
 
-    def _pipeline_instruction(self):
+    def _processing_instruction(self):
         instruction = rest_communication.get_document(
             'projects', where={'project_id': self.project_id}
         ).get('sample_pipeline')
@@ -279,6 +281,7 @@ class RunDataset(Dataset):
         self._run_elements = None
         self._barcode_len = None
         self._lims_run = None
+        self._rapid_samples_by_lane = None
 
     def initialise_entity(self):
         run = rest_communication.get_document('runs', where={'run_id': self.name})
@@ -346,6 +349,31 @@ class RunDataset(Dataset):
                 'Mismatching step name: %s != %s' % (expected_pooling_step_name, art.parent_process.type.name)
             )
         return art.input_artifact_list()
+
+    @property
+    def rapid_samples_by_lane(self):
+        """
+        Search the sequencing run in the Lims for any samples with the UDF 'Rapid Analysis' set, and return their sample
+        ID, project ID and all UDFs.
+        """
+        if self._rapid_samples_by_lane is None:
+            self._rapid_samples_by_lane = {}
+
+            # TODO: #394 - move away from using the Lims API
+            flowcell = set(self.lims_run.parent_processes()).pop().output_containers()[0]
+            for lane, artifact in flowcell.placements.items():
+                if len(artifact.reagent_labels) > 1:
+                    continue  # we don't want to run rapid processing on pools
+
+                assert len(artifact.samples) == 1
+                sample = artifact.samples[0]
+                if sample.udf.get('Rapid Analysis') == 'Yes':
+                    s = sample.udf.copy()
+                    s['sample_id'] = sample.name
+                    s['project_id'] = sample.project.name
+                    self._rapid_samples_by_lane[lane.split(':')[0]] = s
+
+        return self._rapid_samples_by_lane
 
     def _run_elements_from_lims(self):
         run_elements = []
@@ -437,7 +465,8 @@ class RunDataset(Dataset):
     def lane_metrics(self):
         return rest_communication.get_documents('lanes', where={'run_id': self.name})
 
-    def _default_pipeline(self):
+    @property
+    def _pipeline(self):
         return 'demultiplexing'
 
     @staticmethod
@@ -577,13 +606,13 @@ class SampleDataset(Dataset):
             return self.sample.get('required_coverage')
         raise AnalysisDriverError('Could not find required coverage threshold for ' + self.name)
 
-    def _pipeline_instruction(self):
+    def _processing_instruction(self):
         instruction = rest_communication.get_document(
             'projects', where={'project_id': self.project_id}
         ).get('sample_pipeline')
 
         if not instruction:
-            instruction = super()._pipeline_instruction()
+            instruction = super()._processing_instruction()
             rest_communication.patch_entry('projects', {'sample_pipeline': instruction}, 'project_id', self.project_id)
 
         return instruction
@@ -620,7 +649,8 @@ class SampleDataset(Dataset):
         super().fail(exit_status)
         self.lims_ntf.remove_sample_from_workflow()
 
-    def _default_pipeline(self):
+    @property
+    def _pipeline(self):
         analysis_type = clarity.get_sample(self.name).udf.get('Analysis Type')
 
         if self.species is None:
@@ -711,7 +741,8 @@ class ProjectDataset(Dataset):
     def __str__(self):
         return '%s  (%s samples / %s) ' % (super().__str__(), len(self.samples_processed), self.number_of_samples)
 
-    def _default_pipeline(self):
+    @property
+    def _pipeline(self):
         return 'project'
 
 

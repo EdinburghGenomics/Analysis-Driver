@@ -7,7 +7,7 @@ from egcg_core.constants import ELEMENT_PROJECT_ID, ELEMENT_LANE, ELEMENT_NB_REA
 from analysis_driver import segmentation, quality_control as qc
 from analysis_driver.segmentation import Parameter
 from analysis_driver.util import bash_commands
-from analysis_driver.config import default as cfg, output_file_config
+from analysis_driver.config import default as cfg
 from analysis_driver.report_generation import SampleCrawler
 from analysis_driver.transfer_data import output_data_and_archive, create_output_links
 from analysis_driver.tool_versioning import toolset
@@ -86,11 +86,6 @@ def build_bam_file_production(dataset):
 class SampleDataOutput(segmentation.Stage):
     output_fileset = segmentation.Parameter()
 
-    @property
-    def output_cfg(self):
-        output_file_config.set_pipeline_type(self.output_fileset)
-        return output_file_config
-
     def _run(self):
         dir_with_linked_files = os.path.join(self.job_dir, 'linked_output_files')
         os.makedirs(dir_with_linked_files, exist_ok=True)
@@ -98,7 +93,7 @@ class SampleDataOutput(segmentation.Stage):
         # Create the links from the bcbio output to one directory
         create_output_links(
             self.job_dir,
-            self.output_cfg,
+            self.output_fileset,
             dir_with_linked_files,
             sample_id=self.dataset.name,
             user_sample_id=self.dataset.user_sample_id
@@ -109,7 +104,7 @@ class SampleDataOutput(segmentation.Stage):
     def output_data(self, dir_with_linked_files):
         # upload the data to the rest API
         project_id = clarity.find_project_name_from_sample(self.dataset.name)
-        c = SampleCrawler(self.dataset.name, project_id, self.job_dir, self.output_cfg)
+        c = SampleCrawler(self.dataset.name, project_id, self.job_dir, self.output_fileset)
         c.send_data()
 
         # md5sum

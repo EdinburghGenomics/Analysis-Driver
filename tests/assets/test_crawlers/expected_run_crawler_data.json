@@ -299,7 +299,9 @@
                 "phasing_r1": 0.091,
                 "phasing_r2": 0.158,
                 "prephasing_r1": 0.06,
-                "prephasing_r2": 0.07
+                "prephasing_r2": 0.07,
+                "yield_r1": 69.53,
+                "yield_r2": 69.43
             }
         },
         "a_run_id_2": {
@@ -333,7 +335,9 @@
                 "phasing_r1": 0.091,
                 "phasing_r2": 0.154,
                 "prephasing_r1": 0.059,
-                "prephasing_r2": 0.071
+                "prephasing_r2": 0.071,
+                "yield_r1": 68.88,
+                "yield_r2": 68.8
             }
         }
     },

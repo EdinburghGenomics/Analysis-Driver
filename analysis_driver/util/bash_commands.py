@@ -1,5 +1,4 @@
 import os.path
-from egcg_core import rest_communication
 from egcg_core.app_logging import logging_default as log_cfg
 from analysis_driver.config import default as cfg
 from analysis_driver.tool_versioning import toolset

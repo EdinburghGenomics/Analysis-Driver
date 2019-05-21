@@ -94,10 +94,10 @@ default:
         genotypes_repository: path/to/genotype_validation/genotypes
 
     contamination-check:
-      fastqscreen_conf: path/to/fastqscreen/conf
-      population_vcf:   path/to/population_vcf
-      db_dir:           path/to/db/dir
-      ete_db:           path/to/ete_db
+        fastqscreen_conf: path/to/fastqscreen/conf
+        population_vcf:   path/to/population_vcf
+        db_dir:           path/to/db/dir
+        ete_db:           path/to/ete_db
 
     well_duplicates:
       coord_file: path/to/coord_file
@@ -106,12 +106,18 @@ default:
         'Homo sapiens':
             default: genome_version
 
+    dragen:
+        reference: /path/to/dragen_reference
+        staging: /path/to/dragen_staging
+        executable: /path/to/dragen
+        dbsnp: /path/to/dbsnp
+
     genomes:
-      genome_version:
-        fasta: path/to/genome.fa
-        dbsnp: path/to/dbsnp.vcf.gz
-      phix174:
-        fasta: path/to/phix.fa
+        genome_version:
+            fasta: path/to/genome.fa
+            dbsnp: path/to/dbsnp.vcf.gz
+        phix174:
+            fasta: path/to/phix.fa
 
     clarity:
         baseuri: 'https://clarity.co.uk'
@@ -122,3 +128,6 @@ default:
         local_scheduler: True
 
     genomes_dir: path/to/genomes_dir/
+
+    delivery:
+        dest: tests/assets/delivered_data

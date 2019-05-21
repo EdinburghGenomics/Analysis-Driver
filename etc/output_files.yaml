@@ -381,3 +381,31 @@ gatk4_qc:
         location: ['gatk4']
         basename: '{user_sample_id}_hard_filter.vcf.stats'
         new_name: '{user_sample_id}.vcf.stats'
+
+
+rapid_analysis:
+    gvcf:
+        location: ['rapid_analysis_{lane}']
+        basename: '{user_sample_id}.vcf.gz'
+
+    tbi:
+        location: ['rapid_analysis_{lane}']
+        basename: '{user_sample_id}.vcf.gz.tbi'
+
+    gvcf_md5:
+        location: ['rapid_analysis_{lane}']
+        basename: '{user_sample_id}.vcf.gz.md5sum'
+        new_name: '{user_sample_id}.vcf.gz.md5'
+
+    bam:
+        location: ['rapid_analysis_{lane}']
+        basename: '{user_sample_id}.bam'
+
+    bai:
+        location: ['rapid_analysis_{lane}']
+        basename: '{user_sample_id}.bam.bai'
+
+    bam_md5:
+        location: ['rapid_analysis_{lane}']
+        basename: '{user_sample_id}.bam.md5sum'
+        new_name: '{user_sample_id}.bam.md5'

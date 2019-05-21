@@ -59,5 +59,8 @@ class NotificationCentre(notifications.NotificationCentre):
             subs.append('asana')
         self.notify('Pipeline finished with exit status ' + str(exit_status), subs)
 
+    def notify_rapid_completion(self, sample_id):
+        self.notify('Rapid processing finished for sample %s' % sample_id, ['log', 'email'])
+
     def crash_report(self, stacktrace):
         self.notify_all(stacktrace)
