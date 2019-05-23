@@ -3,6 +3,7 @@ import subprocess
 from egcg_core import rest_communication, util, exceptions
 from unittest.mock import Mock, patch
 
+from egcg_core.app_logging import logging_default
 from egcg_core.config import cfg
 from egcg_core.integration_testing import ReportingAppIntegrationTest
 
