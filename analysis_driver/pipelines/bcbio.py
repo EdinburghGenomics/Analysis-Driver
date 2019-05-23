@@ -130,11 +130,11 @@ def build_pipeline(dataset):
 
     bcbio_and_qc = [fix_unmapped, fastqc, contam_check, blast, geno_val]
 
-    sex_check = stage(qc.SexCheck, vcf_file=bcbio.vcf_path, previous_stages=bcbio_and_qc),
+    sex_val = stage(qc.SexValidation, vcf_file=bcbio.vcf_path, previous_stages=bcbio_and_qc),
     vcfstats = stage(qc.VCFStats, vcf_file=bcbio.vcf_path, previous_stages=bcbio_and_qc),
     verify_bam_id = stage(qc.VerifyBamID, bam_file=bcbio.bam_path_fixed, previous_stages=bcbio_and_qc),
     samtools_depth = stage(qc.SamtoolsDepth, bam_file=bcbio.bam_path_fixed, previous_stages=bcbio_and_qc)
-    post_bcbio_qc = [sex_check, vcfstats, verify_bam_id, samtools_depth]
+    post_bcbio_qc = [sex_val, vcfstats, verify_bam_id, samtools_depth]
 
     output = stage(common.SampleDataOutput, previous_stages=post_bcbio_qc, output_fileset='bcbio')
     cleanup = stage(common.Cleanup, previous_stages=[output])

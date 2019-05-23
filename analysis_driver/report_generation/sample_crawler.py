@@ -58,7 +58,7 @@ class SampleCrawler(Crawler):
         else:
             self.critical('Missing *-sort-callable.bed')
 
-        sex_file_path = self.get_output_file('sex_check')
+        sex_file_path = self.get_output_file('sex_validation')
         if sex_file_path:
             with open(sex_file_path) as f:
                 sex, het_x = f.read().strip().split()

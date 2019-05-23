@@ -12,7 +12,7 @@ def sex_alias(sex):
     return 'unknown'
 
 
-class SexCheck(Stage):
+class SexValidation(Stage):
     vcf_file = Parameter()
 
     def _run(self):
@@ -24,7 +24,7 @@ class SexCheck(Stage):
         else:
             file_opener = 'cat'
 
-        sex_check_file = name + '.sex'
+        sex_file = name + '.sex'
 
         command = util.str_join(
             '%s %s' % (file_opener, self.vcf_file),
@@ -33,12 +33,12 @@ class SexCheck(Stage):
             "grep '0/1'",
             "awk '{if ($2>.35){sex=\"FEMALE\"}else{if ($2<.15){sex=\"MALE\"}else{sex=\"UNKNOWN\"}} print sex, $2}'",
             separator=' | '
-        ) + ' > ' + sex_check_file
+        ) + ' > ' + sex_file
         self.info(command)
 
         return executor.execute(
             command,
-            job_name='sex_check',
+            job_name='sex_validation',
             working_dir=self.job_dir,
             walltime=6,
             cpus=1,

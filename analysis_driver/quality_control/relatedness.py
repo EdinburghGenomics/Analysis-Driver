@@ -7,7 +7,7 @@ from analysis_driver.util import bash_commands
 from analysis_driver.util.bash_commands import java_command
 from analysis_driver.segmentation import Stage, Parameter, ListParameter
 from analysis_driver.exceptions import PipelineError
-from analysis_driver.quality_control.sex_check import sex_alias
+from analysis_driver.quality_control.sex_validation import sex_alias
 
 
 class RelatednessStage(Stage):

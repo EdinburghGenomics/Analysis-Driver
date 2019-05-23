@@ -140,7 +140,7 @@ class TestPeddy(QCTester):
         pfam.side_effect = ['FAM1', 'FAM1', 'No_ID']
         pmem.side_effect = [[['FAM1', '0', '0', '2', '0'], ['FAM1', '0', 'test_sample1', '1', '0']], [['No_ID', '0', '0', '1', '0']]]
         pfams.return_value = {'FAM1': ['test_sample1', 'test_sample2'], 'No_ID': ['test_sample3']}
-        assert self.p.ped_fi1le_content == [['FAM1', '0', '0', '2', '0'], ['FAM1', '0', 'test_sample1', '1', '0'], ['No_ID', '0', '0', '1', '0']]
+        assert self.p.ped_file_content == [['FAM1', '0', '0', '2', '0'], ['FAM1', '0', 'test_sample1', '1', '0'], ['No_ID', '0', '0', '1', '0']]
 
     @patch(ppath + 'Peddy.relationships')
     @patch(ppath + 'Peddy.relationship')

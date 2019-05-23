@@ -1,7 +1,7 @@
 from egcg_core import clarity
 from egcg_core import constants as c
 from egcg_core.app_logging import AppLogger
-from analysis_driver.quality_control.sex_check import sex_alias
+from analysis_driver.quality_control.sex_validation import sex_alias
 
 
 class Crawler(AppLogger):
