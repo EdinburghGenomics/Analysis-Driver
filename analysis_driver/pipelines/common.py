@@ -5,6 +5,7 @@ import shutil
 from egcg_core import executor, clarity, util, rest_communication
 from egcg_core.constants import ELEMENT_PROJECT_ID, ELEMENT_LANE, ELEMENT_NB_READS_CLEANED, ELEMENT_RUN_NAME
 from analysis_driver import segmentation, quality_control as qc
+from analysis_driver.segmentation import Parameter
 from analysis_driver.util import bash_commands
 from analysis_driver.config import default as cfg
 from analysis_driver.report_generation import SampleCrawler
@@ -51,10 +52,12 @@ class BWAMem(VarCallingStage):
 
 
 class SamtoolsStats(VarCallingStage):
+    bam_file = Parameter()
+
     def _run(self):
         return executor.execute(
             bash_commands.samtools_stats(
-                self.exp_bam_path,
+                self.bam_file,
                 os.path.join(self.job_dir, 'samtools_stats.txt')
             ),
             job_name='samtools',
@@ -74,7 +77,7 @@ def build_bam_file_production(dataset):
     bwa = stage(BWAMem, previous_stages=[merge_fastqs])
     contam = stage(qc.FastqScreen, previous_stages=[bwa], fq_pattern=bwa.fq_pattern)
     blast = stage(qc.Blast, previous_stages=[bwa], fastq_file=bwa.fq_pattern.replace('?', '1'))
-    samtools_stat = stage(SamtoolsStats, previous_stages=[fastqc, bwa, contam, blast])
+    samtools_stat = stage(SamtoolsStats, bam_file=bwa.exp_bam_path, previous_stages=[fastqc, bwa, contam, blast])
     samtools_depth = stage(qc.SamtoolsDepth, bam_file=bwa.exp_bam_path, previous_stages=[bwa])
 
     return [samtools_stat, samtools_depth]
@@ -201,8 +204,11 @@ class SampleReview(segmentation.Stage):
         return 0
 
 
-def bgzip_and_tabix(working_dir, vcf_file):
-    bgzip_status = executor.execute(
+def bgzip_vcf(working_dir, vcf_file):
+    """
+    Compress a vcf file using block gzip (bgzip) and returns the exit status
+    """
+    return executor.execute(
         bash_commands.bgzip_command(vcf_file),
         job_name='bgzip',
         working_dir=working_dir,
@@ -210,12 +216,24 @@ def bgzip_and_tabix(working_dir, vcf_file):
         mem=8
     ).join()
 
-    tabix_status = executor.execute(
-        bash_commands.tabix_vcf_command(vcf_file + '.gz'),
+
+def tabix_vcf(working_dir, vcf_file):
+    """
+    Index a vcf file using tabix and returns the exit status
+    """
+    return executor.execute(
+        bash_commands.tabix_vcf_command(vcf_file),
         job_name='tabix',
         working_dir=working_dir,
         cpus=1,
         mem=8
     ).join()
 
+
+def bgzip_and_tabix(working_dir, vcf_file):
+    """
+    Compress and index a vcf file using block gzip (bgzip) and tabix then returns the exit status for both program
+    """
+    bgzip_status = bgzip_vcf(working_dir, vcf_file)
+    tabix_status = tabix_vcf(working_dir, vcf_file + '.gz')
     return bgzip_status + tabix_status

@@ -131,9 +131,9 @@ class TestBashCommands(TestAnalysisDriver):
         )
 
         assert cmd == ('path/to/java_8 -Djava.io.tmpdir=directory -XX:+UseSerialGC -Xmx8G -jar path/to/picard '
-                       'CollectGcBiasMetrics INPUT=directory/test.bam OUTPUT=directory/metrics.txt ASSUME_SORTED=true '
-                       'VALIDATION_STRINGENCY=LENIENT CHART=directory/chart.pdf R=a_reference_genome.fasta '
-                       'SUMMARY_OUTPUT=directory/summary_metrics.txt')
+                       'CollectGcBiasMetrics INPUT=directory/test.bam OUTPUT=directory/metrics.txt '
+                       'VALIDATION_STRINGENCY=LENIENT ASSUME_SORTED=true CHART=directory/chart.pdf '
+                       'R=a_reference_genome.fasta SUMMARY_OUTPUT=directory/summary_metrics.txt')
 
     def test_picard_mark_dup_command(self):
         cmd = bash_commands.picard_mark_dup_command(
@@ -142,8 +142,8 @@ class TestBashCommands(TestAnalysisDriver):
             'directory/test_out.metrics'
         )
         exp = ('path/to/java_8 -Djava.io.tmpdir={tmpdir} -XX:+UseSerialGC -Xmx{mem}G -jar path/to/picard '
-               'MarkDuplicates INPUT=directory/test.bam OUTPUT=directory/test_out.bam ASSUME_SORTED=true '
-               'VALIDATION_STRINGENCY=LENIENT METRICS_FILE=directory/test_out.metrics '
+               'MarkDuplicates INPUT=directory/test.bam OUTPUT=directory/test_out.bam '
+               'VALIDATION_STRINGENCY=LENIENT ASSUME_SORTED=true METRICS_FILE=directory/test_out.metrics '
                'OPTICAL_DUPLICATE_PIXEL_DISTANCE=100')
         assert cmd == exp.format(tmpdir='directory', mem=10)
 
@@ -163,8 +163,8 @@ class TestBashCommands(TestAnalysisDriver):
             'directory/test_out.histogram'
         )
         exp = ('path/to/java_8 -Djava.io.tmpdir={tmpdir} -XX:+UseSerialGC -Xmx{mem}G -jar path/to/picard '
-               'CollectInsertSizeMetrics INPUT=directory/test.bam OUTPUT=directory/test_out.metrics ASSUME_SORTED=true '
-               'VALIDATION_STRINGENCY=LENIENT HISTOGRAM_FILE=directory/test_out.histogram')
+               'CollectInsertSizeMetrics INPUT=directory/test.bam OUTPUT=directory/test_out.metrics '
+               'VALIDATION_STRINGENCY=LENIENT ASSUME_SORTED=true HISTOGRAM_FILE=directory/test_out.histogram')
         assert cmd == exp.format(tmpdir='directory', mem=8)
 
         cmd = bash_commands.picard_insert_size_command(

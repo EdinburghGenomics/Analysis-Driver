@@ -92,26 +92,34 @@ class TestGATKStage():
 
 
 class TestVariantCalling(TestAnalysisDriver):
-    dataset = NamedMock(
+
+    def setUp(self):
+        self.dataset = NamedMock(
             real_name='test_dataset',
             user_sample_id='test_user_sample_id',
             genome_version='genome_version',
             reference_genome='reference_genome',
             genome_dict={
                 'data_files': {
-                    'variation': 'path/to/genomes_dir/path/to/dbsnp.vcf.gz'
-                }
+                    'variation': 'path/to/genomes_dir/path/to/dbsnp.vcf.gz',
+                    'vqsr': {
+                        'hapmap': 'path/to/hapmap_annotation',
+                        'omni': 'path/to/omni_annotation',
+                        'thousand_genomes': 'path/to/1000g_annotation',
+                        'dbsnp': 'path/to/dbsnp_annotation',
+                        'mills': 'path/to/mills_annotation'
+                    }
+                },
+                'snpEff': 'snpEffdb'
             })
 
 
 class TestBaseRecal(TestVariantCalling):
 
-    def setUp(self):
-        self.b = BaseRecal(dataset=self.dataset)
-
     def test_run(self):
+        b = BaseRecal(dataset=self.dataset)
         with patch_executor as e:
-            self.b._run()
+            b._run()
             assert e.call_count == 1
             e.assert_called_with("path/to/java_8 -Djava.io.tmpdir=tests/assets/jobs/test_dataset/gatk_var_calling "
                                  "-XX:+UseSerialGC "
@@ -135,12 +143,11 @@ class TestBaseRecal(TestVariantCalling):
 
 class TestPrintReads(TestVariantCalling):
 
-    def setUp(self):
-        self.p = PrintReads(dataset=self.dataset)
-
     def test_run(self):
+        p = PrintReads(dataset=self.dataset)
+
         with patch_executor as e:
-            self.p._run()
+            p._run()
             assert e.call_count == 1
             e.assert_called_with('path/to/java_8 -Djava.io.tmpdir=tests/assets/jobs/test_dataset/gatk_var_calling '
                                  '-XX:+UseSerialGC '
@@ -162,12 +169,12 @@ class TestPrintReads(TestVariantCalling):
 
 
 class TestRealignTarget(TestVariantCalling):
-    def setUp(self):
-        self.p = RealignTarget(dataset=self.dataset)
 
     def test_run(self):
+        p = RealignTarget(dataset=self.dataset)
+
         with patch_executor as e:
-            self.p._run()
+            p._run()
             assert e.call_count == 1
             e.assert_called_with('path/to/java_8 -Djava.io.tmpdir=tests/assets/jobs/test_dataset/gatk_var_calling '
                                  '-XX:+UseSerialGC '
@@ -188,12 +195,11 @@ class TestRealignTarget(TestVariantCalling):
 
 
 class TestRealign(TestVariantCalling):
-    def setUp(self):
-        self.p = Realign(dataset=self.dataset)
 
     def test_run(self):
+        p = Realign(dataset=self.dataset)
         with patch_executor as e:
-            self.p._run()
+            p._run()
             assert e.call_count == 1
             e.assert_called_with('path/to/java_8 -Djava.io.tmpdir=tests/assets/jobs/test_dataset/gatk_var_calling '
                                  '-XX:+UseSerialGC '
@@ -214,12 +220,12 @@ class TestRealign(TestVariantCalling):
 
 
 class TestHaplotypeCaller(TestVariantCalling):
-    def setUp(self):
-        self.p = HaplotypeCaller(dataset=self.dataset, input_bam='test_bam')
 
     def test_run(self):
+        p = HaplotypeCaller(dataset=self.dataset, input_bam='test_bam')
+
         with patch_executor as e:
-            self.p._run()
+            p._run()
             assert e.call_count == 3  # Command + bgzip + tabix
             assert e.call_args_list[0] == call(
                 'path/to/java_8 -Djava.io.tmpdir=tests/assets/jobs/test_dataset/gatk_var_calling '
@@ -263,12 +269,12 @@ class TestHaplotypeCaller(TestVariantCalling):
 
 
 class TestGenotypeGVCFs(TestVariantCalling):
-    def setUp(self):
-        self.p = GenotypeGVCFs(dataset=self.dataset)
 
     def test_run(self):
+        p = GenotypeGVCFs(dataset=self.dataset)
+
         with patch_executor as e:
-            self.p._run()
+            p._run()
             assert e.call_count == 3  # Command + bgzip + tabix
             assert e.call_args_list[0] == call(
                 'path/to/java_8 -Djava.io.tmpdir=tests/assets/jobs/test_dataset/gatk_var_calling '
@@ -293,12 +299,12 @@ class TestGenotypeGVCFs(TestVariantCalling):
 
 
 class TestSelectVariants(TestVariantCalling):
-    def setUp(self):
-        self.p = SelectVariants(dataset=self.dataset)
 
     def test_run(self):
+        p = SelectVariants(dataset=self.dataset)
+
         with patch_executor as e:
-            self.p._run()
+            p._run()
             assert e.call_count == 3  # Command + bgzip + tabix
             assert e.call_args_list[0] == call(
                 'path/to/java_8 -Djava.io.tmpdir=tests/assets/jobs/test_dataset/gatk_var_calling '
@@ -323,12 +329,12 @@ class TestSelectVariants(TestVariantCalling):
 
 
 class TestVariantFiltration(TestVariantCalling):
-    def setUp(self):
-        self.p = VariantFiltration(dataset=self.dataset)
 
     def test_run(self):
+        p = VariantFiltration(dataset=self.dataset)
+
         with patch_executor as e:
-            self.p._run()
+            p._run()
             assert e.call_count == 3  # Command + bgzip + tabix
             assert e.call_args_list[0] == call(
                 "path/to/java_8 -Djava.io.tmpdir=tests/assets/jobs/test_dataset/gatk_var_calling "

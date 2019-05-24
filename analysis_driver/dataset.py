@@ -17,6 +17,7 @@ from analysis_driver.exceptions import AnalysisDriverError
 from analysis_driver.notification import NotificationCentre, LimsNotification
 from analysis_driver.pipelines import register as pipeline_register
 from analysis_driver.tool_versioning import toolset
+from analysis_driver.util.helper_functions import prepend_path_to_data_files
 
 
 def now(datefmt='%d_%m_%Y_%H:%M:%S'):
@@ -482,6 +483,7 @@ class SampleDataset(Dataset):
         super().__init__(name, most_recent_proc)
         self._run_elements = None
         self._sample = None
+        self._lims_sample_status = None
         self._non_useable_run_elements = None
         self._species = None
         self._genome_version = None
@@ -498,28 +500,34 @@ class SampleDataset(Dataset):
     @property
     def species(self):
         if self._species is None:
+            self._species = self.sample.get('species_name')
+        if self._species is None:
             self._species = clarity.get_species_from_sample(self.name)
         return self._species
 
     @property
     def genome_version(self):
         if self._genome_version is None:
-            self._genome_version = clarity.get_genome_version(self.name, species=self.species)
+            self._genome_version = clarity.get_sample(self.name).udf.get('Genome Version')
+            if not self._genome_version:
+                self._genome_version = rest_communication.get_document(
+                    'species', where={'name': self.species})['default_version']
         return self._genome_version
 
     @property
     def genome_dict(self):
         if self._genome_dict is None:
             # Getting reference genome data from rest API
-            reference_genome_response = rest_communication.get_document('genomes', where={'assembly_name': self.genome_version})
+            genome_response = rest_communication.get_document('genomes', where={'assembly_name': self.genome_version})
             # Checking project whitelist to ensure reference genome can be used
-            if 'project_whitelist' in reference_genome_response and self.project_id not in reference_genome_response['project_whitelist']:
+            if 'project_whitelist' in genome_response and self.project_id not in genome_response['project_whitelist']:
                 raise AnalysisDriverError('Project ID ' + self.project_id + ' not in whitelist for reference genome '
                                           + self.genome_version)
             # Appending genomes_dir to data_files items
-            for item in reference_genome_response['data_files']:
-                reference_genome_response['data_files'][item] = cfg.get('genomes_dir', '') + reference_genome_response['data_files'][item]
-            self._genome_dict = reference_genome_response
+            genome_response['data_files'] = prepend_path_to_data_files(
+                cfg.get('genomes_dir', ''), genome_response['data_files']
+            )
+            self._genome_dict = genome_response
         return self._genome_dict
 
     @property
@@ -549,6 +557,16 @@ class SampleDataset(Dataset):
         if self._sample is None:
             self._sample = rest_communication.get_document('samples', where={'sample_id': self.name})
         return self._sample
+
+    @property
+    def lims_sample_status(self):
+        if self._lims_sample_status is None:
+            self._lims_sample_status = rest_communication.get_document('lims/sample_status',
+                                                                       match={'sample_id': self.name})
+        return self._lims_sample_status
+
+    def library_preparation(self):
+        return self.lims_sample_status.get('library_type')
 
     @property
     def non_useable_run_elements(self):
@@ -633,15 +651,25 @@ class SampleDataset(Dataset):
 
     @property
     def _pipeline(self):
+        analysis_type = clarity.get_sample(self.name).udf.get('Analysis Type')
+
         if self.species is None:
             raise AnalysisDriverError('No species information found in the LIMS for ' + self.name)
 
         elif self.species == 'Homo sapiens':
-            return 'bcbio'
-        elif clarity.get_sample(self.name).udf.get('Analysis Type') in ['Variant Calling', 'Variant Calling gatk']:
+            if 'Variant Calling gatk4' in analysis_type:
+                return 'human_variant_calling_gatk4'
+            else:
+                return 'bcbio'
+        elif analysis_type in ['Variant Calling gatk4']:
+            return 'variant_calling_gatk4'
+        elif analysis_type in ['Variant Calling', 'Variant Calling gatk', 'Variant Calling gatk3']:
             return 'variant_calling'
-        else:
+        elif analysis_type in ['QC GATK3']:
+            # This is unlikely to be used in production but allows us to trigger the GATK3 QC pipeline when needed
             return 'qc'
+        else:
+            return 'qc_gatk4'
 
 
 class ProjectDataset(Dataset):

@@ -1,4 +1,4 @@
-from os.path import join, dirname
+from os.path import join, dirname, abspath
 from unittest import TestCase
 from unittest.mock import Mock
 from analysis_driver.config import default as cfg, etc_config
@@ -12,7 +12,7 @@ class NamedMock(Mock):
 
 
 class TestAnalysisDriver(TestCase):
-    assets_path = join(dirname(__file__), 'assets')
+    assets_path = join(abspath(dirname(__file__)), 'assets')
     fastq_path = join(assets_path, 'fastqs')
 
     @staticmethod
