@@ -179,6 +179,8 @@ def build_pipeline(dataset):
         variant_file = annotate_vcf.snps_effects_output_vcf
         steps_required = [annotate_vcf]
 
+    # VQSR is disabled for now until we can make it perform better than hard filtering.
+
     # variant filtering with VQSR
     # filter_snps = stage(VQSRFiltrationSNPs, input_vcf=variant_file, previous_stages=steps_required)
     # filter_indels = stage(VQSRFiltrationIndels, input_vcf=variant_file, previous_stages=steps_required)
