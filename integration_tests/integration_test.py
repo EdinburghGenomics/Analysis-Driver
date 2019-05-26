@@ -336,15 +336,18 @@ class IntegrationTest(ReportingAppIntegrationTest):
                                 'fixunmapped', 'blast', 'gendervalidation', 'vcfstats', 'samtoolsdepth',
                                 'verifybamid', 'sampledataoutput', 'md5sum', 'cleanup', 'samplereview'])
 
+        ad_proc = rest_communication.get_document('analysis_driver_procs')
+
         self.expect_equal(
-            rest_communication.get_document('analysis_driver_procs')['pipeline_used'],
+            ad_proc['pipeline_used'],
             {'toolset_type': 'human_sample_processing', 'name': 'bcbio', 'toolset_version': 0},
             'pipeline used'
         )
+        self.expect_equal(ad_proc['genome_used'], 'hg38', 'genome used')
 
         self.expect_equal(
             rest_communication.get_document('analysis_driver_procs')['data_source'],
-            ['_'.join([self.run_id, str(i), self.barcode]) for i in range(1, 9)],
+            ['_'.join([self.run_id, str(i), self.barcode]) for i in range(1, 8)],
             'data source'
         )
 
@@ -370,15 +373,19 @@ class IntegrationTest(ReportingAppIntegrationTest):
                                 'cleanup', 'realign', 'realigntarget', 'samtoolsstats', 'haplotypecaller',
                                 'md5sum', 'bwamem', 'sampledataoutput', 'genotypegvcfs'])
 
+        ad_proc = rest_communication.get_document('analysis_driver_procs')
+
         self.expect_equal(
-            rest_communication.get_document('analysis_driver_procs')['pipeline_used'],
+            ad_proc['pipeline_used'],
             {'toolset_type': 'non_human_sample_processing', 'name': 'variant_calling', 'toolset_version': 0},
             'pipeline used'
         )
 
+        self.expect_equal(ad_proc['genome_used'], 'CanFam3.1', 'genome used')
+
         self.expect_equal(
             rest_communication.get_document('analysis_driver_procs')['data_source'],
-            ['_'.join([self.run_id, str(i), self.barcode]) for i in range(1, 9)],
+            ['_'.join([self.run_id, str(i), self.barcode]) for i in range(1, 8)],
             'data source'
         )
 
@@ -396,15 +403,19 @@ class IntegrationTest(ReportingAppIntegrationTest):
                                 'mergefastqs', 'samtoolsstats', 'samplereview', 'haplotypecaller', 'cleanup',
                                 'fastqscreen', 'md5sum', 'bwamem', 'sampledataoutput', 'genotypegvcfs', 'blast'])
 
+        ad_proc = rest_communication.get_document('analysis_driver_procs')
+
         self.expect_equal(
-            rest_communication.get_document('analysis_driver_procs')['pipeline_used'],
+            ad_proc['pipeline_used'],
             {'toolset_type': 'non_human_sample_processing', 'name': 'qc', 'toolset_version': 0},
             'pipeline used'
         )
 
+        self.expect_equal(ad_proc['genome_used'], 'CanFam3.1', 'genome used')
+
         self.expect_equal(
             rest_communication.get_document('analysis_driver_procs')['data_source'],
-            ['_'.join([self.run_id, str(i), self.barcode]) for i in range(1, 9)],
+            ['_'.join([self.run_id, str(i), self.barcode]) for i in range(1, 8)],
             'data source'
         )
 
@@ -579,14 +590,18 @@ class IntegrationTest(ReportingAppIntegrationTest):
                                 'selectindels', 'snpsfiltration', 'indelsfiltration', 'mergevariants', 'vcfstats',
                                 'sampledataoutput', 'md5sum', 'samplereview', 'cleanup'])
 
+        ad_proc = rest_communication.get_document('analysis_driver_procs')
+
         self.expect_equal(
-            rest_communication.get_document('analysis_driver_procs')['pipeline_used'],
+            ad_proc['pipeline_used'],
             {'toolset_type': 'gatk4_sample_processing', 'name': 'qc_gatk4', 'toolset_version': 0},
             'pipeline used'
         )
 
+        self.expect_equal(ad_proc['genome_used'], 'CanFam3.1', 'genome used')
+
         self.expect_equal(
-            rest_communication.get_document('analysis_driver_procs')['data_source'],
+            ad_proc['data_source'],
             ['_'.join([self.run_id, str(i), self.barcode]) for i in range(1, 8)],
             'data source'
         )
@@ -618,14 +633,18 @@ class IntegrationTest(ReportingAppIntegrationTest):
             'blast', 'scatterapplybqsr', 'mergefastqs', 'samtoolsdepth', 'sampledataoutput', 'mergebamanddup'
         ])
 
+        ad_proc = rest_communication.get_document('analysis_driver_procs')
+
+        self.expect_equal(ad_proc['genome_used'], 'CanFam3.1', 'genome used')
+
         self.expect_equal(
-            rest_communication.get_document('analysis_driver_procs')['pipeline_used'],
+            ad_proc['pipeline_used'],
             {'toolset_type': 'gatk4_sample_processing', 'name': 'variant_calling_gatk4', 'toolset_version': 0},
             'pipeline used'
         )
 
         self.expect_equal(
-            rest_communication.get_document('analysis_driver_procs')['data_source'],
+            ad_proc['data_source'],
             ['_'.join([self.run_id, str(i), self.barcode]) for i in range(1, 8)],
             'data source'
         )
@@ -657,14 +676,18 @@ class IntegrationTest(ReportingAppIntegrationTest):
             'samtoolsstats', 'snpsfiltration'
         ])
 
+        ad_proc = rest_communication.get_document('analysis_driver_procs')
+
+        self.expect_equal(ad_proc['genome_used'], 'hg38', 'genome used')
+
         self.expect_equal(
-            rest_communication.get_document('analysis_driver_procs')['pipeline_used'],
+            ad_proc['pipeline_used'],
             {'toolset_type': 'gatk4_sample_processing', 'name': 'human_variant_calling_gatk4', 'toolset_version': 0},
             'pipeline used'
         )
 
         self.expect_equal(
-            rest_communication.get_document('analysis_driver_procs')['data_source'],
+            ad_proc['data_source'],
             ['_'.join([self.run_id, str(i), self.barcode]) for i in range(1, 8)],
             'data source'
         )

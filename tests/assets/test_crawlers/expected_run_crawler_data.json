@@ -294,7 +294,6 @@
                 "pc_error_r2": 0.61,
                 "pc_error_stdev_r1": 0.13,
                 "pc_error_stdev_r2": 0.28,
-                "pc_q30_r1": 93.12,
                 "pc_q30_r2": 80.67,
                 "phasing_r1": 0.091,
                 "phasing_r2": 0.158,
