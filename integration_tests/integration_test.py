@@ -54,14 +54,14 @@ class IntegrationTest(ReportingAppIntegrationTest):
         cfg.load_config_file(os.getenv('ANALYSISDRIVERCONFIG'), env_var='ANALYSISDRIVERENV')
         run_elements = []
         for lane in range(1, 8):
-            run_elements.append(
-                {'run_id': self.run_id, 'project_id': self.project_id, 'sample_id': self.sample_id,
-                 'library_id': self.library_id, 'run_element_id': '%s_%s_%s' % (self.run_id, lane, self.barcode),
-                 'useable': 'yes', 'barcode': self.barcode, 'lane': lane, 'bases_r1': 70000000, 'bases_r2': 70000000,
-                 'clean_bases_r1': 66000000, 'clean_bases_r2': 66000000, 'q30_bases_r1': 64000000,
-                 'q30_bases_r2': 64000000, 'clean_q30_bases_r1': 64000000, 'clean_q30_bases_r2': 64000000,
-                 'clean_reads': 1}
-            )
+            run_elements.append({
+                'run_id': self.run_id, 'project_id': self.project_id, 'sample_id': self.sample_id,
+                'library_id': self.library_id, 'run_element_id': '%s_%s_%s' % (self.run_id, lane, self.barcode),
+                'useable': 'yes', 'barcode': self.barcode, 'lane': lane, 'bases_r1': 70000000,
+                'bases_r2': 70000000,'clean_bases_r1': 66000000, 'clean_bases_r2': 66000000,
+                'q30_bases_r1': 64000000, 'q30_bases_r2': 64000000, 'clean_q30_bases_r1': 64000000,
+                'clean_q30_bases_r2': 64000000,'clean_reads': 1
+            })
         # Lane 8 has no data
         run_elements.append(
             {'run_id': self.run_id, 'project_id': self.project_id, 'sample_id': self.sample_id,
@@ -77,7 +77,8 @@ class IntegrationTest(ReportingAppIntegrationTest):
         rest_communication.post_entry(
             'samples',
             {'library_id': self.library_id, 'project_id': self.project_id, 'sample_id': self.sample_id,
-             'run_elements': [e['run_element_id'] for e in run_elements], 'required_yield': 900000000}
+             'run_elements': [e['run_element_id'] for e in run_elements], 'required_yield': 900000000,
+             'required_coverage': 30}
         )
 
         rest_communication.post_entry('projects', {'project_id': self.project_id, 'samples': [self.sample_id]})
@@ -197,7 +198,7 @@ class IntegrationTest(ReportingAppIntegrationTest):
         analysis_driver_stages endpoint.
         :param list stage_names: Expected stages and exit statuses. Each item can be a string stage name (in which case
                                  expected exit status will be 0), or a tuple of stage_name and exit_status.
-        :param **query_kw: Request parameters to pass to rest_communication.get_documents
+        :param query_kw: Request parameters to pass to rest_communication.get_documents
         """
         stages = rest_communication.get_documents('analysis_driver_stages', **query_kw)
         obs = {s['stage_name']: s.get('exit_status') for s in stages}
@@ -573,6 +574,17 @@ class IntegrationTest(ReportingAppIntegrationTest):
 
     def test_gatk4_qc(self):
         self.setup_test('sample', 'test_gatk4_qc', 'gatk4_qc', 'Canis lupus familiaris', 'Not Variant Calling')
+
+        run_elements = []
+        # remove  Yield from the run elements and add coverage so it start because it passes the coverage threshold.
+        for lane in range(1, 8):
+            run_elements.append({
+                'run_element_id': '%s_%s_%s' % (self.run_id, lane, self.barcode),
+                'bases_r1': 1, 'bases_r2': 1, 'clean_bases_r1': 1, 'clean_bases_r2': 1,
+                'q30_bases_r1': 1, 'q30_bases_r2': 1, 'clean_q30_bases_r1': 1, 'clean_q30_bases_r2': 1,
+                'coverage': {'mean': 5}  # 7 * 5 = 35X coverage
+            })
+
         exit_status = client.main(['--sample'])
         self.assertEqual('exit status', exit_status, 0)
 
