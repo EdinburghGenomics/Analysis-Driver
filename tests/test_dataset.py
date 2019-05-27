@@ -522,6 +522,21 @@ class TestSampleDataset(TestDataset):
         self.assertEqual(error.exception.args[0], 'Project ID a_project not in whitelist for reference genome 1')
 
 
+class TestProjectDataset(TestDataset):
+
+    def setup_dataset(self):
+        with patched_get_docs():
+            self.dataset = ProjectDataset('test_dataset')
+
+    def test_samples_processed(self):
+        with patched_get_docs(['sample1', 'sample2']) as mgetdoc:
+            assert self.dataset.samples_processed == ['sample1', 'sample2']
+            mgetdoc.assert_called_with(
+                'samples', all_pages=True,
+                where={'project_id': 'test_dataset', 'aggregated.most_recent_proc.status': 'finished'}
+            )
+
+
 class TestMostRecentProc(TestAnalysisDriver):
     def setUp(self):
         with patched_get_docs():
