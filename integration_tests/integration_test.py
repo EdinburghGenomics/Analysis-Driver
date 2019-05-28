@@ -576,7 +576,7 @@ class IntegrationTest(ReportingAppIntegrationTest):
         self.setup_test('sample', 'test_gatk4_qc', 'gatk4_qc', 'Canis lupus familiaris', 'Not Variant Calling')
 
         run_elements = []
-        # remove  Yield from the run elements and add coverage so it start because it passes the coverage threshold.
+        # remove  Yield from the run elements and add coverage so it starts because it passes the coverage threshold.
         for lane in range(1, 8):
             run_elements.append({
                 'run_element_id': '%s_%s_%s' % (self.run_id, lane, self.barcode),
