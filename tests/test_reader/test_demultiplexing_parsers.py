@@ -187,7 +187,7 @@ class TestDemultiplexingStats(TestAnalysisDriver):
         res = dm.parse_interop_summary(interop_summary)
         expected_metrics = {
             'pc_clust_pf_r1': 74.36, 'pc_clust_pf_stdev_r1': 3.41, 'phasing_r1': 0.091, 'prephasing_r1': 0.06,
-            'pc_q30_r1': 93.12, 'pc_aligned_r1': 0.51, 'pc_aligned_stdev_r1': 0.02, 'pc_error_r1': 0.38,
+            'pc_aligned_r1': 0.51, 'pc_aligned_stdev_r1': 0.02, 'pc_error_r1': 0.38,
             'pc_error_stdev_r1': 0.13, 'intensity_c1_r1': 201.0, 'intensity_c1_stdev_r1': 7.0, 'pc_clust_pf_r2': 74.36,
             'pc_clust_pf_stdev_r2': 3.41, 'phasing_r2': 0.158, 'prephasing_r2': 0.07, 'pc_q30_r2': 80.67,
             'pc_aligned_r2': 0.51, 'pc_aligned_stdev_r2': 0.03, 'pc_error_r2': 0.61, 'pc_error_stdev_r2': 0.28,
