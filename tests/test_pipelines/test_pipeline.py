@@ -4,7 +4,7 @@ from analysis_driver import segmentation
 from analysis_driver.dataset import RunDataset
 from analysis_driver.exceptions import SequencingRunError, PipelineError
 from analysis_driver.pipelines import pipeline
-from tests import TestAnalysisDriver
+from tests.test_analysisdriver import TestAnalysisDriver
 
 
 class ExceptionStage(segmentation.Stage):
@@ -25,14 +25,21 @@ class FailingStage(segmentation.Stage):
 class TestPipeline(TestAnalysisDriver):
     @staticmethod
     def _pipeline_with_stage(stage_class):
-        dataset = RunDataset(name='a_sample')
         patches = []
         for function_to_patch in ['start', 'get_stage', 'start_stage', 'end_stage', 'resolve_pipeline_and_toolset']:
             p = patch.object(RunDataset, function_to_patch)
             p.start()
             patches.append(p)
 
-        dataset.pipeline = Mock(build_pipeline=Mock(return_value=stage_class(dataset=dataset)))
+        dataset = RunDataset(name='a_sample')
+        patched_pipeline = patch.object(
+            RunDataset,
+            'pipeline',
+            new=Mock(build=Mock(return_value=stage_class(dataset=dataset)))
+        )
+        patched_pipeline.start()
+        patches.append(patched_pipeline)
+
         try:
             return pipeline(dataset)
         finally:

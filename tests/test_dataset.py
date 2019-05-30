@@ -195,11 +195,11 @@ class TestDataset(TestAnalysisDriver):
             3,
             'tests/assets/jobs/test_dataset/program_versions.yaml'
         )
-        assert self.dataset.pipeline.name == 'qc'
 
     @patch(ppath + 'toolset', new=Toolset())
     def test_pipeline_instruction(self):
-        with patch.object(self.dataset.__class__, '_pipeline', new='qc'):
+        pipeline = NamedMock(real_name='qc', toolset_type='non_human_sample_processing')
+        with patch.object(self.dataset.__class__, 'pipeline', new=pipeline):
             assert self.dataset._processing_instruction() == {
                 'name': 'qc',
                 'toolset_type': 'non_human_sample_processing',
@@ -420,7 +420,7 @@ class TestSampleDataset(TestDataset):
 
     @patch(ppath + 'toolset', new=Toolset())
     @patch(ppath + 'SampleDataset.project_id', new='a_project')
-    @patch(ppath + 'SampleDataset._pipeline', new='qc')
+    @patch(ppath + 'SampleDataset.pipeline', new=NamedMock(real_name='qc', toolset_type='non_human_sample_processing'))
     def test_pipeline_instruction(self):
         with patched_get_doc({'sample_pipeline': 'some_data'}):
             assert self.dataset._processing_instruction() == 'some_data'
@@ -470,7 +470,6 @@ class TestSampleDataset(TestDataset):
         self.dataset._species = 'Teleogryllus oceanicus'
         self.dataset._genome_version = '1'
         self.dataset._data_threshold = 1000000000
-
 
     @patched_initialise
     @patch(ppath + 'MostRecentProc.start')
