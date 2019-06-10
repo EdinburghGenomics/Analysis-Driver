@@ -1,5 +1,7 @@
 from unittest.mock import patch, Mock
 from analysis_driver.util import find_all_fastq_pairs_for_lane, get_ranges, get_trim_values_for_bad_cycles
+from analysis_driver.util.helper_functions import prepend_path_to_data_files, split_in_chunks
+from tests import TestAnalysisDriver
 
 
 def test_get_range():
@@ -52,3 +54,49 @@ def test_trim_values_for_bad_cycles():
 
     bad_cycle_list = [302, 301]
     assert get_trim_values_for_bad_cycles(bad_cycle_list, run_info) == (None, 149)
+
+
+class TestHelperFunctions(TestAnalysisDriver):
+
+    def test_prepend_path_to_data_files(self):
+        file_paths = {'f1': 'path/file.1', 'file_set': {'f2': 'path/file.2', 'f3': 'path/file.3'}}
+        full_file_paths = {
+            'f1': '/full/path/file.1',
+            'file_set': {'f2': '/full/path/file.2', 'f3': '/full/path/file.3'}
+        }
+        # Keeps relative path when appending nothing
+        assert prepend_path_to_data_files('', file_paths) == file_paths
+
+        # Prepend path if provided
+        assert prepend_path_to_data_files('/full', file_paths) == full_file_paths
+
+        # Does not prepend anything on already full path
+        assert prepend_path_to_data_files('/fuller', full_file_paths) == full_file_paths
+
+    def test_split_in_chunks(self):
+        chunks = split_in_chunks(total_length=15, chunksize=20, zero_based=True, end_inclusive=True)
+        assert chunks == [(0, 14)]
+
+        chunks = split_in_chunks(total_length=15, chunksize=20, zero_based=False, end_inclusive=True)
+        assert chunks == [(1, 15)]
+
+        chunks = split_in_chunks(total_length=15, chunksize=20, zero_based=True, end_inclusive=False)
+        assert chunks == [(0, 15)]
+
+        chunks = split_in_chunks(total_length=15, chunksize=20, zero_based=False, end_inclusive=False)
+        assert chunks == [(1, 16)]
+
+        chunks = split_in_chunks(total_length=122, chunksize=20, zero_based=True, end_inclusive=True)
+        assert chunks == [(0, 19), (20, 39), (40, 59), (60, 79), (80, 99), (100, 119), (120, 121)]
+
+        chunks = split_in_chunks(total_length=122, chunksize=20, zero_based=False, end_inclusive=True)
+        assert chunks == [(1, 20), (21, 40), (41, 60), (61, 80), (81, 100), (101, 120), (121, 122)]
+
+        chunks = split_in_chunks(total_length=122, chunksize=20, zero_based=True, end_inclusive=False)
+        assert chunks == [(0, 20), (20, 40), (40, 60), (60, 80), (80, 100), (100, 120), (120, 122)]
+
+        chunks = split_in_chunks(total_length=122, chunksize=20, zero_based=False, end_inclusive=False)
+        assert chunks == [(1, 21), (21, 41), (41, 61), (61, 81), (81, 101), (101, 121), (121, 123)]
+
+
+

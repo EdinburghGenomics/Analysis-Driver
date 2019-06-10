@@ -1,10 +1,12 @@
 import os
 import subprocess
 from egcg_core import rest_communication, util, exceptions
-from egcg_core.config import cfg
-from egcg_core.app_logging import logging_default
-from egcg_core.integration_testing import ReportingAppIntegrationTest
 from unittest.mock import Mock, patch
+
+from egcg_core.app_logging import logging_default
+from egcg_core.config import cfg
+from egcg_core.integration_testing import ReportingAppIntegrationTest
+
 from analysis_driver import client
 from integration_tests import mocked_data
 
@@ -51,15 +53,24 @@ class IntegrationTest(ReportingAppIntegrationTest):
         super().setUp()
         cfg.load_config_file(os.getenv('ANALYSISDRIVERCONFIG'), env_var='ANALYSISDRIVERENV')
         run_elements = []
-        for lane in range(1, 9):
+        for lane in range(1, 8):
             run_elements.append(
                 {'run_id': self.run_id, 'project_id': self.project_id, 'sample_id': self.sample_id,
                  'library_id': self.library_id, 'run_element_id': '%s_%s_%s' % (self.run_id, lane, self.barcode),
-                 'useable': 'yes', 'barcode': self.barcode, 'lane': lane, 'bases_r1': 60000000, 'bases_r2': 60000000,
-                 'clean_bases_r1': 58000000, 'clean_bases_r2': 58000000, 'q30_bases_r1': 57000000,
-                 'q30_bases_r2': 57000000, 'clean_q30_bases_r1': 56000000, 'clean_q30_bases_r2': 56000000,
+                 'useable': 'yes', 'barcode': self.barcode, 'lane': lane, 'bases_r1': 70000000, 'bases_r2': 70000000,
+                 'clean_bases_r1': 66000000, 'clean_bases_r2': 66000000, 'q30_bases_r1': 64000000,
+                 'q30_bases_r2': 64000000, 'clean_q30_bases_r1': 64000000, 'clean_q30_bases_r2': 64000000,
                  'clean_reads': 1}
             )
+        # Lane 8 has no data
+        run_elements.append(
+            {'run_id': self.run_id, 'project_id': self.project_id, 'sample_id': self.sample_id,
+             'library_id': self.library_id, 'run_element_id': '%s_%s_%s' % (self.run_id, 8, self.barcode),
+             'useable': 'no', 'barcode': self.barcode, 'lane': 8, 'bases_r1': 0, 'bases_r2': 0,
+             'clean_bases_r1': 0, 'clean_bases_r2': 0, 'q30_bases_r1': 0,
+             'q30_bases_r2': 0, 'clean_q30_bases_r1': 0, 'clean_q30_bases_r2': 0,
+             'clean_reads': 0}
+        )
         for e in run_elements:
             rest_communication.post_entry('run_elements', e)
 
@@ -70,25 +81,53 @@ class IntegrationTest(ReportingAppIntegrationTest):
         )
 
         rest_communication.post_entry('projects', {'project_id': self.project_id, 'samples': [self.sample_id]})
+
+        rest_communication.post_entry('species', {'name': 'Homo sapiens', 'default_version': 'hg38'})
+        rest_communication.post_entry('species', {'name': 'Canis lupus familiaris', 'default_version': 'CanFam3.1'})
+
+        rest_communication.post_entry('genomes', {
+            'assembly_name': 'hg38',
+            'snpEff': 'GRCh38.86',
+            'data_files': {
+                'fasta': 'Homo_sapiens/hg38.fa',
+                'variation': 'Homo_sapiens/hg38/dbsnp-147.vcf.gz',
+                'vqsr': {
+                    'hapmap': 'Homo_sapiens/hg38/gatk_bundle/hapmap_3.3.hg38.vcf.gz',
+                    'omni': 'Homo_sapiens/hg38/gatk_bundle/1000G_omni2.5.hg38.vcf.gz',
+                    'thousand_genomes': 'Homo_sapiens/hg38/gatk_bundle/1000G_phase1.snps.high_confidence.hg38.vcf.gz',
+                    'dbsnp': 'Homo_sapiens/hg38/gatk_bundle/dbsnp_146.hg38.vcf.gz',
+                    'mills': 'Homo_sapiens/hg38/gatk_bundle/Mills_and_1000G_gold_standard.indels.hg38.vcf.gz'
+                }
+            }
+        })
+        rest_communication.post_entry('genomes', {'assembly_name': 'CanFam3.1',
+                                                  'data_files': {'fasta': 'Homo_sapiens/hg38.fa',
+                                                                 'variation': 'Homo_sapiens/hg38/dbsnp-147.vcf.gz'}})
+        rest_communication.post_entry('genomes', {'assembly_name': 'phix174',
+                                                  'data_files': {
+                                                      'fasta': 'PhiX/GCA_000819615.1_ViralProj14015_genomic.fna'}})
+
+        self.dynamic_patches = []
         self._test_success = True
 
     def tearDown(self):
         super().tearDown()
         self._reset_logging()
 
-    def setup_test(self, test_type, test_name, integration_section, species='Homo sapiens', analysis_type='Variant Calling gatk'):
+    def setup_test(self, test_type, test_name, integration_section, species='Homo sapiens',
+                   analysis_type='Variant Calling gatk'):
         cfg.content['jobs_dir'] = os.path.join(os.path.dirname(os.getcwd()), 'jobs', test_name)
         cfg.content[test_type]['output_dir'] = os.path.join(os.path.dirname(os.getcwd()), 'outputs', test_name)
 
         input_dir = self.cfg[integration_section].get('input_dir')
         if input_dir:
             cfg.content[test_type]['input_dir'] = input_dir
-            
+
         if len(os.listdir(cfg[test_type]['input_dir'])) != 1:
             raise exceptions.EGCGError(
                 '%s input datasets found in input dir %s - 1 required' % (
-                    len(os.listdir(input_dir)),
-                    input_dir
+                    len(os.listdir(cfg[test_type]['input_dir'])),
+                    cfg[test_type]['input_dir']
                 )
             )
 
@@ -197,7 +236,7 @@ class IntegrationTest(ReportingAppIntegrationTest):
         self.setup_test('run', 'test_demultiplexing', 'demultiplexing')
         self._add_patches(
             patch('egcg_core.clarity.get_run', return_value=mocked_data.mocked_pooling_run),
-            patch('analysis_driver.quality_control.interop_metrics.get_cycles_extracted', return_value=range(1, 311))
+            patch('analysis_driver.quality_control.interop_metrics.get_last_cycles_with_existing_bcls', return_value=310)
         )
 
         exit_status = client.main(['--run'])
@@ -235,11 +274,12 @@ class IntegrationTest(ReportingAppIntegrationTest):
                 ),
                 self.cfg['demultiplexing']['lane_qc']
             )
-        self.expect_stage_data(['setup', 'wellduplicates', 'bcl2fastq', 'phixdetection', 'fastqfilter', 'seqtkfqchk',
-                                'md5sum', 'fastqc', 'integritycheck', 'qcoutput1', 'dataoutput', 'cleanup',
-                                'samtoolsdepthmulti', 'picardinsertsizemulti', 'qcoutput2', 'runreview',
-                                'picardmarkduplicatemulti', 'samtoolsstatsmulti', 'bwaalignmulti', 'waitforread2',
-                                'bcl2fastqpartialrun', 'picardgcbias'])
+        self.expect_stage_data([
+            'setup', 'wellduplicates', 'bcl2fastq', 'phixdetection', 'fastqfilter', 'seqtkfqchk', 'md5sum', 'fastqc',
+            'integritycheck', 'qcoutput1', 'dataoutput', 'cleanup', 'samtoolsdepthmulti', 'picardinsertsizemulti',
+            'qcoutput2', 'runreview', 'picardmarkduplicatemulti', 'samtoolsstatsmulti', 'bwaalignmulti', 'waitforread2',
+            'bcl2fastqpartialrun', 'picardgcbias'
+        ])
 
         proc = rest_communication.get_document('analysis_driver_procs')
         self.expect_equal(
@@ -255,8 +295,11 @@ class IntegrationTest(ReportingAppIntegrationTest):
         assert self._test_success
 
     def test_demultiplexing_aborted(self):
-        self.setup_test('sample', 'test_demultiplexing_aborted', 'demultiplexing')
-        self._add_patches(patch('egcg_core.clarity.get_run', return_value=mocked_data.mocked_pooling_run))
+        self.setup_test('run', 'test_demultiplexing_aborted', 'demultiplexing')
+        self._add_patches(
+            patch('egcg_core.clarity.get_run', return_value=mocked_data.mocked_pooling_run),
+            patch('analysis_driver.quality_control.interop_metrics.get_last_cycles_with_existing_bcls', return_value=310)
+        )
 
         mocked_clarity_run = mocked_data.MockedRunProcess(
             udf={'Run Status': 'RunAborted'},
@@ -271,7 +314,8 @@ class IntegrationTest(ReportingAppIntegrationTest):
         self.expect_equal(
             ad_proc['status'], 'aborted', 'pipeline status'
         )
-        self.expect_stage_data([('setup', 9)], where={'analysis_driver_proc': ad_proc['proc_id']})
+        stages = [('setup', 9), ('waitforread2', 9)]
+        self.expect_stage_data(stages, where={'analysis_driver_proc': ad_proc['proc_id']})
 
     def test_bcbio(self):
         self.setup_test('sample', 'test_bcbio', 'bcbio')
@@ -359,13 +403,13 @@ class IntegrationTest(ReportingAppIntegrationTest):
         )
 
         self.expect_equal(
-                rest_communication.get_document('analysis_driver_procs')['data_source'],
-                ['_'.join([self.run_id, str(i), self.barcode]) for i in range(1, 9)],
-                'data source'
-            )
+            rest_communication.get_document('analysis_driver_procs')['data_source'],
+            ['_'.join([self.run_id, str(i), self.barcode]) for i in range(1, 9)],
+            'data source'
+        )
 
     def test_qc(self):
-        self.setup_test('sample', 'test_qc', 'qc', 'Canis lupus familiaris', 'Not Variant Calling')
+        self.setup_test('sample', 'test_qc', 'qc', 'Canis lupus familiaris', 'QC GATK3')
 
         self._run_qc_test()
         self.expect_output_files(
@@ -376,7 +420,7 @@ class IntegrationTest(ReportingAppIntegrationTest):
         assert self._test_success
 
     def test_resume(self):
-        self.setup_test('sample', 'test_resume', 'qc', 'Canis lupus familiaris', 'Not Variant Calling')
+        self.setup_test('sample', 'test_resume', 'qc', 'Canis lupus familiaris', 'QC GATK3')
         with patch('analysis_driver.pipelines.common.BWAMem._run', return_value=1):
             exit_status = client.main(['--sample'])
             self.assertEqual('exit status', exit_status, 9)
@@ -444,8 +488,7 @@ class IntegrationTest(ReportingAppIntegrationTest):
             base_dir=os.path.join(cfg['project']['output_dir'], self.project_id)
         )
 
-        self.expect_stage_data(['genotypegvcfs', 'relatedness', 'peddy', 'parserelatedness', 'md5sum', 'output',
-                                'cleanup'])
+        self.expect_stage_data(['genotypegvcfs', 'relatedness', 'peddy', 'parserelatedness', 'output', 'cleanup'])
         ad_procs = rest_communication.get_document('analysis_driver_procs', where={'dataset_name': self.project_id})
         self.expect_equal(
             ad_procs['pipeline_used'],
@@ -455,10 +498,10 @@ class IntegrationTest(ReportingAppIntegrationTest):
 
         assert self._test_success
 
-    def test_rapid_analyis(self):
+    def test_rapid_analysis(self):
         self._add_patches(
             patch('egcg_core.clarity.get_run', return_value=mocked_data.mocked_rapid_run),
-            patch('analysis_driver.quality_control.interop_metrics.get_cycles_extracted', return_value=range(1, 302))
+            patch('analysis_driver.quality_control.interop_metrics.get_last_cycles_with_existing_bcls', return_value=302)
         )
 
         sample_ids = ['non_pooling_sample_%s' % i for i in range(1, 9)]
@@ -476,15 +519,20 @@ class IntegrationTest(ReportingAppIntegrationTest):
         )
 
         self.setup_test('run', 'test_rapid', 'rapid')
+        cfg.content['delivery'] = {'dest': os.path.join(os.path.dirname(os.getcwd()), 'delivered_outputs', 'test_rapid')}
+        os.makedirs(cfg['delivery']['dest'])
         cfg.content['sample']['output_dir'] = os.path.join(os.path.dirname(os.getcwd()), 'outputs', 'test_rapid')
 
         exit_status = client.main(['--run'])
         self.assertEqual('exit status', exit_status, 0)
 
-        output_dir = os.path.join(cfg['sample']['output_dir'], self.project_id)
         self.expect_output_files(
             self.cfg['rapid']['files'],
-            base_dir=output_dir
+            base_dir=os.path.join(cfg['sample']['output_dir'], self.project_id)
+        )
+        self.expect_output_files(
+            self.cfg['rapid']['delivered_files'],
+            base_dir=util.find_file(cfg['delivery']['dest'], self.project_id, '*')
         )
         self.expect_qc_data(
             rest_communication.get_document(
@@ -510,4 +558,115 @@ class IntegrationTest(ReportingAppIntegrationTest):
             {'name': 'demultiplexing', 'toolset_version': 1, 'toolset_type': 'run_processing'},
             'pipeline used'
         )
+        assert self._test_success
+
+    def test_gatk4_qc(self):
+        self.setup_test('sample', 'test_gatk4_qc', 'gatk4_qc', 'Canis lupus familiaris', 'Not Variant Calling')
+        exit_status = client.main(['--sample'])
+        self.assertEqual('exit status', exit_status, 0)
+
+        self.expect_qc_data(
+            rest_communication.get_document('samples', where={'sample_id': self.sample_id}),
+            self.cfg['gatk4_qc']['qc']
+        )
+
+        self.expect_output_files(
+            self.cfg['gatk4_qc']['files'],
+            base_dir=os.path.join(cfg['sample']['output_dir'], self.project_id, self.sample_id)
+        )
+        self.expect_stage_data(['mergefastqs', 'fastqscreen', 'blast', 'fastqindex', 'splitbwa', 'mergebamanddup',
+                                'samtoolsstats', 'samtoolsdepth', 'splithaplotypecaller', 'gathervcf', 'selectsnps',
+                                'selectindels', 'snpsfiltration', 'indelsfiltration', 'mergevariants', 'vcfstats',
+                                'sampledataoutput', 'md5sum', 'samplereview', 'cleanup'])
+
+        self.expect_equal(
+            rest_communication.get_document('analysis_driver_procs')['pipeline_used'],
+            {'toolset_type': 'gatk4_sample_processing', 'name': 'qc_gatk4', 'toolset_version': 0},
+            'pipeline used'
+        )
+
+        self.expect_equal(
+            rest_communication.get_document('analysis_driver_procs')['data_source'],
+            ['_'.join([self.run_id, str(i), self.barcode]) for i in range(1, 8)],
+            'data source'
+        )
+
+        assert self._test_success
+
+    def test_gatk4_var_calling(self):
+        self.setup_test(test_type='sample', test_name='test_gatk4_var_calling',
+                        integration_section='gatk4_var_calling', species='Canis lupus familiaris',
+                        analysis_type='Variant Calling gatk4')
+        exit_status = client.main(['--sample'])
+        self.assertEqual('exit status', exit_status, 0)
+
+        self.expect_qc_data(
+            rest_communication.get_document('samples', where={'sample_id': self.sample_id}),
+            self.cfg['gatk4_var_calling']['qc']
+        )
+
+        self.expect_output_files(
+            self.cfg['gatk4_var_calling']['files'],
+            base_dir=os.path.join(cfg['sample']['output_dir'], self.project_id, self.sample_id)
+        )
+
+        self.expect_stage_data([
+            'gathervcfvc', 'scatterbaserecalibrator', 'samplereview', 'vcfstats', 'indelsfiltration', 'md5sum',
+            'selectindels', 'cleanup', 'splitgenotypegvcfs', 'fastqindex', 'gatherrecalbam',
+            'merge_variants_hard_filter', 'verifybamid', 'samtoolsstats', 'gatherbqsrreport',
+            'gathergvcf', 'splithaplotypecallervc', 'fastqscreen', 'selectsnps', 'snpsfiltration', 'splitbwa',
+            'blast', 'scatterapplybqsr', 'mergefastqs', 'samtoolsdepth', 'sampledataoutput', 'mergebamanddup'
+        ])
+
+        self.expect_equal(
+            rest_communication.get_document('analysis_driver_procs')['pipeline_used'],
+            {'toolset_type': 'gatk4_sample_processing', 'name': 'variant_calling_gatk4', 'toolset_version': 0},
+            'pipeline used'
+        )
+
+        self.expect_equal(
+            rest_communication.get_document('analysis_driver_procs')['data_source'],
+            ['_'.join([self.run_id, str(i), self.barcode]) for i in range(1, 8)],
+            'data source'
+        )
+        assert self._test_success
+
+    def test_gatk4_var_calling_human(self):
+        self.setup_test(test_type='sample', test_name='test_gatk4_var_calling_human',
+                        integration_section='gatk4_var_calling_human',
+                        species='Homo sapiens', analysis_type='Variant Calling gatk4')
+        exit_status = client.main(['--sample'])
+        self.assertEqual('exit status', exit_status, 0)
+
+        self.expect_qc_data(
+            rest_communication.get_document('samples', where={'sample_id': self.sample_id}),
+            self.cfg['gatk4_var_calling_human']['qc']
+        )
+
+        self.expect_output_files(
+            self.cfg['gatk4_var_calling_human']['files'],
+            base_dir=os.path.join(cfg['sample']['output_dir'], self.project_id, self.sample_id)
+        )
+
+        self.expect_stage_data([
+            'gathervcfvc', 'mergebamanddup', 'splitgenotypegvcfs', 'selectsnps', 'mergefastqs', 'cleanup',
+            'splithaplotypecallervc', 'variantannotation', 'genotypevalidation', 'gatherbqsrreport',
+            'selectindels', 'verifybamid', 'gathergvcf', 'gendervalidation', 'fastqscreen', 'sampledataoutput',
+            'gatherrecalbam', 'indelsfiltration', 'samtoolsdepth', 'scatterapplybqsr', 'samplereview', 'fastqindex',
+            'scatterbaserecalibrator', 'merge_variants_hard_filter', 'blast', 'splitbwa', 'vcfstats', 'md5sum',
+            'samtoolsstats', 'snpsfiltration'
+        ])
+
+        self.expect_equal(
+            rest_communication.get_document('analysis_driver_procs')['pipeline_used'],
+            {'toolset_type': 'gatk4_sample_processing', 'name': 'human_variant_calling_gatk4', 'toolset_version': 0},
+            'pipeline used'
+        )
+
+        self.expect_equal(
+            rest_communication.get_document('analysis_driver_procs')['data_source'],
+            ['_'.join([self.run_id, str(i), self.barcode]) for i in range(1, 8)],
+            'data source'
+        )
+
         assert self._test_success

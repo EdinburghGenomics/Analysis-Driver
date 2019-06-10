@@ -17,6 +17,7 @@ from analysis_driver.exceptions import AnalysisDriverError
 from analysis_driver.notification import NotificationCentre, LimsNotification
 from analysis_driver.pipelines import register as pipeline_register
 from analysis_driver.tool_versioning import toolset
+from analysis_driver.util.helper_functions import prepend_path_to_data_files
 
 
 def now(datefmt='%d_%m_%Y_%H:%M:%S'):
@@ -211,8 +212,11 @@ class Dataset(AppLogger):
 
     def resolve_pipeline_and_toolset(self):
         instruction = self._processing_instruction()
-        toolset.select_type(instruction['toolset_type'])
-        toolset.select_version(instruction['toolset_version'])
+        toolset.configure(
+            instruction['toolset_type'],
+            instruction['toolset_version'],
+            os.path.join(cfg['jobs_dir'], self.name, 'program_versions.yaml')
+        )
         self.pipeline = pipeline_register[instruction['name']]
 
 
@@ -296,7 +300,8 @@ class RunDataset(Dataset):
     def sample_sheet_file(self):
         if self._sample_sheet_file is None:
             self._sample_sheet_file = os.path.join(self.input_dir, 'SampleSheet_analysis_driver.csv')
-            self._generate_samplesheet(self._sample_sheet_file)
+            if not os.path.isfile(self._sample_sheet_file):
+                self._generate_samplesheet(self._sample_sheet_file)
         return self._sample_sheet_file
 
     def _generate_samplesheet(self, filename):
@@ -306,7 +311,8 @@ class RunDataset(Dataset):
             'AdapterRead2, AGATCGGAAGAGCGTCGTGTAGGGAAAGAGTGT', '', '[Data]',
             'Lane,Sample_ID,Sample_Name,Sample_Project,index'
         ]
-        for run_element in self.run_elements:
+        # order the run elements so they produce a deterministic samplesheet
+        for run_element in sorted(self.run_elements, key=lambda x: (x[ELEMENT_LANE], x[ELEMENT_BARCODE])):
             all_lines.append(','.join([
                 run_element[ELEMENT_LANE],
                 run_element[ELEMENT_SAMPLE_INTERNAL_ID],
@@ -346,9 +352,14 @@ class RunDataset(Dataset):
 
     @property
     def rapid_samples_by_lane(self):
+        """
+        Search the sequencing run in the Lims for any samples with the UDF 'Rapid Analysis' set, and return their sample
+        ID, project ID and all UDFs.
+        """
         if self._rapid_samples_by_lane is None:
             self._rapid_samples_by_lane = {}
 
+            # TODO: #394 - move away from using the Lims API
             flowcell = set(self.lims_run.parent_processes()).pop().output_containers()[0]
             for lane, artifact in flowcell.placements.items():
                 if len(artifact.reagent_labels) > 1:
@@ -356,8 +367,11 @@ class RunDataset(Dataset):
 
                 assert len(artifact.samples) == 1
                 sample = artifact.samples[0]
-                if sample.udf.get('Rapid Analysis'):
-                    self._rapid_samples_by_lane[lane.split(':')[0]] = sample
+                if sample.udf.get('Rapid Analysis') == 'Yes':
+                    s = sample.udf.copy()
+                    s['sample_id'] = sample.name
+                    s['project_id'] = sample.project.name
+                    self._rapid_samples_by_lane[lane.split(':')[0]] = s
 
         return self._rapid_samples_by_lane
 
@@ -383,8 +397,23 @@ class RunDataset(Dataset):
                 if self.has_barcodes:
                     assert len(artifact.reagent_labels) == 1
                     reagent_label = artifact.reagent_labels[0]
-                    match = re.match('(\w{4})-(\w{4}) \(([ATCG]{8})-([ATCG]{8})\)', reagent_label)
-                    run_element[ELEMENT_BARCODE] = match.group(3)
+
+                    barcode = None
+                    for pattern in (
+                        # TruSeq label, e.g, A412-A208 (ATGCATGC-CTGACTGA)
+                        '(\w{4})-(\w{4}) \(([ATCG]{8})-([ATCG]{8})\)',
+                        # IDT label, e.g, 001A IDT-ILMN TruSeq DNA-RNA UD 96 Indexes Plate_UDI0001 (ATGCATGC-CTGACTGA)
+                        '(\w{4}) IDT-ILMN TruSeq DNA-RNA UD 96 Indexes (Plate_\w{7}) \(([ATGC]{8})-([ATGC]{8})\)'
+                    ):
+                        match = re.match(pattern, reagent_label)
+                        if match:
+                            barcode = match.group(3)
+
+                    if not barcode:
+                        raise AnalysisDriverError('Invalid reagent label found: %s' % reagent_label)
+
+                    run_element[ELEMENT_BARCODE] = barcode
+
                 run_elements.append(run_element)
         return run_elements
 
@@ -450,16 +479,17 @@ class SampleDataset(Dataset):
     endpoint = 'samples'
     id_field = 'sample_id'
 
-    def __init__(self, name, most_recent_proc=None, data_threshold=None):
+    def __init__(self, name, most_recent_proc=None):
         super().__init__(name, most_recent_proc)
         self._run_elements = None
         self._sample = None
+        self._lims_sample_status = None
         self._non_useable_run_elements = None
-        self._data_threshold = data_threshold
         self._species = None
         self._genome_version = None
         self._user_sample_id = None
         self._lims_ntf = None
+        self._genome_dict = None
 
     @property
     def lims_ntf(self):
@@ -470,18 +500,39 @@ class SampleDataset(Dataset):
     @property
     def species(self):
         if self._species is None:
+            self._species = self.sample.get('species_name')
+        if self._species is None:
             self._species = clarity.get_species_from_sample(self.name)
         return self._species
 
     @property
     def genome_version(self):
         if self._genome_version is None:
-            self._genome_version = clarity.get_genome_version(self.name, species=self.species)
+            self._genome_version = clarity.get_sample(self.name).udf.get('Genome Version')
+            if not self._genome_version:
+                self._genome_version = rest_communication.get_document(
+                    'species', where={'name': self.species})['default_version']
         return self._genome_version
 
     @property
+    def genome_dict(self):
+        if self._genome_dict is None:
+            # Getting reference genome data from rest API
+            genome_response = rest_communication.get_document('genomes', where={'assembly_name': self.genome_version})
+            # Checking project whitelist to ensure reference genome can be used
+            if 'project_whitelist' in genome_response and self.project_id not in genome_response['project_whitelist']:
+                raise AnalysisDriverError('Project ID ' + self.project_id + ' not in whitelist for reference genome '
+                                          + self.genome_version)
+            # Appending genomes_dir to data_files items
+            genome_response['data_files'] = prepend_path_to_data_files(
+                cfg.get('genomes_dir', ''), genome_response['data_files']
+            )
+            self._genome_dict = genome_response
+        return self._genome_dict
+
+    @property
     def reference_genome(self):
-        return cfg['genomes'][self.genome_version]['fasta']
+        return self.genome_dict['data_files']['fasta']
 
     @property
     def data_source(self):
@@ -508,6 +559,16 @@ class SampleDataset(Dataset):
         return self._sample
 
     @property
+    def lims_sample_status(self):
+        if self._lims_sample_status is None:
+            self._lims_sample_status = rest_communication.get_document('lims/sample_status',
+                                                                       match={'sample_id': self.name})
+        return self._lims_sample_status
+
+    def library_preparation(self):
+        return self.lims_sample_status.get('library_type')
+
+    @property
     def non_useable_run_elements(self):
         if self._non_useable_run_elements is None:
             self._non_useable_run_elements = rest_communication.get_documents(
@@ -526,17 +587,24 @@ class SampleDataset(Dataset):
         else:
             return 0
 
+    def _amount_coverage(self):
+        return query_dict(self.sample, 'aggregated.from_run_elements.mean_coverage') or 0
+
     @property
     def pc_q30(self):
         return self.sample.get('aggregated', {}).get('clean_pc_q30') or 0
 
     @property
-    def data_threshold(self):
-        if self._data_threshold is None:
-            self._data_threshold = self.sample.get('required_yield')
-        if not self._data_threshold:
-            raise AnalysisDriverError('Could not find data threshold for ' + self.name)
-        return self._data_threshold
+    def required_yield_threshold(self):
+        if 'required_yield' in self.sample:
+            return self.sample.get('required_yield')
+        raise AnalysisDriverError('Could not find required yield threshold for ' + self.name)
+
+    @property
+    def required_coverage_threshold(self):
+        if 'required_coverage' in self.sample:
+            return self.sample.get('required_coverage')
+        raise AnalysisDriverError('Could not find required coverage threshold for ' + self.name)
 
     def _processing_instruction(self):
         instruction = rest_communication.get_document(
@@ -550,14 +618,18 @@ class SampleDataset(Dataset):
         return instruction
 
     def _is_ready(self):
-        return self.data_threshold and self.pc_q30 > 75 and self._amount_data() > self.data_threshold
+        return self.pc_q30 > 75 and (
+            (self.required_yield_threshold and self._amount_data() > self.required_yield_threshold) or
+            (self.required_coverage_threshold and self._amount_coverage() > self.required_coverage_threshold)
+        )
 
     def report(self):
         runs = query_dict(self.sample, 'aggregated.run_ids')
         non_useable_runs = sorted(set(r[ELEMENT_RUN_NAME] for r in self.non_useable_run_elements))
 
-        s = '%s  (%s / %s  from %s) ' % (
-            super().report(), self._amount_data(), self.data_threshold, ', '.join(runs)
+        s = '%s  (yield: %s / %s and coverage: %s / %s from %s) ' % (
+            super().report(), self._amount_data(), self.required_yield_threshold, self._amount_coverage(),
+            self.required_coverage_threshold, ', '.join(runs)
         )
         if non_useable_runs:
             s += '(non useable run elements in %s)' % ', '.join(non_useable_runs)
@@ -579,15 +651,25 @@ class SampleDataset(Dataset):
 
     @property
     def _pipeline(self):
+        analysis_type = clarity.get_sample(self.name).udf.get('Analysis Type')
+
         if self.species is None:
             raise AnalysisDriverError('No species information found in the LIMS for ' + self.name)
 
         elif self.species == 'Homo sapiens':
-            return 'bcbio'
-        elif clarity.get_sample(self.name).udf.get('Analysis Type') in ['Variant Calling', 'Variant Calling gatk']:
+            if 'Variant Calling gatk4' in analysis_type:
+                return 'human_variant_calling_gatk4'
+            else:
+                return 'bcbio'
+        elif analysis_type in ['Variant Calling gatk4']:
+            return 'variant_calling_gatk4'
+        elif analysis_type in ['Variant Calling', 'Variant Calling gatk', 'Variant Calling gatk3']:
             return 'variant_calling'
-        else:
+        elif analysis_type in ['QC GATK3']:
+            # This is unlikely to be used in production but allows us to trigger the GATK3 QC pipeline when needed
             return 'qc'
+        else:
+            return 'qc_gatk4'
 
 
 class ProjectDataset(Dataset):
@@ -648,13 +730,13 @@ class ProjectDataset(Dataset):
         if self._genome_version is None:
             g = clarity.get_sample(self.samples_processed[0]['sample_id']).udf.get('Genome Version')
             if not g:
-                g = cfg.query('species', self.species, 'default')
+                g = rest_communication.get_document('species', where={'name': self.species})['default_version']
             self._genome_version = g
         return self._genome_version
 
     @property
     def reference_genome(self):
-        return cfg['genomes'][self.genome_version]['fasta']
+        return SampleDataset(self.samples_processed[0]['sample_id']).reference_genome
 
     def __str__(self):
         return '%s  (%s samples / %s) ' % (super().__str__(), len(self.samples_processed), self.number_of_samples)
@@ -748,6 +830,9 @@ class MostRecentProc:
             }
             if self.get('status') != DATASET_RESUME:
                 payload['start_date'] = now()
+
+            if self.dataset.type == 'sample':
+                payload['genome_used'] = self.dataset.genome_version
 
             self.update_entity(status=DATASET_PROCESSING, pid=os.getpid())
             rest_communication.patch_entry('analysis_driver_procs', payload, 'proc_id', self.proc_id)

@@ -2,6 +2,7 @@ from collections import defaultdict
 from itertools import islice
 from egcg_core.config import cfg
 from egcg_core.app_logging import AppLogger
+from egcg_core import util
 from interop.py_interop_run_metrics import run_metrics as RunMetrics
 from analysis_driver.reader.run_info import Reads
 
@@ -26,22 +27,27 @@ class BadTileCycleDetector(AppLogger):
     def read_interop_metrics(self):
         run_metrics = RunMetrics()
         run_metrics.read(self.run_dir)
-        q_metric_set = run_metrics.q_metric_set()
-        metrics = q_metric_set.metrics()
+        metrics = run_metrics.q_metric_set().metrics()
 
         self.all_lanes = {}
         for lane in range(1, 9):
             self.all_lanes[lane] = ({}, {})
 
         for i in range(metrics.size()):
-            tile_dict, cycle_dict = self.all_lanes[metrics[i].lane()]
-            if metrics[i].tile() not in tile_dict:
-                tile_dict[metrics[i].tile()] = [None] * self.ncycles
-            if metrics[i].cycle() not in cycle_dict:
-                cycle_dict[metrics[i].cycle()] = []
+            m = metrics[i]
+            lane = m.lane()
+            tile = m.tile()
+            cycle = m.cycle()
 
-            tile_dict[metrics[i].tile()][metrics[i].cycle()-1] = metrics[i].qscore_hist()
-            cycle_dict[metrics[i].cycle()].append(metrics[i].qscore_hist())
+            tile_dict, cycle_dict = self.all_lanes[lane]
+            if tile not in tile_dict:
+                tile_dict[tile] = [None] * self.ncycles
+            if cycle not in cycle_dict:
+                cycle_dict[cycle] = []
+
+            qscore = m.qscore_hist()
+            tile_dict[tile][cycle-1] = qscore
+            cycle_dict[cycle].append(qscore)
 
     @staticmethod
     def windows(l, window_size):
@@ -109,9 +115,22 @@ class BadTileCycleDetector(AppLogger):
         return bad_cycle_per_lanes
 
 
-def get_cycles_extracted(run_dir):
+def get_last_cycles_with_existing_bcls(run_dir):
+    """
+    Check the extracted cycles from the interop and confirms the presence of the bcl files on the filesystem.
+    The confirmation is only performed from the last cycles and the first full confirmed cycle is returned.
+    :param run_dir: The location where the run is stored
+    :returns: the last cycle of the run with existing bcls
+    """
     run_metrics = RunMetrics()
     run_metrics.read(run_dir)
     extraction_metrics = run_metrics.extraction_metric_set()
-    return sorted(extraction_metrics.cycles())
-
+    all_cycles = sorted(extraction_metrics.cycles())
+    last_complete_cycles = 0
+    # start from the last cycle and walk back until found a cycle with all the bcls present.
+    for cycle in all_cycles[::-1]:
+        all_bcls = util.find_files(run_dir, 'Data', 'Intensities', 'BaseCalls', 'L00*', 'C%s.1' % cycle, '*.bcl.gz')
+        if len(all_bcls) == extraction_metrics.metrics_for_cycle(cycle).size():
+            last_complete_cycles = cycle
+            break
+    return last_complete_cycles

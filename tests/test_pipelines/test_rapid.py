@@ -21,21 +21,26 @@ class TestDragen(TestAnalysisDriver):
             dataset=NamedMock(
                 real_name='a_run',
                 type='run',
-                rapid_samples_by_lane={'2': NamedMock(real_name='a_sample', udf={'User Sample Name': 'uid_a_sample'})},
+                rapid_samples_by_lane={'2': {'sample_id': 'a_sample', 'User Sample Name': 'uid_a_sample'}},
                 sample_sheet_file='path/to/SampleSheet_analysis_driver.csv'
             )
         )
         d._run()
         mocked_execute.assert_called_with(
-            'if [ -d /path/to/dragen_staging/a_run_2 ]; then rm -r /path/to/dragen_staging/a_run_2; fi; '
-            'mkdir -p /path/to/dragen_staging/a_run_2; /path/to/dragen -r /path/to/dragen_reference '
+            'if [ -d /path/to/dragen_staging/a_run_2 ]; then rm -r /path/to/dragen_staging/a_run_2; fi && '
+            'mkdir -p /path/to/dragen_staging/a_run_2 && echo "Starting at $(date +%Y-%m-%d\ %H:%M:%S)" && '
+            '/path/to/dragen -r /path/to/dragen_reference '
             '--bcl-input-dir tests/assets/data_transfer/from/a_run --bcl-only-lane 2 '
             '--output-directory /path/to/dragen_staging/a_run_2 --output-file-prefix uid_a_sample '
-            '--enable-variant-caller true --vc-sample-name a_sample '
+            '--enable-variant-caller true --vc-sample-name uid_a_sample '
             '--bcl-sample-sheet path/to/SampleSheet_analysis_driver.csv --enable-map-align-output true '
-            '--enable-duplicate-marking true --dbsnp /path/to/dbsnp; '
+            '--enable-duplicate-marking true --dbsnp /path/to/dbsnp; exit_status=$?; '
+            'echo "Finished setup/Dragen with exit status $exit_status at $(date +%Y-%m-%d\ %H:%M:%S)"; '
+            'echo "Outputting data and cleaning up"; '
             'rsync -rLD /path/to/dragen_staging/a_run_2/ tests/assets/jobs/a_run/rapid_analysis_2; '
-            'rm -r /path/to/dragen_staging/a_run_2',
+            'rm -r /path/to/dragen_staging/a_run_2; '
+            'echo "Done at $(date +%Y-%m-%d\ %H:%M:%S)"; '
+            'exit $exit_status',
             prelim_cmds=['ulimit -n 65535', 'ulimit -c 0', 'ulimit -s 8192', 'ulimit -u 16384', 'ulimit -i 1029522'],
             job_name='dragen',
             job_queue='dragen',
@@ -46,15 +51,29 @@ class TestDragen(TestAnalysisDriver):
 
 
 class TestDragenMetrics(TestAnalysisDriver):
+    def test_interop_metrics(self):
+        interop_metrics = {
+            'pc_q30_r1': 93.12,
+            'yield_r1': 69.53,
+            'pc_q30_r2': 80.67,
+            'yield_r2': 69.43
+        }
+        assert rapid.DragenMetrics._interop_metrics(interop_metrics) == {
+            'yield': 138.96,
+            'pc_q30': 86.89947970639032
+        }
+
+    @patch('analysis_driver.pipelines.rapid.DragenMetrics._interop_metrics', return_value={'yield': 10, 'pc_q30': 90})
+    @patch('analysis_driver.pipelines.rapid.parse_interop_summary')
     @patch(ppath + 'rest_communication.post_or_patch')
-    def test_run(self, mocked_post_or_patch):
+    def test_run(self, mocked_post_or_patch, mocked_parse, mocked_interops):
         d = rapid.DragenMetrics(
             dataset=NamedMock(
                 real_name='a_run',
                 type='run',
                 rapid_samples_by_lane={
-                    '2': NamedMock(real_name='a_sample', udf={'User Sample Name': 'uid_a_sample'}),
-                    '4': NamedMock(real_name='another_sample', udf={'User Sample Name': 'uid_another_sample'})
+                    '2': {'sample_id': 'a_sample', 'User Sample Name': 'uid_a_sample'},
+                    '4': {'sample_id': 'another_sample', 'User Sample Name': 'uid_another_sample'}
                 }
             )
         )
@@ -67,7 +86,10 @@ class TestDragenMetrics(TestAnalysisDriver):
             [
                 {
                     'sample_id': 'a_sample',
-                    'rapid_metrics': {
+                    'rapid_analysis': {
+                        'yield': 10,
+                        'pc_q30': 90,
+                        'data_source': ['a_run_2'],
                         'var_calling': {'ti_tv_ratio': 1.9, 'het_hom_ratio': 1.53},
                         'mapping': {
                             'total_reads': 911979369,
@@ -97,7 +119,10 @@ class TestDragenMetrics(TestAnalysisDriver):
                 },
                 {
                     'sample_id': 'another_sample',
-                    'rapid_metrics': {
+                    'rapid_analysis': {
+                        'yield': 10,
+                        'pc_q30': 90,
+                        'data_source': ['a_run_4'],
                         'var_calling': {'ti_tv_ratio': 1.94, 'het_hom_ratio': 1.54},
                         'mapping': {
                             'total_reads': 911979370,
@@ -187,14 +212,9 @@ class TestOutput(TestPostDragen):
         for f in self.dragen_output_files:
             assert os.path.isfile(f)
 
-        fake_sample = NamedMock(
-            real_name='a_sample',
-            project=NamedMock(real_name='a_rapid_project'),
-            udf={'User Sample Name': 'uid_a_sample'}
-        )
-        output_dir = os.path.join(cfg['sample']['output_dir'], fake_sample.project.name, fake_sample.name, 'rapid_analysis')
+        output_dir = os.path.join(cfg['sample']['output_dir'], 'a_rapid_project', 'a_sample', 'rapid_analysis')
         with patch.object(self.stage.__class__, 'job_dir', new=test_run_dir):
-            assert self.stage.output_data(2, fake_sample, output_dir) == 0
+            assert self.stage.output_data(2, {'User Sample Name': 'uid_a_sample'}, output_dir) == 0
 
         for f in self.dragen_output_files:
             assert not os.path.isfile(f)
@@ -238,11 +258,9 @@ class TestDeliverData(TestPostDragen):
     @patch.object(rapid.DragenOutput, 'datestamp', new='today')
     def test_deliver_data(self):
         self.stage.deliver_data(
-            NamedMock(
-                real_name='a_sample',
-                project=NamedMock(real_name='a_project'),
-                udf={'User Sample Name': 'uid_a_sample'}
-            ),
+            'a_sample',
+            'uid_a_sample',
+            'a_project',
             self.sample_output_dir
         )
 

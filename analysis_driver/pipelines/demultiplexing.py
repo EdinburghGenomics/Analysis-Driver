@@ -97,10 +97,12 @@ class Bcl2Fastq(DemultiplexingStage):
 
 class PhixDetection(DemultiplexingStage):
     def _run(self):
+        fasta = cfg.get('genomes_dir', '') + \
+                rest_communication.get_document('genomes', where={'assembly_name': 'phix174'})['data_files']['fasta']
         cmds = []
         for fq1, fq2 in util.find_all_fastq_pairs(self.fastq_dir):
             read_name_list = fq1[:-len('_R1_001.fastq.gz')] + '_phix_read_name.list'
-            cmds.append(bash_commands.bwa_mem_phix(fq1, read_name_list))
+            cmds.append(bash_commands.bwa_mem_phix(fq1, read_name_list, fasta))
 
         exit_status = executor.execute(
             *cmds,
@@ -237,10 +239,17 @@ class WaitForRead2(DemultiplexingStage):
         ])
 
         # get the last cycle extracted
-        current_cycle = sorted(interop_metrics.get_cycles_extracted(self.dataset.input_dir))[-1]
+        current_cycle = interop_metrics.get_last_cycles_with_existing_bcls(self.dataset.input_dir)
         while current_cycle < required_number_of_cycles and self.dataset.is_sequencing():
             time.sleep(1200)
-            current_cycle = sorted(interop_metrics.get_cycles_extracted(self.dataset.input_dir))[-1]
+            current_cycle = interop_metrics.get_last_cycles_with_existing_bcls(self.dataset.input_dir)
+
+        # make sure the run is not aborted or errored before continuing with the rest of the pipeline
+        run_status = self.dataset.lims_run.udf.get('Run Status')
+        if run_status not in ['RunCompleted', 'RunStarted', 'RunPaused']:
+            self.error('Run status is \'%s\'. Stopping.', run_status)
+            raise SequencingRunError(run_status)
+
         return 0
 
 
@@ -479,13 +488,12 @@ def build_pipeline(dataset):
                       previous_stages=[welldups, integrity_check, fastqc, seqtk, md5])
 
     qc_output2 = stage(QCOutput, stage_name='qcoutput2', run_crawler_stage=RunCrawler.STAGE_MAPPING,
-                       previous_stages=[stats_output, depth_output, md_output, is_output, gc_bias])
-    data_output = stage(DataOutput, previous_stages=[qc_output, qc_output2])
-    cleanup = stage(Cleanup, previous_stages=[data_output])
-    final_checkpoint = [cleanup]
-
+                       previous_stages=[qc_output, stats_output, depth_output, md_output, is_output, gc_bias])
+    data_output = stage(DataOutput, previous_stages=[qc_output2])
+    final_checkpoint = [data_output]
     if dataset.rapid_samples_by_lane:
-        final_checkpoint.append(rapid._build_pipeline(dataset, setup))
+        final_checkpoint.append(rapid.build_pipeline(dataset, setup))
 
-    review = stage(RunReview, previous_stages=final_checkpoint)
+    cleanup = stage(Cleanup, previous_stages=final_checkpoint)
+    review = stage(RunReview, previous_stages=[cleanup])
     return review

@@ -1,4 +1,4 @@
-from os.path import join, dirname
+from os.path import join, dirname, abspath
 from unittest import TestCase
 from unittest.mock import Mock
 from analysis_driver.config import default as cfg, etc_config
@@ -12,7 +12,7 @@ class NamedMock(Mock):
 
 
 class TestAnalysisDriver(TestCase):
-    assets_path = join(dirname(__file__), 'assets')
+    assets_path = join(abspath(dirname(__file__)), 'assets')
     fastq_path = join(assets_path, 'fastqs')
 
     @staticmethod
@@ -23,5 +23,5 @@ class TestAnalysisDriver(TestCase):
     def setUpClass(cls):
         cfg.load_config_file(etc_config('example_analysisdriver.yaml'))
         tool_versioning.toolset.versioning_cfg.load_config_file(join(cls.assets_path, 'tool_versioning.yaml'))
-        tool_versioning.toolset.select_type('fake_tools')
-        tool_versioning.toolset.select_version(0)
+        tool_versioning.toolset.configure('fake_tools', 0, None)
+        tool_versioning.toolset.update_versions_file = Mock()

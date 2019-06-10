@@ -47,6 +47,7 @@ default:
         fastqscreen: path/to/fastqscreen
         fix_dup_unmapped: path/to/fix_dup_unmapped
         gatk: [path/to/gatk_3, path/to/gatk_4]
+        gatk4_bin: path/to/gatk
         java: path/to/java_8
         jdk: path/to/jdk
         md5sum: path/to/md5sum
@@ -62,6 +63,12 @@ default:
         vcftools: path/to/vcftools
         verifybamid: path/to/verifybamid
         well_duplicates: path/to/well_duplicates
+        grabix: path/to/grabix
+        bamcat: path/to/bamcat
+        pbgzip: path/to/pbgzip
+        snpEff: path/to/snpEff
+        k8: path/to/k8
+        postalt: path/to/postalt
 
     logging:
         format: '[%(asctime)s][%(processName)s][%(name)s][%(levelname)s] %(message)s'
@@ -107,11 +114,10 @@ default:
 
     genomes:
         genome_version:
-            fasta: /path/to/genome.fa
-            dbsnp: /path/to/dbsnp.vcf.gz
-            known_indels: /path/to/known/indels
+            fasta: path/to/genome.fa
+            dbsnp: path/to/dbsnp.vcf.gz
         phix174:
-            fasta: /path/to/phix.fa
+            fasta: path/to/phix.fa
 
     clarity:
         baseuri: 'https://clarity.co.uk'
@@ -121,5 +127,7 @@ default:
     luigi:
         local_scheduler: True
 
-delivery:
-    dest: tests/assets/delivered_data
+    genomes_dir: path/to/genomes_dir/
+
+    delivery:
+        dest: tests/assets/delivered_data

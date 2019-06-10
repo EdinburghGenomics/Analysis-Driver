@@ -394,22 +394,30 @@ def parse_interop_summary(summary_file):
                 sections[section_name].append(sp_line)
         return sections
 
+    def to_float(data):
+        n = float(data)
+        if math.isnan(n):
+            return None
+
+        return n
+
     def parse_read_section(lines):
         values_per_lane = {}
         for sp_line in lines[1:]:
             if sp_line[0].isdigit() and sp_line[1] == '-':
                 values_per_lane[sp_line[0]] = {
-                    'pc_clust_pf': float(sp_line[4].split()[0]),  # avg Cluster PF
-                    'pc_clust_pf_stdev': float(sp_line[4].split()[2]),  # std dev Cluster PF
-                    'phasing': float(sp_line[5].split('/')[0].strip()),  # Phasing
-                    'prephasing': float(sp_line[5].split('/')[1].strip()),  # Prephasing
-                    'pc_q30': float(sp_line[10]),  # '%>=Q30'
-                    'pc_aligned': float(sp_line[13].split()[0]),  # avg %aligned'
-                    'pc_aligned_stdev': float(sp_line[13].split()[2]),  # std dev %aligned '
-                    'pc_error': float(sp_line[14].split()[0]),  # 'avg %error'
-                    'pc_error_stdev': float(sp_line[14].split()[2]),  # 'std dev %error'
-                    'intensity_c1': float(sp_line[18].split()[0]),  # ' avg Intensity C1'
-                    'intensity_c1_stdev': float(sp_line[18].split()[2]),  # 'std dev Intensity C1'
+                    'pc_clust_pf': to_float(sp_line[4].split()[0]),  # avg Cluster PF
+                    'pc_clust_pf_stdev': to_float(sp_line[4].split()[2]),  # std dev Cluster PF
+                    'phasing': to_float(sp_line[5].split('/')[0].strip()),  # Phasing
+                    'prephasing': to_float(sp_line[5].split('/')[1].strip()),  # Prephasing
+                    'pc_q30': to_float(sp_line[10]),  # '%>=Q30'
+                    'yield': to_float(sp_line[11]),  # Yield
+                    'pc_aligned': to_float(sp_line[13].split()[0]),  # avg %aligned'
+                    'pc_aligned_stdev': to_float(sp_line[13].split()[2]),  # std dev %aligned '
+                    'pc_error': to_float(sp_line[14].split()[0]),  # 'avg %error'
+                    'pc_error_stdev': to_float(sp_line[14].split()[2]),  # 'std dev %error'
+                    'intensity_c1': to_float(sp_line[18].split()[0]),  # ' avg Intensity C1'
+                    'intensity_c1_stdev': to_float(sp_line[18].split()[2]),  # 'std dev Intensity C1'
                 }
         return values_per_lane
 

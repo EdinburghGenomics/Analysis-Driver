@@ -160,8 +160,9 @@ def bwa_mem_samblaster(fastq_pair, reference, expected_output_bam, read_group=No
     return cmd
 
 
-def bwa_mem_phix(fastq, read_name_list, thread=16):
-    command_bwa = '%s mem -t %s %s %s' % (toolset['bwa'], thread, cfg.query('genomes', 'phix174', 'fasta'), fastq)
+def bwa_mem_phix(fastq, read_name_list, fasta, thread=16):
+    command_bwa = \
+        '%s mem -t %s %s %s' % (toolset['bwa'], thread, fasta, fastq)
     command_samtools = '%s view -F 4 | cut -f 1 | sort -u > %s' % (toolset['samtools'], read_name_list)
     cmd = 'set -o pipefail; ' + ' | '.join([command_bwa, command_samtools])
     app_logger.debug('Writing: ' + cmd)
@@ -207,10 +208,14 @@ def md5sum(input_file):
     return cmd
 
 
-def picard_command(program, input_file, output_file, tmp_dir, memory, picard_params=None):
+def picard_command(program, input_file, output_file, tmp_dir, memory, assume_sorted=True, picard_params=None):
     cmd = (java_command(memory, tmp_dir or os.path.dirname(input_file), toolset['picard']) + '{program} '
-           'INPUT={input} OUTPUT={output} ASSUME_SORTED=true VALIDATION_STRINGENCY=LENIENT')
-
+           'INPUT={input} OUTPUT={output} VALIDATION_STRINGENCY=LENIENT'
+           )
+    if picard_params is None:
+        picard_params = {}
+    if assume_sorted:
+        picard_params['ASSUME_SORTED'] = 'true'
     if picard_params:
         for k in sorted(picard_params):
             cmd += ' %s=%s' % (k, picard_params[k])
@@ -224,21 +229,21 @@ def picard_command(program, input_file, output_file, tmp_dir, memory, picard_par
 def picard_gc_bias(input_file, metrics, summary, chart, ref, memory=8, tmp_dir=None):
     return picard_command(
         'CollectGcBiasMetrics', input_file, metrics, tmp_dir, memory,
-        {'SUMMARY_OUTPUT': summary, 'CHART': chart, 'R': ref}
+        picard_params={'SUMMARY_OUTPUT': summary, 'CHART': chart, 'R': ref}
     )
 
 
 def picard_mark_dup_command(input_file, output_file, metrics_file, memory=10, tmp_dir=None):
     return picard_command(
         'MarkDuplicates', input_file, output_file, tmp_dir, memory,
-        {'METRICS_FILE': metrics_file, 'OPTICAL_DUPLICATE_PIXEL_DISTANCE': '100'}
+        picard_params={'METRICS_FILE': metrics_file, 'OPTICAL_DUPLICATE_PIXEL_DISTANCE': '100'}
     )
 
 
 def picard_insert_size_command(input_file, metrics_file, histogram_file, memory=8, tmp_dir=None):
     return picard_command(
         'CollectInsertSizeMetrics', input_file, metrics_file, tmp_dir, memory,
-        {'HISTOGRAM_FILE': histogram_file}
+        picard_params={'HISTOGRAM_FILE': histogram_file}
     )
 
 

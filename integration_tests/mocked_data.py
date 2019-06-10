@@ -22,7 +22,7 @@ mocked_lane_artifact_pool = NamedMock(
                  samples=[MockedSample(real_name='10015AT0002', id='LP6002014-DTP_A02')]),
             Mock(reagent_labels=['D703-D502 (CGCTCATT-ATAGAGGC)'],
                  samples=[MockedSample(real_name='10015AT0003', id='LP6002014-DTP_A03')]),
-            Mock(reagent_labels=['D704-D502 (GAGATTCC-ATAGAGGC)'],
+            Mock(reagent_labels=['001A IDT-ILMN TruSeq DNA-RNA UD 96 Indexes Plate_UDI0001 (GAGATTCC-ATAGAGGC)'],
                  samples=[MockedSample(real_name='10015AT0004', id='LP6002014-DTP_A04')]),
             Mock(reagent_labels=['D705-D502 (ATTCAGAA-ATAGAGGC)'],
                  samples=[MockedSample(real_name='10015AT0006', id='LP6002014-DTP_A05')]),
@@ -52,22 +52,28 @@ mocked_flowcell_pooling = Mock(
 )
 
 
-def fake_non_pooling_sample(i, rapid=False):
+def fake_non_pooling_artifact(i, rapid='no'):
     return Mock(
-        reagent_labels=['a_reagent'],
-        samples=[MockedSample(real_name='non_pooling_sample_' + i, id='a_library', udf={'Rapid Analysis': rapid, 'User Sample Name': 'uid_non_pooling_sample_' + i})]
+        reagent_labels=['A001-B002 (ATGCATGC-CTGACTGA)'],
+        samples=[
+            MockedSample(
+                real_name='non_pooling_sample_' + i,
+                id='a_library',
+                udf={'Rapid Analysis': rapid, 'User Sample Name': 'uid_non_pooling_sample_' + i}
+            )
+        ]
     )
 
 mocked_flowcell_non_pooling = Mock(
     placements={
-        '1:1': fake_non_pooling_sample('1', False),
-        '2:1': fake_non_pooling_sample('2', True),
-        '3:1': fake_non_pooling_sample('3', False),
-        '4:1': fake_non_pooling_sample('4', False),
-        '5:1': fake_non_pooling_sample('5', False),
-        '6:1': fake_non_pooling_sample('6', False),
-        '7:1': fake_non_pooling_sample('7', False),
-        '8:1': fake_non_pooling_sample('8', True)
+        '1:1': fake_non_pooling_artifact('1', 'No'),
+        '2:1': fake_non_pooling_artifact('2', 'Yes'),
+        '3:1': fake_non_pooling_artifact('3', 'No'),
+        '4:1': fake_non_pooling_artifact('4', 'No'),
+        '5:1': fake_non_pooling_artifact('5', 'No'),
+        '6:1': fake_non_pooling_artifact('6', 'No'),
+        '7:1': fake_non_pooling_artifact('7', 'No'),
+        '8:1': fake_non_pooling_artifact('8', 'Yes')
     }
 )
 
