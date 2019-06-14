@@ -1,6 +1,12 @@
 Changelog for Analysis-Driver
 =============================
 
+0.26 (unreleased)
+-----------------
+
+- Nothing changed yet.
+
+
 0.25 (2019-06-14)
 -----------------
 
