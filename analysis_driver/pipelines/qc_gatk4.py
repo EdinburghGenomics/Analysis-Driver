@@ -1,22 +1,16 @@
 import os
 from os.path import join
-
 from egcg_core import executor, util
 from egcg_core.config import cfg
 from egcg_core.constants import ELEMENT_NB_READS_CLEANED, ELEMENT_RUN_ELEMENT_ID, ELEMENT_PROJECT_ID, \
     ELEMENT_RUN_NAME, ELEMENT_LANE
 
-from analysis_driver import segmentation
+from analysis_driver import segmentation, quality_control as qc
 from analysis_driver.exceptions import AnalysisDriverError
-from analysis_driver import quality_control as qc
-from analysis_driver.pipelines import common
-from analysis_driver.pipelines.common import tabix_vcf, MergeFastqs, SamtoolsStats
+from analysis_driver.pipelines import Pipeline, common
 from analysis_driver.segmentation import Parameter, ListParameter
 from analysis_driver.tool_versioning import toolset
 from analysis_driver.util.helper_functions import split_in_chunks
-
-toolset_type = 'gatk4_sample_processing'
-name = 'qc_gatk4'
 
 
 class GATK4FilePath(segmentation.Stage):
@@ -480,7 +474,7 @@ class GatherVCF(PostAlignmentScatter):
         ).join()
 
         if concat_vcf_status == 0:
-            concat_vcf_status = tabix_vcf(self.exec_dir, self.genotyped_vcf)
+            concat_vcf_status = common.tabix_vcf(self.exec_dir, self.genotyped_vcf)
 
         return concat_vcf_status
 
@@ -594,50 +588,50 @@ class MergeVariants(GATK4Stage):
         ).join()
 
 
-def build_pipeline(dataset):
-    """Build the QC pipeline."""
+class QCGATK4(Pipeline):
+    toolset_type = 'gatk4_sample_processing'
+    name = 'qc_gatk4'
 
-    def stage(cls, **params):
-        return cls(dataset=dataset, **params)
-
-    # merge fastq to do contamination check
-    merge_fastqs = stage(MergeFastqs)
-    contam = stage(qc.FastqScreen, previous_stages=[merge_fastqs], fq_pattern=merge_fastqs.fq_pattern)
-    blast = stage(qc.Blast, previous_stages=[merge_fastqs], fastq_file=merge_fastqs.fq_pattern.replace('?', '1'))
-
-    # create fastq index then align via scatter-gather strategy
-    fastq_index = stage(FastqIndex)
-    split_bwa = stage(SplitBWA, previous_stages=[fastq_index])
-    merge_bam_dup = stage(MergeBamAndDup, previous_stages=[split_bwa])
-
-    # bam file QC
-    samtools_stat = stage(SamtoolsStats, bam_file=merge_bam_dup.sorted_bam, previous_stages=[merge_bam_dup])
-    samtools_depth = stage(qc.SamtoolsDepth, bam_file=merge_bam_dup.sorted_bam, previous_stages=[merge_bam_dup])
-
-    # variants call via scatter-gather strategy
-    haplotype_caller = stage(SplitHaplotypeCaller, bam_file=merge_bam_dup.sorted_bam, previous_stages=[merge_bam_dup])
-    gather_vcf = stage(GatherVCF, previous_stages=[haplotype_caller])
-
-    # variant filtering
-    select_snps = stage(SelectSNPs, input_vcf=gather_vcf.genotyped_vcf, previous_stages=[gather_vcf])
-    select_indels = stage(SelectIndels, input_vcf=gather_vcf.genotyped_vcf, previous_stages=[gather_vcf])
-    filter_snps = stage(SNPsFiltration, previous_stages=[select_snps])
-    filter_indels = stage(IndelsFiltration, previous_stages=[select_indels])
-
-    # final variant merge
-    merge_vcf = stage(MergeVariants,
-                       vcf_files=[filter_snps.hard_filtered_snps_vcf, filter_indels.hard_filtered_indels_vcf],
-                       output_vcf_file=filter_indels.hard_filtered_vcf,
-                       previous_stages=[filter_snps, filter_indels])
-
-    # variant file QC
-    vcfstats = stage(qc.VCFStats, vcf_file=merge_vcf.hard_filtered_vcf, previous_stages=[merge_vcf])
-
-    final_stages = [contam, blast, vcfstats, samtools_depth, samtools_stat]
-
-    output = stage(common.SampleDataOutput, previous_stages=final_stages, output_fileset='gatk4_qc')
-    review = stage(common.SampleReview, previous_stages=[output])
-    cleanup = stage(common.Cleanup, previous_stages=[review])
-
-    return cleanup
-
+    def build(self):
+        """Build the QC pipeline."""
+    
+        # merge fastq to do contamination check
+        merge_fastqs = self.stage(common.MergeFastqs)
+        contam = self.stage(qc.FastqScreen, previous_stages=[merge_fastqs], fq_pattern=merge_fastqs.fq_pattern)
+        blast = self.stage(qc.Blast, previous_stages=[merge_fastqs], fastq_file=merge_fastqs.fq_pattern.replace('?', '1'))
+    
+        # create fastq index then align via scatter-gather strategy
+        fastq_index = self.stage(FastqIndex)
+        split_bwa = self.stage(SplitBWA, previous_stages=[fastq_index])
+        merge_bam_dup = self.stage(MergeBamAndDup, previous_stages=[split_bwa])
+    
+        # bam file QC
+        samtools_stat = self.stage(common.SamtoolsStats, bam_file=merge_bam_dup.sorted_bam, previous_stages=[merge_bam_dup])
+        samtools_depth = self.stage(qc.SamtoolsDepth, bam_file=merge_bam_dup.sorted_bam, previous_stages=[merge_bam_dup])
+    
+        # variants call via scatter-gather strategy
+        haplotype_caller = self.stage(SplitHaplotypeCaller, bam_file=merge_bam_dup.sorted_bam, previous_stages=[merge_bam_dup])
+        gather_vcf = self.stage(GatherVCF, previous_stages=[haplotype_caller])
+    
+        # variant filtering
+        select_snps = self.stage(SelectSNPs, input_vcf=gather_vcf.genotyped_vcf, previous_stages=[gather_vcf])
+        select_indels = self.stage(SelectIndels, input_vcf=gather_vcf.genotyped_vcf, previous_stages=[gather_vcf])
+        filter_snps = self.stage(SNPsFiltration, previous_stages=[select_snps])
+        filter_indels = self.stage(IndelsFiltration, previous_stages=[select_indels])
+    
+        # final variant merge
+        merge_vcf = self.stage(MergeVariants,
+                               vcf_files=[filter_snps.hard_filtered_snps_vcf, filter_indels.hard_filtered_indels_vcf],
+                               output_vcf_file=filter_indels.hard_filtered_vcf,
+                               previous_stages=[filter_snps, filter_indels])
+    
+        # variant file QC
+        vcfstats = self.stage(qc.VCFStats, vcf_file=merge_vcf.hard_filtered_vcf, previous_stages=[merge_vcf])
+    
+        final_stages = [contam, blast, vcfstats, samtools_depth, samtools_stat]
+    
+        output = self.stage(common.SampleDataOutput, previous_stages=final_stages, output_fileset='gatk4_qc')
+        review = self.stage(common.SampleReview, previous_stages=[output])
+        cleanup = self.stage(common.Cleanup, previous_stages=[review])
+    
+        return cleanup

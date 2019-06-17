@@ -4,12 +4,9 @@ from egcg_core import executor, clarity, util
 from analysis_driver import segmentation, quality_control as qc
 from analysis_driver.config import etc_config
 from analysis_driver.exceptions import PipelineError
-from analysis_driver.pipelines import common
+from analysis_driver.pipelines import Pipeline, common
 from analysis_driver.util import bash_commands
 from analysis_driver.tool_versioning import toolset
-
-toolset_type = 'human_sample_processing'
-name = 'bcbio'
 
 
 class BCBioStage(segmentation.Stage):
@@ -114,30 +111,30 @@ class FixUnmapped(BCBioStage):
         ).join()
 
 
-def build_pipeline(dataset):
-
-    def stage(cls, **params):
-        return cls(dataset=dataset, **params)
-
-    merge_fastqs = stage(common.MergeFastqs)
-    fastqc = stage(common.FastQC, previous_stages=[merge_fastqs])
-    bcbio = stage(BCBio, previous_stages=[merge_fastqs])
-
-    contam_check = stage(qc.FastqScreen, fq_pattern=bcbio.fastq_pair, previous_stages=[fastqc])
-    blast = stage(qc.Blast, fastq_file=bcbio.fastq_pair.replace('?', '1'), previous_stages=[fastqc])
-    geno_val = stage(qc.GenotypeValidation, fq_pattern=bcbio.fastq_pair, previous_stages=[fastqc])
-    fix_unmapped = stage(FixUnmapped, previous_stages=[bcbio])
-
-    bcbio_and_qc = [fix_unmapped, fastqc, contam_check, blast, geno_val]
-
-    gender_val = stage(qc.GenderValidation, vcf_file=bcbio.vcf_path, previous_stages=bcbio_and_qc),
-    vcfstats = stage(qc.VCFStats, vcf_file=bcbio.vcf_path, previous_stages=bcbio_and_qc),
-    verify_bam_id = stage(qc.VerifyBamID, bam_file=bcbio.bam_path_fixed, previous_stages=bcbio_and_qc),
-    samtools_depth = stage(qc.SamtoolsDepth, bam_file=bcbio.bam_path_fixed, previous_stages=bcbio_and_qc)
-    post_bcbio_qc = [gender_val, vcfstats, verify_bam_id, samtools_depth]
-
-    output = stage(common.SampleDataOutput, previous_stages=post_bcbio_qc, output_fileset='bcbio')
-    cleanup = stage(common.Cleanup, previous_stages=[output])
-    review = stage(common.SampleReview, previous_stages=[cleanup])
-
-    return review
+class BCBioVarCalling(Pipeline):
+    toolset_type = 'human_sample_processing'
+    name = 'bcbio'
+    
+    def build(self):    
+        merge_fastqs = self.stage(common.MergeFastqs)
+        fastqc = self.stage(common.FastQC, previous_stages=[merge_fastqs])
+        bcbio = self.stage(BCBio, previous_stages=[merge_fastqs])
+    
+        contam_check = self.stage(qc.FastqScreen, fq_pattern=bcbio.fastq_pair, previous_stages=[fastqc])
+        blast = self.stage(qc.Blast, fastq_file=bcbio.fastq_pair.replace('?', '1'), previous_stages=[fastqc])
+        geno_val = self.stage(qc.GenotypeValidation, fq_pattern=bcbio.fastq_pair, previous_stages=[fastqc])
+        fix_unmapped = self.stage(FixUnmapped, previous_stages=[bcbio])
+    
+        bcbio_and_qc = [fix_unmapped, fastqc, contam_check, blast, geno_val]
+    
+        gender_val = self.stage(qc.GenderValidation, vcf_file=bcbio.vcf_path, previous_stages=bcbio_and_qc),
+        vcfstats = self.stage(qc.VCFStats, vcf_file=bcbio.vcf_path, previous_stages=bcbio_and_qc),
+        verify_bam_id = self.stage(qc.VerifyBamID, bam_file=bcbio.bam_path_fixed, previous_stages=bcbio_and_qc),
+        samtools_depth = self.stage(qc.SamtoolsDepth, bam_file=bcbio.bam_path_fixed, previous_stages=bcbio_and_qc)
+        post_bcbio_qc = [gender_val, vcfstats, verify_bam_id, samtools_depth]
+    
+        output = self.stage(common.SampleDataOutput, previous_stages=post_bcbio_qc, output_fileset='bcbio')
+        cleanup = self.stage(common.Cleanup, previous_stages=[output])
+        review = self.stage(common.SampleReview, previous_stages=[cleanup])
+    
+        return review
