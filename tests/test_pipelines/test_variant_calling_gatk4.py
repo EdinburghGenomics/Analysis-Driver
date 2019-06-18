@@ -99,6 +99,7 @@ class TestFastqIndex(TestGATK4):
                 job_name='compress_fastq',
                 log_commands=False,
                 mem=8,
+                cpus=1,
                 working_dir='tests/assets/jobs/test_dataset/slurm_and_logs'
             )
             commands = [
@@ -106,7 +107,8 @@ class TestFastqIndex(TestGATK4):
                 'path/to/grabix index ' + join(self.assets_path, 'indexed_fastq_file2.gz')
             ]
             e.assert_any_call(
-                *commands, job_name='index_fastq', working_dir='tests/assets/jobs/test_dataset/slurm_and_logs'
+                *commands, mem=8, cpus=1, job_name='index_fastq',
+                working_dir='tests/assets/jobs/test_dataset/slurm_and_logs'
             )
 
 
@@ -568,7 +570,7 @@ class TestSelectSNPs(TestGATK4):
                       '--reference %s ' \
                       '-V input_file.vcf.gz -select-type SNP '
             e.assert_called_with(exp_cmd % (stage.dir_to_delete[0], self.dataset.reference_genome),
-                                 job_name='snp_select', mem=16,
+                                 job_name='snp_select', mem=16, cpus=1,
                                  working_dir='tests/assets/jobs/test_dataset/slurm_and_logs')
 
 
@@ -582,7 +584,7 @@ class TestSelectIndels(TestGATK4):
                       '--reference %s ' \
                       '-V input_file.vcf.gz -select-type INDEL '
             e.assert_called_with(exp_cmd % (stage.dir_to_delete[0], self.dataset.reference_genome),
-                                 job_name='indel_select', mem=16,
+                                 job_name='indel_select', mem=16, cpus=1,
                                  working_dir='tests/assets/jobs/test_dataset/slurm_and_logs')
 
 
@@ -598,7 +600,7 @@ class TestSNPsFiltration(TestGATK4):
                       '--filter-expression \'QD < 2.0 || FS > 60.0 || MQ < 40.0 || MQRankSum < -12.5 || ' \
                       'ReadPosRankSum < -8.0 || SOR > 3.0\' --filter-name \'SNP_HARD_FILTER\''
             e.assert_called_with(exp_cmd % (stage.dir_to_delete[0], self.dataset.reference_genome),
-                                 job_name='snps_filtration', mem=8,
+                                 job_name='snps_filtration', mem=8, cpus=1,
                                  working_dir='tests/assets/jobs/test_dataset/slurm_and_logs')
 
 
@@ -613,8 +615,8 @@ class TestIndelsFiltration(TestGATK4):
                       '-V tests/assets/jobs/test_dataset/gatk4/test_user_sample_id_raw_indel.vcf ' \
                       '--filter-expression \'QD < 2.0 || FS > 200.0 || ReadPosRankSum < -20.0 || SOR > 10.0\' ' \
                       '--filter-name \'INDEL_HARD_FILTER\''
-            e.assert_called_with(exp_cmd% (stage.dir_to_delete[0], self.dataset.reference_genome),
-                                 job_name='indel_filtration', mem=16,
+            e.assert_called_with(exp_cmd % (stage.dir_to_delete[0], self.dataset.reference_genome),
+                                 job_name='indel_filtration', mem=16, cpus=1,
                                  working_dir='tests/assets/jobs/test_dataset/slurm_and_logs')
 
 

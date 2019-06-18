@@ -405,7 +405,7 @@ def parse_interop_summary(summary_file):
         values_per_lane = {}
         for sp_line in lines[1:]:
             if sp_line[0].isdigit() and sp_line[1] == '-':
-                values_per_lane[sp_line[0]] = {
+                lane_values = {
                     'pc_clust_pf': to_float(sp_line[4].split()[0]),  # avg Cluster PF
                     'pc_clust_pf_stdev': to_float(sp_line[4].split()[2]),  # std dev Cluster PF
                     'phasing': to_float(sp_line[5].split('/')[0].strip()),  # Phasing
@@ -419,6 +419,8 @@ def parse_interop_summary(summary_file):
                     'intensity_c1': to_float(sp_line[18].split()[0]),  # ' avg Intensity C1'
                     'intensity_c1_stdev': to_float(sp_line[18].split()[2]),  # 'std dev Intensity C1'
                 }
+                # remove None value to avoid error in upload
+                values_per_lane[sp_line[0]] = {k: v for k, v in lane_values.items() if v is not None}
         return values_per_lane
 
     with open(summary_file) as open_file:
