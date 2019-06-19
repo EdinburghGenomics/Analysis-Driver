@@ -334,7 +334,7 @@ class IntegrationTest(ReportingAppIntegrationTest):
         )
 
         self.expect_stage_data(['mergefastqs', 'fastqc', 'genotypevalidation', 'bcbio', 'fastqscreen',
-                                'fixunmapped', 'blast', 'sexcheck', 'vcfstats', 'samtoolsdepth',
+                                'fixunmapped', 'blast', 'sexvalidation', 'vcfstats', 'samtoolsdepth',
                                 'verifybamid', 'sampledataoutput', 'md5sum', 'cleanup', 'samplereview'])
 
         ad_proc = rest_communication.get_document('analysis_driver_procs')
@@ -682,7 +682,7 @@ class IntegrationTest(ReportingAppIntegrationTest):
         self.expect_stage_data([
             'gathervcfvc', 'mergebamanddup', 'splitgenotypegvcfs', 'selectsnps', 'mergefastqs', 'cleanup',
             'splithaplotypecallervc', 'variantannotation', 'genotypevalidation', 'gatherbqsrreport',
-            'selectindels', 'verifybamid', 'gathergvcf', 'gendervalidation', 'fastqscreen', 'sampledataoutput',
+            'selectindels', 'verifybamid', 'gathergvcf', 'sexvalidation', 'fastqscreen', 'sampledataoutput',
             'gatherrecalbam', 'indelsfiltration', 'samtoolsdepth', 'scatterapplybqsr', 'samplereview', 'fastqindex',
             'scatterbaserecalibrator', 'merge_variants_hard_filter', 'blast', 'splitbwa', 'vcfstats', 'md5sum',
             'samtoolsstats', 'snpsfiltration'
