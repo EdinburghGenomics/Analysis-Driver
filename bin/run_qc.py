@@ -44,9 +44,9 @@ def _parse_args():
     sample_contamination.add_argument('--bam_file', required=True)
     sample_contamination.set_defaults(func=run_sample_contamination_check)
 
-    gender_val = subparsers.add_parser('gender_validation')
-    gender_val.add_argument('-v', '--vcf_file', dest='vcf_file', type=str, help='vcf file used to detect gender')
-    gender_val.set_defaults(func=run_gender_validation)
+    sex_validation = subparsers.add_parser('sex_validation')
+    sex_validation.add_argument('-v', '--vcf_file', dest='vcf_file', type=str, help='vcf file used to detect sex')
+    sex_validation.set_defaults(func=run_sex_validation)
 
     median_cov = subparsers.add_parser('median_coverage')
     median_cov.add_argument('--bam_file', required=True, help='the fastq file pairs')
@@ -135,9 +135,9 @@ def run_sample_contamination_check(dataset, args):
     v.run()
 
 
-def run_gender_validation(dataset, args):
+def run_sex_validation(dataset, args):
     os.makedirs(os.path.join(cfg['jobs_dir'], dataset.name), exist_ok=True)
-    g = qc.GenderValidation(dataset=dataset, vcf_file=args.vcf_file)
+    g = qc.SexValidation(dataset=dataset, vcf_file=args.vcf_file)
     g.run()
 
 

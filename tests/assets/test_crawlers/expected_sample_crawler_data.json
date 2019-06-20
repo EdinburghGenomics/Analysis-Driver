@@ -8,8 +8,6 @@
     "project_id": "test_project",
     "bam_file_reads": 7928618,
     "mapped_reads": 7892452,
-    "called_gender": "male",
-    "provided_gender": "female",
     "species_name": "Homo sapiens",
     "species_contamination": {
         "contaminant_unique_mapped": {
@@ -25,7 +23,11 @@
         "total_reads_mapped": 100000
     },
     "sample_contamination": {"het_hom_ratio": 1.6, "ti_tv_ratio": 2.01},
-    "gender_validation": {"hetX": "0.10"},
+    "sex_validation": {
+        "called": "male",
+        "provided": "female",
+        "hetX": "0.10"
+    },
     "coverage": {
         "median": 478,
         "std_dev": 189.1911391390011,
