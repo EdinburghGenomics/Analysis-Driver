@@ -402,8 +402,8 @@ class RunDataset(Dataset):
                     for pattern in (
                         # TruSeq label, e.g, A412-A208 (ATGCATGC-CTGACTGA)
                         '(\w{4})-(\w{4}) \(([ATCG]{8})-([ATCG]{8})\)',
-                        # IDT label, e.g, 001A IDT-ILMN TruSeq DNA-RNA UD 96 Indexes Plate_UDI0001 (ATGCATGC-CTGACTGA)
-                        '(\w{4}) IDT-ILMN TruSeq DNA-RNA UD 96 Indexes (Plate_\w{7}) \(([ATGC]{8})-([ATGC]{8})\)'
+                        # IDT label, e.g, 001A IDT-ILMN TruSeq DNA-RNA UD 96 Indexes  Plate_UDI0001 (ATGCATGC-CTGACTGA)
+                        '(\w{4}) IDT-ILMN TruSeq DNA-RNA UD 96 Indexes\s+(Plate_\w{7}) \(([ATGC]{8})-([ATGC]{8})\)'
                     ):
                         match = re.match(pattern, reagent_label)
                         if match:
