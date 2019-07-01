@@ -291,7 +291,7 @@ gatk4_human_var_calling:
         basename: '{sample_id}-chr22-vbi.selfSM'
         new_name: '{user_sample_id}-chr22-vbi.selfSM'
 
-    gender_call:
+    sex_validation:
         location: ['gatk4']
         basename: '{user_sample_id}_hard_filter.sex'
         new_name: '{user_sample_id}.sex'
