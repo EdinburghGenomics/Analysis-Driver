@@ -101,6 +101,11 @@ toolsets:
             tabix:
                 version: 1.3
                 version_cmd: grep_version
+        1:
+            gatk:
+                version: v3.8-1-0-gf15c1c3ef
+                version_cmd: '{dependency} -jar {executable} -h 2>&1 | grep "The Genome Analysis Toolkit (GATK)" | cut -d " " -f 6 | cut -d "," -f 1'
+                dependency: java
 
     gatk4_sample_processing:
         0:
