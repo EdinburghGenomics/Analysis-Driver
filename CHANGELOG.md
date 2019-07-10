@@ -1,10 +1,11 @@
 Changelog for Analysis-Driver
 =============================
 
-0.26 (unreleased)
------------------
+0.25.1 (2019-07-10)
+-------------------
 
-- Nothing changed yet.
+- Fixed IDT barcode support
+- 'gender' API key renamed to 'sex'
 
 
 0.25 (2019-06-14)
