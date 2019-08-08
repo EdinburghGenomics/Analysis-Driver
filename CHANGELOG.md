@@ -1,8 +1,8 @@
 Changelog for Analysis-Driver
 =============================
 
-0.25.2 (unreleased)
------------------
+0.25.2 (2019-08-08)
+-------------------
 
 - New toolset for non human variant call with GATK3.8
 - Support for Asana API changes
