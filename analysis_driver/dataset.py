@@ -495,7 +495,7 @@ class SampleDataset(Dataset):
     @property
     def lims_sample_info(self):
         if self._lims_sample_info is None:
-            self._lims_sample_info = rest_communication.get_documents(
+            self._lims_sample_info = rest_communication.get_document(
                 'lims/sample_info', match={'sample_it': self.name}
             )
         return self._lims_sample_info
