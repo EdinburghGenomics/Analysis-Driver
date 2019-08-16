@@ -483,6 +483,7 @@ class SampleDataset(Dataset):
         super().__init__(name, most_recent_proc)
         self._run_elements = None
         self._sample = None
+        self._lims_sample_info = None
         self._lims_sample_status = None
         self._non_useable_run_elements = None
         self._species = None
@@ -492,10 +493,19 @@ class SampleDataset(Dataset):
         self._genome_dict = None
 
     @property
+    def lims_sample_info(self):
+        if self._lims_sample_info is None:
+            self._lims_sample_info = rest_communication.get_documents(
+                'lims/sample_info', match={'sample_it': self.name}
+            )
+        return self._lims_sample_info
+
+    @property
     def lims_ntf(self):
         if self._lims_ntf is None:
             self._lims_ntf = LimsNotification(self.name)
         return self._lims_ntf
+
 
     @property
     def species(self):
@@ -508,7 +518,7 @@ class SampleDataset(Dataset):
     @property
     def genome_version(self):
         if self._genome_version is None:
-            self._genome_version = clarity.get_sample(self.name).udf.get('Genome Version')
+            self._genome_version = self.lims_sample_info.get('Genome Version')
             if not self._genome_version:
                 self._genome_version = rest_communication.get_document(
                     'species', where={'name': self.species})['default_version']

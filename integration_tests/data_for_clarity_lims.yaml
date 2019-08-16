@@ -1,0 +1,41 @@
+####
+# This YAML file describe some objects that will be inserted in the LIMS' database using load_data_to_lims_db.py
+# The data will be store the the database currently in session which should be a local sqlite database
+# It supports limited number of features but should be enough for mocking data reported by the endpoints defined in
+# rest_api/limsdb
+
+
+# This will create projects
+projects:
+    - { name: 10015AT, udfs: { Number of Quoted Samples: 2 } }
+
+# This will create the samples and the associated root artifact
+# artifact can be refered to using the sample's name
+samples:
+    - { name: sample1, project: project1,  udfs: { Required Yield (Gb): 30, Coverage (X): 15, Species: Gallus gallus }, artifact: { container_name: plate1, xpos: H, ypos: 11 } }
+    - { name: sample2, project: project1,  udfs: { Required Yield (Gb): 30, Coverage (X): 15, Species: Gallus gallus }, artifact: { container_name: plate1, xpos: H, ypos: 12 } }
+    - { name: sample3, project: project2,  udfs: { Required Yield (Gb): 120, Coverage (X): 30, Species: Homo Sapiens }, artifact: { container_name: plate2, xpos: A, ypos: 1 } }
+    - { name: sample4, project: project2,  udfs: { Required Yield (Gb): 120, Coverage (X): 30, Species: Homo Sapiens }, artifact: { container_name: plate2, xpos: A, ypos: 2 } }
+    - { name: sample5, project: project2,  udfs: { Required Yield (Gb): 120, Coverage (X): 30, Species: Homo Sapiens }, artifact: { container_name: plate2, xpos: A, ypos: 3 } }
+    - { name: sample6, project: project2,  udfs: { Required Yield (Gb): 120, Coverage (X): 30, Species: Homo Sapiens }, artifact: { container_name: plate2, xpos: A, ypos: 4 } }
+
+# This will create additional artifacts (they will not be root artifact)
+artifacts:
+    - { name: l1, samples: sample1, container_name: FLOWCELL1, xpos: 1, ypos: 1 }
+    - { name: l2, samples: sample2, container_name: FLOWCELL1, xpos: 1, ypos: 2 }
+    - { name: l3, samples: sample3, container_name: FLOWCELL1, xpos: 1, ypos: 3 }
+    - { name: l4, samples: sample4, container_name: FLOWCELL1, xpos: 1, ypos: 4 }
+    - { name: l5, samples: sample5, container_name: FLOWCELL1, xpos: 1, ypos: 5 }
+    - { name: l6, samples: sample6, container_name: FLOWCELL1, xpos: 1, ypos: 6 }
+    - { name: l7, samples: [sample1, sample2], container_name: FLOWCELL1, xpos: 1, ypos: 7 }
+    - { name: l8, samples: [sample3, sample4], container_name: FLOWCELL1, xpos: 1, ypos: 8 }
+
+# This will create completed steps
+completed_steps:
+    - { list_artifacts: [ sample1 ], name: Awaiting User Response EG 2.0, created_date: !!timestamp 2018-2-10, udfs: null}
+    - { list_artifacts: [ sample2 ], name: AUTOMATED - Sequence,          created_date: !!timestamp 2018-1-1, udfs: null}
+    - { list_artifacts: [ sample2 ], name: Data Release EG 2.0 ST,        created_date: !!timestamp 2018-1-15, udfs: null}
+    - { list_artifacts: [ sample2 ], name: AUTOMATED - Sequence,          created_date: !!timestamp 2018-2-1, udfs: null}
+    - { list_artifacts: [ sample2 ], name: Finish Processing EG 1.0 ST,   created_date: !!timestamp 2018-2-15, udfs: null}
+    - { list_artifacts: [l1, l2, l3, l4, l5, l6, l7, l8], name: AUTOMATED - Sequence,   created_date: !!timestamp 2018-3-10, udfs:
+      { 'Run Status': RunCompleted, RunID: 'date_machine1_counter_FLOWCELL1', InstrumentID: 'machine1', Cycle: 310, Read: 3 } }
