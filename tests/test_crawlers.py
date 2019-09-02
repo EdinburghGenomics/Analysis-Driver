@@ -119,7 +119,7 @@ class TestSampleCrawler(TestCrawler):
         self.expected_output = json.load(open(os.path.join(self.test_data, 'expected_sample_crawler_data.json')))
         patched_sample_info = patch(
             ppath + 'SampleCrawler.get_sample_information_from_lims',
-            return_value={'user_sample_id': 'test_sample', 'provided_gender': 'female', 'species_name': 'Homo sapiens'}
+            return_value={'user_sample_id': 'test_sample', 'sex_validation': {'provided': 'female'}, 'species_name': 'Homo sapiens'}
         )
         patched_user_sample_id = patch(ppath + 'sample_crawler.clarity.get_user_sample_name', return_value='test_sample')
         with patched_sample_info, patched_user_sample_id:

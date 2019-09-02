@@ -220,7 +220,7 @@ mocked_lane_artifact7 = NamedMock(real_name='art7', reagent_labels=['D706-D502 (
 mocked_lane_artifact8 = NamedMock(real_name='art8', reagent_labels=['D706-D502 (GAATTCGG-ATAGAGGC)'], samples=[MockedSample(real_name='sample8', udf={})])
 mocked_idt_artifact = NamedMock(
     real_name='idt_art',
-    reagent_labels=['001A IDT-ILMN TruSeq DNA-RNA UD 96 Indexes Plate_UDI0001 (CCGCGGTT-AGCGCTAG)'],
+    reagent_labels=['001A IDT-ILMN TruSeq DNA-RNA UD 96 Indexes  Plate_UDI0001 (CCGCGGTT-AGCGCTAG)'],
     samples=[MockedSample(real_name='idt_sample')]
 )
 mocked_lane_artifact_pool = NamedMock(real_name='artpool', reagent_labels=[

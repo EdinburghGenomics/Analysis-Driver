@@ -1,10 +1,44 @@
 Changelog for Analysis-Driver
 =============================
 
-0.25 (unreleased)
------------------
+0.26.0 (unreleased)
+-------------------
 
 - Nothing changed yet.
+
+
+0.25.2 (2019-08-08)
+-------------------
+
+- New toolset for non human variant call with GATK3.8
+- Support for Asana API changes
+
+
+0.25.1 (2019-07-10)
+-------------------
+
+- Fixed IDT barcode support
+- 'gender' API key renamed to 'sex'
+
+
+0.25 (2019-06-14)
+-----------------
+
+- New pipelines :
+  - GATK4 based QC and variants call for human and non-human samples
+  - Dragen based variant call for human sample starting from the run processing
+- New Features:
+  - file program_version.yaml only records version of tools used by the pipeline 
+  - Location of genome on the filesystem is provided by the REST API
+  - Genome used during Sample processing is uploaded to the REST API
+  - Demultiplexing support IDT barcodes
+  - Sample Processing will start coverage from run elements is greater than required coverage
+  - analysis_driver.log only contains info level logs. New log containing debug level in analysis_driver-debug.log
+- Bug fixes:
+  - Interop metrics parser doe not uploade NaN
+  - Check that all bcl files are present before starting run processing
+  - Java tools version can now be determined in cron
+  - Increase memory available for trio checking for projects with more than 25 samples 
 
 
 0.24.1 (2019-03-20)

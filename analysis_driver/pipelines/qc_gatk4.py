@@ -198,6 +198,7 @@ class FastqIndex(SplitFastqStage):
             job_name='compress_fastq',
             working_dir=self.exec_dir,
             mem=8,
+            cpus=1,
             log_commands=False
         ).join()
 
@@ -210,7 +211,9 @@ class FastqIndex(SplitFastqStage):
             exit_status = executor.execute(
                 *commands,
                 job_name='index_fastq',
-                working_dir=self.exec_dir
+                working_dir=self.exec_dir,
+                cpus=1,
+                mem=8
             ).join()
         return exit_status
 
@@ -492,6 +495,7 @@ class SelectSNPs(GATK4Stage):
             select_var_command,
             job_name='snp_select',
             working_dir=self.exec_dir,
+            cpus=1,
             mem=16
         ).join()
         return select_variants_status
@@ -510,6 +514,7 @@ class SelectIndels(GATK4Stage):
             select_var_command,
             job_name='indel_select',
             working_dir=self.exec_dir,
+            cpus=1,
             mem=16
         ).join()
         return select_variants_status
@@ -536,6 +541,7 @@ class SNPsFiltration(GATK4Stage):
             var_filter_command,
             job_name='snps_filtration',
             working_dir=self.exec_dir,
+            cpus=1,
             mem=8
         ).join()
         return variant_filter_status
@@ -560,6 +566,7 @@ class IndelsFiltration(GATK4Stage):
             var_filter_command,
             job_name='indel_filtration',
             working_dir=self.exec_dir,
+            cpus=1,
             mem=16
         ).join()
         return variant_filter_status

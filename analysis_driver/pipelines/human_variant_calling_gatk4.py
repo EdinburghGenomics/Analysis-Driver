@@ -196,11 +196,11 @@ class HumanVarCallingGATK4(Pipeline):
                               output_vcf_file=hard_filter_indels.hard_filtered_vcf,
                               previous_stages=[hard_filter_snps, hard_filter_indels])
 
-        gender_val = self.stage(qc.GenderValidation, vcf_file=merge_hf.hard_filtered_vcf, previous_stages=[merge_hf])
+        sex_val = self.stage(qc.SexValidation, vcf_file=merge_hf.hard_filtered_vcf, previous_stages=[merge_hf])
 
         vcfstats = self.stage(qc.VCFStats, vcf_file=merge_hf.hard_filtered_vcf, previous_stages=[merge_hf])
 
-        final_stages = [contam, blast, geno_val, gender_val, vcfstats, verify_bam_id, samtools_depth, samtools_stat,
+        final_stages = [contam, blast, geno_val, sex_val, vcfstats, verify_bam_id, samtools_depth, samtools_stat,
                         gather_gcvf]
 
         output = self.stage(common.SampleDataOutput, previous_stages=final_stages, output_fileset='gatk4_human_var_calling')

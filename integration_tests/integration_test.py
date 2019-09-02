@@ -17,7 +17,7 @@ class IntegrationTest(ReportingAppIntegrationTest):
         patch('egcg_core.clarity.find_project_name_from_sample', return_value='10015AT'),
         patch('egcg_core.clarity.get_plate_id_and_well', new=mocked_data.fake_get_plate_id_and_well),
         patch('egcg_core.clarity.get_project', return_value=mocked_data.mocked_clarity_project),
-        patch('egcg_core.clarity.get_sample_gender'),
+        patch('egcg_core.clarity.get_sample_sex'),
         patch('egcg_core.clarity.get_sample_genotype', return_value=set()),
         patch('egcg_core.clarity.get_sample_names_from_project', return_value=set()),
         patch('egcg_core.clarity.get_samples_arrived_with', return_value=set()),
@@ -334,7 +334,7 @@ class IntegrationTest(ReportingAppIntegrationTest):
         )
 
         self.expect_stage_data(['mergefastqs', 'fastqc', 'genotypevalidation', 'bcbio', 'fastqscreen',
-                                'fixunmapped', 'blast', 'gendervalidation', 'vcfstats', 'samtoolsdepth',
+                                'fixunmapped', 'blast', 'sexvalidation', 'vcfstats', 'samtoolsdepth',
                                 'verifybamid', 'sampledataoutput', 'md5sum', 'cleanup', 'samplereview'])
 
         ad_proc = rest_communication.get_document('analysis_driver_procs')
@@ -682,7 +682,7 @@ class IntegrationTest(ReportingAppIntegrationTest):
         self.expect_stage_data([
             'gathervcfvc', 'mergebamanddup', 'splitgenotypegvcfs', 'selectsnps', 'mergefastqs', 'cleanup',
             'splithaplotypecallervc', 'variantannotation', 'genotypevalidation', 'gatherbqsrreport',
-            'selectindels', 'verifybamid', 'gathergvcf', 'gendervalidation', 'fastqscreen', 'sampledataoutput',
+            'selectindels', 'verifybamid', 'gathergvcf', 'sexvalidation', 'fastqscreen', 'sampledataoutput',
             'gatherrecalbam', 'indelsfiltration', 'samtoolsdepth', 'scatterapplybqsr', 'samplereview', 'fastqindex',
             'scatterbaserecalibrator', 'merge_variants_hard_filter', 'blast', 'splitbwa', 'vcfstats', 'md5sum',
             'samtoolsstats', 'snpsfiltration'

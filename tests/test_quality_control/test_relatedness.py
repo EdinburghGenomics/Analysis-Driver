@@ -1,5 +1,5 @@
 import os
-from unittest.mock import patch, Mock
+from unittest.mock import patch
 from tests.test_quality_control.qc_tester import QCTester
 from analysis_driver.quality_control.relatedness import Relatedness, GenotypeGVCFs, Peddy, ParseRelatedness
 from analysis_driver.exceptions import PipelineError
@@ -144,11 +144,9 @@ class TestPeddy(QCTester):
 
     @patch(ppath + 'Peddy.relationships')
     @patch(ppath + 'Peddy.relationship')
-    @patch(ppath + 'Peddy.gender_alias')
     @patch(ppath + 'clarity.get_user_sample_name')
-    @patch(ppath + 'clarity.get_sample')
-    def test_get_member_details(self, psample, pname, psex, prel, prels):
-        psample.return_value = Mock(udf={'Sex': 'F'})
+    @patch(ppath + 'clarity.get_sample_sex', side_effect=['F', 'M'])
+    def test_get_member_details(self, psex, pname, prel, prels):
         prels.return_value = {'Proband': {'Mother': 'test_sample1', 'Father': '0'},
                               'Mother': {'Mother': '0', 'Father': '0'},
                               'Father': {'Mother': '0', 'Father': '0'},
@@ -156,7 +154,6 @@ class TestPeddy(QCTester):
                               'Brother': {'Mother': 'test_sample1', 'Father': '0'},
                               'Other': {'Mother': '0', 'Father': '0'}}
         prel.side_effect = ['Mother', 'Proband']
-        psex.side_effect = ['female', 'male']
         pname.side_effect = ['usersample1', 'usersample2', 'usersample1']
         all_families = {'FAM1': ['test_sample1', 'test_sample2'], 'FAM2': ['test_sample3']}
         assert self.p.get_member_details('FAM1', all_families) == [
@@ -171,7 +168,7 @@ class TestPeddy(QCTester):
                               'Other': {'Mother': '0', 'Father': '0'}}
 
         prel.side_effect = ['Other', 'Other', 'Proband']
-        psex.side_effect = ['unknown', 'unknown', 'male']
+        psex.side_effect = ['unknown', 'unknown', 'M']
         pname.side_effect = ['usersample1', 'usersample2', 'usersample3']
         all_families = {'FAM1': ['test_sample1', 'test_sample2', 'test_sample3']}
         assert self.p.get_member_details('FAM1', all_families) == [['FAM1', 'usersample1', '0', '0', '0', '0'],
