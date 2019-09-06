@@ -39,6 +39,7 @@ class BasicStage(luigi.Task, AppLogger):
     stage_name = Parameter(default=None)
     previous_stages = ListParameter(default=[])
     dataset = Parameter()
+    pipeline = Parameter(default=None)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

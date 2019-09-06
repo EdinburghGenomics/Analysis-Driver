@@ -13,8 +13,6 @@ from analysis_driver.util.bash_commands import picard_command, java_command
 class PostAlignmentScatterVC(PostAlignmentScatter):
     """Generic class providing ability to split the genome in chromosomes."""
 
-    chunk_handler = Parameter()
-
     def split_base_recal_grp(self, chunk):
         return os.path.join(self.split_file_dir, self.dataset.name + '_base_recal_grp_%s.grp' % chunk)
 
@@ -40,7 +38,7 @@ class ScatterBaseRecalibrator(PostAlignmentScatterVC):
     def _run(self):
         return executor.execute(
             *[self.base_recalibrator_cmd(chrom_names)
-              for chrom_names in self.chunk_handler.split_genome_chromosomes()],
+              for chrom_names in self.pipeline.chunk_handler.split_genome_chromosomes()],
             job_name='gatk_base_recal',
             working_dir=self.exec_dir,
             cpus=1,
@@ -54,7 +52,7 @@ class GatherBQSRReport(PostAlignmentScatterVC):
     def _run(self):
         bqsr_reports_list = os.path.join(self.split_file_dir, self.dataset.name + '_bqsr_reports.list')
         with open(bqsr_reports_list, 'w') as open_file:
-            for chrom_names in self.chunk_handler.split_genome_chromosomes():
+            for chrom_names in self.pipeline.chunk_handler.split_genome_chromosomes():
                 open_file.write(self.split_base_recal_grp(chrom_names[0]) + '\n')
 
         gather_bqsr_status = executor.execute(
@@ -82,7 +80,7 @@ class ScatterApplyBQSR(PostAlignmentScatterVC):
     def _run(self):
         return executor.execute(
             *[self.apply_bqsr_cmd(chrom_names)
-              for chrom_names in self.chunk_handler.split_genome_chromosomes(with_unmapped=True)],
+              for chrom_names in self.pipeline.chunk_handler.split_genome_chromosomes(with_unmapped=True)],
             job_name='apply_bqsr',
             working_dir=self.exec_dir,
             cpus=1,
@@ -96,7 +94,7 @@ class GatherRecalBam(PostAlignmentScatterVC):
     def _run(self):
         bam_file_list = os.path.join(self.split_file_dir, self.dataset.name + '_recal_bam.list')
         with open(bam_file_list, 'w') as open_file:
-            for chrom_names in self.chunk_handler.split_genome_chromosomes(with_unmapped=True):
+            for chrom_names in self.pipeline.chunk_handler.split_genome_chromosomes(with_unmapped=True):
                 open_file.write(self.split_recal_bam(chrom_names[0]) + '\n')
 
         gather_bam_status = executor.execute(
@@ -141,7 +139,7 @@ class GatherGVCF(PostAlignmentScatterVC):
     def _run(self):
         gvcf_list = os.path.join(self.split_file_dir, self.dataset.name + '_g.vcf.list')
         with open(gvcf_list, 'w') as open_file:
-            for chunks in self.chunk_handler.split_genome_in_chunks():
+            for chunks in self.pipeline.chunk_handler.split_genome_in_chunks():
                 open_file.write(self.gvcf_per_chunk(chunks[0]) + '\n')
 
         concat_vcf_status = executor.execute(
@@ -160,8 +158,6 @@ class GatherGVCF(PostAlignmentScatterVC):
 
 class SplitGenotypeGVCFs(PostAlignmentScatterVC):
     """Run GenotypeGVCFs on each chunk of the genome to create a VCF file."""
-
-    chunk_handler = Parameter()
 
     def genotypegvcf_cmd(self, chunk, region_file):
         genotypegvcf_cmd = self.gatk_cmd(
@@ -183,7 +179,7 @@ class SplitGenotypeGVCFs(PostAlignmentScatterVC):
     def _run(self):
         return executor.execute(
             *[self.genotypegvcf_cmd(chunk, region_file)
-              for chunk, region_file in self.chunk_handler.split_genome_files(self.split_file_dir).items()],
+              for chunk, region_file in self.pipeline.chunk_handler.split_genome_files(self.split_file_dir).items()],
             job_name='split_genotype_call',
             working_dir=self.exec_dir,
             cpus=1,

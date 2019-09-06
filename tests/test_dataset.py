@@ -2,7 +2,7 @@ import os
 import time
 import pytest
 from sys import modules
-from unittest.mock import patch, Mock, PropertyMock
+from unittest.mock import patch, Mock, PropertyMock, call
 from egcg_core import constants as c
 from integration_tests.mocked_data import MockedSample, MockedRunProcess
 from tests.test_analysisdriver import TestAnalysisDriver, NamedMock
@@ -504,6 +504,26 @@ class TestProjectDataset(TestDataset):
                 'samples', all_pages=True,
                 where={'project_id': 'test_dataset', 'aggregated.most_recent_proc.status': 'finished'}
             )
+
+    def test_get_processed_gvcfs(self):
+        self.dataset._samples_processed = [
+            {
+                'sample_id': 'sample_1',
+                'user_sample_id': 'uid_1',
+                'aggregated': {'most_recent_proc': {'pipeline_used': {'name': 'bcbio'}}}
+            },
+            {
+                'sample_id': 'sample_2',
+                'user_sample_id': 'uid_2',
+                'aggregated': {'most_recent_proc': {'pipeline_used': {'name': 'not_bcbio'}}}
+            }
+        ]
+
+        with patch(ppath + 'find_file', new=lambda *args: '/'.join(args)):
+            obs = self.dataset.get_processed_gvcfs()
+            assert obs == [
+                'tests/assets/test_projects/test_dataset/sample_1/uid_1.g.vcf.gz'
+            ]
 
     @patch(ppath + 'clarity.get_project', return_value=None)
     def test_number_of_samples(self, mocked_project):

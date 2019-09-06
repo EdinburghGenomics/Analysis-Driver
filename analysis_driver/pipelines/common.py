@@ -68,9 +68,9 @@ class SamtoolsStats(VarCallingStage):
         ).join()
 
 
-def build_bam_file_production(dataset):
+def build_bam_file_production(dataset, pipeline):
     def stage(cls, **params):
-        return cls(dataset=dataset, **params)
+        return cls(dataset=dataset, pipeline=pipeline, **params)
 
     merge_fastqs = stage(MergeFastqs)
     fastqc = stage(FastQC, previous_stages=[merge_fastqs])

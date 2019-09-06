@@ -7,7 +7,7 @@ class QC(Pipeline):
 
     def build(self):
         g = self.stage(v.GATKStage)
-        bam_file_production = common.build_bam_file_production(self.dataset)
+        bam_file_production = common.build_bam_file_production(self.dataset, self)
         haplotype = self.stage(v.HaplotypeCaller, input_bam=g.sorted_bam, previous_stages=bam_file_production)
         genotype = self.stage(v.GenotypeGVCFs, previous_stages=[haplotype])
         select_snp = self.stage(v.SelectVariants, previous_stages=[genotype])

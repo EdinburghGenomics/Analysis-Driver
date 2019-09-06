@@ -315,8 +315,6 @@ class FastqIndex(SplitFastqStage):
 class SplitBWA(SplitFastqStage):
     """Run bwa on chunks of fastq file provided by SplitFastqStage."""
 
-    chunk_handler = Parameter()
-
     def bwa_command(self, fastq_pair, reference, expected_output_bam, read_group, chunk):
         tmp_file = expected_output_bam
         read_group_str = r'@RG\t%s' % r'\t'.join(['%s:%s' % (k, read_group[k]) for k in sorted(read_group)])
@@ -351,7 +349,7 @@ class SplitBWA(SplitFastqStage):
         for run_element in self.dataset.run_elements:
             if int(run_element.get(ELEMENT_NB_READS_CLEANED, 0)) > 0:
                 indexed_fq_files = self._indexed_fastq_for_run_element(run_element)
-                for chunk in self.chunk_handler.chunks_from_fastq(indexed_fq_files):
+                for chunk in self.pipeline.chunk_handler.chunks_from_fastq(indexed_fq_files):
                     commands.append(self.bwa_command(
                         fastq_pair=indexed_fq_files,
                         reference=self.dataset.reference_genome,
@@ -373,14 +371,12 @@ class SplitBWA(SplitFastqStage):
 class MergeBamAndDup(SplitFastqStage):
     """Merge bam file generated in bwa mem and defined in SplitFastqStage."""
 
-    chunk_handler = Parameter()
-
     def all_bam_chunks_file(self):
         all_chunk_bams = []
         for run_element in self.dataset.run_elements:
             if int(run_element.get(ELEMENT_NB_READS_CLEANED, 0)) > 0:
                 indexed_fq_files = self._indexed_fastq_for_run_element(run_element)
-                for chunk in self.chunk_handler.chunks_from_fastq(indexed_fq_files):
+                for chunk in self.pipeline.chunk_handler.chunks_from_fastq(indexed_fq_files):
                     all_chunk_bams.append(self.chunked_bam_file(run_element, chunk))
         bam_list_file = os.path.join(self.job_dir, self.dataset.name + '_all_bam_files.list')
         with open(bam_list_file, 'w') as open_file:
@@ -474,7 +470,6 @@ class SplitHaplotypeCaller(PostAlignmentScatter):
     """Run HaplotypeCaller on each chunk of genomes to create a VCF file"""
 
     bam_file = Parameter()
-    chunk_handler = Parameter()
 
     def haplotype_caller_cmd(self, chunk, region_file):
         haplotype_cmd = self.gatk_cmd(
@@ -499,7 +494,7 @@ class SplitHaplotypeCaller(PostAlignmentScatter):
     def _run(self):
         haplotype_status = executor.execute(
             *[self.haplotype_caller_cmd(chunk, region_file)
-              for chunk, region_file in self.chunk_handler.split_genome_files(self.split_file_dir).items()],
+              for chunk, region_file in self.pipeline.chunk_handler.split_genome_files(self.split_file_dir).items()],
             job_name='split_hap_call',
             working_dir=self.exec_dir,
             cpus=1,
@@ -512,12 +507,10 @@ class SplitHaplotypeCaller(PostAlignmentScatter):
 class GatherVCF(PostAlignmentScatter):
     """Collate all vcf chunks into one"""
 
-    chunk_handler = Parameter()
-
     def _run(self):
         vcf_list = os.path.join(self.split_file_dir, self.dataset.name + '_vcf.list')
         with open(vcf_list, 'w') as open_file:
-            for chunks in self.chunk_handler.genome_chunks:
+            for chunks in self.pipeline.chunk_handler.genome_chunks:
                 open_file.write(self.vcf_per_chunk(chunks[0]) + '\n')
 
         concat_vcf_status = executor.execute(
@@ -649,7 +642,7 @@ class MergeVariants(GATK4Stage):
 
 class QCGATK4(Pipeline):
     toolset_type = 'gatk4_sample_processing'
-    name = 'qc_gatk4'
+    _name = 'qc_gatk4'
 
     def __init__(self, dataset):
         super().__init__(dataset)

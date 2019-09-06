@@ -34,6 +34,7 @@ class TestGATK4(TestVariantCalling):
                 real_name='test_dataset'
             )
         )
+        self.pipeline = Mock(chunk_handler=self.handler)
 
     def tearDown(self):
         super().tearDown()
@@ -175,7 +176,7 @@ class TestFastqIndex(TestGATK4):
 
 class TestSplitBWA(TestGATK4):
     def test_bwa_command(self):
-        stage = SplitBWA(dataset=self.dataset, chunk_handler=self.handler)
+        stage = SplitBWA(dataset=self.dataset, pipeline=self.pipeline)
         cmd = stage.bwa_command(
             ['file_R1.fastq.gz', 'file_R2.fastq.gz'], 'reference.fa',
             'expected_output_bam', {'ID': '1', 'SM': 'sample1', 'PL': 'illumina'}, (1, 10000))
@@ -192,7 +193,7 @@ class TestSplitBWA(TestGATK4):
         index_fastq_files = [join(self.assets_path, 'indexed_fastq_file1.gz'),
                              join(self.assets_path, 'indexed_fastq_file2.gz')]
 
-        stage = SplitBWA(dataset=self.dataset, chunk_handler=self.handler)
+        stage = SplitBWA(dataset=self.dataset, pipeline=self.pipeline)
         with patch.object(SplitBWA, '_indexed_fastq_for_run_element', return_value=index_fastq_files), \
                 patch_executor as e, patch.object(SplitBWA, 'bwa_command', return_value='command_bwa') as mcommand:
             stage._run()
@@ -213,7 +214,7 @@ class TestSplitBWA(TestGATK4):
         assert mcommand.call_count == 6
 
     def test_bwa_command_with_alt(self):
-        stage = SplitBWA(dataset=self.dataset, chunk_handler=self.handler)
+        stage = SplitBWA(dataset=self.dataset, pipeline=self.pipeline)
         with patch('os.path.isfile', return_value=True):
             cmd = stage.bwa_command(
                 ['file_R1.fastq.gz', 'file_R2.fastq.gz'], 'reference.fa',
@@ -233,7 +234,7 @@ class TestMergeBamAndDup(TestGATK4):
         ]
         index_fastq_files = [join(self.assets_path, 'indexed_fastq_file1.gz'),
                              join(self.assets_path, 'indexed_fastq_file2.gz')]
-        stage = MergeBamAndDup(dataset=self.dataset, chunk_handler=Mock(chunks_from_fastq=Mock(return_value=[(1, 100000000)])))
+        stage = MergeBamAndDup(dataset=self.dataset, pipeline=Mock(chunk_handler=Mock(chunks_from_fastq=Mock(return_value=[(1, 100000000)]))))
 
         with patch.object(MergeBamAndDup, '_indexed_fastq_for_run_element', return_value=index_fastq_files), \
                 patch_executor as e:
@@ -258,7 +259,7 @@ class TestMergeBamAndDup(TestGATK4):
 
 class TestScatterBaseRecalibrator(TestGATK4):
     def test_base_recalibrator_cmd(self):
-        stage = ScatterBaseRecalibrator(dataset=self.dataset, chunk_handler=self.handler)
+        stage = ScatterBaseRecalibrator(dataset=self.dataset, pipeline=self.pipeline)
         obs_cmd = stage.base_recalibrator_cmd(['chr1'])
         cmd = 'path/to/gatk ' \
               '--java-options "-Djava.io.tmpdir=%s -XX:+UseSerialGC -Xmx6G" BaseRecalibrator ' \
@@ -269,7 +270,7 @@ class TestScatterBaseRecalibrator(TestGATK4):
         assert obs_cmd == cmd
 
     def test_run(self):
-        stage = ScatterBaseRecalibrator(dataset=self.dataset, chunk_handler=self.handler)
+        stage = ScatterBaseRecalibrator(dataset=self.dataset, pipeline=self.pipeline)
         with patch.object(ScatterBaseRecalibrator, 'base_recalibrator_cmd', return_value='recal_cmd') as mcommand, \
                 patch_executor as e:
             stage._run()
@@ -282,7 +283,7 @@ class TestScatterBaseRecalibrator(TestGATK4):
 
 class TestGatherBQSRReport(TestGATK4):
     def test_run(self):
-        stage = GatherBQSRReport(dataset=self.dataset, chunk_handler=self.handler)
+        stage = GatherBQSRReport(dataset=self.dataset, pipeline=self.pipeline)
         with patch_executor as e:
             stage._run()
             e.assert_called_with(
@@ -295,7 +296,7 @@ class TestGatherBQSRReport(TestGATK4):
 
 class TestScatterApplyBQSR(TestGATK4):
     def test_apply_bqsr_cmd(self):
-        stage = ScatterApplyBQSR(dataset=self.dataset, chunk_handler=self.handler)
+        stage = ScatterApplyBQSR(dataset=self.dataset, pipeline=self.pipeline)
         obs_cmd = stage.apply_bqsr_cmd(['chr1'])
         exp_cmd = 'path/to/gatk --java-options "-Djava.io.tmpdir=%s -XX:+UseSerialGC -Xmx6G" ApplyBQSR ' \
                   '--output tests/assets/jobs/test_dataset/post_alignment_split/test_dataset_recal_chr1.bam ' \
@@ -310,7 +311,7 @@ class TestScatterApplyBQSR(TestGATK4):
         assert obs_cmd == exp_cmd
 
     def test_run(self):
-        stage = ScatterApplyBQSR(dataset=self.dataset, chunk_handler=self.handler)
+        stage = ScatterApplyBQSR(dataset=self.dataset, pipeline=self.pipeline)
         with patch.object(ScatterApplyBQSR, 'apply_bqsr_cmd', return_value='bqsr_cmd') as mcommand, \
                 patch_executor as e:
             stage._run()
@@ -327,7 +328,7 @@ class TestScatterApplyBQSR(TestGATK4):
 
 class TestGatherRecalBam(TestGATK4):
     def test_run(self):
-        stage = GatherRecalBam(dataset=self.dataset, chunk_handler=self.handler)
+        stage = GatherRecalBam(dataset=self.dataset, pipeline=self.pipeline)
         with patch_executor as e:
             stage._run()
         exp_cmd = 'path/to/java_8 -Djava.io.tmpdir=%s -XX:+UseSerialGC -Xmx6G -jar path/to/picard GatherBamFiles ' \
@@ -340,7 +341,7 @@ class TestGatherRecalBam(TestGATK4):
 
 class TestSplitHaplotypeCaller(TestGATK4):
     def test_haplotype_caller_cmd(self):
-        stage = SplitHaplotypeCaller(dataset=self.dataset, bam_file='a_bam_file.bam', chunk_handler=self.handler)
+        stage = SplitHaplotypeCaller(dataset=self.dataset, bam_file='a_bam_file.bam', pipeline=self.pipeline)
         obs_cmd = stage.haplotype_caller_cmd(('chr1', 1, 1000), 'path/to/region/file')
         exp_cmd = 'path/to/gatk --java-options "-Djava.io.tmpdir=%s ' \
                   '-XX:+UseSerialGC -Xmx6G" HaplotypeCaller ' \
@@ -356,7 +357,7 @@ class TestSplitHaplotypeCaller(TestGATK4):
         assert exp_cmd % (stage.dir_to_delete[0], self.dataset.reference_genome) == obs_cmd
 
     def test_run(self):
-        stage = SplitHaplotypeCaller(dataset=self.dataset, bam_file='a_bam_file.bam', chunk_handler=self.handler)
+        stage = SplitHaplotypeCaller(dataset=self.dataset, bam_file='a_bam_file.bam', pipeline=self.pipeline)
         with patch.object(SplitHaplotypeCaller, 'haplotype_caller_cmd', return_value='hp_cmd') as mcommand, \
                 patch_executor as e:
             stage._run()
@@ -371,7 +372,7 @@ class TestSplitHaplotypeCaller(TestGATK4):
 
 class TestSplitHaplotypeCallerVC(TestGATK4):
     def test_haplotype_caller_cmd(self):
-        stage = SplitHaplotypeCallerVC(dataset=self.dataset, bam_file='a_bam_file.bam', chunk_handler=self.handler)
+        stage = SplitHaplotypeCallerVC(dataset=self.dataset, bam_file='a_bam_file.bam', pipeline=self.pipeline)
         obs_cmd = stage.haplotype_caller_cmd(('chr1', 1, 1000), 'path/to/region/file')
         exp_cmd = 'path/to/gatk --java-options "-Djava.io.tmpdir=%s ' \
                   '-XX:+UseSerialGC -Xmx6G" HaplotypeCaller ' \
@@ -385,7 +386,7 @@ class TestSplitHaplotypeCallerVC(TestGATK4):
 
 class TestGatherGVCF(TestGATK4):
     def test_run(self):
-        stage = GatherGVCF(dataset=self.dataset, chunk_handler=self.handler)
+        stage = GatherGVCF(dataset=self.dataset, pipeline=self.pipeline)
         with patch_executor as e:
             e.return_value = Mock(join=Mock(return_value=0))
             stage._run()
@@ -401,7 +402,7 @@ class TestGatherGVCF(TestGATK4):
 
 class TestSplitGenotypeGVCFs(TestGATK4):
     def test_genotypegvcf_cmd(self):
-        stage = SplitGenotypeGVCFs(dataset=self.dataset, chunk_handler=self.handler)
+        stage = SplitGenotypeGVCFs(dataset=self.dataset, pipeline=self.pipeline)
         obs_cmd = stage.genotypegvcf_cmd(('chr1', 1, 1000), 'path/to/region/file')
         exp_cmd = 'path/to/gatk --java-options "-Djava.io.tmpdir=%s -XX:+UseSerialGC -Xmx6G" GenotypeGVCFs ' \
                   '--output tests/assets/jobs/test_dataset/post_alignment_split/test_dataset_genotype_gvcf_chr1-1-1000.vcf.gz  ' \
@@ -417,7 +418,7 @@ class TestSplitGenotypeGVCFs(TestGATK4):
         assert exp_cmd % (stage.dir_to_delete[0], self.dataset.reference_genome) == obs_cmd
 
     def test_run(self):
-        stage = SplitGenotypeGVCFs(dataset=self.dataset, chunk_handler=self.handler)
+        stage = SplitGenotypeGVCFs(dataset=self.dataset, pipeline=self.pipeline)
         with patch.object(SplitGenotypeGVCFs, 'genotypegvcf_cmd', return_value='gg_cmd') as mcommand, \
                 patch_executor as e:
             stage._run()
@@ -432,7 +433,7 @@ class TestSplitGenotypeGVCFs(TestGATK4):
 
 class TestGatherVCF(TestGATK4):
     def test_run(self):
-        stage = GatherVCF(dataset=self.dataset, chunk_handler=self.handler)
+        stage = GatherVCF(dataset=self.dataset, pipeline=self.pipeline)
         with patch_executor as e:
             e.return_value = Mock(join=Mock(return_value=0))
             stage._run()

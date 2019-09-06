@@ -8,37 +8,20 @@ relatedness_outfiles = os.path.join(test_projects, 'relatedness_outfiles')
 
 
 class TestProject(TestAnalysisDriver):
-    @staticmethod
-    def fake_dataset(sample_ids, pipeline_used=None):
-        samples_processed = []
-        for s in sample_ids:
-            sample = {'sample_id': s, 'user_sample_id': 'uid_' + s}
-            if pipeline_used:
-                sample['aggregated'] = {'most_recent_proc': {'pipeline_used': {'name': pipeline_used}}}
-            samples_processed.append(sample)
-
-        return NamedMock(
-            real_name='test_dataset',
-            samples_processed=samples_processed
-        )
-
     def setUp(self):
-        self.pipeline = projects.Project(None)
+        self.pipeline = projects.Project(Mock())
 
-    def test_2_samples(self):
-        self.pipeline.dataset = self.fake_dataset(['10015AT0004', '10015AT0003'], 'bcbio')
-        final_stage = self.pipeline.build()
-        assert len(final_stage.previous_stages) > 0
+    @patch.object(projects.Project, 'trio_check', return_value='some_trio_check_stages')
+    @patch.object(projects.Project, 'stage', return_value='a_cleanup_stage')
+    def test_build(self, mocked_stage, mocked_check):
+        self.pipeline.dataset.get_processed_gvcfs.return_value = ['10015AT0004']
+        assert self.pipeline.build() == 'a_cleanup_stage'
+        assert mocked_stage.call_count == 1
+        assert mocked_check.call_count == 0
 
-    def test_1_sample(self):
-        self.pipeline.dataset = self.fake_dataset(['10015AT0004'])
-        final_stage = self.pipeline.build()
-        assert len(final_stage.previous_stages) == 0
-
-    def test_non_human(self):
-        self.pipeline.dataset = self.fake_dataset(['sample1', 'sample2', 'sample3'], 'qc')
-        final_stage = self.pipeline.build()
-        assert len(final_stage.previous_stages) == 0
+        self.pipeline.dataset.get_processed_gvcfs.return_value = ['10015AT0004', '10015AT0003']
+        assert self.pipeline.build() == 'some_trio_check_stages'
+        mocked_check.assert_called_with(['10015AT0004', '10015AT0003'])
 
 
 class TestOutput(TestAnalysisDriver):

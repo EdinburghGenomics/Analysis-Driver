@@ -242,7 +242,7 @@ class VarCalling(Pipeline):
     name = 'variant_calling'
 
     def build(self):   
-        bam_file_production = common.build_bam_file_production(self.dataset)
+        bam_file_production = common.build_bam_file_production(self.dataset, self)
         base_recal = self.stage(BaseRecal, previous_stages=bam_file_production)
         print_reads = self.stage(PrintReads, previous_stages=[base_recal])
         realign_target = self.stage(RealignTarget, previous_stages=[print_reads])
