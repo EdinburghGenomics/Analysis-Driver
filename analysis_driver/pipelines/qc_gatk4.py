@@ -1,19 +1,127 @@
 import os
-from os.path import join
 from egcg_core import executor, util
 from egcg_core.config import cfg
 from egcg_core.constants import ELEMENT_NB_READS_CLEANED, ELEMENT_RUN_ELEMENT_ID, ELEMENT_PROJECT_ID, \
     ELEMENT_RUN_NAME, ELEMENT_LANE
 
-from analysis_driver import segmentation, quality_control as qc
+from analysis_driver import quality_control as qc
 from analysis_driver.exceptions import AnalysisDriverError
 from analysis_driver.pipelines import Pipeline, common
-from analysis_driver.segmentation import Parameter, ListParameter
+from analysis_driver.segmentation import Parameter, ListParameter, Stage
 from analysis_driver.tool_versioning import toolset
 from analysis_driver.util.helper_functions import split_in_chunks
 
 
-class GATK4FilePath(segmentation.Stage):
+class ChunkHandler:
+    def __init__(self, dataset):
+        self.dataset = dataset
+        self.genome_chunks = self.split_genome_in_chunks()
+
+    def split_genome_in_chunks(self):
+        """
+        Split a genome in chunks of a specific size or at the end of chromosome and then aggregate the small chunks to
+        roughly match the other chunk size.
+        :return: list of list
+        """
+        fai_file = self.dataset.reference_genome + '.fai'
+        chunk_size = 20000000
+        max_nb_contig_per_chunk = 1000
+        with open(fai_file) as open_file:
+            chunks = []
+            for line in open_file:
+                sp_line = line.strip().split()
+                length = int(sp_line[1])
+                # The indices in bed files are 0 based and end excluded
+                # https://genome.ucsc.edu/FAQ/FAQformat.html#format1
+                chunks.extend([
+                    (sp_line[0], start, end)
+                    for start, end in split_in_chunks(length, chunk_size, zero_based=True, end_inclusive=False)
+                ])
+        # merge small consecutive chunks together with an upper limit set by max_nb_contig_per_chunk
+        final_chunks = []
+        current_chunks = []
+        final_chunks.append(current_chunks)
+        current_chunks_size = 0
+        for chunk in chunks:
+            if current_chunks_size + (chunk[2] - chunk[1]) > chunk_size or len(
+                    current_chunks) > max_nb_contig_per_chunk:
+                current_chunks = []
+                current_chunks_size = 0
+                final_chunks.append(current_chunks)
+            current_chunks.append(chunk)
+            current_chunks_size += chunk[2] - chunk[1]
+        return final_chunks
+
+    def split_genome_chromosomes(self, with_unmapped=False):
+        """
+        Split the genome per chromosomes aggregating smaller chromosomes to similar length as the longest chromosome
+        Code inspired from GATK best practice workflow:
+        https://github.com/gatk-workflows/broad-prod-wgs-germline-snps-indels/blob/190945e358a6ee7a8c65bacd7b28c66527383376/PairedEndSingleSampleWf.wdl#L969
+
+        :return: list of list of chromosome names
+        """
+        fai_file = self.dataset.reference_genome + '.fai'
+        with open(fai_file) as open_file:
+            sequence_tuple_list = []
+            for line in open_file:
+                sp_line = line.strip().split()
+                sequence_tuple_list.append((sp_line[0], int(sp_line[1])))
+            longest_sequence = sorted(sequence_tuple_list, key=lambda x: x[1], reverse=True)[0][1]
+        chunks = []
+        current_chunks = []
+        chunks.append(current_chunks)
+        temp_size = 0
+        for sequence_tuple in sequence_tuple_list:
+            if temp_size + sequence_tuple[1] <= longest_sequence:
+                temp_size += sequence_tuple[1]
+                current_chunks.append(sequence_tuple[0])
+            else:
+                current_chunks = []
+                chunks.append(current_chunks)
+                current_chunks.append(sequence_tuple[0])
+                temp_size = sequence_tuple[1]
+        # add the unmapped sequences as a separate line to ensure that they are recalibrated as well
+        if with_unmapped:
+            chunks.append(['unmapped'])
+        return chunks
+
+    def split_genome_files(self, split_file_dir):
+        """
+        Write a bed file representing chunks of a reference genome, and return a dict where keys are the first chunk of
+        each bed file and values are the file path:
+
+        {
+            ('chr1', 0, 15000000): 'path/to/dataset_region_chr1-0-15000000.bed'),
+            ('chr2', 0, 20000000): 'path/to/dataset_region_chr2-0-20000000.bed')
+        }
+        """
+        chunk_to_file = {}
+        for c in self.genome_chunks:
+            chunk_file = os.path.join(split_file_dir, self.dataset.name + '_region_%s-%s-%s.bed' % c[0])
+            if not os.path.exists(chunk_file):
+                with open(chunk_file, 'w') as open_file:
+                    for chunk in c:
+                        open_file.write('\t'.join([str(e) for e in chunk]) + '\n')
+            chunk_to_file[c[0]] = chunk_file
+        return chunk_to_file
+
+    @staticmethod
+    def chunks_from_fastq(indexed_fq_files):
+        """
+        Provide a list of chunks (start, end) for a pair of fastq file by parsing the index (.gbi) file.
+        Each chunk contains 25M reads or less.
+        """
+        split_lines = 100000000
+        grabix_index = indexed_fq_files[0] + '.gbi'
+        assert os.path.isfile(grabix_index)
+        with open(grabix_index) as open_file:
+            next(open_file)  # discard first line of the file
+            nb_lines = int(next(open_file))  # second line contains the number of lines in the file
+        # Indices are 1 based end inclusive
+        return split_in_chunks(nb_lines, split_lines, zero_based=False, end_inclusive=True)
+
+
+class GATK4FilePath(Stage):
     """Provides hardcoded file path to subclasses"""
 
     @property
@@ -154,28 +262,14 @@ class SplitFastqStage(GATK4FilePath):
             for fastq_file in self._find_fastqs_for_run_element(run_element)
         ]
 
-    @staticmethod
-    def chunks_from_fastq(indexed_fq_files):
-        """
-        Provide a list of chunks (start, end) for a pair of fastq file by parsing the index (.gbi) file.
-        Each chunk contains 25M reads or less.
-        """
-        split_lines = 100000000
-        grabix_index = indexed_fq_files[0] + '.gbi'
-        assert os.path.isfile(grabix_index)
-        with open(grabix_index) as open_file:
-            next(open_file)  # discard first line of the file
-            nb_lines = int(next(open_file))  # second line contains the number of lines in the file
-        # Indices are 1 based end inclusive
-        return split_in_chunks(nb_lines, split_lines, zero_based=False, end_inclusive=True)
-
     @property
     def split_alignment_dir(self):
-        return join(self.job_dir, 'split_alignment')
+        return os.path.join(self.job_dir, 'split_alignment')
 
-    def chuncked_bam_file(self, run_element, chunk):
-        return join(self.split_alignment_dir,
-                    run_element.get(ELEMENT_RUN_ELEMENT_ID) + '_name_sort_%s_%s' % chunk + '.bam')
+    def chunked_bam_file(self, run_element, chunk):
+        return os.path.join(
+            self.split_alignment_dir, run_element.get(ELEMENT_RUN_ELEMENT_ID) + '_name_sort_%s_%s.bam' % chunk
+        )
 
 
 class FastqIndex(SplitFastqStage):
@@ -221,6 +315,8 @@ class FastqIndex(SplitFastqStage):
 class SplitBWA(SplitFastqStage):
     """Run bwa on chunks of fastq file provided by SplitFastqStage."""
 
+    chunk_handler = Parameter()
+
     def bwa_command(self, fastq_pair, reference, expected_output_bam, read_group, chunk):
         tmp_file = expected_output_bam
         read_group_str = r'@RG\t%s' % r'\t'.join(['%s:%s' % (k, read_group[k]) for k in sorted(read_group)])
@@ -255,11 +351,11 @@ class SplitBWA(SplitFastqStage):
         for run_element in self.dataset.run_elements:
             if int(run_element.get(ELEMENT_NB_READS_CLEANED, 0)) > 0:
                 indexed_fq_files = self._indexed_fastq_for_run_element(run_element)
-                for chunk in self.chunks_from_fastq(indexed_fq_files):
+                for chunk in self.chunk_handler.chunks_from_fastq(indexed_fq_files):
                     commands.append(self.bwa_command(
                         fastq_pair=indexed_fq_files,
                         reference=self.dataset.reference_genome,
-                        expected_output_bam=self.chuncked_bam_file(run_element, chunk),
+                        expected_output_bam=self.chunked_bam_file(run_element, chunk),
                         read_group={'ID': run_element[ELEMENT_RUN_ELEMENT_ID], 'PU': run_element[ELEMENT_RUN_ELEMENT_ID],
                                     'SM': self.dataset.user_sample_id, 'PL': 'illumina'},
                         chunk=chunk
@@ -277,13 +373,15 @@ class SplitBWA(SplitFastqStage):
 class MergeBamAndDup(SplitFastqStage):
     """Merge bam file generated in bwa mem and defined in SplitFastqStage."""
 
+    chunk_handler = Parameter()
+
     def all_bam_chunks_file(self):
         all_chunk_bams = []
         for run_element in self.dataset.run_elements:
             if int(run_element.get(ELEMENT_NB_READS_CLEANED, 0)) > 0:
                 indexed_fq_files = self._indexed_fastq_for_run_element(run_element)
-                for chunk in self.chunks_from_fastq(indexed_fq_files):
-                    all_chunk_bams.append(self.chuncked_bam_file(run_element, chunk))
+                for chunk in self.chunk_handler.chunks_from_fastq(indexed_fq_files):
+                    all_chunk_bams.append(self.chunked_bam_file(run_element, chunk))
         bam_list_file = os.path.join(self.job_dir, self.dataset.name + '_all_bam_files.list')
         with open(bam_list_file, 'w') as open_file:
             open_file.write('\n'.join(all_chunk_bams))
@@ -297,10 +395,10 @@ class MergeBamAndDup(SplitFastqStage):
         )
         bamsormadup_cmd = '{bamsormadup} threads=16 tmpfile={dup_tmp} indexfilename={merged_bam}.bai > ' \
                           '{merged_bam}'.format(
-            bamsormadup=toolset['biobambam_sortmapdup'],
-            dup_tmp=os.path.join(self.create_tmp_dir(), self.dataset.name),
-            merged_bam=self.sorted_bam
-        )
+                              bamsormadup=toolset['biobambam_sortmapdup'],
+                              dup_tmp=os.path.join(self.create_tmp_dir(), self.dataset.name),
+                              merged_bam=self.sorted_bam
+                          )
         return 'set -o pipefail; ' + ' | '.join([cat_cmd, bamsormadup_cmd])
 
     def _run(self):
@@ -351,7 +449,7 @@ class GATK4Stage(GATK4FilePath):
             output=output
         )
 
-    def gatk_cmd(self, run_cls, output, memory=2, input=None, reference='default', spark_core=1, ext=None):
+    def gatk_cmd(self, run_cls, output=None, memory=2, input=None, reference='default', spark_core=1, ext=None):
         return self._gatk_cmd(run_cls, output=output, memory=memory, input=input, reference=reference,
                               spark_core=spark_core, ext=ext)
 
@@ -368,55 +466,6 @@ class PostAlignmentScatter(GATK4Stage):
         os.makedirs(d, exist_ok=True)
         return d
 
-    def split_genome_files(self):
-        """
-        This function creates the bed file representing all the chunks of genomes required.
-        It also creates a dictionary where keys are the first chunk of each bed file and values are the file path.
-        """
-        chunk_to_file = {}
-        for chunks in self.split_genome_in_chunks():
-            chunk_file = os.path.join(self.split_file_dir, self.dataset.name + '_region_%s-%s-%s.bed' % chunks[0])
-            if not os.path.exists(chunk_file):
-                with open(chunk_file, 'w') as open_file:
-                    for chunk in chunks:
-                        open_file.write('\t'.join([str(e) for e in chunk]) + '\n')
-            chunk_to_file[chunks[0]] = chunk_file
-        return chunk_to_file
-
-    def split_genome_in_chunks(self):
-        """
-        Split a genome in chunks of a specific size or at the end of chromosome and then aggregate the small chunks to
-        roughly match the other chunk size.
-        :return: list of list
-        """
-        fai_file = self.dataset.reference_genome + '.fai'
-        chunk_size = 20000000
-        max_nb_contig_per_chunk = 1000
-        with open(fai_file) as open_file:
-            chunks = []
-            for line in open_file:
-                sp_line = line.strip().split()
-                length = int(sp_line[1])
-                # The indices in bed files are 0 based and end excluded
-                # https://genome.ucsc.edu/FAQ/FAQformat.html#format1
-                chunks.extend([
-                    (sp_line[0], start, end)
-                    for start, end in split_in_chunks(length, chunk_size, zero_based=True, end_inclusive=False)
-                ])
-        # merge small consecutive chunks together with an upper limit set by max_nb_contig_per_chunk
-        final_chunks = []
-        current_chunks = []
-        final_chunks.append(current_chunks)
-        current_chunks_size = 0
-        for chunk in chunks:
-            if current_chunks_size + (chunk[2] - chunk[1]) > chunk_size or len(current_chunks) > max_nb_contig_per_chunk:
-                current_chunks = []
-                current_chunks_size = 0
-                final_chunks.append(current_chunks)
-            current_chunks.append(chunk)
-            current_chunks_size += chunk[2] - chunk[1]
-        return final_chunks
-
     def vcf_per_chunk(self, chunk):
         return os.path.join(self.split_file_dir, self.dataset.name + '_haplotype_caller_%s-%s-%s.vcf.gz' % chunk)
 
@@ -425,6 +474,7 @@ class SplitHaplotypeCaller(PostAlignmentScatter):
     """Run HaplotypeCaller on each chunk of genomes to create a VCF file"""
 
     bam_file = Parameter()
+    chunk_handler = Parameter()
 
     def haplotype_caller_cmd(self, chunk, region_file):
         haplotype_cmd = self.gatk_cmd(
@@ -449,7 +499,7 @@ class SplitHaplotypeCaller(PostAlignmentScatter):
     def _run(self):
         haplotype_status = executor.execute(
             *[self.haplotype_caller_cmd(chunk, region_file)
-              for chunk, region_file in self.split_genome_files().items()],
+              for chunk, region_file in self.chunk_handler.split_genome_files(self.split_file_dir).items()],
             job_name='split_hap_call',
             working_dir=self.exec_dir,
             cpus=1,
@@ -462,10 +512,12 @@ class SplitHaplotypeCaller(PostAlignmentScatter):
 class GatherVCF(PostAlignmentScatter):
     """Collate all vcf chunks into one"""
 
+    chunk_handler = Parameter()
+
     def _run(self):
         vcf_list = os.path.join(self.split_file_dir, self.dataset.name + '_vcf.list')
         with open(vcf_list, 'w') as open_file:
-            for chunks in self.split_genome_in_chunks():
+            for chunks in self.chunk_handler.genome_chunks:
                 open_file.write(self.vcf_per_chunk(chunks[0]) + '\n')
 
         concat_vcf_status = executor.execute(
@@ -598,6 +650,10 @@ class MergeVariants(GATK4Stage):
 class QCGATK4(Pipeline):
     toolset_type = 'gatk4_sample_processing'
     name = 'qc_gatk4'
+
+    def __init__(self, dataset):
+        super().__init__(dataset)
+        self.chunk_handler = ChunkHandler(self.dataset)
 
     def build(self):
         """Build the QC pipeline."""

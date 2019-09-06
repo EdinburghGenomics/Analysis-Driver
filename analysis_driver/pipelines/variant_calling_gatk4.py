@@ -5,6 +5,7 @@ from analysis_driver.pipelines import Pipeline, common
 from analysis_driver.pipelines.qc_gatk4 import SplitHaplotypeCaller, PostAlignmentScatter, GATK4Stage, \
     FastqIndex, SplitBWA, MergeBamAndDup, GatherVCF, MergeVariants, SelectSNPs, SelectIndels, SNPsFiltration, \
     IndelsFiltration
+from analysis_driver.segmentation import Parameter
 from analysis_driver.tool_versioning import toolset
 from analysis_driver.util.bash_commands import picard_command, java_command
 
@@ -12,38 +13,7 @@ from analysis_driver.util.bash_commands import picard_command, java_command
 class PostAlignmentScatterVC(PostAlignmentScatter):
     """Generic class providing ability to split the genome in chromosomes."""
 
-    def split_genome_chromosomes(self, with_unmapped=False):
-        """
-        Split the genome per chromosomes aggregating smaller chromosomes to similar length as the longest chromosome
-        Code inspired from GATK best practice workflow:
-        https://github.com/gatk-workflows/broad-prod-wgs-germline-snps-indels/blob/190945e358a6ee7a8c65bacd7b28c66527383376/PairedEndSingleSampleWf.wdl#L969
-
-        :return: list of list of chromosome names
-        """
-        fai_file = self.dataset.reference_genome + '.fai'
-        with open(fai_file) as open_file:
-            sequence_tuple_list = []
-            for line in open_file:
-                sp_line = line.strip().split()
-                sequence_tuple_list.append((sp_line[0], int(sp_line[1])))
-            longest_sequence = sorted(sequence_tuple_list, key=lambda x: x[1], reverse=True)[0][1]
-        chunks = []
-        current_chunks = []
-        chunks.append(current_chunks)
-        temp_size = 0
-        for sequence_tuple in sequence_tuple_list:
-            if temp_size + sequence_tuple[1] <= longest_sequence:
-                temp_size += sequence_tuple[1]
-                current_chunks.append(sequence_tuple[0])
-            else:
-                current_chunks = []
-                chunks.append(current_chunks)
-                current_chunks.append(sequence_tuple[0])
-                temp_size = sequence_tuple[1]
-        # add the unmapped sequences as a separate line to ensure that they are recalibrated as well
-        if with_unmapped:
-            chunks.append(['unmapped'])
-        return chunks
+    chunk_handler = Parameter()
 
     def split_base_recal_grp(self, chunk):
         return os.path.join(self.split_file_dir, self.dataset.name + '_base_recal_grp_%s.grp' % chunk)
@@ -70,7 +40,7 @@ class ScatterBaseRecalibrator(PostAlignmentScatterVC):
     def _run(self):
         return executor.execute(
             *[self.base_recalibrator_cmd(chrom_names)
-              for chrom_names in self.split_genome_chromosomes()],
+              for chrom_names in self.chunk_handler.split_genome_chromosomes()],
             job_name='gatk_base_recal',
             working_dir=self.exec_dir,
             cpus=1,
@@ -84,7 +54,7 @@ class GatherBQSRReport(PostAlignmentScatterVC):
     def _run(self):
         bqsr_reports_list = os.path.join(self.split_file_dir, self.dataset.name + '_bqsr_reports.list')
         with open(bqsr_reports_list, 'w') as open_file:
-            for chrom_names in self.split_genome_chromosomes():
+            for chrom_names in self.chunk_handler.split_genome_chromosomes():
                 open_file.write(self.split_base_recal_grp(chrom_names[0]) + '\n')
 
         gather_bqsr_status = executor.execute(
@@ -112,7 +82,7 @@ class ScatterApplyBQSR(PostAlignmentScatterVC):
     def _run(self):
         return executor.execute(
             *[self.apply_bqsr_cmd(chrom_names)
-              for chrom_names in self.split_genome_chromosomes(with_unmapped=True)],
+              for chrom_names in self.chunk_handler.split_genome_chromosomes(with_unmapped=True)],
             job_name='apply_bqsr',
             working_dir=self.exec_dir,
             cpus=1,
@@ -126,7 +96,7 @@ class GatherRecalBam(PostAlignmentScatterVC):
     def _run(self):
         bam_file_list = os.path.join(self.split_file_dir, self.dataset.name + '_recal_bam.list')
         with open(bam_file_list, 'w') as open_file:
-            for chrom_names in self.split_genome_chromosomes(with_unmapped=True):
+            for chrom_names in self.chunk_handler.split_genome_chromosomes(with_unmapped=True):
                 open_file.write(self.split_recal_bam(chrom_names[0]) + '\n')
 
         gather_bam_status = executor.execute(
@@ -171,7 +141,7 @@ class GatherGVCF(PostAlignmentScatterVC):
     def _run(self):
         gvcf_list = os.path.join(self.split_file_dir, self.dataset.name + '_g.vcf.list')
         with open(gvcf_list, 'w') as open_file:
-            for chunks in self.split_genome_in_chunks():
+            for chunks in self.chunk_handler.split_genome_in_chunks():
                 open_file.write(self.gvcf_per_chunk(chunks[0]) + '\n')
 
         concat_vcf_status = executor.execute(
@@ -190,6 +160,8 @@ class GatherGVCF(PostAlignmentScatterVC):
 
 class SplitGenotypeGVCFs(PostAlignmentScatterVC):
     """Run GenotypeGVCFs on each chunk of the genome to create a VCF file."""
+
+    chunk_handler = Parameter()
 
     def genotypegvcf_cmd(self, chunk, region_file):
         genotypegvcf_cmd = self.gatk_cmd(
@@ -211,7 +183,7 @@ class SplitGenotypeGVCFs(PostAlignmentScatterVC):
     def _run(self):
         return executor.execute(
             *[self.genotypegvcf_cmd(chunk, region_file)
-              for chunk, region_file in self.split_genome_files().items()],
+              for chunk, region_file in self.chunk_handler.split_genome_files(self.split_file_dir).items()],
             job_name='split_genotype_call',
             working_dir=self.exec_dir,
             cpus=1,
