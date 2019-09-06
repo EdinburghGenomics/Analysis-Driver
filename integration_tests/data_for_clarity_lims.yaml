@@ -12,12 +12,12 @@ projects:
 # This will create the samples and the associated root artifact
 # artifact can be refered to using the sample's name
 samples:
-    - { name: sample1, project: project1,  udfs: { Required Yield (Gb): 30, Coverage (X): 15, Species: Gallus gallus }, artifact: { container_name: plate1, xpos: H, ypos: 11 } }
-    - { name: sample2, project: project1,  udfs: { Required Yield (Gb): 30, Coverage (X): 15, Species: Gallus gallus }, artifact: { container_name: plate1, xpos: H, ypos: 12 } }
-    - { name: sample3, project: project2,  udfs: { Required Yield (Gb): 120, Coverage (X): 30, Species: Homo Sapiens }, artifact: { container_name: plate2, xpos: A, ypos: 1 } }
-    - { name: sample4, project: project2,  udfs: { Required Yield (Gb): 120, Coverage (X): 30, Species: Homo Sapiens }, artifact: { container_name: plate2, xpos: A, ypos: 2 } }
-    - { name: sample5, project: project2,  udfs: { Required Yield (Gb): 120, Coverage (X): 30, Species: Homo Sapiens }, artifact: { container_name: plate2, xpos: A, ypos: 3 } }
-    - { name: sample6, project: project2,  udfs: { Required Yield (Gb): 120, Coverage (X): 30, Species: Homo Sapiens }, artifact: { container_name: plate2, xpos: A, ypos: 4 } }
+    - { name: sample1, project: 10015AT,  udfs: { Required Yield (Gb): 30, Coverage (X): 15, Species: Gallus gallus }, artifact: { container_name: plate1, xpos: H, ypos: 11 } }
+    - { name: sample2, project: 10015AT,  udfs: { Required Yield (Gb): 30, Coverage (X): 15, Species: Gallus gallus }, artifact: { container_name: plate1, xpos: H, ypos: 12 } }
+    - { name: sample3, project: 10015AT,  udfs: { Required Yield (Gb): 120, Coverage (X): 30, Species: Homo Sapiens }, artifact: { container_name: plate2, xpos: A, ypos: 1 } }
+    - { name: sample4, project: 10015AT,  udfs: { Required Yield (Gb): 120, Coverage (X): 30, Species: Homo Sapiens }, artifact: { container_name: plate2, xpos: A, ypos: 2 } }
+    - { name: sample5, project: 10015AT,  udfs: { Required Yield (Gb): 120, Coverage (X): 30, Species: Homo Sapiens }, artifact: { container_name: plate2, xpos: A, ypos: 3 } }
+    - { name: sample6, project: 10015AT,  udfs: { Required Yield (Gb): 120, Coverage (X): 30, Species: Homo Sapiens }, artifact: { container_name: plate2, xpos: A, ypos: 4 } }
 
 # This will create additional artifacts (they will not be root artifact)
 artifacts:

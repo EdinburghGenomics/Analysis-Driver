@@ -661,7 +661,7 @@ class SampleDataset(Dataset):
 
     @property
     def _pipeline(self):
-        analysis_type = clarity.get_sample(self.name).udf.get('Analysis Type')
+        analysis_type = self.lims_sample_info.get('Analysis Type')
 
         if self.species is None:
             raise AnalysisDriverError('No species information found in the LIMS for ' + self.name)
@@ -691,6 +691,9 @@ class ProjectDataset(Dataset):
         super().__init__(name, most_recent_proc)
         self._number_of_samples = None
         self._samples_processed = None
+        self._lims_project_info = None
+        self._lims_samples_info = None
+        self._sample_datasets = {}
         self._species = None
         self._genome_version = None
 
@@ -711,16 +714,23 @@ class ProjectDataset(Dataset):
             )
         return self._samples_processed
 
+    def sample_dataset(self, sample_id):
+        if sample_id not in self._sample_datasets:
+            self._sample_datasets[sample_id] = SampleDataset(sample_id)
+        return self._sample_datasets[sample_id]
+
+    @property
+    def lims_project_info(self):
+        if self._lims_project_info is None:
+            self._lims_project_info = rest_communication.get_document(
+                'lims/project_info', match={'project_id': self.name}
+            )
+        return self._lims_project_info
+
     @property
     def number_of_samples(self):
         if not self._number_of_samples:
-            project_from_lims = clarity.get_project(self.name)
-            if project_from_lims:
-                self._number_of_samples = project_from_lims.udf.get('Number of Quoted Samples')
-                if not self._number_of_samples:
-                    self._number_of_samples = -1
-            else:
-                self._number_of_samples = -1
+            self._number_of_samples = self.lims_project_info.get('nb_quoted_samples', -1)
         return self._number_of_samples
 
     @property
@@ -728,8 +738,7 @@ class ProjectDataset(Dataset):
         if self._species is None:
             s = set()
             for sample in self.samples_processed:
-                species = sample.get('species_name', clarity.get_species_from_sample(sample['sample_id']))
-                s.add(species)
+                s.add(self.sample_dataset(sample['sample_id']).species)
             if len(s) != 1:
                 raise AnalysisDriverError('Unexpected number of species (%s) in this project' % ', '.join(s))
             self._species = s.pop()
@@ -738,15 +747,12 @@ class ProjectDataset(Dataset):
     @property
     def genome_version(self):
         if self._genome_version is None:
-            g = clarity.get_sample(self.samples_processed[0]['sample_id']).udf.get('Genome Version')
-            if not g:
-                g = rest_communication.get_document('species', where={'name': self.species})['default_version']
-            self._genome_version = g
+            self._genome_version = self.sample_dataset(self.samples_processed[0]['sample_id']).genome_version
         return self._genome_version
 
     @property
     def reference_genome(self):
-        return SampleDataset(self.samples_processed[0]['sample_id']).reference_genome
+        return self.sample_dataset(self.samples_processed[0]['sample_id']).reference_genome
 
     def __str__(self):
         return '%s  (%s samples / %s) ' % (super().__str__(), len(self.samples_processed), self.number_of_samples)
