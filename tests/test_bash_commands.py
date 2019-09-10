@@ -1,3 +1,4 @@
+import os
 from os.path import join
 from tests.test_analysisdriver import TestAnalysisDriver
 from analysis_driver.util import bash_commands
@@ -16,7 +17,11 @@ class TestBashCommands(TestAnalysisDriver):
 
     def test_fastqc(self):
         test_fastq = join(self.fastq_path, '10015AT', '10015ATA0001L05', 'this.fastq.gz')
-        assert bash_commands.fastqc(test_fastq) == 'path/to/fastqc_v0.11.5 --nogroup -t 1 -q ' + test_fastq
+        cur_dir = os.getcwd()
+        expt_cmd = 'path/to/fastqc_v0.11.5 --nogroup -t 1 --dir %s -q %s' % (cur_dir, test_fastq)
+        assert bash_commands.fastqc(test_fastq) == expt_cmd
+        expt_cmd = 'path/to/fastqc_v0.11.5 --nogroup -t 2 --dir TempDir -q %s' % (test_fastq)
+        assert bash_commands.fastqc(test_fastq, threads=2, tmp_dir='TempDir') == expt_cmd
 
     def test_bcbio(self):
         cmd = bash_commands.bcbio('run.yaml', self.assets_path)
