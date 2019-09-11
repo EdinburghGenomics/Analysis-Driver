@@ -74,7 +74,8 @@ class Bcl2Fastq(DemultiplexingStage):
     def _run(self):
         lanes = range(1, self.dataset.number_of_lane + 1)
         masks = [self.dataset.mask_per_lane(l) for l in lanes]
-        self.info('bcl2fastq mask: ' + self.dataset.mask)  # e.g: mask = 'y150n,i6,y150n'
+        self.info('bcl2fastq mask: ' + ', '.join(('lane %s: %s' % (l, m) for l, m in zip(lanes, masks))))
+
         bcl2fastq_exit_status = executor.execute(
             *(bash_commands.bcl2fastq_per_lane(self.input_dir, self.fastq_dir, self.dataset.sample_sheet_file,
                                                masks, lanes)),
@@ -263,10 +264,10 @@ class PartialRun(DemultiplexingStage):
 
 class Bcl2FastqPartialRun(PartialRun):
     def _run(self):
-        mask = self.dataset.mask.replace('y150n', 'y50n101')
-        self.info('bcl2fastq mask: ' + mask)
         lanes = range(1, self.dataset.number_of_lane + 1)
         masks = [self.dataset.mask_per_lane(l) for l in lanes]
+        self.info('bcl2fastq mask: ' + ', '.join(('lane %s: %s' % (l, m) for l,m in zip(lanes, masks))))
+
         return executor.execute(
             *(bash_commands.bcl2fastq_per_lane(self.input_dir, self.fastq_intermediate_dir,
                                                self.dataset.sample_sheet_file, masks, lanes)),
