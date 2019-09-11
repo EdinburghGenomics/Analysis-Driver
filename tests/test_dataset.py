@@ -223,6 +223,17 @@ mocked_idt_artifact = NamedMock(
     reagent_labels=['001A IDT-ILMN TruSeq DNA-RNA UD 96 Indexes  Plate_UDI0001 (CCGCGGTT-AGCGCTAG)'],
     samples=[MockedSample(real_name='idt_sample')]
 )
+mocked_idt_pool = NamedMock(real_name='artpool', reagent_labels=[
+    '001A IDT-ILMN TruSeq DNA-RNA UD 96 Indexes  Plate_UDI0001 (CCGCGGTT-AGCGCTAG)',
+    '001A IDT-ILMN TruSeq DNA-RNA UD 96 Indexes  Plate_UDI0001 (CCGCGGTT-AGCGCTAG)',
+], samples=[
+    'idt_sample',
+    'idt_sample',
+], input_artifact_list=Mock(return_value=[
+    mocked_idt_artifact,
+    mocked_idt_artifact
+]), parent_process=Mock(type=NamedMock(real_name='Create PDP Pool')))
+
 mocked_lane_artifact_pool = NamedMock(real_name='artpool', reagent_labels=[
     'D703-D502 (CGCTCATT-ATAGAGGC)',
     'D704-D502 (GAGATTCC-ATAGAGGC)',
@@ -273,7 +284,7 @@ mocked_flowcell_user_prepared = Mock(placements={
     '8:1': mocked_lane_user_prep_artifact2
 })
 
-mocked_flowcell_idt = Mock(placements={'%s:1' % i: mocked_idt_artifact for i in range(1, 9)})
+mocked_flowcell_idt = Mock(placements={'%s:1' % i: mocked_idt_pool for i in range(1, 9)})
 
 
 class TestRunDataset(TestDataset):
@@ -311,11 +322,11 @@ class TestRunDataset(TestDataset):
                 return_value=MockedRunProcess(container=fake_flowcell)
             )
 
-        def patched_barcodes(has_barcodes):
-            return patch.object(RunDataset, 'has_barcodes', new_callable=PropertyMock(return_value=has_barcodes))
+        def patched_has_barcode_in_lane(has_barcodes):
+            return patch.object(RunDataset, 'has_barcode_in_lane', new_callable=PropertyMock(return_value=has_barcodes))
 
         d = RunDataset('test_dataset')
-        with patched_run(mocked_flowcell_non_pooling), patched_barcodes(False):
+        with patched_run(mocked_flowcell_non_pooling), patched_has_barcode_in_lane(False):
             run_elements = d._run_elements_from_lims()
             assert len(set(r[c.ELEMENT_PROJECT_ID] for r in run_elements)) == 1
             assert len(set(r[c.ELEMENT_SAMPLE_INTERNAL_ID] for r in run_elements)) == 8
@@ -324,7 +335,7 @@ class TestRunDataset(TestDataset):
             assert barcodes_len.pop() == 0
 
         d = RunDataset('test_dataset')
-        with patched_run(mocked_flowcell_pooling), patched_barcodes(True):
+        with patched_run(mocked_flowcell_pooling), patched_has_barcode_in_lane(True):
             run_elements = d._run_elements_from_lims()
             assert len(set(r[c.ELEMENT_PROJECT_ID] for r in run_elements)) == 1
             assert len(set(r[c.ELEMENT_SAMPLE_INTERNAL_ID] for r in run_elements)) == 4
@@ -333,7 +344,7 @@ class TestRunDataset(TestDataset):
             assert barcodes_len.pop() == 8
 
         d = RunDataset('test_dataset')
-        with patched_run(mocked_flowcell_user_prepared), patched_barcodes(False):
+        with patched_run(mocked_flowcell_user_prepared), patched_has_barcode_in_lane(False):
             run_elements = d._run_elements_from_lims()
             assert len(set(r[c.ELEMENT_PROJECT_ID] for r in run_elements)) == 1
             assert len(set(r[c.ELEMENT_SAMPLE_INTERNAL_ID] for r in run_elements)) == 2
@@ -342,7 +353,7 @@ class TestRunDataset(TestDataset):
             assert barcodes_len.pop() == 0
 
         d = RunDataset('test_dataset')
-        with patched_run(mocked_flowcell_idt), patched_barcodes(True):
+        with patched_run(mocked_flowcell_idt), patched_has_barcode_in_lane(True):
             run_elements = d._run_elements_from_lims()
             assert len(set(r[c.ELEMENT_PROJECT_ID] for r in run_elements)) == 1
             assert len(set(r[c.ELEMENT_SAMPLE_INTERNAL_ID] for r in run_elements)) == 1

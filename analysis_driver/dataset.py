@@ -323,9 +323,11 @@ class RunDataset(Dataset):
         with open(filename, 'w') as f:
             f.write('\n'.join(all_lines) + '\n')
 
-    @property
-    def mask(self):
-        return self.run_info.reads.generate_mask(self.barcode_len)
+    def mask_per_lane(self, lane):
+        if self.has_barcode_in_lane(lane):
+            return self.run_info.reads.generate_mask(self.barcode_len)
+        return self.run_info.reads.generate_mask(0)
+
 
     def _is_ready(self):
         return True
@@ -349,6 +351,10 @@ class RunDataset(Dataset):
                 'Mismatching step name: %s != %s' % (expected_pooling_step_name, art.parent_process.type.name)
             )
         return art.input_artifact_list()
+
+    @property
+    def number_of_lane(self):
+        return len(self.lane_metrics)
 
     @property
     def rapid_samples_by_lane(self):
@@ -382,6 +388,7 @@ class RunDataset(Dataset):
         for lane in flowcell.placements:
             if len(flowcell.placements[lane].reagent_labels) > 1:
                 artifacts = self._find_pooling_step_for_artifact(flowcell.placements[lane], 'Create PDP Pool')
+
             else:
                 artifacts = [flowcell.placements[lane]]
             for artifact in artifacts:
@@ -394,10 +401,10 @@ class RunDataset(Dataset):
                     ELEMENT_LANE: lane.split(':')[0],
                     ELEMENT_BARCODE: ''
                 }
-                if self.has_barcodes:
+                # Check that the current artifact is part of the pool
+                if len(artifacts) > 1:
                     assert len(artifact.reagent_labels) == 1
                     reagent_label = artifact.reagent_labels[0]
-
                     barcode = None
                     for pattern in (
                         # TruSeq label, e.g, A412-A208 (ATGCATGC-CTGACTGA)
@@ -411,14 +418,15 @@ class RunDataset(Dataset):
 
                     if not barcode:
                         raise AnalysisDriverError('Invalid reagent label found: %s' % reagent_label)
-
                     run_element[ELEMENT_BARCODE] = barcode
-
                 run_elements.append(run_element)
         return run_elements
 
-    @property
-    def has_barcodes(self):
+    def has_barcode_in_lane(self, lane):
+        lane_metric = [lm for lm in self.lane_metrics if lm[ELEMENT_LANE_NUMBER] == lane][0]
+        # If there is only one sample in this lane then we won't demultiplex and should use a barcode length of 0
+        if len(lane_metric[ELEMENT_RUN_ELEMENTS]) == 1:
+            return False
         return self.run_info.reads.has_barcodes
 
     @property
