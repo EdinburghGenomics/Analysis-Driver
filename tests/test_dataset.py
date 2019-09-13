@@ -6,7 +6,7 @@ import pytest
 from sys import modules
 from unittest.mock import patch, Mock, PropertyMock, call
 from egcg_core import constants as c
-from integration_tests.mocked_data import MockedSample, MockedRunProcess
+from integration_tests.mocked_data import MockedSample, MockedRunProcess, mocked_run_status, mocked_run_status_pools
 from tests.test_analysisdriver import TestAnalysisDriver, NamedMock
 from analysis_driver.exceptions import AnalysisDriverError, SequencingRunError
 from analysis_driver.dataset import Dataset, RunDataset, SampleDataset, ProjectDataset, MostRecentProc
@@ -295,60 +295,37 @@ class TestRunDataset(TestDataset):
                               'dataset_name': 'None', 'dataset_type': 'None'}
         )
 
-    @patch('analysis_driver.dataset.clarity.get_run')
-    def test_rapid_samples_by_lane(self, mocked_get_run):
-        mocked_get_run.return_value = MockedRunProcess(container=mocked_flowcell_pooling)
-        assert self.dataset.rapid_samples_by_lane == {}
+    def test_rapid_samples_by_lane(self):
+        self.dataset._run_status = mocked_run_status
+        with patch('egcg_core.rest_communication.get_document', return_value={}):
+            assert self.dataset.rapid_samples_by_lane == {}
+        responses = [{},
+                     {'sample_id': 'sample2', 'Rapid Analysis': 'Yes', 'project_id': '10015AT'},
+                     {}, {}, {}, {}, {}, {}]
+        with patch('egcg_core.rest_communication.get_document', side_effect=responses):
+            self.dataset._rapid_samples_by_lane = None
+            assert self.dataset.rapid_samples_by_lane == {'2': {'sample_id': 'sample2', 'Rapid Analysis': 'Yes', 'project_id': '10015AT'}}
 
-        self.dataset._rapid_samples_by_lane = None
-        mocked_get_run.return_value.container = mocked_flowcell_non_pooling
-        assert self.dataset.rapid_samples_by_lane == {'2': {'sample_id': 'sample2', 'Rapid Analysis': 'Yes', 'project_id': '10015AT'}}
-
-    def test_run_elements_from_lims(self):
-        def patched_run(fake_flowcell):
-            return patch(
-                'analysis_driver.dataset.clarity.get_run',
-                return_value=MockedRunProcess(container=fake_flowcell)
-            )
-
-        def patched_barcodes(has_barcodes):
-            return patch.object(RunDataset, 'has_barcodes', new_callable=PropertyMock(return_value=has_barcodes))
+    def test_run_elements_from_lims_endpoint(self):
+        self.dataset._run_status = mocked_run_status
 
         d = RunDataset('test_dataset')
-        with patched_run(mocked_flowcell_non_pooling), patched_barcodes(False):
-            run_elements = d._run_elements_from_lims()
-            assert len(set(r[c.ELEMENT_PROJECT_ID] for r in run_elements)) == 1
-            assert len(set(r[c.ELEMENT_SAMPLE_INTERNAL_ID] for r in run_elements)) == 8
-            barcodes_len = set(len(r[c.ELEMENT_BARCODE]) for r in run_elements)
-            assert len(barcodes_len) == 1
-            assert barcodes_len.pop() == 0
+        d._run_status = mocked_run_status
+        run_elements = d._run_elements_from_lims_endpoint()
+        assert len(set(r[c.ELEMENT_PROJECT_ID] for r in run_elements)) == 1
+        assert len(set(r[c.ELEMENT_SAMPLE_INTERNAL_ID] for r in run_elements)) == 8
+        barcodes_len = set(len(r[c.ELEMENT_BARCODE]) for r in run_elements)
+        assert len(barcodes_len) == 1
+        assert barcodes_len.pop() == 0
 
         d = RunDataset('test_dataset')
-        with patched_run(mocked_flowcell_pooling), patched_barcodes(True):
-            run_elements = d._run_elements_from_lims()
-            assert len(set(r[c.ELEMENT_PROJECT_ID] for r in run_elements)) == 1
-            assert len(set(r[c.ELEMENT_SAMPLE_INTERNAL_ID] for r in run_elements)) == 4
-            barcodes_len = set(len(r[c.ELEMENT_BARCODE]) for r in run_elements)
-            assert len(barcodes_len) == 1
-            assert barcodes_len.pop() == 8
-
-        d = RunDataset('test_dataset')
-        with patched_run(mocked_flowcell_user_prepared), patched_barcodes(False):
-            run_elements = d._run_elements_from_lims()
-            assert len(set(r[c.ELEMENT_PROJECT_ID] for r in run_elements)) == 1
-            assert len(set(r[c.ELEMENT_SAMPLE_INTERNAL_ID] for r in run_elements)) == 2
-            barcodes_len = set(len(r[c.ELEMENT_BARCODE]) for r in run_elements)
-            assert len(barcodes_len) == 1
-            assert barcodes_len.pop() == 0
-
-        d = RunDataset('test_dataset')
-        with patched_run(mocked_flowcell_idt), patched_barcodes(True):
-            run_elements = d._run_elements_from_lims()
-            assert len(set(r[c.ELEMENT_PROJECT_ID] for r in run_elements)) == 1
-            assert len(set(r[c.ELEMENT_SAMPLE_INTERNAL_ID] for r in run_elements)) == 1
-            barcodes_len = set(len(r[c.ELEMENT_BARCODE]) for r in run_elements)
-            assert len(barcodes_len) == 1
-            assert barcodes_len.pop() == 8
+        d._run_status = mocked_run_status_pools
+        run_elements = d._run_elements_from_lims_endpoint()
+        assert len(set(r[c.ELEMENT_PROJECT_ID] for r in run_elements)) == 1
+        assert len(set(r[c.ELEMENT_SAMPLE_INTERNAL_ID] for r in run_elements)) == 4
+        barcodes_len = set(len(r[c.ELEMENT_BARCODE]) for r in run_elements)
+        assert len(barcodes_len) == 1
+        assert barcodes_len.pop() == 8
 
     @patch('builtins.open')
     def test_generate_samplesheet(self, mocked_open):

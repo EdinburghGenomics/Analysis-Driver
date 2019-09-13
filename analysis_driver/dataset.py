@@ -8,6 +8,7 @@ from sys import modules
 from time import sleep
 from egcg_core import rest_communication, clarity
 from egcg_core.app_logging import AppLogger
+from egcg_core.clarity import sanitize_user_id
 from egcg_core.config import cfg
 from egcg_core.util import query_dict
 from egcg_core.constants import *  # pylint: disable=unused-import
@@ -278,6 +279,7 @@ class RunDataset(Dataset):
         self._run_info = None
         self._sample_sheet_file = None
         self.input_dir = os.path.join(cfg['run']['input_dir'], self.name)
+        self._run_status = None
         self._run_elements = None
         self._barcode_len = None
         self._lims_run = None
@@ -333,7 +335,7 @@ class RunDataset(Dataset):
     @property
     def run_elements(self):
         if not self._run_elements:
-            self._run_elements = self._run_elements_from_lims()
+            self._run_elements = self._run_elements_from_lims_endpoint()
         return self._run_elements
 
     @staticmethod
@@ -358,63 +360,53 @@ class RunDataset(Dataset):
         """
         if self._rapid_samples_by_lane is None:
             self._rapid_samples_by_lane = {}
-
-            # TODO: #394 - move away from using the Lims API
-            flowcell = set(self.lims_run.parent_processes()).pop().output_containers()[0]
-            for lane, artifact in flowcell.placements.items():
-                if len(artifact.reagent_labels) > 1:
+            for lane in self.run_status['lanes']:
+                if len(lane['samples']) > 1:
                     continue  # we don't want to run rapid processing on pools
+                sample_data = lane['samples'][0]
 
-                assert len(artifact.samples) == 1
-                sample = artifact.samples[0]
-                if sample.udf.get('Rapid Analysis') == 'Yes':
-                    s = sample.udf.copy()
-                    s['sample_id'] = sample.name
-                    s['project_id'] = sample.project.name
-                    self._rapid_samples_by_lane[lane.split(':')[0]] = s
+                sample_info = rest_communication.get_document('lims/sample_info',
+                                                              match={'sample_id': sample_data['sample_id']})
+                if sample_info.get('Rapid Analysis') == 'Yes':
+                    self._rapid_samples_by_lane[str(lane['lane'])] = sample_info
 
         return self._rapid_samples_by_lane
 
-    def _run_elements_from_lims(self):
+    @property
+    def run_status(self):
+        if self._run_status is None:
+            self._run_status = rest_communication.get_documents('lims/run_status', match={'run_id': self.name})
+        return self._run_status
+
+    def _run_elements_from_lims_endpoint(self):
         run_elements = []
 
-        flowcell = set(self.lims_run.parent_processes()).pop().output_containers()[0]
-        for lane in flowcell.placements:
-            if len(flowcell.placements[lane].reagent_labels) > 1:
-                artifacts = self._find_pooling_step_for_artifact(flowcell.placements[lane], 'Create PDP Pool')
-            else:
-                artifacts = [flowcell.placements[lane]]
-            for artifact in artifacts:
-                assert len(artifact.samples) == 1
-                sample = artifact.samples[0]
+        for lane in self.run_status['lanes']:
+            for sample_data in lane['samples']:
                 run_element = {
-                    ELEMENT_PROJECT_ID: sample.project.name,
-                    ELEMENT_SAMPLE_INTERNAL_ID: sample.name,
-                    ELEMENT_LIBRARY_INTERNAL_ID: sample.id,  # This is not the library id but it is unique
-                    ELEMENT_LANE: lane.split(':')[0],
+                    ELEMENT_PROJECT_ID: sample_data['project_id'],
+                    ELEMENT_SAMPLE_INTERNAL_ID: sample_data['sample_id'],
+                    ELEMENT_LIBRARY_INTERNAL_ID: sample_data['artifact_id'],  # This is not the library id but it is unique
+                    ELEMENT_LANE: lane['lane'],
                     ELEMENT_BARCODE: ''
                 }
-                if self.has_barcodes:
-                    assert len(artifact.reagent_labels) == 1
-                    reagent_label = artifact.reagent_labels[0]
-
-                    barcode = None
+                if len(lane['samples']) > 1:
+                    barcode = ''
                     for pattern in (
-                        # TruSeq label, e.g, A412-A208 (ATGCATGC-CTGACTGA)
-                        '(\w{4})-(\w{4}) \(([ATCG]{8})-([ATCG]{8})\)',
-                        # IDT label, e.g, 001A IDT-ILMN TruSeq DNA-RNA UD 96 Indexes  Plate_UDI0001 (ATGCATGC-CTGACTGA)
-                        '(\w{4}) IDT-ILMN TruSeq DNA-RNA UD 96 Indexes\s+(Plate_\w{7}) \(([ATGC]{8})-([ATGC]{8})\)'
+                            # TruSeq label, e.g, A412-A208 (ATGCATGC-CTGACTGA)
+                            '(\w{4})-(\w{4}) \(([ATCG]{8})-([ATCG]{8})\)',
+                            # IDT label, e.g, 001A IDT-ILMN TruSeq DNA-RNA UD 96 Indexes  Plate_UDI0001 (ATGCATGC-CTGACTGA)
+                            '(\w{4}) IDT-ILMN TruSeq DNA-RNA UD 96 Indexes\s+(Plate_\w{7}) \(([ATGC]{8})-([ATGC]{8})\)'
                     ):
-                        match = re.match(pattern, reagent_label)
+                        match = re.match(pattern, sample_data['barcode'])
                         if match:
                             barcode = match.group(3)
 
                     if not barcode:
-                        raise AnalysisDriverError('Invalid reagent label found: %s' % reagent_label)
-
+                        raise AnalysisDriverError('Invalid barcode found: %s' % sample_data['barcode'])
                     run_element[ELEMENT_BARCODE] = barcode
-
                 run_elements.append(run_element)
+
         return run_elements
 
     @property
@@ -446,20 +438,14 @@ class RunDataset(Dataset):
         self.debug('Barcode check done. Barcode len: %s', len(previous_r[ELEMENT_BARCODE]))
         return len(previous_r[ELEMENT_BARCODE])
 
-    @property
-    def lims_run(self):
-        if not self._lims_run:
-            self._lims_run = clarity.get_run(self.name)
-        return self._lims_run
-
     def is_sequencing(self):
         # assume that not being in the LIMS counts as 'is_sequencing'
-        if not self.lims_run:
+        if not self.run_status:
             self.warning('Run %s not found in the LIMS', self.name)
             return True
-        # force the LIMS to update the RunStatus rather than passing the same cached RunStatus
-        self.lims_run.get(force=True)
-        return self.lims_run.udf.get('Run Status') in ['RunStarted', 'RunPaused']
+        # force the update of the RunStatus rather than passing the same cached values
+        self._run_status = None
+        return self.run_status.get('run_status') in ['RunStarted', 'RunPaused']
 
     @property
     def lane_metrics(self):
@@ -550,9 +536,9 @@ class SampleDataset(Dataset):
 
     @property
     def user_sample_id(self):
-        if self._user_sample_id is None:
-            self._user_sample_id = clarity.get_user_sample_name(self.name)
-        return self._user_sample_id
+        user_sample_name = self.lims_sample_info.get('User Sample Name')
+        if user_sample_name:
+            return sanitize_user_id(user_sample_name)
 
     @property
     def run_elements(self):
