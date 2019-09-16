@@ -48,12 +48,10 @@ def seqtk_fqchk(fastq_file):
 def fq_filt_prelim_cmd():
     cmd = (
         'function run_filterer {{',  # double up { and } to escape them for str.format()
-        'strategy=$1', 'i1=$2', 'i2=$3', 'o1=$4', 'o2=$5', 'fifo_1=$6', 'fifo_2=$7', 'stats_file=$8',
-        'read_name_file=$9', 'out_phix1=${{10}}', 'out_phix2=${{11}}',
-        'shift 10',
+        'strategy=$1', 'i1=$2', 'i2=$3', 'o1=$4', 'o2=$5', 'fifo_1=$6', 'fifo_2=$7', 'f1=$8', 'f2=$9',
+        'shift 9',
         'mkfifo $fifo_1', 'mkfifo $fifo_2',
-        '{ff} --i1 $i1 --i2 $i2 --o1 $fifo_1 --o2 $fifo_2 --threshold {threshold} '  # no comma means concatenation
-        '--stats_file $stats_file --remove_reads $read_name_file --f1 $out_phix1 --f2 $out_phix2 $* &',
+        '{ff} --i1 $i1 --i2 $i2 --o1 $fifo_1 --o2 $fifo_2 --f1 $f1 --f2 $f2 $* &',
         'fq_filt_pid=$!',
         '{pigz} -c -p {pzt} $fifo_1 > $o1 &',
         'pigz_r1_pid=$!',
@@ -88,55 +86,70 @@ def fq_filt_prelim_cmd():
     )
     return '\n'.join(cmd).format(
         ff=toolset['fastq_filterer'],
-        threshold=cfg.query('fastq_filterer', 'min_length', ret_default='36'),
         pigz=toolset['pigz'],
         pzt=10  # two pigz processes run, so pigz threads here will be doubled
     )
 
 
-def fastq_filterer(fastq_file_pair, read_name_file, tiles_to_filter=None, trim_r1=None, trim_r2=None):
+def fastq_filterer(fastq_file_pair, threshold=None, rm_tiles=None, rm_reads=None, trim_r1=None, trim_r2=None,
+                   quiet=False, unsafe=False, stats_file=None):
     """
     :param tuple[str,str] fastq_file_pair: Paired-end fastqs to filter
-    :param str read_name_file: File containing read names to pass to --remove_reads
-    :param list tiles_to_filter: Tile IDs for reads to remove regardless of length
+    :param int threshold: Read length to filter on - defaults to config or 36 bases
+    :param list rm_tiles: Tile IDs for reads to remove regardless of length
+    :param str rm_reads: File containing read names to pass to --remove_reads
     :param trim_r1: Maximum length to trim R1 to
     :param trim_r2: As trim_r1, but for R2
-    Run fastq filterer on a pair of fastqs, removing pairs where one is shorter than 36 bases
+    :param bool quiet: Pass --quiet to filterer
+    :param bool unsafe: Pass --unsafe to filterer
+    :param str stats_file: Alternate name for written stats file - defaults to fastq_basename_fastqfilterer.stats
+    Run fastq filterer on pairs of fastqs, removing read pairs where one is shorter than 36 bases
     """
+
     if len(fastq_file_pair) != 2:
         raise AnalysisDriverError('fastq-filterer only supports paired fastq files')
 
     i1, i2 = sorted(fastq_file_pair)
 
     base_1 = i1.replace('.fastq.gz', '')
-    phix1 = base_1 + '.fastq_discarded'
+    f1 = base_1 + '.fastq_discarded'
     fifo_1 = base_1 + '_filtered.fastq'
     o1 = fifo_1 + '.gz'
 
     base_2 = i2.replace('.fastq.gz', '')
-    phix2 = base_2 + '.fastq_discarded'  # add suffix to avoid collision with find_fastq functions
+    f2 = base_2 + '.fastq_discarded'  # add suffix to avoid collision with find_fastq functions
     fifo_2 = base_2 + '_filtered.fastq'
     o2 = fifo_2 + '.gz'
 
-    stats_file = base_1.replace('_R1_001', '') + '_fastqfilterer.stats'
-
-    cmd = 'run_filterer'
-
-    if any((tiles_to_filter, trim_r1, trim_r2)):
-        cmd += ' keep_originals'
+    if any((rm_tiles, trim_r1, trim_r2)):
+        strategy = 'keep_originals'
     else:
-        cmd += ' in_place'
+        strategy = 'in_place'
 
-    cmd += ' {0} {1} {2} {3} {4} {5} {6} {7} {8} {9}'.format(
-        i1, i2, o1, o2, fifo_1, fifo_2, stats_file, read_name_file, phix1, phix2
+    # args passed to fq_file_prelim_cmd bash function
+    cmd = 'run_filterer {0} {1} {2} {3} {4} {5} {6} {7} {8}'.format(
+        strategy, i1, i2, o1, o2, fifo_1, fifo_2, f1, f2
     )
 
-    if tiles_to_filter:
-        cmd += ' --remove_tiles %s' % (','.join([str(t) for t in tiles_to_filter]))
+    # all other args passed as normal
+    threshold = threshold or cfg.query('fastq_filterer', 'min_length', ret_default='36')
+    stats_file = stats_file or base_1.replace('_R1_001', '') + '_fastqfilterer.stats'
+
+    cmd += ' --threshold %s' % threshold
+    cmd += ' --stats_file %s' % stats_file
+
+    if rm_tiles:
+        cmd += ' --remove_tiles %s' % (','.join(str(t) for t in rm_tiles))
+    if rm_reads:
+        cmd += ' --remove_reads %s' % rm_reads
     if trim_r1:
         cmd += ' --trim_r1 %s' % trim_r1
     if trim_r2:
         cmd += ' --trim_r2 %s' % trim_r2
+    if quiet:
+        cmd += ' --quiet'
+    if unsafe:
+        cmd += ' --unsafe'
 
     app_logger.debug('Writing: ' + cmd)
     return cmd

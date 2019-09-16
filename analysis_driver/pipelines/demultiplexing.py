@@ -147,11 +147,11 @@ class FastqFilter(DemultiplexingStage):
             kwargs = {}
             if filter_lanes[lane]:
                 trim_r1, trim_r2 = get_trim_values_for_bad_cycles(bad_cycles.get(lane), self.dataset.run_info)
-                kwargs = {'tiles_to_filter': bad_tiles.get(lane), 'trim_r2': trim_r2}
+                kwargs = {'rm_tiles': bad_tiles.get(lane), 'trim_r2': trim_r2}
 
             for fqs in fq_pairs:
                 read_name_list = fqs[0][:-len('_R1_001.fastq.gz')] + '_phix_read_name.list'
-                cmds.append(bash_commands.fastq_filterer(fqs, read_name_list, **kwargs))
+                cmds.append(bash_commands.fastq_filterer(fqs, rm_reads=read_name_list, **kwargs))
 
         return executor.execute(
             *cmds,
@@ -266,6 +266,24 @@ class Bcl2FastqPartialRun(PartialRun):
             working_dir=self.job_dir,
             cpus=8,
             mem=32
+        ).join()
+
+
+class EarlyFastqFilter(DemultiplexingStage):
+    def _run(self):
+        cmds = []
+        for lane in range(1, 9):
+            fq_pairs = find_all_fastq_pairs_for_lane(self.fastq_intermediate_dir, lane)
+            for fqs in fq_pairs:
+                cmds.append(bash_commands.fastq_filterer(fqs))
+
+        return executor.execute(
+            *cmds,
+            prelim_cmds=[bash_commands.fq_filt_prelim_cmd()],
+            job_name='fastq_filterer',
+            working_dir=self.job_dir,
+            cpus=10,
+            mem=6
         ).join()
 
 
@@ -464,7 +482,8 @@ class Demultiplexing(Pipeline):
     def build(self):
         wait_for_read2 = self.stage(WaitForRead2)
         bcl2fastq_half_run = self.stage(Bcl2FastqPartialRun, previous_stages=[wait_for_read2])
-        align_output = self.stage(BwaAlignMulti, previous_stages=[bcl2fastq_half_run])
+        early_fastq_filter = self.stage(EarlyFastqFilter, previous_stages=[bcl2fastq_half_run])
+        align_output = self.stage(BwaAlignMulti, previous_stages=[early_fastq_filter])
         stats_output = self.stage(SamtoolsStatsMulti, previous_stages=[align_output])
         depth_output = self.stage(SamtoolsDepthMulti, previous_stages=[align_output])
         md_output = self.stage(PicardMarkDuplicateMulti, previous_stages=[align_output])
