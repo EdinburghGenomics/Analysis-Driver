@@ -14,16 +14,12 @@ from integration_tests import mocked_data
 class IntegrationTest(ReportingAppIntegrationTest):
     patches = [
         patch('analysis_driver.client.load_config'),
-        patch('egcg_core.clarity.find_project_name_from_sample', return_value='10015AT'),
         patch('egcg_core.clarity.get_plate_id_and_well', new=mocked_data.fake_get_plate_id_and_well),
-        patch('egcg_core.clarity.get_project', return_value=mocked_data.mocked_clarity_project),
         patch('egcg_core.clarity.get_sample_sex'),
         patch('egcg_core.clarity.get_sample_genotype', return_value=set()),
-        patch('egcg_core.clarity.get_sample_names_from_project', return_value=set()),
         patch('egcg_core.clarity.get_samples_arrived_with', return_value=set()),
         patch('egcg_core.clarity.get_samples_genotyped_with', return_value=set()),
         patch('egcg_core.clarity.get_samples_sequenced_with', return_value=set()),
-        patch('egcg_core.clarity.get_user_sample_name', new=mocked_data.fake_get_user_sample_id),
         patch('analysis_driver.dataset.LimsNotification'),
         patch(
             'analysis_driver.quality_control.well_duplicates.WellDuplicates._welldups_cmd',
@@ -50,8 +46,12 @@ class IntegrationTest(ReportingAppIntegrationTest):
         self.run_dir = os.path.dirname(os.getcwd())  # we're inside the checked out project, not the top level
 
     def setUp(self):
+        # Set the LIMS data yaml file before the super().setUp so it is picked up durring the setup
+        self.lims_data_yaml = os.path.join(os.path.dirname(__file__), 'data_for_clarity_lims.yaml')
+
         super().setUp()
         cfg.load_config_file(os.getenv('ANALYSISDRIVERCONFIG'), env_var='ANALYSISDRIVERENV')
+
         run_elements = []
         for lane in range(1, 8):
             run_elements.append({
