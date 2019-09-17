@@ -282,7 +282,6 @@ class RunDataset(Dataset):
         self._run_status = None
         self._run_elements = None
         self._barcode_len = None
-        self._lims_run = None
         self._rapid_samples_by_lane = None
 
     def initialise_entity(self):
@@ -375,7 +374,9 @@ class RunDataset(Dataset):
     @property
     def run_status(self):
         if self._run_status is None:
-            self._run_status = rest_communication.get_documents('lims/run_status', match={'run_id': self.name})
+            self._run_status = rest_communication.get_document('lims/run_status', match={'run_id': self.name})
+            if not self._run_status:
+                raise AnalysisDriverError('Run status information for %s is not available in the LIMS' % self.nameß)
         return self._run_status
 
     def _run_elements_from_lims_endpoint(self):

@@ -298,16 +298,12 @@ class IntegrationTest(ReportingAppIntegrationTest):
     def test_demultiplexing_aborted(self):
         self.setup_test('run', 'test_demultiplexing_aborted', 'demultiplexing')
         self._add_patches(
-            patch('egcg_core.clarity.get_run', return_value=mocked_data.mocked_pooling_run),
             patch('analysis_driver.quality_control.interop_metrics.get_last_cycles_with_existing_bcls', return_value=310)
         )
 
-        mocked_clarity_run = mocked_data.MockedRunProcess(
-            udf={'Run Status': 'RunAborted'},
-            container=mocked_data.mocked_flowcell_pooling
-        )
-        with patch('egcg_core.clarity.get_run', return_value=mocked_clarity_run):
-            exit_status = client.main(['--run'])
+        # Force the abborted run to be the first on in line
+        client.main(['--run --force 150723_E00306_0024_BHCHK3CCXX'])
+        exit_status = client.main(['--run'])
 
         self.assertEqual('exit status', exit_status, 0)
         ad_proc = rest_communication.get_document('analysis_driver_procs', where={'dataset_name': self.run_id})
