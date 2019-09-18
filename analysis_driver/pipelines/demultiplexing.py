@@ -7,16 +7,13 @@ from egcg_core import executor, util, rest_communication, constants as c
 from analysis_driver import segmentation
 from analysis_driver.reader.run_info import Reads
 from analysis_driver.util import bash_commands, find_all_fastq_pairs_for_lane, get_trim_values_for_bad_cycles
-from analysis_driver.pipelines import rapid
+from analysis_driver.pipelines import Pipeline, rapid
 from analysis_driver.pipelines.common import Cleanup
 from analysis_driver.exceptions import SequencingRunError, AnalysisDriverError
 from analysis_driver.quality_control import well_duplicates, interop_metrics, BCLValidator, BadTileCycleDetector
 from analysis_driver.report_generation import RunCrawler
 from analysis_driver.transfer_data import output_data_and_archive
 from analysis_driver.tool_versioning import toolset
-
-toolset_type = 'run_processing'
-name = 'demultiplexing'
 
 
 class DemultiplexingStage(segmentation.Stage):
@@ -461,39 +458,39 @@ class RunReview(DemultiplexingStage):
         return 0
 
 
-def build_pipeline(dataset):
-    def stage(cls, **params):
-        return cls(dataset=dataset, **params)
+class Demultiplexing(Pipeline):
+    toolset_type = 'run_processing'
 
-    wait_for_read2 = stage(WaitForRead2)
-    bcl2fastq_half_run = stage(Bcl2FastqPartialRun, previous_stages=[wait_for_read2])
-    align_output = stage(BwaAlignMulti, previous_stages=[bcl2fastq_half_run])
-    stats_output = stage(SamtoolsStatsMulti, previous_stages=[align_output])
-    depth_output = stage(SamtoolsDepthMulti, previous_stages=[align_output])
-    md_output = stage(PicardMarkDuplicateMulti, previous_stages=[align_output])
-    is_output = stage(PicardInsertSizeMulti, previous_stages=[align_output])
-    gc_bias = stage(PicardGCBias, previous_stages=[align_output])
+    def build(self):
+        wait_for_read2 = self.stage(WaitForRead2)
+        bcl2fastq_half_run = self.stage(Bcl2FastqPartialRun, previous_stages=[wait_for_read2])
+        align_output = self.stage(BwaAlignMulti, previous_stages=[bcl2fastq_half_run])
+        stats_output = self.stage(SamtoolsStatsMulti, previous_stages=[align_output])
+        depth_output = self.stage(SamtoolsDepthMulti, previous_stages=[align_output])
+        md_output = self.stage(PicardMarkDuplicateMulti, previous_stages=[align_output])
+        is_output = self.stage(PicardInsertSizeMulti, previous_stages=[align_output])
+        gc_bias = self.stage(PicardGCBias, previous_stages=[align_output])
 
-    setup = stage(Setup)
-    bcl2fastq = stage(Bcl2Fastq, previous_stages=[setup])
-    phix_detection = stage(PhixDetection, previous_stages=[bcl2fastq])
-    fastq_filter = stage(FastqFilter, previous_stages=[phix_detection])
-    welldups = stage(well_duplicates.WellDuplicates, run_directory=bcl2fastq.input_dir,
-                     output_directory=bcl2fastq.fastq_dir, previous_stages=[setup])
-    integrity_check = stage(IntegrityCheck, previous_stages=[fastq_filter])
-    fastqc = stage(FastQC, previous_stages=[fastq_filter])
-    seqtk = stage(SeqtkFQChk, previous_stages=[fastq_filter])
-    md5 = stage(MD5Sum, previous_stages=[fastq_filter])
-    qc_output = stage(QCOutput, stage_name='qcoutput1', run_crawler_stage=RunCrawler.STAGE_FILTER,
-                      previous_stages=[welldups, integrity_check, fastqc, seqtk, md5])
+        setup = self.stage(Setup)
+        bcl2fastq = self.stage(Bcl2Fastq, previous_stages=[setup])
+        phix_detection = self.stage(PhixDetection, previous_stages=[bcl2fastq])
+        fastq_filter = self.stage(FastqFilter, previous_stages=[phix_detection])
+        welldups = self.stage(well_duplicates.WellDuplicates, run_directory=bcl2fastq.input_dir,
+                              output_directory=bcl2fastq.fastq_dir, previous_stages=[setup])
+        integrity_check = self.stage(IntegrityCheck, previous_stages=[fastq_filter])
+        fastqc = self.stage(FastQC, previous_stages=[fastq_filter])
+        seqtk = self.stage(SeqtkFQChk, previous_stages=[fastq_filter])
+        md5 = self.stage(MD5Sum, previous_stages=[fastq_filter])
+        qc_output = self.stage(QCOutput, stage_name='qcoutput1', run_crawler_stage=RunCrawler.STAGE_FILTER,
+                               previous_stages=[welldups, integrity_check, fastqc, seqtk, md5])
 
-    qc_output2 = stage(QCOutput, stage_name='qcoutput2', run_crawler_stage=RunCrawler.STAGE_MAPPING,
-                       previous_stages=[qc_output, stats_output, depth_output, md_output, is_output, gc_bias])
-    data_output = stage(DataOutput, previous_stages=[qc_output2])
-    final_checkpoint = [data_output]
-    if dataset.rapid_samples_by_lane:
-        final_checkpoint.append(rapid.build_pipeline(dataset, setup))
+        qc_output2 = self.stage(QCOutput, stage_name='qcoutput2', run_crawler_stage=RunCrawler.STAGE_MAPPING,
+                                previous_stages=[qc_output, stats_output, depth_output, md_output, is_output, gc_bias])
+        data_output = self.stage(DataOutput, previous_stages=[qc_output2])
+        final_checkpoint = [data_output]
+        if self.dataset.rapid_samples_by_lane:
+            final_checkpoint.append(rapid.Rapid(self.dataset).build(setup))
 
-    cleanup = stage(Cleanup, previous_stages=final_checkpoint)
-    review = stage(RunReview, previous_stages=[cleanup])
-    return review
+        cleanup = self.stage(Cleanup, previous_stages=final_checkpoint)
+        review = self.stage(RunReview, previous_stages=[cleanup])
+        return review

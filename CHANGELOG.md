@@ -1,10 +1,24 @@
 Changelog for Analysis-Driver
 =============================
 
-0.26 (unreleased)
------------------
+0.26.0 (unreleased)
+-------------------
 
 - Nothing changed yet.
+
+
+0.25.2 (2019-08-08)
+-------------------
+
+- New toolset for non human variant call with GATK3.8
+- Support for Asana API changes
+
+
+0.25.1 (2019-07-10)
+-------------------
+
+- Fixed IDT barcode support
+- 'gender' API key renamed to 'sex'
 
 
 0.25 (2019-06-14)

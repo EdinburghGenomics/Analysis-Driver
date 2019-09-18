@@ -16,9 +16,10 @@ from egcg_core.exceptions import RestCommunicationError
 from analysis_driver import reader
 from analysis_driver.exceptions import AnalysisDriverError
 from analysis_driver.notification import NotificationCentre, LimsNotification
-from analysis_driver.pipelines import register as pipeline_register
 from analysis_driver.tool_versioning import toolset
 from analysis_driver.util.helper_functions import prepend_path_to_data_files
+from analysis_driver.pipelines import demultiplexing, bcbio, qc, variant_calling, projects, variant_calling_gatk4,\
+    qc_gatk4, human_variant_calling_gatk4
 
 
 def now(datefmt='%d_%m_%Y_%H:%M:%S'):
@@ -34,7 +35,6 @@ class Dataset(AppLogger):
     def __init__(self, name, most_recent_proc=None):
         self.name = name
         self.most_recent_proc = MostRecentProc(self, most_recent_proc)
-        self.pipeline = None
         self._ntf = None
 
     @property
@@ -200,11 +200,11 @@ class Dataset(AppLogger):
         return self.name < other.name
 
     @property
-    def _pipeline(self):
+    def pipeline(self):
         return None
 
     def _processing_instruction(self):
-        pipeline = pipeline_register[self._pipeline]
+        pipeline = self.pipeline
         return {
             'name': pipeline.name,
             'toolset_type': pipeline.toolset_type,
@@ -218,7 +218,6 @@ class Dataset(AppLogger):
             instruction['toolset_version'],
             os.path.join(cfg['jobs_dir'], self.name, 'program_versions.yaml')
         )
-        self.pipeline = pipeline_register[instruction['name']]
 
 
 class NoCommunicationDataset(Dataset):
@@ -231,14 +230,8 @@ class NoCommunicationDataset(Dataset):
     def end_stage(self, stage_name, exit_status=0):
         pass
 
-    def _change_status(self, status, finish=True):
-        pass
-
     def _is_ready(self):
         pass
-
-    def _pipeline(self):
-        return None
 
 
 class NoCommunicationSampleDataset(NoCommunicationDataset):
@@ -453,8 +446,8 @@ class RunDataset(Dataset):
         return rest_communication.get_documents('lanes', where={'run_id': self.name})
 
     @property
-    def _pipeline(self):
-        return 'demultiplexing'
+    def pipeline(self):
+        return demultiplexing.Demultiplexing(self)
 
     @staticmethod
     def reference_genome(run_element):
@@ -647,7 +640,7 @@ class SampleDataset(Dataset):
         self.lims_ntf.remove_sample_from_workflow()
 
     @property
-    def _pipeline(self):
+    def pipeline(self):
         analysis_type = self.lims_sample_info.get('Analysis Type')
 
         if self.species is None:
@@ -655,18 +648,20 @@ class SampleDataset(Dataset):
 
         elif self.species == 'Homo sapiens':
             if 'Variant Calling gatk4' in analysis_type:
-                return 'human_variant_calling_gatk4'
+                cls = human_variant_calling_gatk4.HumanVarCallingGATK4
             else:
-                return 'bcbio'
+                cls = bcbio.BCBioVarCalling
         elif analysis_type in ['Variant Calling gatk4']:
-            return 'variant_calling_gatk4'
+            cls = variant_calling_gatk4.VarCallingGATK4
         elif analysis_type in ['Variant Calling', 'Variant Calling gatk', 'Variant Calling gatk3']:
-            return 'variant_calling'
+            cls = variant_calling.VarCalling
         elif analysis_type in ['QC GATK3']:
             # This is unlikely to be used in production but allows us to trigger the GATK3 QC pipeline when needed
-            return 'qc'
+            cls = qc.QC
         else:
-            return 'qc_gatk4'
+            cls = qc_gatk4.QCGATK4
+
+        return cls(self)
 
 
 class ProjectDataset(Dataset):
@@ -745,8 +740,8 @@ class ProjectDataset(Dataset):
         return '%s  (%s samples / %s) ' % (super().__str__(), len(self.samples_processed), self.number_of_samples)
 
     @property
-    def _pipeline(self):
-        return 'project'
+    def pipeline(self):
+        return projects.Project(self)
 
 
 class MostRecentProc:

@@ -1,17 +1,12 @@
 import os
 from analysis_driver import quality_control as qc
 from luigi import Parameter
-from egcg_core import executor, rest_communication
+from egcg_core import executor
 from analysis_driver import segmentation
-from analysis_driver.pipelines import common
-from analysis_driver.config import default as cfg
-from analysis_driver.pipelines.common import bgzip_and_tabix
+from analysis_driver.pipelines import Pipeline, common
 from analysis_driver.util.bash_commands import java_command
 from analysis_driver.tool_versioning import toolset
 from analysis_driver.exceptions import AnalysisDriverError
-
-toolset_type = 'non_human_sample_processing'
-name = 'variant_calling'
 
 
 class GATKStage(segmentation.Stage):
@@ -186,7 +181,7 @@ class HaplotypeCaller(GATKStage):
             mem=64
         ).join()
 
-        return haplotype_status + bgzip_and_tabix(self.gatk_run_dir, self.sample_gvcf)
+        return haplotype_status + common.bgzip_and_tabix(self.gatk_run_dir, self.sample_gvcf)
 
 
 class GenotypeGVCFs(GATKStage):
@@ -200,7 +195,7 @@ class GenotypeGVCFs(GATKStage):
             mem=16
         ).join()
 
-        return genotype_status + bgzip_and_tabix(self.gatk_run_dir, self.genotyped_vcf)
+        return genotype_status + common.bgzip_and_tabix(self.gatk_run_dir, self.genotyped_vcf)
 
 
 class SelectVariants(GATKStage):
@@ -215,7 +210,7 @@ class SelectVariants(GATKStage):
             cpus=1,
             mem=16
         ).join()
-        return select_variants_status + bgzip_and_tabix(self.gatk_run_dir, self.raw_snp_vcf)
+        return select_variants_status + common.bgzip_and_tabix(self.gatk_run_dir, self.raw_snp_vcf)
 
 
 class VariantFiltration(GATKStage):
@@ -239,25 +234,25 @@ class VariantFiltration(GATKStage):
             cpus=1,
             mem=16
         ).join()
-        return variant_filter_status + bgzip_and_tabix(self.gatk_run_dir, self.filter_snp_vcf)
+        return variant_filter_status + common.bgzip_and_tabix(self.gatk_run_dir, self.filter_snp_vcf)
 
 
-def build_pipeline(dataset):
+class VarCalling(Pipeline):
+    toolset_type = 'non_human_sample_processing'
+    name = 'variant_calling'
 
-    def stage(cls, **params):
-        return cls(dataset=dataset, **params)
-
-    bam_file_production = common.build_bam_file_production(dataset)
-    base_recal = stage(BaseRecal, previous_stages=bam_file_production)
-    print_reads = stage(PrintReads, previous_stages=[base_recal])
-    realign_target = stage(RealignTarget, previous_stages=[print_reads])
-    realign = stage(Realign, previous_stages=[realign_target])
-    haplotype = stage(HaplotypeCaller, input_bam=realign.indel_realigned_bam, previous_stages=[realign])
-    genotype = stage(GenotypeGVCFs, previous_stages=[haplotype])
-    select_snp = stage(SelectVariants, previous_stages=[genotype])
-    filter_snp = stage(VariantFiltration, previous_stages=[select_snp])
-    vcfstats = stage(qc.VCFStats, vcf_file=filter_snp.filter_snp_vcf + '.gz', previous_stages=[filter_snp])
-    output = stage(common.SampleDataOutput, previous_stages=[vcfstats], output_fileset='gatk_var_calling')
-    _cleanup = stage(common.Cleanup, previous_stages=[output])
-    review = stage(common.SampleReview, previous_stages=[_cleanup])
-    return review
+    def build(self):   
+        bam_file_production = common.build_bam_file_production(self.dataset)
+        base_recal = self.stage(BaseRecal, previous_stages=bam_file_production)
+        print_reads = self.stage(PrintReads, previous_stages=[base_recal])
+        realign_target = self.stage(RealignTarget, previous_stages=[print_reads])
+        realign = self.stage(Realign, previous_stages=[realign_target])
+        haplotype = self.stage(HaplotypeCaller, input_bam=realign.indel_realigned_bam, previous_stages=[realign])
+        genotype = self.stage(GenotypeGVCFs, previous_stages=[haplotype])
+        select_snp = self.stage(SelectVariants, previous_stages=[genotype])
+        filter_snp = self.stage(VariantFiltration, previous_stages=[select_snp])
+        vcfstats = self.stage(qc.VCFStats, vcf_file=filter_snp.filter_snp_vcf + '.gz', previous_stages=[filter_snp])
+        output = self.stage(common.SampleDataOutput, previous_stages=[vcfstats], output_fileset='gatk_var_calling')
+        _cleanup = self.stage(common.Cleanup, previous_stages=[output])
+        review = self.stage(common.SampleReview, previous_stages=[_cleanup])
+        return review

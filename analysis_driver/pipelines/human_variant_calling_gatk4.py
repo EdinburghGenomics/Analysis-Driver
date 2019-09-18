@@ -1,18 +1,12 @@
 from egcg_core import executor
-from egcg_core.config import cfg
-
 from analysis_driver import quality_control as qc
-from analysis_driver.pipelines import common
-from analysis_driver.pipelines.common import MergeFastqs, SamtoolsStats
+from analysis_driver.segmentation import Parameter
+from analysis_driver.pipelines import Pipeline, common
 from analysis_driver.pipelines.qc_gatk4 import SelectSNPs, SelectIndels, GATK4Stage, FastqIndex, SplitBWA, \
     MergeBamAndDup, SNPsFiltration, IndelsFiltration, MergeVariants
 from analysis_driver.pipelines.variant_calling_gatk4 import SplitHaplotypeCallerVC, \
     ScatterBaseRecalibrator, GatherBQSRReport, ScatterApplyBQSR, GatherRecalBam, GatherGVCF, VariantAnnotation, \
     GatherVCFVC, SplitGenotypeGVCFs
-from analysis_driver.segmentation import Parameter
-
-toolset_type = 'gatk4_sample_processing'
-name = 'human_variant_calling_gatk4'
 
 
 class VQSRFiltrationSNPs(GATK4Stage):
@@ -43,7 +37,7 @@ class VQSRFiltrationSNPs(GATK4Stage):
                     dbsnp=vqsr_datasets.get('dbsnp'),
                     ouput_tranches=self.vqsr_snps_tranches,
                     output_R_script=self.vqsr_snps_r_script
-            )
+                )
         )
         return executor.execute(
             cmd,
@@ -103,10 +97,10 @@ class ApplyVQSR(GATK4Stage):
             memory=8,
             ext='-V {input_vcf} -mode INDEL --tranches-file {ouput_tranches} --truth-sensitivity-filter-level 99.0 '
                 '--recal-file {recal_file}'.format(
-                input_vcf=self.input_vcf,
-                ouput_tranches=self.vqsr_indels_tranches,
-                recal_file=self.vqsr_indels_output_recall
-            )
+                    input_vcf=self.input_vcf,
+                    ouput_tranches=self.vqsr_indels_tranches,
+                    recal_file=self.vqsr_indels_output_recall
+                )
         )
         recal_status = executor.execute(
             cmd,
@@ -123,10 +117,10 @@ class ApplyVQSR(GATK4Stage):
                 memory=16,
                 ext='-V {input_vcf} -mode SNP --tranches-file {ouput_tranches} --truth-sensitivity-filter-level 99.7 '
                     '--recal-file {recal_file}'.format(
-                    input_vcf=self.vqsr_filtered_indels_vcf,
-                    ouput_tranches=self.vqsr_snps_tranches,
-                    recal_file=self.vqsr_snps_output_recall
-                )
+                        input_vcf=self.vqsr_filtered_indels_vcf,
+                        ouput_tranches=self.vqsr_snps_tranches,
+                        recal_file=self.vqsr_snps_output_recall
+                    )
             )
             recal_status = executor.execute(
                 cmd,
@@ -139,74 +133,78 @@ class ApplyVQSR(GATK4Stage):
         return recal_status
 
 
-def build_pipeline(dataset):
-    """Build the variant calling pipeline (for human)."""
+class HumanVarCallingGATK4(Pipeline):
+    toolset_type = 'gatk4_sample_processing'
+    _name = 'human_variant_calling_gatk4'
 
-    def stage(cls, **params):
-        return cls(dataset=dataset, **params)
+    def build(self):
+        """Build the variant calling pipeline (for human)."""
 
-    # merge fastq to do contamination check
-    merge_fastqs = stage(MergeFastqs)
-    contam = stage(qc.FastqScreen, previous_stages=[merge_fastqs], fq_pattern=merge_fastqs.fq_pattern)
-    blast = stage(qc.Blast, previous_stages=[merge_fastqs], fastq_file=merge_fastqs.fq_pattern.replace('?', '1'))
-    geno_val = stage(qc.GenotypeValidation, fq_pattern=merge_fastqs.fq_pattern, previous_stages=[merge_fastqs])
+        # merge fastq to do contamination check
+        merge_fastqs = self.stage(common.MergeFastqs)
+        contam = self.stage(qc.FastqScreen, previous_stages=[merge_fastqs], fq_pattern=merge_fastqs.fq_pattern)
+        blast = self.stage(qc.Blast, previous_stages=[merge_fastqs], fastq_file=merge_fastqs.fq_pattern.replace('?', '1'))
+        geno_val = self.stage(qc.GenotypeValidation, fq_pattern=merge_fastqs.fq_pattern, previous_stages=[merge_fastqs])
 
-    # create fastq index then align and recalibrate via scatter-gather strategy
-    fastq_index = stage(FastqIndex)
-    split_bwa = stage(SplitBWA, previous_stages=[fastq_index])
-    merge_bam_dup = stage(MergeBamAndDup, previous_stages=[split_bwa])
-    base_recal = stage(ScatterBaseRecalibrator, previous_stages=[merge_bam_dup])
-    gather_bqsr = stage(GatherBQSRReport, previous_stages=[base_recal])
-    apply_bqsr = stage(ScatterApplyBQSR, previous_stages=[gather_bqsr])
-    merge_bam = stage(GatherRecalBam, previous_stages=[apply_bqsr])
+        # create fastq index then align and recalibrate via scatter-gather strategy
+        fastq_index = self.stage(FastqIndex)
+        split_bwa = self.stage(SplitBWA, previous_stages=[fastq_index])
+        merge_bam_dup = self.stage(MergeBamAndDup, previous_stages=[split_bwa])
+        base_recal = self.stage(ScatterBaseRecalibrator, previous_stages=[merge_bam_dup])
+        gather_bqsr = self.stage(GatherBQSRReport, previous_stages=[base_recal])
+        apply_bqsr = self.stage(ScatterApplyBQSR, previous_stages=[gather_bqsr])
+        merge_bam = self.stage(GatherRecalBam, previous_stages=[apply_bqsr])
 
-    # bam file QC
-    verify_bam_id = stage(qc.VerifyBamID, bam_file=merge_bam.recal_bam, previous_stages=[merge_bam])
-    samtools_stat = stage(SamtoolsStats, bam_file=merge_bam.recal_bam, previous_stages=[merge_bam])
-    samtools_depth = stage(qc.SamtoolsDepth, bam_file=merge_bam.recal_bam, previous_stages=[merge_bam])
+        # bam file QC
+        verify_bam_id = self.stage(qc.VerifyBamID, bam_file=merge_bam.recal_bam, previous_stages=[merge_bam])
+        samtools_stat = self.stage(common.SamtoolsStats, bam_file=merge_bam.recal_bam, previous_stages=[merge_bam])
+        samtools_depth = self.stage(qc.SamtoolsDepth, bam_file=merge_bam.recal_bam, previous_stages=[merge_bam])
 
-    # variants call via scatter-gather strategy
-    haplotype_caller = stage(SplitHaplotypeCallerVC, bam_file=merge_bam.recal_bam, previous_stages=[merge_bam])
-    gather_gcvf = stage(GatherGVCF, previous_stages=[haplotype_caller])
-    genotype_gcvf = stage(SplitGenotypeGVCFs, previous_stages=[haplotype_caller])
-    gather_vcf = stage(GatherVCFVC, previous_stages=[genotype_gcvf])
+        # variants call via scatter-gather strategy
+        haplotype_caller = self.stage(SplitHaplotypeCallerVC, bam_file=merge_bam.recal_bam, previous_stages=[merge_bam])
+        gather_gcvf = self.stage(GatherGVCF, previous_stages=[haplotype_caller])
+        genotype_gcvf = self.stage(SplitGenotypeGVCFs, previous_stages=[haplotype_caller])
+        gather_vcf = self.stage(GatherVCFVC, previous_stages=[genotype_gcvf])
 
-    variant_file = gather_vcf.genotyped_vcf
-    steps_required = [gather_vcf]
-    if 'snpEff' in dataset.genome_dict:
-        # variant annotation
-        annotate_vcf = stage(VariantAnnotation, previous_stages=[gather_vcf])
-        variant_file = annotate_vcf.snps_effects_output_vcf
-        steps_required = [annotate_vcf]
+        variant_file = gather_vcf.genotyped_vcf
+        steps_required = [gather_vcf]
+        if 'snpEff' in self.dataset.genome_dict:
+            # variant annotation
+            annotate_vcf = self.stage(VariantAnnotation, previous_stages=[gather_vcf])
+            variant_file = annotate_vcf.snps_effects_output_vcf
+            steps_required = [annotate_vcf]
 
-    # VQSR is disabled for now until we can make it perform better than hard filtering.
+        # VQSR is disabled for now until we can make it perform better than hard filtering.
 
-    # variant filtering with VQSR
-    # filter_snps = stage(VQSRFiltrationSNPs, input_vcf=variant_file, previous_stages=steps_required)
-    # filter_indels = stage(VQSRFiltrationIndels, input_vcf=variant_file, previous_stages=steps_required)
-    # apply_vqsr = stage(ApplyVQSR, input_vcf=variant_file, previous_stages=[filter_indels, filter_snps])
+        # variant filtering with VQSR
+        # filter_snps = self.stage(VQSRFiltrationSNPs, input_vcf=variant_file, previous_stages=steps_required)
+        # filter_indels = self.stage(VQSRFiltrationIndels, input_vcf=variant_file, previous_stages=steps_required)
+        # apply_vqsr = self.stage(ApplyVQSR, input_vcf=variant_file, previous_stages=[filter_indels, filter_snps])
 
-    # variant filtering with Hard Filters
-    select_snps = stage(SelectSNPs, input_vcf=variant_file, previous_stages=steps_required)
-    select_indels = stage(SelectIndels, input_vcf=variant_file, previous_stages=steps_required)
-    hard_filter_snps = stage(SNPsFiltration, previous_stages=[select_snps])
-    hard_filter_indels = stage(IndelsFiltration, previous_stages=[select_indels])
+        # variant filtering with Hard Filters
+        select_snps = self.stage(SelectSNPs, input_vcf=variant_file, previous_stages=steps_required)
+        select_indels = self.stage(SelectIndels, input_vcf=variant_file, previous_stages=steps_required)
+        hard_filter_snps = self.stage(SNPsFiltration, previous_stages=[select_snps])
+        hard_filter_indels = self.stage(IndelsFiltration, previous_stages=[select_indels])
 
-    # Hard Filter variant merge
-    merge_hf = stage(MergeVariants, stage_name='merge_variants_hard_filter',
-                     vcf_files=[hard_filter_snps.hard_filtered_snps_vcf, hard_filter_indels.hard_filtered_indels_vcf],
-                     output_vcf_file=hard_filter_indels.hard_filtered_vcf,
-                     previous_stages=[hard_filter_snps, hard_filter_indels])
+        # Hard Filter variant merge
+        merge_hf = self.stage(MergeVariants, stage_name='merge_variants_hard_filter',
+                              vcf_files=[
+                                  hard_filter_snps.hard_filtered_snps_vcf,
+                                  hard_filter_indels.hard_filtered_indels_vcf
+                              ],
+                              output_vcf_file=hard_filter_indels.hard_filtered_vcf,
+                              previous_stages=[hard_filter_snps, hard_filter_indels])
 
-    sex_val = stage(qc.SexValidation, vcf_file=merge_hf.hard_filtered_vcf, previous_stages=[merge_hf])
+        sex_val = self.stage(qc.SexValidation, vcf_file=merge_hf.hard_filtered_vcf, previous_stages=[merge_hf])
 
-    vcfstats = stage(qc.VCFStats, vcf_file=merge_hf.hard_filtered_vcf, previous_stages=[merge_hf])
+        vcfstats = self.stage(qc.VCFStats, vcf_file=merge_hf.hard_filtered_vcf, previous_stages=[merge_hf])
 
-    final_stages = [contam, blast, geno_val, sex_val, vcfstats, verify_bam_id, samtools_depth, samtools_stat,
-                    gather_gcvf]
+        final_stages = [contam, blast, geno_val, sex_val, vcfstats, verify_bam_id, samtools_depth, samtools_stat,
+                        gather_gcvf]
 
-    output = stage(common.SampleDataOutput, previous_stages=final_stages, output_fileset='gatk4_human_var_calling')
-    review = stage(common.SampleReview, previous_stages=[output])
-    cleanup = stage(common.Cleanup, previous_stages=[review])
+        output = self.stage(common.SampleDataOutput, previous_stages=final_stages, output_fileset='gatk4_human_var_calling')
+        review = self.stage(common.SampleReview, previous_stages=[output])
+        cleanup = self.stage(common.Cleanup, previous_stages=[review])
 
-    return cleanup
+        return cleanup
