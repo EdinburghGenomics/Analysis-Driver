@@ -388,7 +388,7 @@ class RunDataset(Dataset):
                     ELEMENT_PROJECT_ID: sample_data['project_id'],
                     ELEMENT_SAMPLE_INTERNAL_ID: sample_data['sample_id'],
                     ELEMENT_LIBRARY_INTERNAL_ID: sample_data['artifact_id'],  # This is not the library id but it is unique
-                    ELEMENT_LANE: lane['lane'],
+                    ELEMENT_LANE: str(lane['lane']),
                     ELEMENT_BARCODE: ''
                 }
                 if len(lane['samples']) > 1:

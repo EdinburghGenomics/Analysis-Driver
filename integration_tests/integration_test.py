@@ -1,5 +1,7 @@
 import os
 import subprocess
+import time
+
 from egcg_core import rest_communication, util, exceptions
 from unittest.mock import Mock, patch
 
@@ -38,6 +40,7 @@ class IntegrationTest(ReportingAppIntegrationTest):
         super().__init__(*args)
         self.run_id = self.cfg['input_data']['run_id']
         self.rapid_run_id = self.cfg['input_data']['rapid_run_id']
+        self.aborted_run_id = self.cfg['input_data']['aborted_run_id']
         self.barcode = self.cfg['input_data']['barcode']
         self.project_id = self.cfg['input_data']['project_id']
         self.sample_id = self.cfg['input_data']['sample_id']
@@ -120,17 +123,11 @@ class IntegrationTest(ReportingAppIntegrationTest):
         cfg.content['jobs_dir'] = os.path.join(os.path.dirname(os.getcwd()), 'jobs', test_name)
         cfg.content[test_type]['output_dir'] = os.path.join(os.path.dirname(os.getcwd()), 'outputs', test_name)
 
-        input_dir = self.cfg[integration_section].get('input_dir')
-        if input_dir:
+        input_dir = cfg[test_type]['input_dir']
+        if input_dir and os.path.isdir(input_dir):
             cfg.content[test_type]['input_dir'] = input_dir
-
-        if len(os.listdir(cfg[test_type]['input_dir'])) != 1:
-            raise exceptions.EGCGError(
-                '%s input datasets found in input dir %s - 1 required' % (
-                    len(os.listdir(cfg[test_type]['input_dir'])),
-                    cfg[test_type]['input_dir']
-                )
-            )
+        else:
+            raise exceptions.EGCGError('Input dir %s does not exist' % (input_dir))
 
         os.makedirs(cfg['jobs_dir'])
         os.makedirs(cfg[test_type]['output_dir'])
@@ -236,10 +233,20 @@ class IntegrationTest(ReportingAppIntegrationTest):
     def test_demultiplexing(self):
         self.setup_test('run', 'test_demultiplexing', 'demultiplexing')
         self._add_patches(
-            patch('egcg_core.clarity.get_run', return_value=mocked_data.mocked_pooling_run),
             patch('analysis_driver.quality_control.interop_metrics.get_last_cycles_with_existing_bcls', return_value=310)
         )
 
+        # Force the aborted run to be the first on in line
+        rest_communication.post_entry('runs', {'run_id': self.run_id})
+        payload = {
+            'dataset_name': self.run_id,
+            'proc_id': 'run_' + self.run_id + '_atime',
+            'dataset_type': 'run',
+            'status': 'force_ready'
+        }
+        rest_communication.post_or_patch('analysis_driver_procs', [payload], id_field='proc_id')
+        # Ensure the next analysis_driver_procs won't be created at the same second.
+        time.sleep(1)
         exit_status = client.main(['--run'])
         self.assertEqual('exit status', exit_status, 0)
 
@@ -300,19 +307,29 @@ class IntegrationTest(ReportingAppIntegrationTest):
         self._add_patches(
             patch('analysis_driver.quality_control.interop_metrics.get_last_cycles_with_existing_bcls', return_value=310)
         )
+        # Force the aborted run to be the first on in line
+        rest_communication.post_entry('runs', {'run_id': self.aborted_run_id})
+        payload = {
+            'dataset_name': self.aborted_run_id,
+            'proc_id': 'run_' + self.aborted_run_id + '_atime',
+            'dataset_type': 'run',
+            'status': 'force_ready'
+        }
+        rest_communication.post_or_patch('analysis_driver_procs', [payload], id_field='proc_id')
+        # Ensure the next analysis_driver_procs won't be created at the same second.
+        time.sleep(1)
 
-        # Force the abborted run to be the first on in line
-        client.main(['--run --force 150723_E00306_0024_BHCHK3CCXX'])
         exit_status = client.main(['--run'])
 
         self.assertEqual('exit status', exit_status, 0)
-        ad_proc = rest_communication.get_document('analysis_driver_procs', where={'dataset_name': self.run_id})
+        ad_proc = rest_communication.get_document('analysis_driver_procs', where={'dataset_name': self.aborted_run_id}, sort='-_created')
 
         self.expect_equal(
             ad_proc['status'], 'aborted', 'pipeline status'
         )
         stages = [('setup', 9), ('waitforread2', 9)]
         self.expect_stage_data(stages, where={'analysis_driver_proc': ad_proc['proc_id']})
+        assert self._test_success
 
     def test_bcbio(self):
         self.setup_test('sample', 'test_bcbio', 'bcbio')
