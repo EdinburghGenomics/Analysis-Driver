@@ -1,5 +1,7 @@
 import os
 import subprocess
+import time
+
 from egcg_core import rest_communication, util, exceptions
 from unittest.mock import Mock, patch
 
@@ -14,16 +16,12 @@ from integration_tests import mocked_data
 class IntegrationTest(ReportingAppIntegrationTest):
     patches = [
         patch('analysis_driver.client.load_config'),
-        patch('egcg_core.clarity.find_project_name_from_sample', return_value='10015AT'),
         patch('egcg_core.clarity.get_plate_id_and_well', new=mocked_data.fake_get_plate_id_and_well),
-        patch('egcg_core.clarity.get_project', return_value=mocked_data.mocked_clarity_project),
         patch('egcg_core.clarity.get_sample_sex'),
         patch('egcg_core.clarity.get_sample_genotype', return_value=set()),
-        patch('egcg_core.clarity.get_sample_names_from_project', return_value=set()),
         patch('egcg_core.clarity.get_samples_arrived_with', return_value=set()),
         patch('egcg_core.clarity.get_samples_genotyped_with', return_value=set()),
         patch('egcg_core.clarity.get_samples_sequenced_with', return_value=set()),
-        patch('egcg_core.clarity.get_user_sample_name', new=mocked_data.fake_get_user_sample_id),
         patch('analysis_driver.dataset.LimsNotification'),
         patch(
             'analysis_driver.quality_control.well_duplicates.WellDuplicates._welldups_cmd',
@@ -42,6 +40,7 @@ class IntegrationTest(ReportingAppIntegrationTest):
         super().__init__(*args)
         self.run_id = self.cfg['input_data']['run_id']
         self.rapid_run_id = self.cfg['input_data']['rapid_run_id']
+        self.aborted_run_id = self.cfg['input_data']['aborted_run_id']
         self.barcode = self.cfg['input_data']['barcode']
         self.project_id = self.cfg['input_data']['project_id']
         self.sample_id = self.cfg['input_data']['sample_id']
@@ -50,8 +49,12 @@ class IntegrationTest(ReportingAppIntegrationTest):
         self.run_dir = os.path.dirname(os.getcwd())  # we're inside the checked out project, not the top level
 
     def setUp(self):
+        # Set the LIMS data yaml file before the super().setUp so it is picked up durring the setup
+        self.lims_data_yaml = os.path.join(os.path.dirname(__file__), 'data_for_clarity_lims.yaml')
+
         super().setUp()
         cfg.load_config_file(os.getenv('ANALYSISDRIVERCONFIG'), env_var='ANALYSISDRIVERENV')
+
         run_elements = []
         for lane in range(1, 8):
             run_elements.append({
@@ -120,17 +123,11 @@ class IntegrationTest(ReportingAppIntegrationTest):
         cfg.content['jobs_dir'] = os.path.join(os.path.dirname(os.getcwd()), 'jobs', test_name)
         cfg.content[test_type]['output_dir'] = os.path.join(os.path.dirname(os.getcwd()), 'outputs', test_name)
 
-        input_dir = self.cfg[integration_section].get('input_dir')
-        if input_dir:
+        input_dir = cfg[test_type]['input_dir']
+        if input_dir and os.path.isdir(input_dir):
             cfg.content[test_type]['input_dir'] = input_dir
-
-        if len(os.listdir(cfg[test_type]['input_dir'])) != 1:
-            raise exceptions.EGCGError(
-                '%s input datasets found in input dir %s - 1 required' % (
-                    len(os.listdir(cfg[test_type]['input_dir'])),
-                    cfg[test_type]['input_dir']
-                )
-            )
+        else:
+            raise exceptions.EGCGError('Input dir %s does not exist' % (input_dir))
 
         os.makedirs(cfg['jobs_dir'])
         os.makedirs(cfg[test_type]['output_dir'])
@@ -236,10 +233,20 @@ class IntegrationTest(ReportingAppIntegrationTest):
     def test_demultiplexing(self):
         self.setup_test('run', 'test_demultiplexing', 'demultiplexing')
         self._add_patches(
-            patch('egcg_core.clarity.get_run', return_value=mocked_data.mocked_pooling_run),
             patch('analysis_driver.quality_control.interop_metrics.get_last_cycles_with_existing_bcls', return_value=310)
         )
 
+        # Force the aborted run to be the first on in line
+        rest_communication.post_entry('runs', {'run_id': self.run_id})
+        payload = {
+            'dataset_name': self.run_id,
+            'proc_id': 'run_' + self.run_id + '_atime',
+            'dataset_type': 'run',
+            'status': 'force_ready'
+        }
+        rest_communication.post_or_patch('analysis_driver_procs', [payload], id_field='proc_id')
+        # Ensure the next analysis_driver_procs won't be created at the same second.
+        time.sleep(1)
         exit_status = client.main(['--run'])
         self.assertEqual('exit status', exit_status, 0)
 
@@ -298,25 +305,31 @@ class IntegrationTest(ReportingAppIntegrationTest):
     def test_demultiplexing_aborted(self):
         self.setup_test('run', 'test_demultiplexing_aborted', 'demultiplexing')
         self._add_patches(
-            patch('egcg_core.clarity.get_run', return_value=mocked_data.mocked_pooling_run),
             patch('analysis_driver.quality_control.interop_metrics.get_last_cycles_with_existing_bcls', return_value=310)
         )
+        # Force the aborted run to be the first on in line
+        rest_communication.post_entry('runs', {'run_id': self.aborted_run_id})
+        payload = {
+            'dataset_name': self.aborted_run_id,
+            'proc_id': 'run_' + self.aborted_run_id + '_atime',
+            'dataset_type': 'run',
+            'status': 'force_ready'
+        }
+        rest_communication.post_or_patch('analysis_driver_procs', [payload], id_field='proc_id')
+        # Ensure the next analysis_driver_procs won't be created at the same second.
+        time.sleep(1)
 
-        mocked_clarity_run = mocked_data.MockedRunProcess(
-            udf={'Run Status': 'RunAborted'},
-            container=mocked_data.mocked_flowcell_pooling
-        )
-        with patch('egcg_core.clarity.get_run', return_value=mocked_clarity_run):
-            exit_status = client.main(['--run'])
+        exit_status = client.main(['--run'])
 
         self.assertEqual('exit status', exit_status, 0)
-        ad_proc = rest_communication.get_document('analysis_driver_procs', where={'dataset_name': self.run_id})
+        ad_proc = rest_communication.get_document('analysis_driver_procs', where={'dataset_name': self.aborted_run_id}, sort='-_created')
 
         self.expect_equal(
             ad_proc['status'], 'aborted', 'pipeline status'
         )
         stages = [('setup', 9), ('waitforread2', 9)]
         self.expect_stage_data(stages, where={'analysis_driver_proc': ad_proc['proc_id']})
+        assert self._test_success
 
     def test_bcbio(self):
         self.setup_test('sample', 'test_bcbio', 'bcbio')

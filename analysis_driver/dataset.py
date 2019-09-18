@@ -8,6 +8,7 @@ from sys import modules
 from time import sleep
 from egcg_core import rest_communication, clarity
 from egcg_core.app_logging import AppLogger
+from egcg_core.clarity import sanitize_user_id
 from egcg_core.config import cfg
 from egcg_core.util import query_dict
 from egcg_core.constants import *  # pylint: disable=unused-import
@@ -15,9 +16,10 @@ from egcg_core.exceptions import RestCommunicationError
 from analysis_driver import reader
 from analysis_driver.exceptions import AnalysisDriverError
 from analysis_driver.notification import NotificationCentre, LimsNotification
-from analysis_driver.pipelines import register as pipeline_register
 from analysis_driver.tool_versioning import toolset
 from analysis_driver.util.helper_functions import prepend_path_to_data_files
+from analysis_driver.pipelines import demultiplexing, bcbio, qc, variant_calling, projects, variant_calling_gatk4,\
+    qc_gatk4, human_variant_calling_gatk4
 
 
 def now(datefmt='%d_%m_%Y_%H:%M:%S'):
@@ -33,7 +35,6 @@ class Dataset(AppLogger):
     def __init__(self, name, most_recent_proc=None):
         self.name = name
         self.most_recent_proc = MostRecentProc(self, most_recent_proc)
-        self.pipeline = None
         self._ntf = None
 
     @property
@@ -199,11 +200,11 @@ class Dataset(AppLogger):
         return self.name < other.name
 
     @property
-    def _pipeline(self):
+    def pipeline(self):
         return None
 
     def _processing_instruction(self):
-        pipeline = pipeline_register[self._pipeline]
+        pipeline = self.pipeline
         return {
             'name': pipeline.name,
             'toolset_type': pipeline.toolset_type,
@@ -217,7 +218,6 @@ class Dataset(AppLogger):
             instruction['toolset_version'],
             os.path.join(cfg['jobs_dir'], self.name, 'program_versions.yaml')
         )
-        self.pipeline = pipeline_register[instruction['name']]
 
 
 class NoCommunicationDataset(Dataset):
@@ -230,14 +230,8 @@ class NoCommunicationDataset(Dataset):
     def end_stage(self, stage_name, exit_status=0):
         pass
 
-    def _change_status(self, status, finish=True):
-        pass
-
     def _is_ready(self):
         pass
-
-    def _pipeline(self):
-        return None
 
 
 class NoCommunicationSampleDataset(NoCommunicationDataset):
@@ -278,9 +272,9 @@ class RunDataset(Dataset):
         self._run_info = None
         self._sample_sheet_file = None
         self.input_dir = os.path.join(cfg['run']['input_dir'], self.name)
+        self._run_status = None
         self._run_elements = None
         self._barcode_len = None
-        self._lims_run = None
         self._rapid_samples_by_lane = None
 
     def initialise_entity(self):
@@ -335,7 +329,7 @@ class RunDataset(Dataset):
     @property
     def run_elements(self):
         if not self._run_elements:
-            self._run_elements = self._run_elements_from_lims()
+            self._run_elements = self._run_elements_from_lims_endpoint()
         return self._run_elements
 
     @staticmethod
@@ -364,62 +358,55 @@ class RunDataset(Dataset):
         """
         if self._rapid_samples_by_lane is None:
             self._rapid_samples_by_lane = {}
-
-            # TODO: #394 - move away from using the Lims API
-            flowcell = set(self.lims_run.parent_processes()).pop().output_containers()[0]
-            for lane, artifact in flowcell.placements.items():
-                if len(artifact.reagent_labels) > 1:
+            for lane in self.run_status['lanes']:
+                if len(lane['samples']) > 1:
                     continue  # we don't want to run rapid processing on pools
+                sample_data = lane['samples'][0]
 
-                assert len(artifact.samples) == 1
-                sample = artifact.samples[0]
-                if sample.udf.get('Rapid Analysis') == 'Yes':
-                    s = sample.udf.copy()
-                    s['sample_id'] = sample.name
-                    s['project_id'] = sample.project.name
-                    self._rapid_samples_by_lane[lane.split(':')[0]] = s
+                sample_info = rest_communication.get_document('lims/sample_info',
+                                                              match={'sample_id': sample_data['sample_id']})
+                if sample_info.get('Rapid Analysis') == 'Yes':
+                    self._rapid_samples_by_lane[str(lane['lane'])] = sample_info
 
         return self._rapid_samples_by_lane
 
-    def _run_elements_from_lims(self):
+    @property
+    def run_status(self):
+        if self._run_status is None:
+            self._run_status = rest_communication.get_document('lims/run_status', match={'run_id': self.name})
+            if not self._run_status:
+                raise AnalysisDriverError('Run status information for %s is not available in the LIMS' % self.nameß)
+        return self._run_status
+
+    def _run_elements_from_lims_endpoint(self):
         run_elements = []
 
-        flowcell = set(self.lims_run.parent_processes()).pop().output_containers()[0]
-        for lane in flowcell.placements:
-            if len(flowcell.placements[lane].reagent_labels) > 1:
-                artifacts = self._find_pooling_step_for_artifact(flowcell.placements[lane], 'Create PDP Pool')
-
-            else:
-                artifacts = [flowcell.placements[lane]]
-            for artifact in artifacts:
-                assert len(artifact.samples) == 1
-                sample = artifact.samples[0]
+        for lane in self.run_status['lanes']:
+            for sample_data in lane['samples']:
                 run_element = {
-                    ELEMENT_PROJECT_ID: sample.project.name,
-                    ELEMENT_SAMPLE_INTERNAL_ID: sample.name,
-                    ELEMENT_LIBRARY_INTERNAL_ID: sample.id,  # This is not the library id but it is unique
-                    ELEMENT_LANE: lane.split(':')[0],
+                    ELEMENT_PROJECT_ID: sample_data['project_id'],
+                    ELEMENT_SAMPLE_INTERNAL_ID: sample_data['sample_id'],
+                    ELEMENT_LIBRARY_INTERNAL_ID: sample_data['artifact_id'],  # This is not the library id but it is unique
+                    ELEMENT_LANE: str(lane['lane']),
                     ELEMENT_BARCODE: ''
                 }
-                # Check that the current artifact is part of the pool
-                if len(artifacts) > 1:
-                    assert len(artifact.reagent_labels) == 1
-                    reagent_label = artifact.reagent_labels[0]
-                    barcode = None
+                if len(lane['samples']) > 1:
+                    barcode = ''
                     for pattern in (
-                        # TruSeq label, e.g, A412-A208 (ATGCATGC-CTGACTGA)
-                        '(\w{4})-(\w{4}) \(([ATCG]{8})-([ATCG]{8})\)',
-                        # IDT label, e.g, 001A IDT-ILMN TruSeq DNA-RNA UD 96 Indexes  Plate_UDI0001 (ATGCATGC-CTGACTGA)
-                        '(\w{4}) IDT-ILMN TruSeq DNA-RNA UD 96 Indexes\s+(Plate_\w{7}) \(([ATGC]{8})-([ATGC]{8})\)'
+                            # TruSeq label, e.g, A412-A208 (ATGCATGC-CTGACTGA)
+                            '(\w{4})-(\w{4}) \(([ATCG]{8})-([ATCG]{8})\)',
+                            # IDT label, e.g, 001A IDT-ILMN TruSeq DNA-RNA UD 96 Indexes  Plate_UDI0001 (ATGCATGC-CTGACTGA)
+                            '(\w{4}) IDT-ILMN TruSeq DNA-RNA UD 96 Indexes\s+(Plate_\w{7}) \(([ATGC]{8})-([ATGC]{8})\)'
                     ):
-                        match = re.match(pattern, reagent_label)
+                        match = re.match(pattern, sample_data['barcode'])
                         if match:
                             barcode = match.group(3)
 
                     if not barcode:
-                        raise AnalysisDriverError('Invalid reagent label found: %s' % reagent_label)
+                        raise AnalysisDriverError('Invalid barcode found: %s' % sample_data['barcode'])
                     run_element[ELEMENT_BARCODE] = barcode
                 run_elements.append(run_element)
+
         return run_elements
 
     def has_barcode_in_lane(self, lane):
@@ -454,28 +441,22 @@ class RunDataset(Dataset):
         self.debug('Barcode check done. Barcode len: %s', len(previous_r[ELEMENT_BARCODE]))
         return len(previous_r[ELEMENT_BARCODE])
 
-    @property
-    def lims_run(self):
-        if not self._lims_run:
-            self._lims_run = clarity.get_run(self.name)
-        return self._lims_run
-
     def is_sequencing(self):
         # assume that not being in the LIMS counts as 'is_sequencing'
-        if not self.lims_run:
+        if not self.run_status:
             self.warning('Run %s not found in the LIMS', self.name)
             return True
-        # force the LIMS to update the RunStatus rather than passing the same cached RunStatus
-        self.lims_run.get(force=True)
-        return self.lims_run.udf.get('Run Status') in ['RunStarted', 'RunPaused']
+        # force the update of the RunStatus rather than passing the same cached values
+        self._run_status = None
+        return self.run_status.get('run_status') in ['RunStarted', 'RunPaused']
 
     @property
     def lane_metrics(self):
         return rest_communication.get_documents('lanes', where={'run_id': self.name})
 
     @property
-    def _pipeline(self):
-        return 'demultiplexing'
+    def pipeline(self):
+        return demultiplexing.Demultiplexing(self)
 
     @staticmethod
     def reference_genome(run_element):
@@ -491,6 +472,7 @@ class SampleDataset(Dataset):
         super().__init__(name, most_recent_proc)
         self._run_elements = None
         self._sample = None
+        self._lims_sample_info = None
         self._lims_sample_status = None
         self._non_useable_run_elements = None
         self._species = None
@@ -500,10 +482,19 @@ class SampleDataset(Dataset):
         self._genome_dict = None
 
     @property
+    def lims_sample_info(self):
+        if self._lims_sample_info is None:
+            self._lims_sample_info = rest_communication.get_document('lims/sample_info', match={'sample_id': self.name})
+            if self._lims_sample_info is None:
+                self._lims_sample_info = {}
+        return self._lims_sample_info
+
+    @property
     def lims_ntf(self):
         if self._lims_ntf is None:
             self._lims_ntf = LimsNotification(self.name)
         return self._lims_ntf
+
 
     @property
     def species(self):
@@ -516,7 +507,7 @@ class SampleDataset(Dataset):
     @property
     def genome_version(self):
         if self._genome_version is None:
-            self._genome_version = clarity.get_sample(self.name).udf.get('Genome Version')
+            self._genome_version = self.lims_sample_info.get('Genome Version')
             if not self._genome_version:
                 self._genome_version = rest_communication.get_document(
                     'species', where={'name': self.species})['default_version']
@@ -548,9 +539,9 @@ class SampleDataset(Dataset):
 
     @property
     def user_sample_id(self):
-        if self._user_sample_id is None:
-            self._user_sample_id = clarity.get_user_sample_name(self.name)
-        return self._user_sample_id
+        user_sample_name = self.lims_sample_info.get('User Sample Name')
+        if user_sample_name:
+            return sanitize_user_id(user_sample_name)
 
     @property
     def run_elements(self):
@@ -658,26 +649,28 @@ class SampleDataset(Dataset):
         self.lims_ntf.remove_sample_from_workflow()
 
     @property
-    def _pipeline(self):
-        analysis_type = clarity.get_sample(self.name).udf.get('Analysis Type')
+    def pipeline(self):
+        analysis_type = self.lims_sample_info.get('Analysis Type')
 
         if self.species is None:
             raise AnalysisDriverError('No species information found in the LIMS for ' + self.name)
 
         elif self.species == 'Homo sapiens':
             if 'Variant Calling gatk4' in analysis_type:
-                return 'human_variant_calling_gatk4'
+                cls = human_variant_calling_gatk4.HumanVarCallingGATK4
             else:
-                return 'bcbio'
+                cls = bcbio.BCBioVarCalling
         elif analysis_type in ['Variant Calling gatk4']:
-            return 'variant_calling_gatk4'
+            cls = variant_calling_gatk4.VarCallingGATK4
         elif analysis_type in ['Variant Calling', 'Variant Calling gatk', 'Variant Calling gatk3']:
-            return 'variant_calling'
+            cls = variant_calling.VarCalling
         elif analysis_type in ['QC GATK3']:
             # This is unlikely to be used in production but allows us to trigger the GATK3 QC pipeline when needed
-            return 'qc'
+            cls = qc.QC
         else:
-            return 'qc_gatk4'
+            cls = qc_gatk4.QCGATK4
+
+        return cls(self)
 
 
 class ProjectDataset(Dataset):
@@ -689,6 +682,9 @@ class ProjectDataset(Dataset):
         super().__init__(name, most_recent_proc)
         self._number_of_samples = None
         self._samples_processed = None
+        self._lims_project_info = None
+        self._lims_samples_info = None
+        self._sample_datasets = {}
         self._species = None
         self._genome_version = None
 
@@ -709,16 +705,23 @@ class ProjectDataset(Dataset):
             )
         return self._samples_processed
 
+    def sample_dataset(self, sample_id):
+        if sample_id not in self._sample_datasets:
+            self._sample_datasets[sample_id] = SampleDataset(sample_id)
+        return self._sample_datasets[sample_id]
+
+    @property
+    def lims_project_info(self):
+        if self._lims_project_info is None:
+            self._lims_project_info = rest_communication.get_document(
+                'lims/project_info', match={'project_id': self.name}
+            )
+        return self._lims_project_info
+
     @property
     def number_of_samples(self):
         if not self._number_of_samples:
-            project_from_lims = clarity.get_project(self.name)
-            if project_from_lims:
-                self._number_of_samples = project_from_lims.udf.get('Number of Quoted Samples')
-                if not self._number_of_samples:
-                    self._number_of_samples = -1
-            else:
-                self._number_of_samples = -1
+            self._number_of_samples = self.lims_project_info.get('nb_quoted_samples', -1)
         return self._number_of_samples
 
     @property
@@ -726,8 +729,7 @@ class ProjectDataset(Dataset):
         if self._species is None:
             s = set()
             for sample in self.samples_processed:
-                species = sample.get('species_name', clarity.get_species_from_sample(sample['sample_id']))
-                s.add(species)
+                s.add(self.sample_dataset(sample['sample_id']).species)
             if len(s) != 1:
                 raise AnalysisDriverError('Unexpected number of species (%s) in this project' % ', '.join(s))
             self._species = s.pop()
@@ -736,22 +738,19 @@ class ProjectDataset(Dataset):
     @property
     def genome_version(self):
         if self._genome_version is None:
-            g = clarity.get_sample(self.samples_processed[0]['sample_id']).udf.get('Genome Version')
-            if not g:
-                g = rest_communication.get_document('species', where={'name': self.species})['default_version']
-            self._genome_version = g
+            self._genome_version = self.sample_dataset(self.samples_processed[0]['sample_id']).genome_version
         return self._genome_version
 
     @property
     def reference_genome(self):
-        return SampleDataset(self.samples_processed[0]['sample_id']).reference_genome
+        return self.sample_dataset(self.samples_processed[0]['sample_id']).reference_genome
 
     def __str__(self):
         return '%s  (%s samples / %s) ' % (super().__str__(), len(self.samples_processed), self.number_of_samples)
 
     @property
-    def _pipeline(self):
-        return 'project'
+    def pipeline(self):
+        return projects.Project(self)
 
 
 class MostRecentProc:

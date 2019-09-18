@@ -7,7 +7,7 @@ test_projects = os.path.join(TestAnalysisDriver.assets_path, 'test_projects', 't
 relatedness_outfiles = os.path.join(test_projects, 'relatedness_outfiles')
 
 
-class TestProjects(TestAnalysisDriver):
+class TestProject(TestAnalysisDriver):
     @staticmethod
     def fake_dataset(sample_ids, pipeline_used=None):
         samples_processed = []
@@ -22,17 +22,23 @@ class TestProjects(TestAnalysisDriver):
             samples_processed=samples_processed
         )
 
+    def setUp(self):
+        self.pipeline = projects.Project(None)
+
     def test_2_samples(self):
-        pipeline = projects.build_pipeline(self.fake_dataset(['10015AT0004', '10015AT0003'], 'bcbio'))
-        assert len(pipeline.previous_stages) > 0
+        self.pipeline.dataset = self.fake_dataset(['10015AT0004', '10015AT0003'], 'bcbio')
+        final_stage = self.pipeline.build()
+        assert len(final_stage.previous_stages) > 0
 
     def test_1_sample(self):
-        pipeline = projects.build_pipeline(self.fake_dataset(['10015AT0004']))
-        assert len(pipeline.previous_stages) == 0
+        self.pipeline.dataset = self.fake_dataset(['10015AT0004'])
+        final_stage = self.pipeline.build()
+        assert len(final_stage.previous_stages) == 0
 
     def test_non_human(self):
-        pipeline = projects.build_pipeline(self.fake_dataset(['sample1', 'sample2', 'sample3'], 'qc'))
-        assert len(pipeline.previous_stages) == 0
+        self.pipeline.dataset = self.fake_dataset(['sample1', 'sample2', 'sample3'], 'qc')
+        final_stage = self.pipeline.build()
+        assert len(final_stage.previous_stages) == 0
 
 
 class TestOutput(TestAnalysisDriver):
