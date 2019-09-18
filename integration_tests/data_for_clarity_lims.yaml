@@ -18,27 +18,27 @@ samples:
         artifact: { container_name: plate1, xpos: H, ypos: 12, reagent_labels:['D702-D502 (TCCGGAGA-ATAGAGGC)'] } }
     - { name: 10015AT0003, project: 10015AT,  udfs: { Required Yield (Gb): 120, Coverage (X): 30, Species: Homo Sapiens },
         artifact: { container_name: plate2, xpos: A, ypos: 1, reagent_labels:['D703-D502 (CGCTCATT-ATAGAGGC)']} }
-    - { name: 10015AT0004, project: 10015AT,  udfs: { Required Yield (Gb): 120, Coverage (X): 30, Species: Homo Sapiens },
-        artifact: { container_name: plate2, xpos: A, ypos: 2, reagent_labels:['001A IDT-ILMN TruSeq DNA-RNA UD 96 Indexes  Plate_UDI0001 (GAGATTCC-ATAGAGGC)']} }
     - { name: 10015AT0005, project: 10015AT,  udfs: { Required Yield (Gb): 120, Coverage (X): 30, Species: Homo Sapiens },
-        artifact: { container_name: plate2, xpos: A, ypos: 3, reagent_labels:['D705-D502 (ATTCAGAA-ATAGAGGC)']} }
+        artifact: { container_name: plate2, xpos: A, ypos: 2, reagent_labels:['001A IDT-ILMN TruSeq DNA-RNA UD 96 Indexes  Plate_UDI0001 (GAGATTCC-ATAGAGGC)']} }
     - { name: 10015AT0006, project: 10015AT,  udfs: { Required Yield (Gb): 120, Coverage (X): 30, Species: Homo Sapiens },
-        artifact: { container_name: plate2, xpos: A, ypos: 4, reagent_labels:['D706-D502 (GAATTCGT-ATAGAGGC)']} }
+        artifact: { container_name: plate2, xpos: A, ypos: 3, reagent_labels:['D705-D502 (ATTCAGAA-ATAGAGGC)']} }
     - { name: 10015AT0007, project: 10015AT,  udfs: { Required Yield (Gb): 120, Coverage (X): 30, Species: Homo Sapiens },
-        artifact: { container_name: plate2, xpos: A, ypos: 5, reagent_labels:['D707-D502 (CTGAAGCT-ATAGAGGC)']} }
+        artifact: { container_name: plate2, xpos: A, ypos: 4, reagent_labels:['D706-D502 (GAATTCGT-ATAGAGGC)']} }
     - { name: 10015AT0008, project: 10015AT,  udfs: { Required Yield (Gb): 120, Coverage (X): 30, Species: Homo Sapiens },
+        artifact: { container_name: plate2, xpos: A, ypos: 5, reagent_labels:['D707-D502 (CTGAAGCT-ATAGAGGC)']} }
+    - { name: 10015AT0009, project: 10015AT,  udfs: { Required Yield (Gb): 120, Coverage (X): 30, Species: Homo Sapiens },
         artifact: { container_name: plate2, xpos: A, ypos: 6, reagent_labels:['D708-D502 (TAATGCGC-ATAGAGGC)']} }
 
 # This will create additional artifacts (they will not be root artifact)
 artifacts:
-    - { name: l1, samples: [10015AT0001, 10015AT0002, 10015AT0003, 10015AT0004, 10015AT0005, 10015AT0006, 10015AT0007, 10015AT0008], container_name: FLOWCELL1, xpos: 0, ypos: 0 }
-    - { name: l2, samples: [10015AT0001, 10015AT0002, 10015AT0003, 10015AT0004, 10015AT0005, 10015AT0006, 10015AT0007, 10015AT0008], container_name: FLOWCELL1, xpos: 0, ypos: 1 }
-    - { name: l3, samples: [10015AT0001, 10015AT0002, 10015AT0003, 10015AT0004, 10015AT0005, 10015AT0006, 10015AT0007, 10015AT0008], container_name: FLOWCELL1, xpos: 0, ypos: 2 }
-    - { name: l4, samples: [10015AT0001, 10015AT0002, 10015AT0003, 10015AT0004, 10015AT0005, 10015AT0006, 10015AT0007, 10015AT0008], container_name: FLOWCELL1, xpos: 0, ypos: 3 }
-    - { name: l5, samples: [10015AT0001, 10015AT0002, 10015AT0003, 10015AT0004, 10015AT0005, 10015AT0006, 10015AT0007, 10015AT0008], container_name: FLOWCELL1, xpos: 0, ypos: 4 }
-    - { name: l6, samples: [10015AT0001, 10015AT0002, 10015AT0003, 10015AT0004, 10015AT0005, 10015AT0006, 10015AT0007, 10015AT0008], container_name: FLOWCELL1, xpos: 0, ypos: 5 }
-    - { name: l7, samples: [10015AT0001, 10015AT0002, 10015AT0003, 10015AT0004, 10015AT0005, 10015AT0006, 10015AT0007, 10015AT0008], container_name: FLOWCELL1, xpos: 0, ypos: 6 }
-    - { name: l8, samples: [10015AT0001, 10015AT0002, 10015AT0003, 10015AT0004, 10015AT0005, 10015AT0006, 10015AT0007, 10015AT0008], container_name: FLOWCELL1, xpos: 0, ypos: 7 }
+    - { name: l1, samples: [10015AT0001, 10015AT0002, 10015AT0003, 10015AT0005, 10015AT0006, 10015AT0007, 10015AT0008, 10015AT0009], container_name: FLOWCELL1, xpos: 0, ypos: 0 }
+    - { name: l2, samples: [10015AT0001, 10015AT0002, 10015AT0003, 10015AT0005, 10015AT0006, 10015AT0007, 10015AT0008, 10015AT0009], container_name: FLOWCELL1, xpos: 0, ypos: 1 }
+    - { name: l3, samples: [10015AT0001, 10015AT0002, 10015AT0003, 10015AT0005, 10015AT0006, 10015AT0007, 10015AT0008, 10015AT0009], container_name: FLOWCELL1, xpos: 0, ypos: 2 }
+    - { name: l4, samples: [10015AT0001, 10015AT0002, 10015AT0003, 10015AT0005, 10015AT0006, 10015AT0007, 10015AT0008, 10015AT0009], container_name: FLOWCELL1, xpos: 0, ypos: 3 }
+    - { name: l5, samples: [10015AT0001, 10015AT0002, 10015AT0003, 10015AT0005, 10015AT0006, 10015AT0007, 10015AT0008, 10015AT0009], container_name: FLOWCELL1, xpos: 0, ypos: 4 }
+    - { name: l6, samples: [10015AT0001, 10015AT0002, 10015AT0003, 10015AT0005, 10015AT0006, 10015AT0007, 10015AT0008, 10015AT0009], container_name: FLOWCELL1, xpos: 0, ypos: 5 }
+    - { name: l7, samples: [10015AT0001, 10015AT0002, 10015AT0003, 10015AT0005, 10015AT0006, 10015AT0007, 10015AT0008, 10015AT0009], container_name: FLOWCELL1, xpos: 0, ypos: 6 }
+    - { name: l8, samples: [10015AT0001, 10015AT0002, 10015AT0003, 10015AT0005, 10015AT0006, 10015AT0007, 10015AT0008, 10015AT0009], container_name: FLOWCELL1, xpos: 0, ypos: 7 }
 
 # This will create completed steps
 completed_steps:
