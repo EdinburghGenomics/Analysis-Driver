@@ -369,7 +369,7 @@ class RunDataset(Dataset):
         if self._run_status is None:
             self._run_status = rest_communication.get_document('lims/run_status', match={'run_id': self.name})
             if not self._run_status:
-                raise AnalysisDriverError('Run status information for %s is not available in the LIMS' % self.nameß)
+                raise AnalysisDriverError('Run status information for %s is not available in the LIMS' % self.name)
         return self._run_status
 
     def _run_elements_from_lims_endpoint(self):

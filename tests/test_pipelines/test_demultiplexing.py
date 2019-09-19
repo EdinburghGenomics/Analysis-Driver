@@ -115,7 +115,7 @@ class TestWaitForRead2(TestAnalysisDriver):
         # Run info states 150 cycles for first read, 8 index cycles, and 50 cycles for second read = 208
         run_info = Mock(reads=Mock(upstream_read=Mock(attrib={'NumCycles': '150'}), index_lengths=[8]))
         dataset = NamedMock(real_name='testrun', run_info=run_info, input_dir='path/to/input',
-                            lims_run=Mock(udf={'Run Status': 'RunStarted'}))
+                            run_status={'run_status': 'RunStarted'})
 
         stage = dm.WaitForRead2(dataset=dataset)
 

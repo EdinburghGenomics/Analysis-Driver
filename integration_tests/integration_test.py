@@ -127,7 +127,7 @@ class IntegrationTest(ReportingAppIntegrationTest):
         if input_dir and os.path.isdir(input_dir):
             cfg.content[test_type]['input_dir'] = input_dir
         else:
-            raise exceptions.EGCGError('Input dir %s does not exist' % (input_dir))
+            raise exceptions.EGCGError('Input dir %s does not exist' % input_dir)
 
         os.makedirs(cfg['jobs_dir'])
         os.makedirs(cfg[test_type]['output_dir'])
@@ -235,6 +235,10 @@ class IntegrationTest(ReportingAppIntegrationTest):
         self._add_patches(
             patch('analysis_driver.quality_control.interop_metrics.get_last_cycles_with_existing_bcls', return_value=310)
         )
+        # Remove the Samplesheet that might have been generated before
+        samplesheet = os.path.join(cfg['run']['input_dir'], self.run_id, 'SampleSheet_analysis_driver.csv')
+        if os.path.isfile(samplesheet):
+            os.remove(samplesheet)
 
         # Force the aborted run to be the first on in line
         rest_communication.post_entry('runs', {'run_id': self.run_id})
@@ -544,6 +548,11 @@ class IntegrationTest(ReportingAppIntegrationTest):
         )
 
         self.setup_test('run', 'test_rapid', 'rapid')
+        # Remove the Samplesheet that might have been generated before
+        samplesheet = os.path.join(cfg['run']['input_dir'], self.rapid_run_id, 'SampleSheet_analysis_driver.csv')
+        if os.path.isfile(samplesheet):
+            os.remove(samplesheet)
+
         cfg.content['delivery'] = {'dest': os.path.join(os.path.dirname(os.getcwd()), 'delivered_outputs', 'test_rapid')}
         os.makedirs(cfg['delivery']['dest'])
         cfg.content['sample']['output_dir'] = os.path.join(os.path.dirname(os.getcwd()), 'outputs', 'test_rapid')
