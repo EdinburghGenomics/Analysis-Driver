@@ -13,19 +13,36 @@ from analysis_driver.util.helper_functions import split_in_chunks
 
 
 class ChunkHandler:
-    def __init__(self, dataset):
+    """
+    Class for dealing with stages that split a genome into chunks for processing in parallel. To use this functionality,
+    add this object as a Pipeline attribute:
+
+    class Pipeline(pipelines.Pipeline):
+        def __init__(self, dataset):
+            super().__init__(dataset)
+            self.chunk_handler = ChunkHandler(dataset)
+
+    This will then be available for Stages to use:
+
+    class Stage(segmentation.Stage):
+        def _run(self):
+            for chunks in self.pipeline.chunk_handler.genome_chunks:
+                pass
+    """
+    def __init__(self, dataset, chunk_size=20000000, max_contigs_per_chunk=1000):
         self.dataset = dataset
+        self.chunk_size = chunk_size
+        self.max_contigs_per_chunk = max_contigs_per_chunk
         self.genome_chunks = self.split_genome_in_chunks()
 
     def split_genome_in_chunks(self):
         """
         Split a genome in chunks of a specific size or at the end of chromosome and then aggregate the small chunks to
         roughly match the other chunk size.
-        :return: list of list
+        :return: List of chunks. Each chunk is a list of contigs, represented by a tuple of contig name, start and end.
+
         """
         fai_file = self.dataset.reference_genome + '.fai'
-        chunk_size = 20000000
-        max_nb_contig_per_chunk = 1000
         with open(fai_file) as open_file:
             chunks = []
             for line in open_file:
@@ -35,7 +52,7 @@ class ChunkHandler:
                 # https://genome.ucsc.edu/FAQ/FAQformat.html#format1
                 chunks.extend([
                     (sp_line[0], start, end)
-                    for start, end in split_in_chunks(length, chunk_size, zero_based=True, end_inclusive=False)
+                    for start, end in split_in_chunks(length, self.chunk_size, zero_based=True, end_inclusive=False)
                 ])
         # merge small consecutive chunks together with an upper limit set by max_nb_contig_per_chunk
         final_chunks = []
@@ -43,8 +60,8 @@ class ChunkHandler:
         final_chunks.append(current_chunks)
         current_chunks_size = 0
         for chunk in chunks:
-            if current_chunks_size + (chunk[2] - chunk[1]) > chunk_size or len(
-                    current_chunks) > max_nb_contig_per_chunk:
+            if current_chunks_size + (chunk[2] - chunk[1]) > self.chunk_size or len(
+                    current_chunks) > self.max_contigs_per_chunk:
                 current_chunks = []
                 current_chunks_size = 0
                 final_chunks.append(current_chunks)

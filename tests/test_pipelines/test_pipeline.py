@@ -69,13 +69,20 @@ class TestPipeline(TestAnalysisDriver):
         demultiplexing.Demultiplexing(run_dataset).build()
         rapid.Rapid(run_dataset).build(Mock())
 
-        sample_dataset = NamedMock(real_name='test_sample', user_sample_id='uid', type='sample', reference_genome=join(self.assets_path, 'genome.fa'), genome_dict={'snpEff': 'path/to/snpEff'})
+        sample_dataset = NamedMock(
+            real_name='test_sample',
+            user_sample_id='uid',
+            type='sample',
+            reference_genome=join(self.assets_path, 'genome.fa'),
+            genome_dict={'snpEff': 'path/to/snpEff'}
+        )
         for cls in sample_pipelines:
             cls(sample_dataset).build()
 
         project_dataset = NamedMock(
             real_name='test_project',
             type='project',
+            reference_genome=join(self.assets_path, 'genome.fa'),
             get_processed_gvcfs=Mock(return_value=['gvcf1', 'gvcf2']),
             samples_processed=[{'sample_id': 'sample_1'}, {'sample_id': 'sample_2'}]
         )

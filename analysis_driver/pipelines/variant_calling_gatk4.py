@@ -4,8 +4,7 @@ from analysis_driver import quality_control as qc
 from analysis_driver.pipelines import Pipeline, common
 from analysis_driver.pipelines.qc_gatk4 import SplitHaplotypeCaller, PostAlignmentScatter, GATK4Stage, \
     FastqIndex, SplitBWA, MergeBamAndDup, GatherVCF, MergeVariants, SelectSNPs, SelectIndels, SNPsFiltration, \
-    IndelsFiltration
-from analysis_driver.segmentation import Parameter
+    IndelsFiltration, ChunkHandler
 from analysis_driver.tool_versioning import toolset
 from analysis_driver.util.bash_commands import picard_command, java_command
 
@@ -225,6 +224,10 @@ class VariantAnnotation(GATK4Stage):
 class VarCallingGATK4(Pipeline):
     toolset_type = 'gatk4_sample_processing'
     name = 'variant_calling_gatk4'
+
+    def __init__(self, dataset):
+        super().__init__(dataset)
+        self.chunk_handler = ChunkHandler(self.dataset)
 
     def build(self):
         """Build the variant calling pipeline (for non human)."""

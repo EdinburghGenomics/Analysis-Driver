@@ -299,3 +299,13 @@ toolsets:
             vcftools:
                 version: v0.1.13
                 version_cmd: "{executable} | grep VCFtools | awk '{{print substr($2,2,length($2)-2)}}'"
+
+        1:
+            bgzip: null
+            peddy: null
+            tabix: null
+            vcftools: null
+            gatk4_bin:
+                version: 4.1.3.0
+                version_cmd: '{executable} HaplotypeCaller 2>&1 | grep "Version" | cut -f 2 -d ":"'
+
