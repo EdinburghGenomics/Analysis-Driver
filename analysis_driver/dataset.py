@@ -753,7 +753,7 @@ class ProjectDataset(Dataset):
 
     @property
     def pipeline(self):
-        return projects.GATK4Project(self)
+        return projects.Project(self)
 
 
 class MostRecentProc:

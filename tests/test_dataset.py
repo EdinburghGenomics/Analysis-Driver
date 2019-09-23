@@ -2,7 +2,7 @@ import os
 import time
 import pytest
 from sys import modules
-from unittest.mock import patch, Mock, PropertyMock, call
+from unittest.mock import patch, Mock, PropertyMock
 from egcg_core import constants as c
 from integration_tests.mocked_data import MockedSample, MockedRunProcess
 from tests.test_analysisdriver import TestAnalysisDriver, NamedMock

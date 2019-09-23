@@ -217,6 +217,28 @@ toolsets:
                 version_cmd: '{dependency} {executable} -v'
                 dependency: k8
 
+        1:
+            bamcat: null
+            bgzip: null
+            biobambam_sortmapdup: null
+            blastn: null
+            bwa: null
+            fastqscreen: null
+
+            gatk4_bin:
+                version: 4.1.3.0
+                version_cmd: '{executable} HaplotypeCaller 2>&1 | grep "Version" | cut -f 2 -d ":"'
+
+            grabix: null
+            picard: null
+            snpEff: null
+            rtg: null
+            samtools: null
+            seqtk: null
+            tabix: null
+            verifybamid: null
+            postalt: null
+
     human_sample_processing:
         0:
             bcftools:

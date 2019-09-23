@@ -9,7 +9,7 @@ relatedness_outfiles = os.path.join(test_projects, 'relatedness_outfiles')
 
 class TestProject(TestAnalysisDriver):
     def setUp(self):
-        self.pipeline = projects.Project(Mock())
+        self.pipeline = projects.Project(Mock(reference_genome=os.path.join(self.assets_path, 'genome.fa')))
 
     @patch.object(projects.Project, 'trio_check', return_value='some_trio_check_stages')
     @patch.object(projects.Project, 'stage', return_value='a_cleanup_stage')

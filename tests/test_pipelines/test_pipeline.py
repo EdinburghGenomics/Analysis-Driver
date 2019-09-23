@@ -86,5 +86,4 @@ class TestPipeline(TestAnalysisDriver):
             get_processed_gvcfs=Mock(return_value=['gvcf1', 'gvcf2']),
             samples_processed=[{'sample_id': 'sample_1'}, {'sample_id': 'sample_2'}]
         )
-        for cls in (projects.Project, projects.GATK4Project):
-            cls(project_dataset).build()
+        projects.Project(project_dataset).build()

@@ -11,9 +11,11 @@ from analysis_driver.tool_versioning import toolset
 
 
 class Project(Pipeline):
-    """Original GATK3 trio check."""
-
     toolset_type = 'project_processing'
+
+    def __init__(self, dataset):
+        super().__init__(dataset)
+        self.chunk_handler = ChunkHandler(self.dataset)
 
     def build(self):
         gvcf_files = self.dataset.get_processed_gvcfs()
@@ -26,29 +28,12 @@ class Project(Pipeline):
 
     def trio_check(self, gvcfs):
         sample_ids = [sample['sample_id'] for sample in self.dataset.samples_processed]
-        genotype_gvcfs = self.stage(relatedness.GenotypeGVCFs, gVCFs=gvcfs)
-        rel = self.stage(relatedness.Relatedness, previous_stages=[genotype_gvcfs])
-        peddy = self.stage(relatedness.Peddy, ids=sample_ids, previous_stages=[genotype_gvcfs])
-        parse = self.stage(relatedness.ParseRelatedness, ids=sample_ids, parse_method='parse_both', previous_stages=[rel, peddy])
-        output = self.stage(Output, previous_stages=[parse])
-        cleanup = self.stage(common.Cleanup, previous_stages=[output])
-        return cleanup
-
-
-class GATK4Project(Project):
-    def __init__(self, dataset):
-        super().__init__(dataset)
-        self.chunk_handler = ChunkHandler(self.dataset)
-
-    def trio_check(self, gvcfs):
-        sample_ids = [sample['sample_id'] for sample in self.dataset.samples_processed]
         db_import = self.stage(GenomicsDBImport, gvcfs=gvcfs)
         genotype_gvcfs = self.stage(GATK4GenotypeGVCFs, stage_name='genotypegvcfs', previous_stages=[db_import])
         gather = self.stage(GatherVCFs, previous_stages=[genotype_gvcfs])
         rel = self.stage(relatedness.Relatedness, previous_stages=[gather])
         peddy = self.stage(relatedness.Peddy, ids=sample_ids, previous_stages=[gather])
-        parse = self.stage(relatedness.ParseRelatedness, ids=sample_ids, parse_method='parse_both',
-                           previous_stages=[rel, peddy])
+        parse = self.stage(relatedness.ParseRelatedness, ids=sample_ids, parse_method='parse_both', previous_stages=[rel, peddy])
         output = self.stage(Output, previous_stages=[parse])
         cleanup = self.stage(common.Cleanup, previous_stages=[output])
         return cleanup
