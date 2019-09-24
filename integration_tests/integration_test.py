@@ -89,7 +89,7 @@ class IntegrationTest(ReportingAppIntegrationTest):
                 'samples',
                 {'library_id': self.library_id, 'project_id': self.project_id, 'sample_id': sample,
                  'run_elements': [e['run_element_id'] for e in run_elements], 'required_yield': 900000000,
-                 'required_coverage': 30}
+                 'required_coverage': 30, 'required_yield': 120000000000}
             )
 
         rest_communication.post_entry('projects', {'project_id': self.project_id, 'samples': samples})
