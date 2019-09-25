@@ -1,6 +1,6 @@
 import os
 import subprocess
-from egcg_core import rest_communication, util, exceptions
+from egcg_core import rest_communication, util
 from unittest.mock import Mock, patch
 
 from egcg_core.app_logging import logging_default
@@ -123,14 +123,6 @@ class IntegrationTest(ReportingAppIntegrationTest):
         input_dir = self.cfg[integration_section].get('input_dir')
         if input_dir:
             cfg.content[test_type]['input_dir'] = input_dir
-
-        if len(os.listdir(cfg[test_type]['input_dir'])) != 1:
-            raise exceptions.EGCGError(
-                '%s input datasets found in input dir %s - 1 required' % (
-                    len(os.listdir(cfg[test_type]['input_dir'])),
-                    cfg[test_type]['input_dir']
-                )
-            )
 
         os.makedirs(cfg['jobs_dir'])
         os.makedirs(cfg[test_type]['output_dir'])
