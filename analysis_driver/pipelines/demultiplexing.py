@@ -253,7 +253,7 @@ class WaitForRead2(DemultiplexingStage):
 class PartialRun(DemultiplexingStage):
     @property
     def fastq_intermediate_dir(self):
-        return join(self.job_dir, 'fastq_intermetiate')
+        return join(self.job_dir, 'fastq_intermediate')
 
 
 class Bcl2FastqPartialRun(PartialRun):
@@ -269,7 +269,7 @@ class Bcl2FastqPartialRun(PartialRun):
         ).join()
 
 
-class EarlyFastqFilter(DemultiplexingStage):
+class EarlyFastqFilter(PartialRun):
     def _run(self):
         cmds = []
         for lane in range(1, 9):
