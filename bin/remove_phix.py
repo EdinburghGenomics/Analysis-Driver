@@ -76,7 +76,7 @@ def remove_phix(sample_id):
     cmds = []
     for fqs in fastq_pairs:
         read_name_list = fqs[0][:-len('_R1_001.fastq.gz')] + '_phix_read_name.list'
-        cmds.append(bash_commands.fastq_filterer(fqs, read_name_list))
+        cmds.append(bash_commands.fastq_filterer(fqs, rm_reads=read_name_list))
 
     filterer_status = executor.execute(
         *cmds,
