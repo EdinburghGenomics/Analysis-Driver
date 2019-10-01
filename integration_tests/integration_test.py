@@ -362,7 +362,7 @@ class IntegrationTest(ReportingAppIntegrationTest):
         self.expect_equal(ad_proc['genome_used'], 'hg38', 'genome used')
 
         self.expect_equal(
-            rest_communication.get_document('analysis_driver_procs')['data_source'],
+            ad_proc['data_source'],
             ['_'.join([self.run_id, str(i), self.human_gatk_sample_id]) for i in range(1, 8)],
             'data source'
         )
