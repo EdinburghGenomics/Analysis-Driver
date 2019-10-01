@@ -10,6 +10,7 @@ from egcg_core import rest_communication, clarity
 from egcg_core.app_logging import AppLogger
 from egcg_core.clarity import sanitize_user_id
 from egcg_core.config import cfg
+from egcg_core.ncbi import get_species_name
 from egcg_core.util import query_dict
 from egcg_core.constants import *  # pylint: disable=unused-import
 from egcg_core.exceptions import RestCommunicationError
@@ -375,7 +376,7 @@ class RunDataset(Dataset):
         if self._run_status is None:
             self._run_status = rest_communication.get_document('lims/run_status', match={'run_id': self.name})
             if not self._run_status:
-                raise AnalysisDriverError('Run status information for %s is not available in the LIMS' % self.nameß)
+                raise AnalysisDriverError('Run status information for %s is not available in the LIMS' % self.name)
         return self._run_status
 
     def _run_elements_from_lims_endpoint(self):
@@ -501,7 +502,7 @@ class SampleDataset(Dataset):
         if self._species is None:
             self._species = self.sample.get('species_name')
         if self._species is None:
-            self._species = clarity.get_species_from_sample(self.name)
+            self._species = get_species_name(self.lims_sample_info.get('Species'))
         return self._species
 
     @property
