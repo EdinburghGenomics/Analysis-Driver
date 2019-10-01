@@ -89,18 +89,21 @@ class TestFastqFilter(TestAnalysisDriver):
 
             expected_call_l2 = (
                 'run_filterer in_place L2_R1_001.fastq.gz L2_R2_001.fastq.gz L2_R1_001_filtered.fastq.gz '
-                'L2_R2_001_filtered.fastq.gz L2_R1_001_filtered.fastq L2_R2_001_filtered.fastq L2_fastqfilterer.stats '
-                'L2_phix_read_name.list L2_R1_001.fastq_discarded L2_R2_001.fastq_discarded'
+                'L2_R2_001_filtered.fastq.gz L2_R1_001_filtered.fastq L2_R2_001_filtered.fastq '
+                'L2_R1_001.fastq_discarded L2_R2_001.fastq_discarded --threshold 36 '
+                '--stats_file L2_fastqfilterer.stats --remove_reads L2_phix_read_name.list'
             )
             expected_call_l3 = (
                 'run_filterer keep_originals L3_R1_001.fastq.gz L3_R2_001.fastq.gz L3_R1_001_filtered.fastq.gz '
-                'L3_R2_001_filtered.fastq.gz L3_R1_001_filtered.fastq L3_R2_001_filtered.fastq L3_fastqfilterer.stats '
-                'L3_phix_read_name.list L3_R1_001.fastq_discarded L3_R2_001.fastq_discarded --remove_tiles 1101'
+                'L3_R2_001_filtered.fastq.gz L3_R1_001_filtered.fastq L3_R2_001_filtered.fastq '
+                'L3_R1_001.fastq_discarded L3_R2_001.fastq_discarded --threshold 36 '
+                '--stats_file L3_fastqfilterer.stats --remove_tiles 1101 --remove_reads L3_phix_read_name.list'
             )
             expected_call_l4 = (
                 'run_filterer keep_originals L4_R1_001.fastq.gz L4_R2_001.fastq.gz L4_R1_001_filtered.fastq.gz '
-                'L4_R2_001_filtered.fastq.gz L4_R1_001_filtered.fastq L4_R2_001_filtered.fastq L4_fastqfilterer.stats '
-                'L4_phix_read_name.list L4_R1_001.fastq_discarded L4_R2_001.fastq_discarded --trim_r2 147'
+                'L4_R2_001_filtered.fastq.gz L4_R1_001_filtered.fastq L4_R2_001_filtered.fastq '
+                'L4_R1_001.fastq_discarded L4_R2_001.fastq_discarded --threshold 36 '
+                '--stats_file L4_fastqfilterer.stats --remove_reads L4_phix_read_name.list --trim_r2 147'
             )
             assert expected_call_l2 == pexecute.call_args[0][1]
             assert expected_call_l3 == pexecute.call_args[0][2]
