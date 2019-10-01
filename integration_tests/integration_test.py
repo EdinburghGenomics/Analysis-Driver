@@ -1,6 +1,7 @@
 import os
 import subprocess
 import time
+from egcg_core import rest_communication, util
 
 from egcg_core import rest_communication, util, exceptions
 from unittest.mock import Mock, patch
