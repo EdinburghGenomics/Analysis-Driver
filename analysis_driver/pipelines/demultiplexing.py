@@ -14,6 +14,7 @@ from analysis_driver.quality_control import well_duplicates, interop_metrics, BC
 from analysis_driver.report_generation import RunCrawler
 from analysis_driver.transfer_data import output_data_and_archive
 from analysis_driver.tool_versioning import toolset
+from analysis_driver.util.helper_functions import merge_lane_directories
 
 
 class DemultiplexingStage(segmentation.Stage):
@@ -84,6 +85,9 @@ class Bcl2Fastq(DemultiplexingStage):
         ).join()
         if bcl2fastq_exit_status:
             return bcl2fastq_exit_status
+
+        # Merge the lane directories
+        merge_lane_directories(self.fastq_dir, self.dataset.run_elements)
 
         # Copy the Samplesheet Runinfo.xml run_parameters.xml to the fastq dir
         for f in ('SampleSheet_analysis_driver.csv', 'runParameters.xml',

@@ -1,4 +1,7 @@
+import glob
 import os
+
+from egcg_core.constants import ELEMENT_PROJECT_ID, ELEMENT_LANE, ELEMENT_SAMPLE_INTERNAL_ID
 
 
 def get_run_element_id(run_id, lane_number, barcode=None):
@@ -50,3 +53,38 @@ def split_in_chunks(total_length, chunksize, zero_based=False, end_inclusive=Tru
         chunks.append((last, min(new, total_length + end_padding)))
         last = new + chunk_padding
     return chunks
+
+
+def merge_lane_directories(fastq_dir, run_elements):
+    # find all the lane directories:
+    lane_dirs = glob.glob(os.path.join(fastq_dir, 'lane_*'))
+
+    # find the Unassigned first if they exist
+    for lane_dir in lane_dirs:
+        # We're working with lane
+        lane_num = lane_dir.split('_')[-1]
+        fastq_paths = glob.glob(os.path.join(lane_dir, 'Undetermined_S0_L00%s_R*_001.fastq.gz' % lane_num))
+        # move them up
+        for fastq_path in fastq_paths:
+            os.rename(fastq_path, os.path.join(fastq_dir, os.path.basename(fastq_path)))
+
+    # then move the fastq associated with run elements
+    for run_element in run_elements:
+        fastq_paths = glob.glob(os.path.join(
+            fastq_dir,
+            'lane_%s' % run_element[ELEMENT_LANE],
+            run_element[ELEMENT_PROJECT_ID],
+            run_element[ELEMENT_SAMPLE_INTERNAL_ID],
+            '*_L00%s_R*_001.fastq.gz' % run_element[ELEMENT_LANE]
+        ))
+        destination_dir = os.path.join(
+            fastq_dir,
+            run_element[ELEMENT_PROJECT_ID],
+            run_element[ELEMENT_SAMPLE_INTERNAL_ID]
+        )
+        os.makedirs(destination_dir, exist_ok=True)
+        for fastq_path in fastq_paths:
+            os.rename(fastq_path, os.path.join(destination_dir, os.path.basename(fastq_path)))
+
+
+

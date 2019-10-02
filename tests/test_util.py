@@ -1,6 +1,8 @@
+import os
+import shutil
 from unittest.mock import patch, Mock
 from analysis_driver.util import find_all_fastq_pairs_for_lane, get_ranges, get_trim_values_for_bad_cycles
-from analysis_driver.util.helper_functions import prepend_path_to_data_files, split_in_chunks
+from analysis_driver.util.helper_functions import prepend_path_to_data_files, split_in_chunks, merge_lane_directories
 from tests import TestAnalysisDriver
 
 
@@ -98,5 +100,25 @@ class TestHelperFunctions(TestAnalysisDriver):
         chunks = split_in_chunks(total_length=122, chunksize=20, zero_based=False, end_inclusive=False)
         assert chunks == [(1, 21), (21, 41), (41, 61), (61, 81), (81, 101), (101, 121), (121, 123)]
 
+    def test_merge_lane_directories(self):
+        fastq_dir = os.path.join(self.assets_path, 'fastq_split')
+        os.makedirs(fastq_dir, exist_ok=True)
+        run_elements = [
+            {'project_id': 'a_project', 'lane': '1', 'sample_id': 'sample1'},
+            {'project_id': 'a_project', 'lane': '1', 'sample_id': 'sample2'},
+            {'project_id': 'a_project', 'lane': '2', 'sample_id': 'sample1'},
+            {'project_id': 'a_project', 'lane': '2', 'sample_id': 'sample2'}
+        ]
+        for re in run_elements:
+            sample_dir = os.path.join(fastq_dir, 'lane_%s' % re['lane'], re['project_id'], re['sample_id'])
+            os.makedirs(sample_dir, exist_ok=True)
+            self._touch(os.path.join(sample_dir, '%s_L00%s_R1_001.fastq.gz' % (re['sample_id'], re['lane'])))
+            self._touch(os.path.join(sample_dir, '%s_L00%s_R2_001.fastq.gz' % (re['sample_id'], re['lane'])))
 
+        # Add unassigned
+        self._touch(os.path.join(fastq_dir, 'lane_1', 'Undetermined_S0_L001_R1_001.fastq.gz'))
+        self._touch(os.path.join(fastq_dir, 'lane_1', 'Undetermined_S0_L001_R2_001.fastq.gz'))
+        merge_lane_directories(fastq_dir, run_elements)
+
+        shutil.rmtree(fastq_dir)
 
