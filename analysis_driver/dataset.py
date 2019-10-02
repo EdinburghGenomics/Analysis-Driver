@@ -349,7 +349,7 @@ class RunDataset(Dataset):
 
     @property
     def number_of_lane(self):
-        return len(self.lane_metrics)
+        return len(self.run_status['lanes'])
 
     @property
     def rapid_samples_by_lane(self):
@@ -410,10 +410,16 @@ class RunDataset(Dataset):
 
         return run_elements
 
-    def has_barcode_in_lane(self, lane):
-        lane_metric = [lm for lm in self.lane_metrics if lm[ELEMENT_LANE_NUMBER] == lane][0]
+    def has_barcode_in_lane(self, lane_number):
+        """
+        Returns False if this lane has only one barcode (regardless of what is in the RunInfo.xml).
+        Otherwise delegate to the RunInfo object.
+        :param lane_number: the lane number to query.
+        :return: True if this lane needs to be use the barcode False otherwise.
+        """
+        lane_data = [l for l in self.run_status['lanes'] if str(l['lane']) == str(lane_number)][0]
         # If there is only one sample in this lane then we won't demultiplex and should use a barcode length of 0
-        if len(lane_metric[ELEMENT_RUN_ELEMENTS]) == 1:
+        if len(lane_data['samples']) == 1:
             return False
         return self.run_info.reads.has_barcodes
 
