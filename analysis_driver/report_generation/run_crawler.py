@@ -226,7 +226,7 @@ class RunCrawler(Crawler):
             raise FileNotFoundError()
 
         for json_file in json_files:
-            with open(json_file[0], 'r') as open_file:
+            with open(json_file, 'r') as open_file:
                 json_data = json.load(open_file)
 
             # Call function which parses of the run elements and adapter trimmings in JSON file (previously barcodes)
