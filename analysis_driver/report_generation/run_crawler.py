@@ -217,9 +217,17 @@ class RunCrawler(Crawler):
         barcode_info variable. It succeeds and will replace the _populate_barcode_info_from_conversion_file() and
         _populate_barcode_info_from_adapter_file() functions."""
         json_files = util.find_files(run_dir, 'Stats', 'Stats.json')
-        if json_files:
-            with open(json_files[0], 'r') as json_stats:
-                json_data = json.load(json_stats)
+        if not json_files:
+            json_files = util.find_files(run_dir, 'Stats', 'lane_*_Stats.json')
+
+        if not json_files:
+            # Either the full or split file are expected.
+            # The process should stop if they are not found.
+            raise FileNotFoundError()
+
+        for json_file in json_files:
+            with open(json_file[0], 'r') as open_file:
+                json_data = json.load(open_file)
 
             # Call function which parses of the run elements and adapter trimmings in JSON file (previously barcodes)
             all_run_elements, unknown_run_elements, adapter_trimmed_by_id = dm.parse_json_stats(json_data, self.dataset.name)
@@ -232,9 +240,6 @@ class RunCrawler(Crawler):
 
             # populating the unknown run elements array
             self._populate_unknown_elements(unknown_run_elements, reads_per_lane)
-        else:
-            # This file is expected. The process should stop if it is not found.
-            raise FileNotFoundError()
 
     def _populate_barcode_info_from_run_elements(self, all_run_elements):
         # to find the sum of the reads per lane

@@ -77,7 +77,6 @@ class Bcl2Fastq(DemultiplexingStage):
         bcl2fastq_exit_status = executor.execute(
             *(bash_commands.bcl2fastq_per_lane(self.input_dir, self.fastq_dir, self.dataset.sample_sheet_file,
                                                masks, lanes)),
-
             job_name='bcl2fastq',
             working_dir=self.job_dir,
             cpus=8,

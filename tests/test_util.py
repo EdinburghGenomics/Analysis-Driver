@@ -1,3 +1,4 @@
+import glob
 import os
 import shutil
 from unittest.mock import patch, Mock
@@ -118,7 +119,13 @@ class TestHelperFunctions(TestAnalysisDriver):
         # Add unassigned
         self._touch(os.path.join(fastq_dir, 'lane_1', 'Undetermined_S0_L001_R1_001.fastq.gz'))
         self._touch(os.path.join(fastq_dir, 'lane_1', 'Undetermined_S0_L001_R2_001.fastq.gz'))
+
+        # Add stats files
+        os.makedirs(os.path.join(fastq_dir, 'lane_1', 'Stats'), exist_ok=True)
+        os.makedirs(os.path.join(fastq_dir, 'lane_2', 'Stats'), exist_ok=True)
+        self._touch(os.path.join(fastq_dir, 'lane_1', 'Stats', 'Stats.json'))
+        self._touch(os.path.join(fastq_dir, 'lane_2', 'Stats', 'Stats.json'))
+
         merge_lane_directories(fastq_dir, run_elements)
 
-        shutil.rmtree(fastq_dir)
-
+        #shutil.rmtree(fastq_dir)

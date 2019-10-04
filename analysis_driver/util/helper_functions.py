@@ -1,5 +1,6 @@
 import glob
 import os
+from xml.etree import ElementTree as et
 
 from egcg_core.constants import ELEMENT_PROJECT_ID, ELEMENT_LANE, ELEMENT_SAMPLE_INTERNAL_ID
 
@@ -59,10 +60,20 @@ def merge_lane_directories(fastq_dir, run_elements):
     # find all the lane directories:
     lane_dirs = glob.glob(os.path.join(fastq_dir, 'lane_*'))
 
-    # find the Unassigned first if they exist
+    os.makedirs(os.path.join(fastq_dir, 'Stats'), exist_ok=True)
+
+    # find the stats files and unassigned if they exist
     for lane_dir in lane_dirs:
         # We're working with lane
         lane_num = lane_dir.split('_')[-1]
+        # Move each file in the stats directory
+        stats_dir = os.path.join(lane_dir, 'Stats')
+        for fname in os.listdir(stats_dir):
+            os.rename(
+                os.path.join(stats_dir, fname),
+                os.path.join(fastq_dir, 'Stats', 'lane_%s_%s' % (lane_num, fname))
+            )
+
         fastq_paths = glob.glob(os.path.join(lane_dir, 'Undetermined_S0_L00%s_R*_001.fastq.gz' % lane_num))
         # move them up
         for fastq_path in fastq_paths:
@@ -85,6 +96,3 @@ def merge_lane_directories(fastq_dir, run_elements):
         os.makedirs(destination_dir, exist_ok=True)
         for fastq_path in fastq_paths:
             os.rename(fastq_path, os.path.join(destination_dir, os.path.basename(fastq_path)))
-
-
-
