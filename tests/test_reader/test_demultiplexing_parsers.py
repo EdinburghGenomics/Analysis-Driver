@@ -62,17 +62,6 @@ class TestDemultiplexingStats(TestAnalysisDriver):
             'test_run_id_2': {'read_1_trimmed_bases': 735649209, 'read_2_trimmed_bases': 747065613}
         })
 
-    def test_parse_json_stats(self):
-        json_stat = os.path.join(self.assets_path, 'stats_files', 'part_run', 'lane_1', 'Stats.json')
-        with open(json_stat, 'r') as stats:
-            json_data = json.load(stats)
-
-        barcodes, unknowns, adapter_trimmed_by_id = dm.parse_json_stats(json_data, 'test_run_id')
-        print(barcodes)
-        print(unknowns)
-        print(adapter_trimmed_by_id)
-
-
     def test_parse_seqtk_fqchk(self):
         fqchk_file = os.path.join(self.assets_path, '10015ATpool01_S1_L001_R1_001.fastq.gz.fqchk')
         nb_read, nb_base, lo_q, hi_q = dm.parse_seqtk_fqchk_file(fqchk_file, q_threshold=30)

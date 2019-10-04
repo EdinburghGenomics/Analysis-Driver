@@ -89,10 +89,24 @@ class TestRunCrawler(TestCrawler):
                 stage=report_generation.RunCrawler.STAGE_MAPPING
             )
         with patched_lims_info:
+            self.crawler_split = report_generation.RunCrawler(
+                dataset,
+                os.path.join(self.test_data, 'test_split_run_dir'),
+                stage=report_generation.RunCrawler.STAGE_MAPPING
+            )
+        with patched_lims_info:
             self.crawler_start = report_generation.RunCrawler(
                 dataset,
                 os.path.join(self.test_data, 'test_run_dir_start')
             )
+
+    def test_split_run(self):
+        self.compare_jsons(dict(self.crawler_split.barcodes_info), self.expected_output['barcodes_info'])
+        self.compare_jsons(dict(self.crawler_split.unexpected_barcodes), self.expected_output['unexpected_barcodes'])
+        self.compare_jsons(dict(self.crawler_split.lanes), self.expected_output['lanes'])
+        self.compare_jsons(dict(self.crawler_split.libraries), self.expected_output['libraries'])
+        self.compare_jsons(dict(self.crawler_split.run), self.expected_output['run'])
+        self.compare_jsons(dict(self.crawler_split.projects), self.expected_output['projects'])
 
     def test_barcodes_info(self):
         self.compare_jsons(dict(self.crawler.barcodes_info), self.expected_output['barcodes_info'])

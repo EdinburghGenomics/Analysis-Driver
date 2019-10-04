@@ -274,12 +274,13 @@ class RunCrawler(Crawler):
 
             # calculating the reads per lane
             reads_for_lane = reads_per_lane.get(barcode[ELEMENT_LANE])
-            if reads_for_lane > 0:
+            if reads_for_lane:
                 barcode[ELEMENT_PC_READ_IN_LANE] = barcode[ELEMENT_NB_READS_PASS_FILTER] / reads_for_lane
 
             # populating adapter trimming data
-            barcode[ELEMENT_ADAPTER_TRIM_R1] = adapter_trimmed_by_id[run_element_id]['read_1_trimmed_bases']
-            barcode[ELEMENT_ADAPTER_TRIM_R2] = adapter_trimmed_by_id[run_element_id]['read_2_trimmed_bases']
+            if run_element_id in adapter_trimmed_by_id:
+                barcode[ELEMENT_ADAPTER_TRIM_R1] = adapter_trimmed_by_id[run_element_id]['read_1_trimmed_bases']
+                barcode[ELEMENT_ADAPTER_TRIM_R2] = adapter_trimmed_by_id[run_element_id]['read_2_trimmed_bases']
 
     def _populate_unknown_elements(self, unknown_run_elements, reads_per_lane):
         # this helper function populates the unknown run elements array
