@@ -268,7 +268,7 @@ class Bcl2FastqPartialRun(PartialRun):
         masks = [self.dataset.mask_per_lane(l) for l in lanes]
         self.info('bcl2fastq mask: ' + ', '.join(('lane %s: %s' % (l, m) for l,m in zip(lanes, masks))))
 
-        return executor.execute(
+        bcl2fastq_exit_status = executor.execute(
             *(bash_commands.bcl2fastq_per_lane(self.input_dir, self.fastq_intermediate_dir,
                                                self.dataset.sample_sheet_file, masks, lanes)),
             job_name='bcl2fastq_intermediate',
@@ -276,6 +276,12 @@ class Bcl2FastqPartialRun(PartialRun):
             cpus=8,
             mem=32
         ).join()
+        if bcl2fastq_exit_status:
+            return bcl2fastq_exit_status
+
+        # Merge the lane directories
+        merge_lane_directories(self.fastq_dir, self.dataset.run_elements)
+        return bcl2fastq_exit_status
 
 
 class EarlyFastqFilter(PartialRun):
