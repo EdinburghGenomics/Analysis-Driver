@@ -15,9 +15,9 @@ class Crawler(AppLogger):
             c.ELEMENT_SAMPLE_SPECIES: rest_data.get('Species')
         }
         if 'Yield for Quoted Coverage (Gb)' in rest_data:
-            sample_info[c.ELEMENT_SAMPLE_REQUIRED_YIELD_Q30] = rest_data.get('Yield for Quoted Coverage (Gb)') * 1000000000
+            sample_info[c.ELEMENT_SAMPLE_REQUIRED_YIELD_Q30] = int(rest_data.get('Yield for Quoted Coverage (Gb)')) * 1000000000
         if 'Required Yield (Gb)' in rest_data:
-            sample_info[c.ELEMENT_SAMPLE_REQUIRED_YIELD] = rest_data.get('Required Yield (Gb)') * 1000000000
+            sample_info[c.ELEMENT_SAMPLE_REQUIRED_YIELD] = int(rest_data.get('Required Yield (Gb)')) * 1000000000
         if 'Coverage (X)' in rest_data:
             sample_info[c.ELEMENT_SAMPLE_REQUIRED_COVERAGE] = rest_data.get('Coverage (X)')
 
