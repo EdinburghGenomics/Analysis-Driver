@@ -502,7 +502,6 @@ class SampleDataset(Dataset):
             self._lims_ntf = LimsNotification(self.name)
         return self._lims_ntf
 
-
     @property
     def species(self):
         if self._species is None:
