@@ -280,7 +280,7 @@ class Bcl2FastqPartialRun(PartialRun):
             return bcl2fastq_exit_status
 
         # Merge the lane directories
-        merge_lane_directories(self.fastq_dir, self.dataset.run_elements)
+        merge_lane_directories(self.fastq_intermediate_dir, self.dataset.run_elements)
         return bcl2fastq_exit_status
 
 
