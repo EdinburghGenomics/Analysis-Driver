@@ -381,7 +381,7 @@ class RunDataset(Dataset):
             if len(flowcell.placements[lane].reagent_labels) > 1:
                 artifacts = self._find_pooling_step_for_artifact(
                     flowcell.placements[lane],
-                    ['Create PDP Pool', 'Create PDP Pool EG 1.0']
+                    ['Create PDP Pool', 'Create PDP Pool EG 1.0 ST']
                 )
             else:
                 artifacts = [flowcell.placements[lane]]
