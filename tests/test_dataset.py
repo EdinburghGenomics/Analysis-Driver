@@ -295,6 +295,38 @@ class TestRunDataset(TestDataset):
                               'dataset_name': 'None', 'dataset_type': 'None'}
         )
 
+    def test_find_pooling_step_for_artifact(self):
+        step_names = ['Create PDP Pool', 'Create PDP Pool EG 1.0 ST']
+        pooling_step_type = NamedMock(real_name=None)
+        lane_artifact = Mock(
+            input_artifact_list=Mock(return_value=[
+                Mock(
+                    # 1 input artifact - not yet reached pooling step
+                    input_artifact_list=Mock(return_value=[
+                        Mock(
+                            # > 1 input artifacts - pooling step
+                            input_artifact_list=Mock(return_value=['some', 'sample', 'artifacts']),
+                            parent_process=Mock(type=pooling_step_type)
+                        )
+                    ])
+                )
+            ])
+        )
+        for s in step_names:
+            pooling_step_type.real_name = s
+            obs = self.dataset._find_pooling_step_for_artifact(
+                lane_artifact,
+                step_names
+            )
+            assert obs == ['some', 'sample', 'artifacts']
+
+        with self.assertRaises(ValueError):
+            self.dataset._find_pooling_step_for_artifact(lane_artifact, step_names, 1)
+
+        with self.assertRaises(ValueError):
+            pooling_step_type.real_name = 'Not Create PDP Pool'
+            self.dataset._find_pooling_step_for_artifact(lane_artifact, step_names)
+
     @patch('analysis_driver.dataset.clarity.get_run')
     def test_rapid_samples_by_lane(self, mocked_get_run):
         mocked_get_run.return_value = MockedRunProcess(container=mocked_flowcell_pooling)
