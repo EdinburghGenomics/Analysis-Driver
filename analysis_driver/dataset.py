@@ -698,10 +698,10 @@ class ProjectDataset(Dataset):
 
     def get_processed_gvcfs(self):
         project_source = os.path.join(cfg.query('project', 'input_dir'), self.name)
+        gvcf_generating_pipelines = ('bcbio', 'variant_calling_gatk4', 'human_variant_calling_gatk4')
         gvcf_files = []
         for sample in self.samples_processed:
-            # Only check if we have gvcf when the samples have been through human processing that generate a gvcf
-            if query_dict(sample, 'aggregated.most_recent_proc.pipeline_used.name') == 'bcbio':
+            if query_dict(sample, 'aggregated.most_recent_proc.pipeline_used.name') in gvcf_generating_pipelines:
                 gvcf_file = find_file(project_source, sample['sample_id'], sample['user_sample_id'] + '.g.vcf.gz')
                 if not gvcf_file:
                     raise AnalysisDriverError(
