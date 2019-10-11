@@ -1,7 +1,6 @@
 import os
 import subprocess
 import time
-from egcg_core import rest_communication, util
 
 from egcg_core import rest_communication, util, exceptions
 from unittest.mock import Mock, patch
@@ -55,45 +54,11 @@ class IntegrationTest(ReportingAppIntegrationTest):
         self.run_dir = os.path.dirname(os.getcwd())  # we're inside the checked out project, not the top level
 
     def setUp(self):
-        # Set the LIMS data yaml file before the super().setUp so it is picked up durring the setup
+        # Set the LIMS data yaml file before the super().setUp so it is picked up during the setup
         self.lims_data_yaml = os.path.join(os.path.dirname(__file__), 'data_for_clarity_lims.yaml')
 
         super().setUp()
         cfg.load_config_file(os.getenv('ANALYSISDRIVERCONFIG'), env_var='ANALYSISDRIVERENV')
-
-        samples = [self.dog_gatk4_sample_id, self.dog_gatk_sample_id, self.human_gatk4_sample_id, self.human_gatk_sample_id]
-        for sample in samples:
-            run_elements = []
-
-            for lane in range(1, 8):
-                run_elements.append({
-                    'run_id': self.run_id, 'project_id': self.project_id, 'sample_id': sample,
-                    'library_id': self.library_id, 'run_element_id': '%s_%s_%s' % (self.run_id, lane, sample),
-                    'useable': 'yes', 'barcode': self.barcode, 'lane': lane, 'bases_r1': 70000000,
-                    'bases_r2': 70000000,'clean_bases_r1': 66000000, 'clean_bases_r2': 66000000,
-                    'q30_bases_r1': 64000000, 'q30_bases_r2': 64000000, 'clean_q30_bases_r1': 64000000,
-                    'clean_q30_bases_r2': 64000000,'clean_reads': 1
-                })
-            # Lane 8 has no data
-            run_elements.append(
-                {'run_id': self.run_id, 'project_id': self.project_id, 'sample_id': sample,
-                 'library_id': self.library_id, 'run_element_id': '%s_%s_%s' % (self.run_id, 8, sample),
-                 'useable': 'no', 'barcode': self.barcode, 'lane': 8, 'bases_r1': 0, 'bases_r2': 0,
-                 'clean_bases_r1': 0, 'clean_bases_r2': 0, 'q30_bases_r1': 0,
-                 'q30_bases_r2': 0, 'clean_q30_bases_r1': 0, 'clean_q30_bases_r2': 0,
-                 'clean_reads': 0}
-            )
-            for e in run_elements:
-                rest_communication.post_entry('run_elements', e)
-
-            rest_communication.post_entry(
-                'samples',
-                {'library_id': self.library_id, 'project_id': self.project_id, 'sample_id': sample,
-                 'run_elements': [e['run_element_id'] for e in run_elements], 'required_yield': 900000000,
-                 'required_coverage': 30, 'required_yield': 120000000000}
-            )
-
-        rest_communication.post_entry('projects', {'project_id': self.project_id, 'samples': samples})
 
         rest_communication.post_entry('species', {'name': 'Homo sapiens', 'default_version': 'hg38'})
         rest_communication.post_entry('species', {'name': 'Canis lupus familiaris', 'default_version': 'CanFam3.1'})
@@ -123,6 +88,40 @@ class IntegrationTest(ReportingAppIntegrationTest):
         self.dynamic_patches = []
         self._test_success = True
 
+    def _upload_sample_data(self, sample_id):
+        """Create the sample data that will be uploaded to the REST API so that it can be used to know which
+        run element to use. This should only be used for sample process tests."""
+        run_elements = []
+
+        for lane in range(1, 8):
+            run_elements.append({
+                'run_id': self.run_id, 'project_id': self.project_id, 'sample_id': sample_id,
+                'library_id': self.library_id, 'run_element_id': '%s_%s_%s' % (self.run_id, lane, sample_id),
+                'useable': 'yes', 'barcode': self.barcode, 'lane': lane, 'bases_r1': 70000000,
+                'bases_r2': 70000000, 'clean_bases_r1': 66000000, 'clean_bases_r2': 66000000,
+                'q30_bases_r1': 64000000, 'q30_bases_r2': 64000000, 'clean_q30_bases_r1': 64000000,
+                'clean_q30_bases_r2': 64000000, 'clean_reads': 1
+            })
+        # Lane 8 has no data
+        run_elements.append(
+            {'run_id': self.run_id, 'project_id': self.project_id, 'sample_id': sample_id,
+             'library_id': self.library_id, 'run_element_id': '%s_%s_%s' % (self.run_id, 8, sample_id),
+             'useable': 'no', 'barcode': self.barcode, 'lane': 8, 'bases_r1': 0, 'bases_r2': 0,
+             'clean_bases_r1': 0, 'clean_bases_r2': 0, 'q30_bases_r1': 0,
+             'q30_bases_r2': 0, 'clean_q30_bases_r1': 0, 'clean_q30_bases_r2': 0,
+             'clean_reads': 0}
+        )
+        for e in run_elements:
+            rest_communication.post_entry('run_elements', e)
+
+        rest_communication.post_entry(
+            'samples',
+            {'library_id': self.library_id, 'project_id': self.project_id, 'sample_id': sample_id,
+             'run_elements': [e['run_element_id'] for e in run_elements], 'required_yield': 900000000,
+             'required_coverage': 30, 'required_yield': 120000000000}
+        )
+        rest_communication.post_entry('projects', {'project_id': self.project_id, 'samples': [sample_id]})
+
     def tearDown(self):
         super().tearDown()
         self._reset_logging()
@@ -137,25 +136,11 @@ class IntegrationTest(ReportingAppIntegrationTest):
         else:
             raise exceptions.EGCGError('Input dir %s does not exist' % input_dir)
 
+        if test_type == 'sample':
+            self._upload_sample_data(dataset_name)
+
         os.makedirs(cfg['jobs_dir'])
         os.makedirs(cfg[test_type]['output_dir'])
-
-        # def _fake_get_sample(sample_name):
-        #     return Mock(
-        #         name=sample_name,
-        #         udf={
-        #             'Coverage': 1337,
-        #             'Analysis Type': analysis_type,
-        #             'Yield for Quoted Coverage (Gb)': 15,
-        #             'Required Yield (Gb)': 30,
-        #             'Coverage (X)': 15,
-        #         }
-        #     )
-
-        # self._add_patches(
-        #     patch('egcg_core.clarity.get_sample', new=_fake_get_sample),
-        #     patch('egcg_core.clarity.get_species_from_sample', return_value=species)
-        # )
 
         # Force the sample to be the first on in line
         payload = {
