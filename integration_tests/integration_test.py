@@ -492,11 +492,12 @@ class IntegrationTest(ReportingAppIntegrationTest):
             base_dir=os.path.join(cfg['project']['output_dir'], self.project_id)
         )
 
-        self.expect_stage_data(['genotypegvcfs', 'relatedness', 'peddy', 'parserelatedness', 'output', 'cleanup'])
+        self.expect_stage_data(['genomicsdbimport', 'gathervcfs', 'genotypegvcfs', 'relatedness', 'peddy',
+                                'parserelatedness', 'output', 'cleanup'])
         ad_procs = rest_communication.get_document('analysis_driver_procs', where={'dataset_name': self.project_id})
         self.expect_equal(
             ad_procs['pipeline_used'],
-            {'toolset_type': 'project_processing', 'name': 'project', 'toolset_version': 0},
+            {'toolset_type': 'project_processing', 'name': 'gatk4project', 'toolset_version': 1},
             'pipeline used'
         )
 

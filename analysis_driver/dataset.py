@@ -9,7 +9,7 @@ from time import sleep
 from egcg_core import rest_communication, clarity
 from egcg_core.app_logging import AppLogger
 from egcg_core.config import cfg
-from egcg_core.util import query_dict
+from egcg_core.util import query_dict, find_file
 from egcg_core.constants import *  # pylint: disable=unused-import
 from egcg_core.exceptions import RestCommunicationError
 from analysis_driver import reader
@@ -695,6 +695,21 @@ class ProjectDataset(Dataset):
                 all_pages=True
             )
         return self._samples_processed
+
+    def get_processed_gvcfs(self):
+        project_source = os.path.join(cfg.query('project', 'input_dir'), self.name)
+        gvcf_generating_pipelines = ('bcbio', 'variant_calling_gatk4', 'human_variant_calling_gatk4')
+        gvcf_files = []
+        for sample in self.samples_processed:
+            if query_dict(sample, 'aggregated.most_recent_proc.pipeline_used.name') in gvcf_generating_pipelines:
+                gvcf_file = find_file(project_source, sample['sample_id'], sample['user_sample_id'] + '.g.vcf.gz')
+                if not gvcf_file:
+                    raise AnalysisDriverError(
+                        'Unable to find gVCF file for sample %s in %s' % (sample['sample_id'], project_source)
+                    )
+                gvcf_files.append(gvcf_file)
+
+        return gvcf_files
 
     @property
     def number_of_samples(self):
