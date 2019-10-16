@@ -6,9 +6,9 @@ from datetime import datetime
 from errno import ESRCH
 from sys import modules
 from time import sleep
-from egcg_core import rest_communication, clarity
+from egcg_core import rest_communication
 from egcg_core.app_logging import AppLogger
-from egcg_core.clarity import sanitize_user_id
+from egcg_core.clarity import sanitize_user_id, get_species_name
 from egcg_core.config import cfg
 from egcg_core.util import query_dict, find_file
 from egcg_core.constants import *  # pylint: disable=unused-import
@@ -735,7 +735,7 @@ class ProjectDataset(Dataset):
         if self._species is None:
             s = set()
             for sample in self.samples_processed:
-                s.add(self.sample_dataset(sample['sample_id']).species)
+                s.add(sample.get('species_name') or self.sample_dataset(sample['sample_id']).species)
             if len(s) != 1:
                 raise AnalysisDriverError('Unexpected number of species (%s) in this project' % ', '.join(s))
             self._species = s.pop()

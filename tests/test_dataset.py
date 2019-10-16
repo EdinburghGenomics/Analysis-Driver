@@ -284,12 +284,6 @@ class TestRunDataset(TestDataset):
             d = RunDataset('dataset_ready')
             assert d._is_ready()
 
-    def test_dataset_status(self):
-        with patched_get_run:
-            super().test_dataset_status()
-            del self.dataset.most_recent_proc.entity['status']
-            assert self.dataset.dataset_status == c.DATASET_READY
-
     def setup_dataset(self):
         self.dataset = RunDataset(
             'test_dataset',
@@ -516,24 +510,22 @@ class TestProjectDataset(TestDataset):
                 'tests/assets/test_projects/test_dataset/sample_4/uid_4.g.vcf.gz'
             ]
 
-    @patch(ppath + 'clarity.get_project', return_value=None)
-    def test_number_of_samples(self, mocked_project):
-        assert self.dataset.number_of_samples == -1  # no project data
-
-        self.dataset._number_of_samples = None
-        mocked_project.return_value = Mock(udf={})
+    @patch('analysis_driver.dataset.rest_communication.get_document')
+    def test_number_of_samples(self, mocked_get_doc):
+        mocked_get_doc.return_value = {}
         assert self.dataset.number_of_samples == -1  # quoted samples missing
 
         self.dataset._number_of_samples = None
-        mocked_project.return_value = Mock(udf={'Number of Quoted Samples': 3})
+        self.dataset._lims_project_info = None
+        mocked_get_doc.return_value = {'nb_quoted_samples': 3}
         assert self.dataset.number_of_samples == 3
 
-    @patch(ppath + 'clarity.get_species_from_sample', return_value='species_from_clarity')
-    def test_species(self, mocked_species):
+    def test_species(self):
         self.dataset._samples_processed = [
             {'sample_id': 'sample_1', 'species_name': 'this'},
             {'sample_id': 'sample_2'}
         ]
+        self.dataset._sample_datasets = {'sample_2': Mock(species='species_from_clarity')}
 
         # species = 'this', 'species_from_clarity'
         with self.assertRaises(AnalysisDriverError):
@@ -544,20 +536,11 @@ class TestProjectDataset(TestDataset):
         self.dataset._samples_processed[1]['species_name'] = 'this'
         assert self.dataset.species == 'this'
 
-    @patched_get_doc({'default_version': '1'})
-    @patch(ppath + 'clarity.get_sample', return_value=Mock(udf={'Genome Version': '2'}))
-    def test_genome_version(self, mocked_sample, mocked_get):
+    def test_genome_version(self):
         self.dataset._samples_processed = [{'sample_id': 'sample_1'}]
-        self.dataset._species = 'this'
-        assert self.dataset.genome_version == '2'
-        mocked_sample.assert_called_with('sample_1')
-        assert mocked_get.call_count == 0
+        self.dataset._sample_datasets = {'sample_1': Mock(genome_version='2')}
 
-        self.dataset._genome_version = None
-        self.dataset._reference_genome = None
-        mocked_sample.return_value = Mock(udf={})
-        assert self.dataset.genome_version == '1'
-        mocked_get.assert_called_with('species', where={'name': 'this'})
+        assert self.dataset.genome_version == '2'
 
 
 class TestMostRecentProc(TestAnalysisDriver):
