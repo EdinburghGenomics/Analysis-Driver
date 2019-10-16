@@ -1,9 +1,9 @@
 from egcg_core import executor
 from analysis_driver import quality_control as qc
 from analysis_driver.segmentation import Parameter
-from analysis_driver.pipelines import Pipeline, common
+from analysis_driver.pipelines import common
 from analysis_driver.pipelines.qc_gatk4 import SelectSNPs, SelectIndels, GATK4Stage, FastqIndex, SplitBWA, \
-    MergeBamAndDup, SNPsFiltration, IndelsFiltration, MergeVariants
+    MergeBamAndDup, SNPsFiltration, IndelsFiltration, MergeVariants, QCGATK4, ChunkHandler
 from analysis_driver.pipelines.variant_calling_gatk4 import SplitHaplotypeCallerVC, \
     ScatterBaseRecalibrator, GatherBQSRReport, ScatterApplyBQSR, GatherRecalBam, GatherGVCF, VariantAnnotation, \
     GatherVCFVC, SplitGenotypeGVCFs
@@ -133,9 +133,12 @@ class ApplyVQSR(GATK4Stage):
         return recal_status
 
 
-class HumanVarCallingGATK4(Pipeline):
-    toolset_type = 'gatk4_sample_processing'
+class HumanVarCallingGATK4(QCGATK4):
     _name = 'human_variant_calling_gatk4'
+
+    def __init__(self, dataset):
+        super().__init__(dataset)
+        self.chunk_handler = ChunkHandler(self.dataset)
 
     def build(self):
         """Build the variant calling pipeline (for human)."""

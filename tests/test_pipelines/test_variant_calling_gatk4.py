@@ -1,6 +1,6 @@
 import os
 import shutil
-from os.path import join, dirname, abspath, isfile, isdir
+from os.path import join, dirname, abspath, isdir
 from unittest.mock import patch, Mock
 
 import pytest
@@ -10,14 +10,14 @@ from egcg_core.constants import ELEMENT_LANE, ELEMENT_NB_READS_CLEANED, ELEMENT_
 from analysis_driver.exceptions import AnalysisDriverError
 from analysis_driver.pipelines.human_variant_calling_gatk4 import VQSRFiltrationSNPs, VQSRFiltrationIndels, \
     ApplyVQSR
-from analysis_driver.pipelines.qc_gatk4 import SplitBWA, SplitHaplotypeCaller, SplitFastqStage, FastqIndex, \
-    MergeBamAndDup, PostAlignmentScatter, GatherVCF, MergeVariants, SelectSNPs, SelectIndels, IndelsFiltration, \
-    SNPsFiltration, GATK4FilePath
-from analysis_driver.pipelines.variant_calling_gatk4 import ScatterBaseRecalibrator, PostAlignmentScatterVC, \
+from analysis_driver.pipelines.qc_gatk4 import SplitBWA, SplitHaplotypeCaller, FastqIndex, \
+    MergeBamAndDup, GatherVCF, MergeVariants, SelectSNPs, SelectIndels, IndelsFiltration, \
+    SNPsFiltration, GATK4FilePath, ChunkHandler
+from analysis_driver.pipelines.variant_calling_gatk4 import ScatterBaseRecalibrator, \
     GatherBQSRReport, ScatterApplyBQSR, GatherRecalBam, SplitHaplotypeCallerVC, GatherGVCF, SplitGenotypeGVCFs, \
     VariantAnnotation
 from tests.test_pipelines.test_variant_calling import TestVariantCalling
-
+from tests.test_analysisdriver import NamedMock
 
 patch_executor = patch('analysis_driver.pipelines.variant_calling_gatk4.executor.execute')
 
@@ -25,9 +25,16 @@ patch_executor = patch('analysis_driver.pipelines.variant_calling_gatk4.executor
 class TestGATK4(TestVariantCalling):
     def setUp(self):
         super().setUp()
-        self.dataset.reference_genome = join(self.assets_path, 'genome.fa')
         self.current_wd = os.getcwd()
         os.chdir(dirname(dirname(dirname(__file__))))
+
+        self.handler = ChunkHandler(
+            NamedMock(
+                reference_genome=join(self.assets_path, 'genome.fa'),
+                real_name='test_dataset'
+            )
+        )
+        self.pipeline = Mock(chunk_handler=self.handler)
 
     def tearDown(self):
         super().tearDown()
@@ -39,6 +46,73 @@ class TestGATK4(TestVariantCalling):
             else:
                 os.remove(join(test_dataset_dir, d))
         os.chdir(self.current_wd)
+
+
+class TestChunkHandler(TestGATK4):
+    def test_split_genome_in_chunks1(self):
+        exp_chunks = [
+            [('bigchr1', 0, 15000000)],
+            [('bigchr2', 0, 20000000)],
+            [('bigchr2', 20000000, 40000000)],
+            [
+                ('bigchr2', 40000000, 45000000), ('smchr1', 0, 10000), ('smchr2', 0, 10000),
+                ('smchr3', 0, 10000), ('smchr4', 0, 10000)
+            ],
+            [('bigchr3', 0, 20000000)],
+            [('bigchr3', 20000000, 40000000)],
+            [('bigchr3', 40000000, 60000000)],
+            [('bigchr3', 60000000, 76000000)]
+        ]
+        assert exp_chunks == self.handler.split_genome_in_chunks()
+
+    def test_split_genome_in_chunks2(self):
+        ref_file = join(self.assets_path, 'genome_many_contigs.fa')
+        with open(ref_file + '.fai', 'w') as open_file:
+            for i in range(2400):
+                open_file.write('contig_%s\t1000\t-\t-\t-\n' % i)
+
+        self.handler.dataset.reference_genome = ref_file
+        obs_chunks = self.handler.split_genome_in_chunks()
+        # 3 sets of chunks because limit of 1000 chunk per file
+        assert len(obs_chunks) == 3
+        os.remove(ref_file + '.fai')
+
+    def test_split_genome_files(self):
+        split_dir = 'tests/assets/jobs/test_dataset'
+        expected_output = {
+            ('bigchr1', 0, 15000000): join(split_dir, 'test_dataset_region_bigchr1-0-15000000.bed'),
+            ('bigchr2', 0, 20000000): join(split_dir, 'test_dataset_region_bigchr2-0-20000000.bed'),
+            ('bigchr2', 20000000, 40000000): join(split_dir, 'test_dataset_region_bigchr2-20000000-40000000.bed'),
+            ('bigchr2', 40000000, 45000000): join(split_dir, 'test_dataset_region_bigchr2-40000000-45000000.bed'),
+            ('bigchr3', 0, 20000000): join(split_dir, 'test_dataset_region_bigchr3-0-20000000.bed'),
+            ('bigchr3', 20000000, 40000000): join(split_dir, 'test_dataset_region_bigchr3-20000000-40000000.bed'),
+            ('bigchr3', 40000000, 60000000): join(split_dir, 'test_dataset_region_bigchr3-40000000-60000000.bed'),
+            ('bigchr3', 60000000, 76000000): join(split_dir, 'test_dataset_region_bigchr3-60000000-76000000.bed')
+        }
+        assert self.handler.split_genome_files(split_dir) == expected_output
+
+        # Small chroms are added along the larger ones in order
+        with open(join(split_dir, 'test_dataset_region_bigchr2-40000000-45000000.bed')) as ofile:
+            assert ofile.readlines() == [
+                'bigchr2\t40000000\t45000000\n',
+                'smchr1\t0\t10000\n',
+                'smchr2\t0\t10000\n',
+                'smchr3\t0\t10000\n',
+                'smchr4\t0\t10000\n'
+            ]
+
+    def test_chunks_from_fastq(self):
+        chunks = self.handler.chunks_from_fastq([os.path.join(self.assets_path, 'indexed_fastq_file1.gz')])
+        assert chunks == [
+            (1, 100000000), (100000001, 200000000), (200000001, 300000000), (300000001, 400000000),
+            (400000001, 500000000),  (500000001, 500000002)
+        ]
+
+    def test_split_genome_chromosomes(self):
+        assert self.handler.split_genome_chromosomes() == [
+            ['bigchr1', 'bigchr2', 'smchr1', 'smchr2', 'smchr3', 'smchr4'],
+            ['bigchr3']
+        ]
 
 
 class TestGATK4FilePath(TestGATK4):
@@ -58,22 +132,10 @@ class TestGATK4FilePath(TestGATK4):
         }
         self.stage.dataset.genome_dict = {'data_files': {}}
         with pytest.raises(AnalysisDriverError):
-            self.stage.vqsr_datasets
-
-
-class TestSplitFastqStage(TestGATK4):
-
-    def test_chunks_from_fastq(self):
-        stage = SplitFastqStage(dataset=self.dataset)
-        chunks = stage.chunks_from_fastq([os.path.join(self.assets_path, 'indexed_fastq_file1.gz')])
-        assert chunks == [
-            (1, 100000000), (100000001, 200000000), (200000001, 300000000), (300000001, 400000000),
-            (400000001, 500000000),  (500000001, 500000002)
-        ]
+            _ = self.stage.vqsr_datasets
 
 
 class TestFastqIndex(TestGATK4):
-
     def test_run(self):
         self.dataset.run_elements = [
             {ELEMENT_RUN_ELEMENT_ID: 'a_run_1', ELEMENT_PROJECT_ID: 'a_project', ELEMENT_NB_READS_CLEANED: 1,
@@ -113,9 +175,8 @@ class TestFastqIndex(TestGATK4):
 
 
 class TestSplitBWA(TestGATK4):
-
     def test_bwa_command(self):
-        stage = SplitBWA(dataset=self.dataset)
+        stage = SplitBWA(dataset=self.dataset, pipeline=self.pipeline)
         cmd = stage.bwa_command(
             ['file_R1.fastq.gz', 'file_R2.fastq.gz'], 'reference.fa',
             'expected_output_bam', {'ID': '1', 'SM': 'sample1', 'PL': 'illumina'}, (1, 10000))
@@ -132,7 +193,7 @@ class TestSplitBWA(TestGATK4):
         index_fastq_files = [join(self.assets_path, 'indexed_fastq_file1.gz'),
                              join(self.assets_path, 'indexed_fastq_file2.gz')]
 
-        stage = SplitBWA(dataset=self.dataset)
+        stage = SplitBWA(dataset=self.dataset, pipeline=self.pipeline)
         with patch.object(SplitBWA, '_indexed_fastq_for_run_element', return_value=index_fastq_files), \
                 patch_executor as e, patch.object(SplitBWA, 'bwa_command', return_value='command_bwa') as mcommand:
             stage._run()
@@ -153,7 +214,7 @@ class TestSplitBWA(TestGATK4):
         assert mcommand.call_count == 6
 
     def test_bwa_command_with_alt(self):
-        stage = SplitBWA(dataset=self.dataset)
+        stage = SplitBWA(dataset=self.dataset, pipeline=self.pipeline)
         with patch('os.path.isfile', return_value=True):
             cmd = stage.bwa_command(
                 ['file_R1.fastq.gz', 'file_R2.fastq.gz'], 'reference.fa',
@@ -165,15 +226,15 @@ class TestSplitBWA(TestGATK4):
               'path/to/samtools_1.3.1 sort -n -m 1G -O bam -T expected_output_bam -o expected_output_bam -'
         assert cmd == exp
 
-class TestMergeBamAndDup(TestGATK4):
 
+class TestMergeBamAndDup(TestGATK4):
     def test_run(self):
         self.dataset.run_elements = [
             {ELEMENT_RUN_ELEMENT_ID: 'a_run_1', ELEMENT_NB_READS_CLEANED: 1, ELEMENT_RUN_NAME: 'a_run', ELEMENT_LANE: 1}
         ]
         index_fastq_files = [join(self.assets_path, 'indexed_fastq_file1.gz'),
                              join(self.assets_path, 'indexed_fastq_file2.gz')]
-        stage = MergeBamAndDup(dataset=self.dataset)
+        stage = MergeBamAndDup(dataset=self.dataset, pipeline=Mock(chunk_handler=Mock(chunks_from_fastq=Mock(return_value=[(1, 100000000)]))))
 
         with patch.object(MergeBamAndDup, '_indexed_fastq_for_run_element', return_value=index_fastq_files), \
                 patch_executor as e:
@@ -196,79 +257,9 @@ class TestMergeBamAndDup(TestGATK4):
             )
 
 
-class TestPostAlignmentScatter(TestGATK4):
-
-    def test_split_genome_in_chunks1(self):
-        stage = PostAlignmentScatter(dataset=self.dataset)
-        exp_chunks = [
-            [('bigchr1', 0, 15000000)],
-            [('bigchr2', 0, 20000000)],
-            [('bigchr2', 20000000, 40000000)],
-            [
-                ('bigchr2', 40000000, 45000000), ('smchr1', 0, 10000), ('smchr2', 0, 10000),
-                ('smchr3', 0, 10000), ('smchr4', 0, 10000)
-            ],
-            [('bigchr3', 0, 20000000)],
-            [('bigchr3', 20000000, 40000000)],
-            [('bigchr3', 40000000, 60000000)],
-            [('bigchr3', 60000000, 76000000)]
-        ]
-        assert exp_chunks == stage.split_genome_in_chunks()
-
-    def test_split_genome_in_chunks2(self):
-        ref_file = join(self.assets_path, 'genome_many_contigs.fa')
-        with open(ref_file + '.fai', 'w') as open_file:
-            for i in range(2400):
-                open_file.write('contig_%s\t1000\t-\t-\t-\n' % i)
-
-        self.dataset.reference_genome = ref_file
-        stage = PostAlignmentScatter(dataset=self.dataset)
-
-        obs_chunks = stage.split_genome_in_chunks()
-        # 3 sets of chunks because limit of 1000 chunk per file
-        assert len(obs_chunks) == 3
-        os.remove(ref_file + '.fai')
-
-    def test_split_genome_files(self):
-        stage = PostAlignmentScatter(dataset=self.dataset)
-        split_dir = 'tests/assets/jobs/test_dataset/post_alignment_split'
-        expected_output = {
-            ('bigchr1', 0, 15000000): join(split_dir, 'test_dataset_region_bigchr1-0-15000000.bed'),
-            ('bigchr2', 0, 20000000): join(split_dir, 'test_dataset_region_bigchr2-0-20000000.bed'),
-            ('bigchr2', 20000000, 40000000): join(split_dir, 'test_dataset_region_bigchr2-20000000-40000000.bed'),
-            ('bigchr2', 40000000, 45000000): join(split_dir, 'test_dataset_region_bigchr2-40000000-45000000.bed'),
-            ('bigchr3', 0, 20000000): join(split_dir, 'test_dataset_region_bigchr3-0-20000000.bed'),
-            ('bigchr3', 20000000, 40000000): join(split_dir, 'test_dataset_region_bigchr3-20000000-40000000.bed'),
-            ('bigchr3', 40000000, 60000000): join(split_dir, 'test_dataset_region_bigchr3-40000000-60000000.bed'),
-            ('bigchr3', 60000000, 76000000): join(split_dir, 'test_dataset_region_bigchr3-60000000-76000000.bed')
-        }
-        assert stage.split_genome_files() == expected_output
-
-        # Small chroms are added along the larger ones in order
-        with open(join(split_dir, 'test_dataset_region_bigchr2-40000000-45000000.bed')) as ofile:
-            assert ofile.readlines() == [
-                'bigchr2\t40000000\t45000000\n',
-                'smchr1\t0\t10000\n',
-                'smchr2\t0\t10000\n',
-                'smchr3\t0\t10000\n',
-                'smchr4\t0\t10000\n'
-            ]
-
-
-class TestPostAlignmentScatterVC(TestGATK4):
-
-    def test_split_genome_chromosomes(self):
-        stage = PostAlignmentScatterVC(dataset=self.dataset)
-        assert stage.split_genome_chromosomes() == [
-            ['bigchr1', 'bigchr2', 'smchr1', 'smchr2', 'smchr3', 'smchr4'],
-            ['bigchr3']
-        ]
-
-
 class TestScatterBaseRecalibrator(TestGATK4):
-
     def test_base_recalibrator_cmd(self):
-        stage = ScatterBaseRecalibrator(dataset=self.dataset)
+        stage = ScatterBaseRecalibrator(dataset=self.dataset, pipeline=self.pipeline)
         obs_cmd = stage.base_recalibrator_cmd(['chr1'])
         cmd = 'path/to/gatk ' \
               '--java-options "-Djava.io.tmpdir=%s -XX:+UseSerialGC -Xmx6G" BaseRecalibrator ' \
@@ -279,7 +270,7 @@ class TestScatterBaseRecalibrator(TestGATK4):
         assert obs_cmd == cmd
 
     def test_run(self):
-        stage = ScatterBaseRecalibrator(dataset=self.dataset)
+        stage = ScatterBaseRecalibrator(dataset=self.dataset, pipeline=self.pipeline)
         with patch.object(ScatterBaseRecalibrator, 'base_recalibrator_cmd', return_value='recal_cmd') as mcommand, \
                 patch_executor as e:
             stage._run()
@@ -291,9 +282,8 @@ class TestScatterBaseRecalibrator(TestGATK4):
 
 
 class TestGatherBQSRReport(TestGATK4):
-
     def test_run(self):
-        stage = GatherBQSRReport(dataset=self.dataset)
+        stage = GatherBQSRReport(dataset=self.dataset, pipeline=self.pipeline)
         with patch_executor as e:
             stage._run()
             e.assert_called_with(
@@ -305,9 +295,8 @@ class TestGatherBQSRReport(TestGATK4):
 
 
 class TestScatterApplyBQSR(TestGATK4):
-
     def test_apply_bqsr_cmd(self):
-        stage = ScatterApplyBQSR(dataset=self.dataset)
+        stage = ScatterApplyBQSR(dataset=self.dataset, pipeline=self.pipeline)
         obs_cmd = stage.apply_bqsr_cmd(['chr1'])
         exp_cmd = 'path/to/gatk --java-options "-Djava.io.tmpdir=%s -XX:+UseSerialGC -Xmx6G" ApplyBQSR ' \
                   '--output tests/assets/jobs/test_dataset/post_alignment_split/test_dataset_recal_chr1.bam ' \
@@ -322,7 +311,7 @@ class TestScatterApplyBQSR(TestGATK4):
         assert obs_cmd == exp_cmd
 
     def test_run(self):
-        stage = ScatterApplyBQSR(dataset=self.dataset)
+        stage = ScatterApplyBQSR(dataset=self.dataset, pipeline=self.pipeline)
         with patch.object(ScatterApplyBQSR, 'apply_bqsr_cmd', return_value='bqsr_cmd') as mcommand, \
                 patch_executor as e:
             stage._run()
@@ -338,9 +327,8 @@ class TestScatterApplyBQSR(TestGATK4):
 
 
 class TestGatherRecalBam(TestGATK4):
-
     def test_run(self):
-        stage = GatherRecalBam(dataset=self.dataset)
+        stage = GatherRecalBam(dataset=self.dataset, pipeline=self.pipeline)
         with patch_executor as e:
             stage._run()
         exp_cmd = 'path/to/java_8 -Djava.io.tmpdir=%s -XX:+UseSerialGC -Xmx6G -jar path/to/picard GatherBamFiles ' \
@@ -352,9 +340,8 @@ class TestGatherRecalBam(TestGATK4):
 
 
 class TestSplitHaplotypeCaller(TestGATK4):
-
     def test_haplotype_caller_cmd(self):
-        stage = SplitHaplotypeCaller(dataset=self.dataset, bam_file='a_bam_file.bam')
+        stage = SplitHaplotypeCaller(dataset=self.dataset, bam_file='a_bam_file.bam', pipeline=self.pipeline)
         obs_cmd = stage.haplotype_caller_cmd(('chr1', 1, 1000), 'path/to/region/file')
         exp_cmd = 'path/to/gatk --java-options "-Djava.io.tmpdir=%s ' \
                   '-XX:+UseSerialGC -Xmx6G" HaplotypeCaller ' \
@@ -370,7 +357,7 @@ class TestSplitHaplotypeCaller(TestGATK4):
         assert exp_cmd % (stage.dir_to_delete[0], self.dataset.reference_genome) == obs_cmd
 
     def test_run(self):
-        stage = SplitHaplotypeCaller(dataset=self.dataset, bam_file='a_bam_file.bam')
+        stage = SplitHaplotypeCaller(dataset=self.dataset, bam_file='a_bam_file.bam', pipeline=self.pipeline)
         with patch.object(SplitHaplotypeCaller, 'haplotype_caller_cmd', return_value='hp_cmd') as mcommand, \
                 patch_executor as e:
             stage._run()
@@ -385,7 +372,7 @@ class TestSplitHaplotypeCaller(TestGATK4):
 
 class TestSplitHaplotypeCallerVC(TestGATK4):
     def test_haplotype_caller_cmd(self):
-        stage = SplitHaplotypeCallerVC(dataset=self.dataset, bam_file='a_bam_file.bam')
+        stage = SplitHaplotypeCallerVC(dataset=self.dataset, bam_file='a_bam_file.bam', pipeline=self.pipeline)
         obs_cmd = stage.haplotype_caller_cmd(('chr1', 1, 1000), 'path/to/region/file')
         exp_cmd = 'path/to/gatk --java-options "-Djava.io.tmpdir=%s ' \
                   '-XX:+UseSerialGC -Xmx6G" HaplotypeCaller ' \
@@ -399,7 +386,7 @@ class TestSplitHaplotypeCallerVC(TestGATK4):
 
 class TestGatherGVCF(TestGATK4):
     def test_run(self):
-        stage = GatherGVCF(dataset=self.dataset)
+        stage = GatherGVCF(dataset=self.dataset, pipeline=self.pipeline)
         with patch_executor as e:
             e.return_value = Mock(join=Mock(return_value=0))
             stage._run()
@@ -414,9 +401,8 @@ class TestGatherGVCF(TestGATK4):
 
 
 class TestSplitGenotypeGVCFs(TestGATK4):
-
     def test_genotypegvcf_cmd(self):
-        stage = SplitGenotypeGVCFs(dataset=self.dataset)
+        stage = SplitGenotypeGVCFs(dataset=self.dataset, pipeline=self.pipeline)
         obs_cmd = stage.genotypegvcf_cmd(('chr1', 1, 1000), 'path/to/region/file')
         exp_cmd = 'path/to/gatk --java-options "-Djava.io.tmpdir=%s -XX:+UseSerialGC -Xmx6G" GenotypeGVCFs ' \
                   '--output tests/assets/jobs/test_dataset/post_alignment_split/test_dataset_genotype_gvcf_chr1-1-1000.vcf.gz  ' \
@@ -428,11 +414,11 @@ class TestSplitGenotypeGVCFs(TestGATK4):
                   '--annotation DepthPerSampleHC --annotation FisherStrand --annotation MappingQuality ' \
                   '--annotation MappingQualityRankSumTest --annotation MappingQualityZero --annotation QualByDepth ' \
                   '--annotation ReadPosRankSumTest --annotation RMSMappingQuality'
-        print(obs_cmd)
+
         assert exp_cmd % (stage.dir_to_delete[0], self.dataset.reference_genome) == obs_cmd
 
     def test_run(self):
-        stage = SplitGenotypeGVCFs(dataset=self.dataset)
+        stage = SplitGenotypeGVCFs(dataset=self.dataset, pipeline=self.pipeline)
         with patch.object(SplitGenotypeGVCFs, 'genotypegvcf_cmd', return_value='gg_cmd') as mcommand, \
                 patch_executor as e:
             stage._run()
@@ -446,9 +432,8 @@ class TestSplitGenotypeGVCFs(TestGATK4):
 
 
 class TestGatherVCF(TestGATK4):
-
     def test_run(self):
-        stage = GatherVCF(dataset=self.dataset)
+        stage = GatherVCF(dataset=self.dataset, pipeline=self.pipeline)
         with patch_executor as e:
             e.return_value = Mock(join=Mock(return_value=0))
             stage._run()
@@ -460,7 +445,6 @@ class TestGatherVCF(TestGATK4):
 
 
 class TestVariantAnnotation(TestGATK4):
-
     def test_run(self):
         stage = VariantAnnotation(dataset=self.dataset)
         with patch_executor as e:
@@ -555,8 +539,8 @@ class TestApplyVQSR(TestGATK4):
                       '--truth-sensitivity-filter-level 99.7 ' \
                       '--recal-file tests/assets/jobs/test_dataset/gatk4/test_user_sample_id_vqsr_snps_recall.vcf.gz'
             e.assert_any_call(exp_cmd % (stage.dir_to_delete[1], self.dataset.reference_genome), cpus=1,
-                                 job_name='apply_vqsr_snps', mem=16,
-                                 working_dir='tests/assets/jobs/test_dataset/slurm_and_logs')
+                              job_name='apply_vqsr_snps', mem=16,
+                              working_dir='tests/assets/jobs/test_dataset/slurm_and_logs')
             assert e.call_count == 2
 
 
@@ -621,7 +605,6 @@ class TestIndelsFiltration(TestGATK4):
 
 
 class TestMergeVariants(TestGATK4):
-
     def test_run(self):
         stage = MergeVariants(dataset=self.dataset, vcf_files=['file1.vcf.gz', 'file1.vcf.gz'],
                               output_vcf_file='output.vcf.gz')
