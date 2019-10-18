@@ -1,5 +1,6 @@
 import glob
 import os
+import shutil
 from xml.etree import ElementTree as et
 
 from egcg_core.constants import ELEMENT_PROJECT_ID, ELEMENT_LANE, ELEMENT_SAMPLE_INTERNAL_ID
@@ -57,6 +58,13 @@ def split_in_chunks(total_length, chunksize, zero_based=False, end_inclusive=Tru
 
 
 def merge_lane_directories(fastq_dir, run_elements):
+    """
+    At the end of a per lane bcl2fastq run the data in the lane directories must be merged back to the main fastq dir
+    This function does that by moving all the fastq files to the expected location
+    and the stats file are move to a central Stats folder. They are rename to avoid file collision.
+    :param fastq_dir: The main fastq dir
+    :param run_elements: The run element expected in this run
+    """
     # find all the lane directories:
     lane_dirs = glob.glob(os.path.join(fastq_dir, 'lane_*'))
 
@@ -96,3 +104,7 @@ def merge_lane_directories(fastq_dir, run_elements):
         os.makedirs(destination_dir, exist_ok=True)
         for fastq_path in fastq_paths:
             os.rename(fastq_path, os.path.join(destination_dir, os.path.basename(fastq_path)))
+
+    # All the files have been moved remove the lane directories
+    for lane_dir in lane_dirs:
+        shutil.rmtree(lane_dir)
