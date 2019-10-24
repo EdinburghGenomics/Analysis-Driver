@@ -17,7 +17,9 @@ class TestGenotypeGVCFs(QCTester):
         )
 
     def test_memory(self):
-        assert self.g.memory == 50
+        assert self.g.memory(range(1)) == 50
+        assert self.g.memory(range(20)) == 60
+        assert self.g.memory(range(100)) == 248
 
     def test_gatk_genotype_gvcfs_cmd(self):
         with patch(ppath + 'util.find_file', new=self.fake_find_file):

@@ -15,7 +15,7 @@ class Pipeline:
         return self._name or self.__class__.__name__.lower()
 
     def stage(self, cls, **params):
-        return cls(dataset=self.dataset, **params)
+        return cls(dataset=self.dataset, pipeline=self, **params)
 
     def build(self):
         raise NotImplementedError

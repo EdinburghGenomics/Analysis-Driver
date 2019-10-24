@@ -1,10 +1,8 @@
 import os
-import signal
 import time
-
 import pytest
 from sys import modules
-from unittest.mock import patch, Mock, PropertyMock, call
+from unittest.mock import patch, Mock, PropertyMock
 from egcg_core import constants as c
 from integration_tests.mocked_data import MockedSample, MockedRunProcess, mocked_run_status, mocked_run_status_pools
 from tests.test_analysisdriver import TestAnalysisDriver, NamedMock
@@ -19,8 +17,10 @@ patched_patch = patch(ppath + 'rest_communication.patch_entry')
 patched_post = patch(ppath + 'rest_communication.post_entry')
 patched_pid = patch(ppath + 'os.getpid', return_value=1)
 patched_update = patch(ppath + 'MostRecentProc.update_entity')
+
 patched_initialise = patch(ppath + 'MostRecentProc.initialise_entity')
 patched_finish = patch(ppath + 'MostRecentProc.finish')
+
 patched_is_ready = patch(ppath + 'Dataset._is_ready', return_value=None)
 patched_stages = patch(
     ppath + 'Dataset.running_stages',
@@ -48,17 +48,23 @@ class TestDataset(TestAnalysisDriver):
     base_dir = os.path.join(TestAnalysisDriver.assets_path, 'dataset_scanner')
 
     def setUp(self):
-        self.setup_dataset()
+        self.dataset = Dataset('test_dataset')
         self.dataset._ntf = Mock()
+        self.dataset.most_recent_proc = Mock()
 
     def test_dataset_status(self):
-        assert self.dataset.most_recent_proc.entity.get('status') is None
-
-        self.dataset.most_recent_proc.entity['status'] = 'a_status'
+        self.dataset.most_recent_proc = {'status': 'a_status'}
         assert self.dataset.dataset_status == 'a_status'
 
+        self.dataset.most_recent_proc = {}
+        with patch.object(self.dataset.__class__, '_is_ready', return_value=True) as mocked_ready:
+            assert self.dataset.dataset_status == c.DATASET_READY
+            mocked_ready.return_value = False
+            assert self.dataset.dataset_status == c.DATASET_NEW
+
     @patched_get_docs([{'stage_name': 'this', 'date_started': 'now'}, {'stage_name': 'that', 'date_started': 'then'}])
-    def test_stages(self, mocked_get):
+    def test_running_stages(self, mocked_get):
+        self.dataset.most_recent_proc = {'proc_id': 'a_proc_id'}
         assert self.dataset.running_stages == ['this', 'that']
         mocked_get.assert_called_with(
             'analysis_driver_stages',
@@ -66,83 +72,78 @@ class TestDataset(TestAnalysisDriver):
             where={'analysis_driver_proc': 'a_proc_id', 'date_finished': None}
         )
 
-    @patch(ppath + 'rest_communication.get_document', return_value={'run_id': 'a_run'})  # for RunDataset.initialise_entity
-    @patched_initialise
-    @patch(ppath + 'MostRecentProc.start')
-    @patch(ppath + 'MostRecentProc.retrieve_entity')
-    @patch(ppath + 'SampleDataset.lims_ntf', new_callable=PropertyMock)
-    def test_start(self, mocked_lims_ntf, mocked_retrieve_entity, mocked_start, mocked_update, mocked_get_doc):
-        self.dataset.most_recent_proc.entity['status'] = c.DATASET_PROCESSING
-        with patched_get_run, patched_is_ready:
-            with pytest.raises(AssertionError):
-                self.dataset.start()
-            del self.dataset.most_recent_proc.entity['status']
-            self.dataset.start()
-        for m in (mocked_update, self.dataset.ntf.start_pipeline, mocked_start):
-            assert m.call_count == 1
+    def test_start(self):
+        self.dataset.most_recent_proc.get.return_value = c.DATASET_RESUME
+        self.dataset.start()
+        assert self.dataset.most_recent_proc.retrieve_entity.call_count == 2  # 1 for assert_status, 1 for start
+        assert self.dataset.most_recent_proc.start.call_count == 1
+        assert self.dataset.ntf.start_pipeline.call_count == 1
 
-    @patched_finish
-    @patch(ppath + 'MostRecentProc.retrieve_entity')
-    @patch(ppath + 'SampleDataset.lims_ntf', new_callable=PropertyMock)
-    def test_succeed(self, mocked_lims_ntf, mocked_retrieve_entity, mocked_finish):
-        with patched_get_run, patched_is_ready:
-            with pytest.raises(AssertionError):
-                self.dataset.succeed()
-            self.dataset.most_recent_proc.entity['status'] = c.DATASET_PROCESSING
-            self.dataset.succeed()
+        self.dataset.most_recent_proc.get.return_value = c.DATASET_READY
+        self.dataset.start()
+        assert self.dataset.most_recent_proc.initialise_entity.call_count == 1
+
+    def test_succeed(self):
+        self.dataset.most_recent_proc.get.return_value = c.DATASET_PROCESSING
+        self.dataset.succeed()
+        self.dataset.most_recent_proc.finish.assert_called_with(c.DATASET_PROCESSED_SUCCESS)
         self.dataset.ntf.end_pipeline.assert_called_with(0)
-        mocked_finish.assert_called_with(c.DATASET_PROCESSED_SUCCESS)
+        self.dataset.most_recent_proc.get.return_value = {'status': c.DATASET_READY}
+        with self.assertRaises(AssertionError):
+            self.dataset.succeed()
 
-    @patched_finish
-    @patch(ppath + 'MostRecentProc.retrieve_entity')
-    @patch(ppath + 'SampleDataset.lims_ntf', new_callable=PropertyMock)
-    def test_fail(self, mocked_lims_ntf, mocked_retrieve_entity, mocked_finish):
-        with patched_get_run, patched_is_ready:
-            with pytest.raises(AssertionError):
-                self.dataset.succeed()
-
-        self.dataset.most_recent_proc.entity['status'] = c.DATASET_PROCESSING
+    def test_fail(self):
+        self.dataset.most_recent_proc.get.return_value = c.DATASET_PROCESSING
         self.dataset.fail(1)
+        self.dataset.most_recent_proc.finish.assert_called_with(c.DATASET_PROCESSED_FAIL)
         self.dataset.ntf.end_pipeline.assert_called_with(1)
-        mocked_finish.assert_called_with(c.DATASET_PROCESSED_FAIL)
 
-    @patched_finish
-    @patch(ppath + 'MostRecentProc.retrieve_entity')
-    @patch(ppath + 'SampleDataset.lims_ntf', new_callable=PropertyMock)
-    def test_abort(self, mocked_lims_ntf, mocked_retrieve_entity, mocked_finish):
+    def test_abort(self):
         self.dataset.abort()
-        mocked_finish.assert_called_with(c.DATASET_ABORTED)
+        self.dataset.most_recent_proc.finish.assert_called_with(c.DATASET_ABORTED)
 
-    @patch(ppath + 'MostRecentProc.change_status')
-    @patch(ppath + 'MostRecentProc.retrieve_entity')
-    def test_reset(self, mocked_retrieve_entity, mocked_change_status):
-        with patch(ppath + 'Dataset.terminate'):
+    def test_resume(self):
+        with patch.object(self.dataset.__class__, 'terminate'):
+            self.dataset.resume()
+        self.dataset.most_recent_proc.change_status.assert_called_with(c.DATASET_RESUME)
+
+    def test_reset(self):
+        with patch.object(self.dataset.__class__, 'terminate'):
             self.dataset.reset()
-        mocked_change_status.assert_called_with(c.DATASET_REPROCESS)
+        self.dataset.most_recent_proc.change_status.assert_called_with(c.DATASET_REPROCESS)
+
+    def test_force(self):
+        self.dataset.force()
+        self.dataset.most_recent_proc.change_status.assert_called_with(c.DATASET_FORCE_READY)
 
     @patch(ppath + 'sleep')
-    @patch(ppath + 'os.kill')
-    @patch(ppath + 'Dataset._pid_running', side_effect=[True, False])
-    def test_terminate(self, mocked_running, mocked_kill, mocked_sleep):
-        self.dataset.most_recent_proc._entity['pid'] = 1337
-        with patch(ppath + 'Dataset._pid_valid', return_value=False) as mocked_valid:
-            self.dataset._terminate(signal.SIGUSR2)
-            mocked_valid.assert_called_with(1337)
-            assert all(m.call_count == 0 for m in (mocked_kill, mocked_running, mocked_sleep))
+    @patch('os.kill')
+    def test_terminate(self, mocked_kill, mocked_sleep):
+        # no pid - nothing happens
+        self.dataset.most_recent_proc = {'pid': None}
+        self.dataset._terminate(1)
+        assert mocked_kill.call_count == 0
 
-        with patch(ppath + 'Dataset._pid_valid', return_value=True) as mocked_valid:
-            self.dataset.terminate()
+        # pid exists in database but has been finished or recycled - nothing happens
+        self.dataset.most_recent_proc = {'pid': 1337}
+        with patch.object(self.dataset.__class__, '_pid_valid', return_value=False) as mocked_valid:
+            self.dataset._terminate(1)
             mocked_valid.assert_called_with(1337)
-            mocked_kill.assert_called_with(1337, signal.SIGUSR2)
-            assert mocked_running.call_count == 2
-            assert mocked_sleep.call_count == 1
+            assert mocked_kill.call_count == 0
+
+            mocked_valid.return_value = True
+            with patch.object(self.dataset.__class__, '_pid_running', side_effect=[True, False]):
+                self.dataset._terminate(1)
+
+        mocked_kill.assert_called_with(1337, 1)
+        mocked_sleep.assert_called_with(1)
 
     def test_pid_valid(self):
-        cmdlinefile = os.path.join(TestAnalysisDriver.assets_path, 'example.pid')
+        cmdlinefile = os.path.join(self.assets_path, 'example.pid')
         if os.path.isfile(cmdlinefile):
             os.remove(cmdlinefile)
 
-        with patch(ppath + 'os.path.join', return_value=cmdlinefile):
+        with patch('os.path.join', return_value=cmdlinefile):
             assert self.dataset._pid_valid(1337) is False
 
             with open(cmdlinefile, 'w') as f:
@@ -150,28 +151,20 @@ class TestDataset(TestAnalysisDriver):
 
             assert self.dataset._pid_valid(1337) is True
 
-    @patch(ppath + 'MostRecentProc.start_stage')
-    def test_start_stage(self, mocked_start_stage):
+    def test_start_stage(self):
         self.dataset.start_stage('a_stage')
-        mocked_start_stage.assert_called_with('a_stage')
+        self.dataset.most_recent_proc.start_stage.assert_called_with('a_stage')
         self.dataset.ntf.start_stage.assert_called_with('a_stage')
 
-    @patch(ppath + 'MostRecentProc.end_stage')
-    def test_end_stage(self, mocked_end_stage):
+    def test_end_stage(self):
         self.dataset.end_stage('a_stage')
-        mocked_end_stage.assert_called_with('a_stage', 0)
+        self.dataset.most_recent_proc.end_stage.assert_called_with('a_stage', 0)
         self.dataset.ntf.end_stage.assert_called_with('a_stage', 0)
 
     def test_report(self):
+        self.dataset.most_recent_proc = {'pid': 1337}
         with patched_stages:
-            assert self.dataset.report() == 'test_dataset -- this, that, other'
-
-    def setup_dataset(self):
-        with patched_get_docs():
-            self.dataset = Dataset(
-                'test_dataset',
-                {'proc_id': 'a_proc_id', 'date_started': 'now', 'dataset_name': 'None', 'dataset_type': 'None'}
-            )
+            assert self.dataset.report() == 'test_dataset (1337) -- this, that, other'
 
     def test_raise_exceptions(self):
         self.dataset.register_exception(Mock(stage_name='task1'), SequencingRunError('RunErrored'))
@@ -197,7 +190,7 @@ class TestDataset(TestAnalysisDriver):
         )
 
     @patch(ppath + 'toolset', new=Toolset())
-    def test_pipeline_instruction(self):
+    def test_processing_instruction(self):
         pipeline = NamedMock(real_name='qc', toolset_type='non_human_sample_processing')
         with patch.object(self.dataset.__class__, 'pipeline', new=pipeline):
             assert self.dataset._processing_instruction() == {
@@ -288,16 +281,19 @@ mocked_flowcell_idt = Mock(placements={'%s:1' % i: mocked_idt_pool for i in rang
 
 
 class TestRunDataset(TestDataset):
+    def setUp(self):
+        self.dataset = RunDataset('test_dataset')
+        self.dataset._ntf = Mock()
+        self.dataset.most_recent_proc = Mock()
+
+    def test_start(self):
+        with patched_get_doc({'some': 'content'}):
+            super().test_start()
+
     def test_is_ready(self):
         with patched_get_docs():
             d = RunDataset('dataset_ready')
             assert d._is_ready()
-
-    def test_dataset_status(self):
-        with patched_get_run:
-            super().test_dataset_status()
-            del self.dataset.most_recent_proc.entity['status']
-            assert self.dataset.dataset_status == c.DATASET_READY
 
     def setup_dataset(self):
         self.dataset = RunDataset(
@@ -375,15 +371,44 @@ class TestRunDataset(TestDataset):
 
 
 class TestSampleDataset(TestDataset):
-    def test_dataset_status(self):
-        super().test_dataset_status()
-        del self.dataset.most_recent_proc.entity['status']
-        assert self.dataset.dataset_status == c.DATASET_READY
+    def setUp(self):
+        self.dataset = SampleDataset('test_dataset')
+        self.dataset._ntf = Mock()
+        self.dataset._lims_ntf = Mock()
+        self.dataset.most_recent_proc = Mock()
 
-    @patch(ppath + 'MostRecentProc.change_status')
-    def test_force(self, mocked_change_status):
-        self.dataset.force()
-        mocked_change_status.assert_called_with(c.DATASET_FORCE_READY)
+        self.dataset._run_elements = self.dataset._non_useable_run_elements = [
+            {'run_element_id': 'run_element1', 'run_id': 'a_run_id', 'clean_q30_bases_r1': 120,
+             'clean_q30_bases_r2': 115, 'q30_bases_r1': 150, 'q30_bases_r2': 130, 'bases_r1': 200, 'bases_r2': 190},
+            {'run_element_id': 'run_element2', 'run_id': 'another_run_id', 'clean_q30_bases_r1': 110,
+             'clean_q30_bases_r2': 135, 'q30_bases_r1': 170, 'q30_bases_r2': 150, 'bases_r1': 210, 'bases_r2': 205}
+        ]
+        self.dataset._sample = {
+            'aggregated': {'clean_yield_in_gb': 1.5, 'run_ids': ['a_run_id', 'another_run_id'], 'clean_pc_q30': 85,
+                           'from_run_elements': {'mean_coverage': 32}},
+            'required_yield': 1000000000,
+            'required_coverage': 30,
+            'project_id': 'a_project'
+        }
+        self.dataset._species = 'Teleogryllus oceanicus'
+        self.dataset._genome_version = '1'
+        self.dataset._data_threshold = 1000000000
+
+    @patched_get_doc({'project_whitelist': ['another_project']})
+    def test_genome_dict(self, mocked_get):
+        with self.assertRaises(AnalysisDriverError) as e:
+            _ = self.dataset.genome_dict
+
+        assert str(e.exception) == 'Project ID a_project not in whitelist for reference genome 1'
+
+        mocked_get.return_value = {
+            'project_whitelist': ['a_project'],
+            'data_files': {'fasta': 'Teleogryllus_oceanicus/v1/ref.fa'}
+        }
+        assert self.dataset.genome_dict == {
+            'project_whitelist': ['a_project'],
+            'data_files': {'fasta': 'path/to/genomes_dir/Teleogryllus_oceanicus/v1/ref.fa'}
+        }
 
     def test_amount_data(self):
         assert self.dataset._amount_data() == 1500000000
@@ -406,22 +431,27 @@ class TestSampleDataset(TestDataset):
             _ = self.dataset.required_coverage_threshold
         assert 'Could not find required coverage threshold' in str(e)
 
+    @patched_patch
     @patch(ppath + 'toolset', new=Toolset())
-    @patch(ppath + 'SampleDataset.project_id', new='a_project')
-    @patch(ppath + 'SampleDataset.pipeline', new=NamedMock(real_name='qc', toolset_type='non_human_sample_processing'))
-    def test_pipeline_instruction(self):
-        with patched_get_doc({'sample_pipeline': 'some_data'}):
-            assert self.dataset._processing_instruction() == 'some_data'
+    @patched_get_doc({'sample_pipeline': 'some_data'})
+    @patch.object(SampleDataset, 'pipeline', new=NamedMock(real_name='qc', toolset_type='non_human_sample_processing'))
+    def test_processing_instruction(self, mocked_get, mocked_patch):
+        assert self.dataset._processing_instruction() == 'some_data'
+        assert mocked_patch.call_count == 0
 
         exp = {
             'name': 'qc',
             'toolset_type': 'non_human_sample_processing',
-            'toolset_version': 1
+            'toolset_version': 1  # as per tests/assets/tool_versioning.yaml
         }
-
-        with patched_get_doc(None), patched_patch as mocked_patch:
-            assert self.dataset._processing_instruction() == exp
-            mocked_patch.assert_called_with('projects', {'sample_pipeline': exp}, 'project_id', 'a_project')
+        mocked_get.return_value = {}
+        assert self.dataset._processing_instruction() == exp
+        mocked_patch.assert_called_with(
+            'projects',
+            {'sample_pipeline': {'name': 'qc', 'toolset_type': 'non_human_sample_processing', 'toolset_version': 1}},
+            'project_id',
+            'a_project'
+        )
 
     def test_is_ready(self):
         self.dataset.sample['required_yield'] = 20000000000
@@ -431,104 +461,97 @@ class TestSampleDataset(TestDataset):
         assert self.dataset._is_ready()
 
     def test_report(self):
-        expected_str = 'test_dataset -- this, that, other  ' \
-                       '(yield: 1500000000 / 1000000000 and coverage: 32 / 30 from a_run_id, another_run_id) ' \
-                       '(non useable run elements in a_run_id, another_run_id)'
+        self.dataset.most_recent_proc = {'pid': 1337}
         with patched_stages:
-            assert self.dataset.report() == expected_str
-
-    def setup_dataset(self):
-        with patched_get_docs():
-            self.dataset = SampleDataset(
-                'test_dataset',
-                most_recent_proc={'proc_id': 'a_proc_id', 'date_started': 'now',
-                                  'dataset_name': 'None', 'dataset_type': 'None'}
+            assert self.dataset.report() == (
+                'test_dataset (1337) -- this, that, other  (yield: 1500000000 / 1000000000 and coverage: 32 / 30 '
+                'from a_run_id, another_run_id) (non useable run elements in a_run_id, another_run_id)'
             )
-        self.dataset._run_elements = self.dataset._non_useable_run_elements = [
-            {'run_element_id': 'run_element1', 'run_id': 'a_run_id', 'clean_q30_bases_r1': 120, 'clean_q30_bases_r2': 115, 'q30_bases_r1': 150, 'q30_bases_r2': 130, 'bases_r1': 200, 'bases_r2': 190},
-            {'run_element_id': 'run_element2', 'run_id': 'another_run_id', 'clean_q30_bases_r1': 110, 'clean_q30_bases_r2': 135, 'q30_bases_r1': 170, 'q30_bases_r2': 150, 'bases_r1': 210, 'bases_r2': 205}
-        ]
-        self.dataset._sample = {
-            'aggregated': {'clean_yield_in_gb': 1.5, 'run_ids': ['a_run_id', 'another_run_id'], 'clean_pc_q30': 85,
-                           'from_run_elements': {'mean_coverage': 32}},
-            'required_yield': 1000000000,
-            'required_coverage': 30,
-            'project_id': 'a_project'
-        }
-        self.dataset._species = 'Teleogryllus oceanicus'
-        self.dataset._genome_version = '1'
-        self.dataset._data_threshold = 1000000000
 
-    @patched_initialise
-    @patch(ppath + 'MostRecentProc.start')
-    @patch(ppath + 'MostRecentProc.retrieve_entity')
-    @patch(ppath + 'SampleDataset.lims_ntf', new_callable=PropertyMock)
-    def test_start(self, mocked_lims_ntf, mocked_retrieve_entity, mocked_start, mocked_update):
-        with patched_get_run:
-            self.dataset.start()
-            mocked_lims_ntf.assert_has_calls([call(), call().start_sample_pipeline()])
+    def test_start(self):
+        super().test_start()
+        assert self.dataset.lims_ntf.start_sample_pipeline.called
 
-    @patched_finish
-    @patch(ppath + 'MostRecentProc.retrieve_entity')
-    @patch(ppath + 'SampleDataset.lims_ntf', new_callable=PropertyMock)
-    def test_succeed(self, mocked_lims_ntf, mocked_retrieve_entity, mocked_finish):
-        with patched_get_run:
-            self.dataset.most_recent_proc.entity['status'] = c.DATASET_PROCESSING
-            self.dataset.succeed()
-            mocked_lims_ntf.assert_has_calls([call(), call().assign_next_and_advance_step()])
+    def test_succeed(self):
+        super().test_succeed()
+        assert self.dataset.lims_ntf.assign_next_and_advance_step.called
 
-    @patched_finish
-    @patch(ppath + 'MostRecentProc.retrieve_entity')
-    @patch(ppath + 'SampleDataset.lims_ntf', new_callable=PropertyMock)
-    def test_fail(self, mocked_lims_ntf, mocked_retrieve_entity, mocked_finish):
-        self.dataset.most_recent_proc.entity['status'] = c.DATASET_PROCESSING
+    def test_fail(self):
+        self.dataset.most_recent_proc.get.return_value = c.DATASET_PROCESSING
         self.dataset.fail(1)
-        self.assertTrue(mocked_lims_ntf.called)
-        mocked_lims_ntf.assert_has_calls([call(), call().remove_sample_from_workflow()])
+        assert self.dataset.lims_ntf.remove_sample_from_workflow.called
 
     def test_data_source(self):
         data_source = self.dataset.data_source
         assert data_source == ['run_element1', 'run_element2']
 
-    def test_passing_reference_genome_whitelisting_pass(self):
-        response = {'data_files': {'fasta': "Teleogryllus_oceanicus/v_John_Doe_20180326_fake_linked/PBJ_PI.formatted.fa"},
-                    'analyses_supported': ["qc"],
-                    'project_whitelist': ["a_project"], 'genome_size': 2064073682, 'data_source': "User provided",
-                    'assembly_name': "John_Doe_20180326", 'species': "Teleogryllus oceanicus"}
-        with patch('egcg_core.rest_communication.get_document', return_value=response):
-            assert self.dataset.reference_genome == "path/to/genomes_dir/Teleogryllus_oceanicus/v_John_Doe_20180326_fake_linked/PBJ_PI.formatted.fa"
-
-    def test_failing_reference_genome_whitelisting(self):
-        response = {'data_files': {'fasta': "Teleogryllus_oceanicus/v_John_Doe_20180326_fake_linked/PBJ_PI.formatted.fa"},
-                    'analyses_supported': ["qc"],
-                    'project_whitelist': ["b_project"], 'genome_size': 2064073682, 'data_source': "User provided",
-                    'assembly_name': "John_Doe_20180326", 'species': "Teleogryllus oceanicus"}
-        with patch('egcg_core.rest_communication.get_document', return_value=response), \
-             self.assertRaises(AnalysisDriverError) as error:
-            assert self.dataset.reference_genome is None
-        self.assertEqual(error.exception.args[0], 'Project ID a_project not in whitelist for reference genome 1')
-
 
 class TestProjectDataset(TestDataset):
-
-    def setup_dataset(self):
-        with patched_get_docs():
-            self.dataset = ProjectDataset(
-                'test_dataset',
-                most_recent_proc={'proc_id': 'a_proc_id', 'date_started': 'now', 'dataset_name': 'None',
-                                  'dataset_type': 'None'}
-            )
-            self.dataset._number_of_samples = 3
-            self.dataset._samples_processed = ['sample1', 'sample2', 'sample3']
+    def setUp(self):
+        self.dataset = ProjectDataset('test_dataset')
+        self.dataset._ntf = Mock()
+        self.dataset.most_recent_proc = Mock()
 
     def test_samples_processed(self):
-        self.dataset._samples_processed = None
         with patched_get_docs(['sample1', 'sample2']) as mgetdoc:
             assert self.dataset.samples_processed == ['sample1', 'sample2']
             mgetdoc.assert_called_with(
                 'samples', all_pages=True,
                 where={'project_id': 'test_dataset', 'aggregated.most_recent_proc.status': 'finished'}
             )
+
+    def test_get_processed_gvcfs(self):
+        self.dataset._samples_processed = [
+            {
+                'sample_id': 'sample_%s' % i,
+                'user_sample_id': 'uid_%s' % i,
+                'aggregated': {'most_recent_proc': {'pipeline_used': {'name': pipeline}}}
+            }
+            for i, pipeline in zip(
+                [1, 2, 3, 4],
+                ['bcbio', 'not_bcbio', 'variant_calling_gatk4', 'human_variant_calling_gatk4']
+            )
+        ]
+
+        with patch(ppath + 'find_file', new=lambda *args: '/'.join(args)):
+            obs = self.dataset.get_processed_gvcfs()
+            assert obs == [
+                'tests/assets/test_projects/test_dataset/sample_1/uid_1.g.vcf.gz',
+                'tests/assets/test_projects/test_dataset/sample_3/uid_3.g.vcf.gz',
+                'tests/assets/test_projects/test_dataset/sample_4/uid_4.g.vcf.gz'
+            ]
+
+    @patch('analysis_driver.dataset.rest_communication.get_document')
+    def test_number_of_samples(self, mocked_get_doc):
+        mocked_get_doc.return_value = {}
+        assert self.dataset.number_of_samples == -1  # quoted samples missing
+
+        self.dataset._number_of_samples = None
+        self.dataset._lims_project_info = None
+        mocked_get_doc.return_value = {'nb_quoted_samples': 3}
+        assert self.dataset.number_of_samples == 3
+
+    def test_species(self):
+        self.dataset._samples_processed = [
+            {'sample_id': 'sample_1', 'species_name': 'this'},
+            {'sample_id': 'sample_2'}
+        ]
+        self.dataset._sample_datasets = {'sample_2': Mock(species='species_from_clarity')}
+
+        # species = 'this', 'species_from_clarity'
+        with self.assertRaises(AnalysisDriverError):
+            _ = self.dataset.species
+
+        # species = 'this', 'this'
+        self.dataset._species = None
+        self.dataset._samples_processed[1]['species_name'] = 'this'
+        assert self.dataset.species == 'this'
+
+    def test_genome_version(self):
+        self.dataset._samples_processed = [{'sample_id': 'sample_1'}]
+        self.dataset._sample_datasets = {'sample_1': Mock(genome_version='2')}
+
+        assert self.dataset.genome_version == '2'
 
 
 class TestMostRecentProc(TestAnalysisDriver):
