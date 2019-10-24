@@ -283,7 +283,7 @@ class IntegrationTest(ReportingAppIntegrationTest):
             'setup', 'wellduplicates', 'bcl2fastq', 'phixdetection', 'fastqfilter', 'seqtkfqchk', 'md5sum', 'fastqc',
             'integritycheck', 'qcoutput1', 'dataoutput', 'cleanup', 'samtoolsdepthmulti', 'picardinsertsizemulti',
             'qcoutput2', 'runreview', 'picardmarkduplicatemulti', 'samtoolsstatsmulti', 'bwaalignmulti', 'waitforread2',
-            'bcl2fastqpartialrun', 'picardgcbias'
+            'bcl2fastqpartialrun', 'picardgcbias', 'earlyfastqfilter'
         ])
         # Get the most recent procs
         proc = rest_communication.get_document('analysis_driver_procs', sort='-_created')
