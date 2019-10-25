@@ -117,7 +117,7 @@ class IntegrationTest(ReportingAppIntegrationTest):
         rest_communication.post_entry(
             'samples',
             {'library_id': self.library_id, 'project_id': self.project_id, 'sample_id': sample_id,
-             'run_elements': [e['run_element_id'] for e in run_elements], 'required_yield': 900000000,
+             'run_elements': [e['run_element_id'] for e in run_elements],
              'required_coverage': 30, 'required_yield': 120000000000}
         )
         rest_communication.post_entry('projects', {'project_id': self.project_id, 'samples': [sample_id]})
@@ -386,7 +386,7 @@ class IntegrationTest(ReportingAppIntegrationTest):
         self.expect_equal(ad_proc['genome_used'], 'CanFam3.1', 'genome used')
 
         self.expect_equal(
-            rest_communication.get_document('analysis_driver_procs')['data_source'],
+            ad_proc['data_source'],
             ['_'.join([self.run_id, str(i), self.dog_gatk_sample_id]) for i in range(1, 8)],
             'data source'
         )
@@ -405,7 +405,7 @@ class IntegrationTest(ReportingAppIntegrationTest):
                                 'mergefastqs', 'samtoolsstats', 'samplereview', 'haplotypecaller', 'cleanup',
                                 'fastqscreen', 'md5sum', 'bwamem', 'sampledataoutput', 'genotypegvcfs', 'blast'])
 
-        ad_proc = rest_communication.get_document('analysis_driver_procs')
+        ad_proc = rest_communication.get_document('analysis_driver_procs', sort='-_created')
 
         self.expect_equal(
             ad_proc['pipeline_used'],
@@ -416,7 +416,7 @@ class IntegrationTest(ReportingAppIntegrationTest):
         self.expect_equal(ad_proc['genome_used'], 'CanFam3.1', 'genome used')
 
         self.expect_equal(
-            rest_communication.get_document('analysis_driver_procs')['data_source'],
+            ad_proc['data_source'],
             ['_'.join([self.run_id, str(i), self.barcode]) for i in range(1, 8)],
             'data source'
         )
@@ -454,7 +454,9 @@ class IntegrationTest(ReportingAppIntegrationTest):
 
         self._reset_logging()
         client.main(['--sample', '--resume', '10015AT0004'])
-        self.expect_equal(rest_communication.get_document('analysis_driver_procs')['status'], 'resume', 'resumed')
+        ad_proc = rest_communication.get_document('analysis_driver_procs', sort='-_created')
+
+        self.expect_equal(ad_proc['status'], 'resume', 'resumed')
         self._reset_logging()
 
         self._run_qc_test()
@@ -467,7 +469,8 @@ class IntegrationTest(ReportingAppIntegrationTest):
         )
 
         procs = rest_communication.get_documents('analysis_driver_procs')
-        self.expect_equal(len(procs), 1, 'used existing proc')
+        # One proc for the sample forcing done in setup_test() and one for the actual process
+        self.expect_equal(len(procs), 2, 'used existing proc')
         self.expect_equal(procs[0]['status'], 'finished', 'proc status finished')
 
         assert self._test_success
@@ -503,9 +506,9 @@ class IntegrationTest(ReportingAppIntegrationTest):
 
         self.expect_stage_data(['genomicsdbimport', 'gathervcfs', 'genotypegvcfs', 'relatedness', 'peddy',
                                 'parserelatedness', 'output', 'cleanup'])
-        ad_procs = rest_communication.get_document('analysis_driver_procs', where={'dataset_name': self.project_id})
+        ad_proc = rest_communication.get_document('analysis_driver_procs', where={'dataset_name': self.project_id})
         self.expect_equal(
-            ad_procs['pipeline_used'],
+            ad_proc['pipeline_used'],
             {'toolset_type': 'project_processing', 'name': 'gatk4project', 'toolset_version': 1},
             'pipeline used'
         )
@@ -613,7 +616,7 @@ class IntegrationTest(ReportingAppIntegrationTest):
 
         self.expect_equal(
             ad_proc['pipeline_used'],
-            {'toolset_type': 'gatk4_sample_processing', 'name': 'qc_gatk4', 'toolset_version': 0},
+            {'toolset_type': 'gatk4_sample_processing', 'name': 'qc_gatk4', 'toolset_version': 1},
             'pipeline used'
         )
 
@@ -656,7 +659,7 @@ class IntegrationTest(ReportingAppIntegrationTest):
 
         self.expect_equal(
             ad_proc['pipeline_used'],
-            {'toolset_type': 'gatk4_sample_processing', 'name': 'variant_calling_gatk4', 'toolset_version': 0},
+            {'toolset_type': 'gatk4_sample_processing', 'name': 'variant_calling_gatk4', 'toolset_version': 1},
             'pipeline used'
         )
 
@@ -697,7 +700,7 @@ class IntegrationTest(ReportingAppIntegrationTest):
 
         self.expect_equal(
             ad_proc['pipeline_used'],
-            {'toolset_type': 'gatk4_sample_processing', 'name': 'human_variant_calling_gatk4', 'toolset_version': 0},
+            {'toolset_type': 'gatk4_sample_processing', 'name': 'human_variant_calling_gatk4', 'toolset_version': 1},
             'pipeline used'
         )
 
