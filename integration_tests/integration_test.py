@@ -505,7 +505,7 @@ class IntegrationTest(ReportingAppIntegrationTest):
                                                   sort='-_created')
         self.expect_equal(
             ad_proc['pipeline_used'],
-            {'toolset_type': 'project_processing', 'name': 'gatk4project', 'toolset_version': 1},
+            {'toolset_type': 'project_processing', 'name': 'project', 'toolset_version': 1},
             'pipeline used'
         )
 
