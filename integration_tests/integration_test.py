@@ -142,7 +142,8 @@ class IntegrationTest(ReportingAppIntegrationTest):
         os.makedirs(cfg['jobs_dir'])
         os.makedirs(cfg[test_type]['output_dir'])
 
-        # Force the sample to be the first on in line
+        # Force the run/sample/project to be the first one in line
+        # This also bypass the check for ready state
         payload = {
             'dataset_name': dataset_name,
             'proc_id': test_type + '_' + dataset_name + '_atime',
@@ -487,13 +488,7 @@ class IntegrationTest(ReportingAppIntegrationTest):
                 {'proc_id': sample + 'proc_id', 'dataset_name': sample, 'dataset_type': 'sample',
                  'status': 'finished', 'pipeline_used': {'name': 'bcbio'}}
             )
-        rest_communication.patch_entry(
-            'projects',
-            {'samples': self.samples_for_project},
-            'project_id',
-            self.project_id,
-            update_lists=['samples']
-        )
+        rest_communication.post_entry('projects', {'project_id': self.project_id, 'samples': self.samples_for_project})
 
         self.setup_test('project', 'test_project', self.project_id)
         exit_status = client.main(['--project'])
