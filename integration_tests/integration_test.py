@@ -418,7 +418,7 @@ class IntegrationTest(ReportingAppIntegrationTest):
 
         self.expect_equal(
             ad_proc['data_source'],
-            ['_'.join([self.run_id, str(i), self.barcode]) for i in range(1, 8)],
+            ['_'.join([self.run_id, str(i), self.dog_gatk_qc_sample_id]) for i in range(1, 8)],
             'data source'
         )
 
@@ -454,7 +454,7 @@ class IntegrationTest(ReportingAppIntegrationTest):
         )
 
         self._reset_logging()
-        client.main(['--sample', '--resume', '10015AT0004'])
+        client.main(['--sample', '--resume', self.dog_gatk_qc_sample_id])
         ad_proc = rest_communication.get_document('analysis_driver_procs', sort='-_created')
 
         self.expect_equal(ad_proc['status'], 'resume', 'resumed')
