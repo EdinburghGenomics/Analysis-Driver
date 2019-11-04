@@ -1,7 +1,6 @@
 import glob
 import os
 import shutil
-from xml.etree import ElementTree as et
 
 from egcg_core.constants import ELEMENT_PROJECT_ID, ELEMENT_LANE, ELEMENT_SAMPLE_INTERNAL_ID
 

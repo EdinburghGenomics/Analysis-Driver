@@ -128,4 +128,14 @@ class TestHelperFunctions(TestAnalysisDriver):
 
         merge_lane_directories(fastq_dir, run_elements)
 
-        #shutil.rmtree(fastq_dir)
+        # Test that the fastq files have moved
+        for re in run_elements:
+            sample_dir = os.path.join(fastq_dir, re['project_id'], re['sample_id'])
+            assert os.path.isfile(os.path.join(sample_dir, '%s_L00%s_R1_001.fastq.gz' % (re['sample_id'], re['lane'])))
+            assert os.path.isfile(os.path.join(sample_dir, '%s_L00%s_R2_001.fastq.gz' % (re['sample_id'], re['lane'])))
+
+        # Test that the stats files have moved
+        assert os.path.isfile(os.path.join(fastq_dir, 'Stats', 'lane_1_Stats.json'))
+        assert os.path.isfile(os.path.join(fastq_dir, 'Stats', 'lane_2_Stats.json'))
+
+        shutil.rmtree(fastq_dir)
