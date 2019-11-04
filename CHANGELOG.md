@@ -1,10 +1,16 @@
 Changelog for Analysis-Driver
 =============================
 
-0.26.0 (unreleased)
--------------------
+0.26 (unreleased)
+-----------------
 
 - Nothing changed yet.
+
+
+0.25.3 (2019-09-10)
+-------------------
+
+- Fix fastqc command to set the temp directory to lustre.
 
 
 0.25.2 (2019-08-08)

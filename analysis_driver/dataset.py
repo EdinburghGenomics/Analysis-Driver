@@ -331,17 +331,15 @@ class RunDataset(Dataset):
         return self._run_elements
 
     @staticmethod
-    def _find_pooling_step_for_artifact(art, expected_pooling_step_name=None, max_iterations=10):
+    def _find_pooling_step_for_artifact(art, expected_pooling_step_names, max_iterations=10):
         n = 1
         while len(art.input_artifact_list()) == 1:
             art = art.input_artifact_list()[0]
             if n >= max_iterations:
                 raise ValueError('Cannot find pooling step after %s iterations' % max_iterations)
             n += 1
-        if expected_pooling_step_name and art.parent_process.type.name != expected_pooling_step_name:
-            raise ValueError(
-                'Mismatching step name: %s != %s' % (expected_pooling_step_name, art.parent_process.type.name)
-            )
+        if art.parent_process.type.name not in expected_pooling_step_names:
+            raise ValueError('Unexpected step name: %s' % art.parent_process.type.name)
         return art.input_artifact_list()
 
     @property
