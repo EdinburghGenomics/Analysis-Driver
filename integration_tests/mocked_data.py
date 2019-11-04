@@ -16,22 +16,14 @@ mocked_lane_artifact_pool = NamedMock(
     real_name='artpool',
     input_artifact_list=Mock(
         return_value=[
-            Mock(reagent_labels=['D701-D502 (ATTACTCG-ATAGAGGC)'],
-                 samples=[MockedSample(real_name='10015AT0001', id='LP6002014-DTP_A01')]),
-            Mock(reagent_labels=['D702-D502 (TCCGGAGA-ATAGAGGC)'],
-                 samples=[MockedSample(real_name='10015AT0002', id='LP6002014-DTP_A02')]),
-            Mock(reagent_labels=['D703-D502 (CGCTCATT-ATAGAGGC)'],
-                 samples=[MockedSample(real_name='10015AT0003', id='LP6002014-DTP_A03')]),
-            Mock(reagent_labels=['001A IDT-ILMN TruSeq DNA-RNA UD 96 Indexes  Plate_UDI0001 (GAGATTCC-ATAGAGGC)'],
-                 samples=[MockedSample(real_name='10015AT0004', id='LP6002014-DTP_A04')]),
-            Mock(reagent_labels=['D705-D502 (ATTCAGAA-ATAGAGGC)'],
-                 samples=[MockedSample(real_name='10015AT0006', id='LP6002014-DTP_A05')]),
-            Mock(reagent_labels=['D706-D502 (GAATTCGT-ATAGAGGC)'],
-                 samples=[MockedSample(real_name='10015AT0007', id='LP6002014-DTP_A06')]),
-            Mock(reagent_labels=['D707-D502 (CTGAAGCT-ATAGAGGC)'],
-                 samples=[MockedSample(real_name='10015AT0008', id='LP6002014-DTP_A07')]),
-            Mock(reagent_labels=['D708-D502 (TAATGCGC-ATAGAGGC)'],
-                 samples=[MockedSample(real_name='10015AT0009', id='LP6002014-DTP_A08')])
+            Mock(reagent_labels=['D701-D502 (ATTACTCG-ATAGAGGC)'], samples=[MockedSample(real_name='10015AT0001', id='LP6002014-DTP_A01')]),
+            Mock(reagent_labels=['D702-D502 (TCCGGAGA-ATAGAGGC)'], samples=[MockedSample(real_name='10015AT0002', id='LP6002014-DTP_A02')]),
+            Mock(reagent_labels=['D703-D502 (CGCTCATT-ATAGAGGC)'], samples=[MockedSample(real_name='10015AT0003', id='LP6002014-DTP_A03')]),
+            Mock(reagent_labels=['001A IDT-ILMN TruSeq DNA-RNA UD 96 Indexes  Plate_UDI0001 (GAGATTCC-ATAGAGGC)'], samples=[MockedSample(real_name='10015AT0004', id='LP6002014-DTP_A04')]),
+            Mock(reagent_labels=['D705-D502 (ATTCAGAA-ATAGAGGC)'], samples=[MockedSample(real_name='10015AT0006', id='LP6002014-DTP_A05')]),
+            Mock(reagent_labels=['D706-D502 (GAATTCGT-ATAGAGGC)'], samples=[MockedSample(real_name='10015AT0007', id='LP6002014-DTP_A06')]),
+            Mock(reagent_labels=['D707-D502 (CTGAAGCT-ATAGAGGC)'], samples=[MockedSample(real_name='10015AT0008', id='LP6002014-DTP_A07')]),
+            Mock(reagent_labels=['D708-D502 (TAATGCGC-ATAGAGGC)'], samples=[MockedSample(real_name='10015AT0009', id='LP6002014-DTP_A08')])
         ]
     ),
     parent_process=Mock(type=NamedMock(real_name='Create PDP Pool')),
@@ -104,3 +96,96 @@ def fake_welldups_cmd(self):
         welldups=toolset['well_duplicates'],
         coords=cfg['well_duplicates']['coord_file'], run_dir=self.run_directory, outfile=output_file
     )
+
+sample_1 = {
+    'project_id': "project1",
+    'sample_id': "sample1",
+    'barcode': 'D701-D502 (ATTACTCG-ATAGAGGC)',
+    'artifact_id': "2-1111111"
+}
+
+sample_2 = {
+    'project_id': "project1",
+    'sample_id': "sample2",
+    'barcode': 'D702-D502 (TCCGGAGA-ATAGAGGC)',
+    'artifact_id': "2-1111112"
+}
+
+sample_3 = {
+    'project_id': "project1",
+    'sample_id': "sample3",
+    'barcode': 'D703-D502 (CGCTCATT-ATAGAGGC)',
+    'artifact_id': "2-1111113"
+}
+
+sample_4 = {
+    'project_id': "project1",
+    'sample_id': "sample4",
+    'barcode': "002H IDT-ILMN TruSeq DNA-RNA UD 96 Indexes Plate_UDI0016 (AATCCGGA-CTACAGTT)",
+    'artifact_id': "2-1111114"
+}
+
+sample_5 = {
+    'project_id': "project1",
+    'sample_id': "sample5",
+    'barcode': 'D707-D502 (CTGAAGCT-ATAGAGGC)',
+    'artifact_id': "2-1111115"
+}
+
+sample_6 = {
+    'project_id': "project1",
+    'sample_id': "sample6",
+    'barcode': 'D707-D502 (CTGAAGCT-ATAGAGGC)',
+    'artifact_id': "2-1111116"
+}
+
+sample_7 = {
+    'project_id': "project1",
+    'sample_id': "sample7",
+    'barcode': 'D708-D502 (TAATGCGC-ATAGAGGC)',
+    'artifact_id': "2-1111117"
+}
+
+sample_8 = {
+    'project_id': "project1",
+    'sample_id': "sample8",
+    'barcode': 'D708-D502 (TAATGCGC-ATAGAGGC)',
+    'artifact_id': "2-1111118"
+}
+
+pool_of_samples = [sample_1, sample_2, sample_3, sample_4]
+
+mocked_run_status = {
+    'run_status': "RunCompleted",
+    'lanes': [
+        {'lane': 1, 'samples': [sample_1]},
+        {'lane': 2, 'samples': [sample_2]},
+        {'lane': 3, 'samples': [sample_3]},
+        {'lane': 4, 'samples': [sample_4]},
+        {'lane': 5, 'samples': [sample_5]},
+        {'lane': 6, 'samples': [sample_6]},
+        {'lane': 7, 'samples': [sample_7]},
+        {'lane': 8, 'samples': [sample_8]},
+    ],
+    'instrument_id': "HSX-E00375",
+    'nb_reads': "3",
+    'nb_cycles': "310"
+}
+
+mocked_run_status_pools = {
+    'run_status': "RunCompleted",
+    'lanes': [
+        {'lane': 1, 'samples': pool_of_samples},
+        {'lane': 2, 'samples': pool_of_samples},
+        {'lane': 3, 'samples': pool_of_samples},
+        {'lane': 4, 'samples': pool_of_samples},
+        {'lane': 5, 'samples': pool_of_samples},
+        {'lane': 6, 'samples': pool_of_samples},
+        {'lane': 7, 'samples': pool_of_samples},
+        {'lane': 8, 'samples': pool_of_samples},
+    ],
+    'instrument_id': "HSX-E00375",
+    'nb_reads': "3",
+    'nb_cycles': "310"
+}
+

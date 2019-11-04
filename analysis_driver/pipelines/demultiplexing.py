@@ -55,7 +55,7 @@ class Setup(DemultiplexingStage):
             RunCrawler(self.dataset, run_dir=self.fastq_dir).send_data()
 
         # make sure the run is not aborted or errored before checking the bcl files
-        run_status = self.dataset.lims_run.udf.get('Run Status')
+        run_status = self.dataset.run_status.get('run_status')
         if run_status != 'RunCompleted':
             self.error('Run status is \'%s\'. Stopping.', run_status)
             raise SequencingRunError(run_status)
@@ -242,7 +242,7 @@ class WaitForRead2(DemultiplexingStage):
             current_cycle = interop_metrics.get_last_cycles_with_existing_bcls(self.dataset.input_dir)
 
         # make sure the run is not aborted or errored before continuing with the rest of the pipeline
-        run_status = self.dataset.lims_run.udf.get('Run Status')
+        run_status = self.dataset.run_status.get('run_status')
         if run_status not in ['RunCompleted', 'RunStarted', 'RunPaused']:
             self.error('Run status is \'%s\'. Stopping.', run_status)
             raise SequencingRunError(run_status)

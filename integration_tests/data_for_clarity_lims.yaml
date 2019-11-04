@@ -1,0 +1,76 @@
+####
+# This YAML file describe some objects that will be inserted in the LIMS' database using load_data_to_lims_db.py
+# The data will be store the the database currently in session which should be a local sqlite database
+# It supports limited number of features but should be enough for mocking data reported by the endpoints defined in
+# rest_api/limsdb
+
+
+# This will create projects
+projects:
+    - { name: 10015AT, udfs: { Number of Quoted Samples: 6 } }
+
+# This will create the samples and the associated root artifact
+# artifact can be refered to using the sample's name
+samples:
+    - { name: 10015AT0001, project: 10015AT,  udfs: { User Sample Name: uid_10015AT0001, Required Yield (Gb): 120, Coverage (X): 30, Species: Canis lupus familiaris , Analysis Type: Variant Calling gatk4 },
+        artifact: { container_name: plate1, xpos: H, ypos: 11, reagent_labels:['D701-D502 (ATTACTCG-ATAGAGGC)'] } }
+    - { name: 10015AT0002, project: 10015AT,  udfs: { User Sample Name: uid_10015AT0002, Required Yield (Gb): 120, Coverage (X): 30, Species: Canis lupus familiaris, Analysis Type: Variant Calling gatk },
+        artifact: { container_name: plate1, xpos: H, ypos: 12, reagent_labels:['D702-D502 (TCCGGAGA-ATAGAGGC)'] } }
+    - { name: 10015AT0003, project: 10015AT,  udfs: { User Sample Name: uid_10015AT0003, Required Yield (Gb): 120, Coverage (X): 30, Species: Homo Sapiens, Analysis Type: Variant Calling gatk4 },
+        artifact: { container_name: plate2, xpos: A, ypos: 1, reagent_labels:['D703-D502 (CGCTCATT-ATAGAGGC)']} }
+    - { name: 10015AT0004, project: 10015AT,  udfs: { User Sample Name: uid_10015AT0004, Required Yield (Gb): 120, Coverage (X): 30, Species: Homo Sapiens, Analysis Type: Variant Calling gatk },
+        artifact: { container_name: plate2, xpos: A, ypos: 2, reagent_labels:['001A IDT-ILMN TruSeq DNA-RNA UD 96 Indexes  Plate_UDI0001 (GAGATTCC-ATAGAGGC)']} }
+    - { name: 10015AT0006, project: 10015AT,  udfs: { User Sample Name: uid_10015AT0006, Required Yield (Gb): 120, Coverage (X): 30, Species: Canis lupus familiaris, Analysis Type: None },
+        artifact: { container_name: plate2, xpos: A, ypos: 3, reagent_labels:['D705-D502 (ATTCAGAA-ATAGAGGC)']} }
+    - { name: 10015AT0007, project: 10015AT,  udfs: { User Sample Name: uid_10015AT0007, Required Yield (Gb): 120, Coverage (X): 30, Species: Canis lupus familiaris, Analysis Type: QC GATK3 },
+        artifact: { container_name: plate2, xpos: A, ypos: 4, reagent_labels:['D706-D502 (GAATTCGT-ATAGAGGC)']} }
+    - { name: 10015AT0008, project: 10015AT,  udfs: { User Sample Name: uid_10015AT0008, Required Yield (Gb): 120, Coverage (X): 30, Species: Homo Sapiens, Analysis Type: Variant Calling gatk },
+        artifact: { container_name: plate2, xpos: A, ypos: 5, reagent_labels:['D707-D502 (CTGAAGCT-ATAGAGGC)']} }
+    - { name: 10015AT0009, project: 10015AT,  udfs: { User Sample Name: uid_10015AT0009, Required Yield (Gb): 120, Coverage (X): 30, Species: Homo Sapiens, Analysis Type: Variant Calling gatk },
+        artifact: { container_name: plate2, xpos: A, ypos: 6, reagent_labels:['D708-D502 (TAATGCGC-ATAGAGGC)']} }
+    - { name: non_pooling_sample_1, project: 10015AT,  udfs: { User Sample Name: uid, Required Yield (Gb): 120, Coverage (X): 30, Species: Homo Sapiens, Analysis Type: Variant Calling gatk },
+        artifact: { container_name: plate3, xpos: A, ypos: 1, reagent_labels:['D708-D502 (TAATGCGC-ATAGAGGC)']} }
+    - { name: non_pooling_sample_2, project: 10015AT,  udfs: { User Sample Name: uid, Required Yield (Gb): 120, Coverage (X): 30, Species: Homo Sapiens, Analysis Type: Variant Calling gatk },
+        artifact: { container_name: plate3, xpos: A, ypos: 2, reagent_labels:['D708-D502 (TAATGCGC-ATAGAGGC)']} }
+    - { name: non_pooling_sample_3, project: 10015AT,  udfs: { User Sample Name: uid, Required Yield (Gb): 120, Coverage (X): 30, Species: Homo Sapiens, Analysis Type: Variant Calling gatk },
+        artifact: { container_name: plate3, xpos: A, ypos: 3, reagent_labels:['D708-D502 (TAATGCGC-ATAGAGGC)']} }
+    - { name: non_pooling_sample_4, project: 10015AT,  udfs: { User Sample Name: uid, Required Yield (Gb): 120, Coverage (X): 30, Species: Homo Sapiens, Analysis Type: Variant Calling gatk },
+        artifact: { container_name: plate3, xpos: A, ypos: 4, reagent_labels:['D708-D502 (TAATGCGC-ATAGAGGC)']} }
+    - { name: non_pooling_sample_5, project: 10015AT,  udfs: { User Sample Name: uid, Required Yield (Gb): 120, Coverage (X): 30, Species: Homo Sapiens, Analysis Type: Variant Calling gatk },
+        artifact: { container_name: plate3, xpos: A, ypos: 5, reagent_labels:['D708-D502 (TAATGCGC-ATAGAGGC)']} }
+    - { name: non_pooling_sample_6, project: 10015AT,  udfs: { User Sample Name: uid, Required Yield (Gb): 120, Coverage (X): 30, Species: Homo Sapiens, Analysis Type: Variant Calling gatk },
+        artifact: { container_name: plate3, xpos: A, ypos: 6, reagent_labels:['D708-D502 (TAATGCGC-ATAGAGGC)']} }
+    - { name: non_pooling_sample_7, project: 10015AT,  udfs: { User Sample Name: uid, Required Yield (Gb): 120, Coverage (X): 30, Species: Homo Sapiens, Analysis Type: Variant Calling gatk },
+        artifact: { container_name: plate3, xpos: A, ypos: 7, reagent_labels:['D708-D502 (TAATGCGC-ATAGAGGC)']} }
+    - { name: non_pooling_sample_8, project: 10015AT,  udfs: { User Sample Name: uid, Required Yield (Gb): 120, Coverage (X): 30, Species: Homo Sapiens, Analysis Type: Variant Calling gatk },
+        artifact: { container_name: plate3, xpos: A, ypos: 8, reagent_labels:['D708-D502 (TAATGCGC-ATAGAGGC)']} }
+
+# This will create additional artifacts (they will not be root artifact)
+artifacts:
+    - { name: l1, samples: [10015AT0001, 10015AT0002, 10015AT0003, 10015AT0004, 10015AT0006, 10015AT0007, 10015AT0008, 10015AT0009], container_name: FLOWCELL1, xpos: 0, ypos: 0 }
+    - { name: l2, samples: [10015AT0001, 10015AT0002, 10015AT0003, 10015AT0004, 10015AT0006, 10015AT0007, 10015AT0008, 10015AT0009], container_name: FLOWCELL1, xpos: 0, ypos: 1 }
+    - { name: l3, samples: [10015AT0001, 10015AT0002, 10015AT0003, 10015AT0004, 10015AT0006, 10015AT0007, 10015AT0008, 10015AT0009], container_name: FLOWCELL1, xpos: 0, ypos: 2 }
+    - { name: l4, samples: [10015AT0001, 10015AT0002, 10015AT0003, 10015AT0004, 10015AT0006, 10015AT0007, 10015AT0008, 10015AT0009], container_name: FLOWCELL1, xpos: 0, ypos: 3 }
+    - { name: l5, samples: [10015AT0001, 10015AT0002, 10015AT0003, 10015AT0004, 10015AT0006, 10015AT0007, 10015AT0008, 10015AT0009], container_name: FLOWCELL1, xpos: 0, ypos: 4 }
+    - { name: l6, samples: [10015AT0001, 10015AT0002, 10015AT0003, 10015AT0004, 10015AT0006, 10015AT0007, 10015AT0008, 10015AT0009], container_name: FLOWCELL1, xpos: 0, ypos: 5 }
+    - { name: l7, samples: [10015AT0001, 10015AT0002, 10015AT0003, 10015AT0004, 10015AT0006, 10015AT0007, 10015AT0008, 10015AT0009], container_name: FLOWCELL1, xpos: 0, ypos: 6 }
+    - { name: l8, samples: [10015AT0001, 10015AT0002, 10015AT0003, 10015AT0004, 10015AT0006, 10015AT0007, 10015AT0008, 10015AT0009], container_name: FLOWCELL1, xpos: 0, ypos: 7 }
+    - { name: npl1, samples: [non_pooling_sample_1], container_name: FLOWCELL2, xpos: 0, ypos: 0 }
+    - { name: npl2, samples: [non_pooling_sample_2], container_name: FLOWCELL2, xpos: 0, ypos: 1 }
+    - { name: npl3, samples: [non_pooling_sample_3], container_name: FLOWCELL2, xpos: 0, ypos: 2 }
+    - { name: npl4, samples: [non_pooling_sample_4], container_name: FLOWCELL2, xpos: 0, ypos: 3 }
+    - { name: npl5, samples: [non_pooling_sample_5], container_name: FLOWCELL2, xpos: 0, ypos: 4 }
+    - { name: npl6, samples: [non_pooling_sample_6], container_name: FLOWCELL2, xpos: 0, ypos: 5 }
+    - { name: npl7, samples: [non_pooling_sample_7], container_name: FLOWCELL2, xpos: 0, ypos: 6 }
+    - { name: npl8, samples: [non_pooling_sample_8], container_name: FLOWCELL2, xpos: 0, ypos: 7 }
+
+# This will create completed steps
+completed_steps:
+    - { list_artifacts: [l1, l2, l3, l4, l5, l6, l7, l8], name: AUTOMATED - Sequence,   created_date: !!timestamp 2015-7-23, udfs:
+      { 'Run Status': RunCompleted, RunID: '150723_E00306_0025_BHCHK3CCXX', InstrumentID: 'E00306', Cycle: 310, Read: 3 } }
+    - { list_artifacts: [l1, l2, l3, l4, l5, l6, l7, l8], name: AUTOMATED - Sequence,   created_date: !!timestamp 2015-7-23, udfs:
+      { 'Run Status': RunAborted, RunID: '150723_E00306_0024_BHCHK3CCXX', InstrumentID: 'E00306', Cycle: 310, Read: 3 } }
+    - { list_artifacts: [npl1, npl2, npl3, npl4, npl5, npl6, npl7, npl8], name: AUTOMATED - Sequence,
+        created_date: !!timestamp 2017-5-11,
+        udfs: { 'Run Status': RunCompleted, RunID: '170511_E00328_0211_BHHMWWALXX', InstrumentID: 'E00306', Cycle: 302, Read: 2 } }
+
