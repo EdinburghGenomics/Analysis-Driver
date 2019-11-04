@@ -6,7 +6,7 @@ from datetime import datetime
 from errno import ESRCH
 from sys import modules
 from time import sleep
-from egcg_core import rest_communication
+from egcg_core import rest_communication, clarity
 from egcg_core.app_logging import AppLogger
 from egcg_core.clarity import sanitize_user_id, get_species_name
 from egcg_core.config import cfg
@@ -506,16 +506,13 @@ class SampleDataset(Dataset):
         if self._species is None:
             self._species = self.sample.get('species_name')
         if self._species is None:
-            self._species = get_species_name(self.lims_sample_info.get('Species'))
+            self._species = clarity.get_species_from_sample(self.name)
         return self._species
 
     @property
     def genome_version(self):
         if self._genome_version is None:
-            self._genome_version = self.lims_sample_info.get('Genome Version')
-            if not self._genome_version:
-                self._genome_version = rest_communication.get_document(
-                    'species', where={'name': self.species})['default_version']
+            self._genome_version = clarity.get_genome_version(sample_id=self.name, species=self.species)
         return self._genome_version
 
     @property
@@ -544,9 +541,7 @@ class SampleDataset(Dataset):
 
     @property
     def user_sample_id(self):
-        user_sample_name = self.lims_sample_info.get('User Sample Name')
-        if user_sample_name:
-            return sanitize_user_id(user_sample_name)
+        return clarity.get_user_sample_name(self.name)
 
     @property
     def run_elements(self):
