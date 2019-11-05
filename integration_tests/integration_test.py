@@ -97,10 +97,10 @@ class IntegrationTest(ReportingAppIntegrationTest):
             run_elements.append({
                 'run_id': self.run_id, 'project_id': self.project_id, 'sample_id': sample_id,
                 'library_id': self.library_id, 'run_element_id': '%s_%s_%s' % (self.run_id, lane, sample_id),
-                'useable': 'yes', 'barcode': self.barcode, 'lane': lane, 'bases_r1': 70000000,
-                'bases_r2': 70000000, 'clean_bases_r1': 66000000, 'clean_bases_r2': 66000000,
-                'q30_bases_r1': 64000000, 'q30_bases_r2': 64000000, 'clean_q30_bases_r1': 64000000,
-                'clean_q30_bases_r2': 64000000, 'clean_reads': 1
+                'useable': 'yes', 'barcode': self.barcode, 'lane': lane, 'bases_r1': 20000000000,
+                'bases_r2': 20000000000, 'clean_bases_r1': 18000000000, 'clean_bases_r2': 18000000000,
+                'q30_bases_r1': 19000000000, 'q30_bases_r2': 19000000000, 'clean_q30_bases_r1': 17000000000,
+                'clean_q30_bases_r2': 17000000000, 'clean_reads': 1
             })
         # Lane 8 has no data
         run_elements.append(
@@ -144,15 +144,15 @@ class IntegrationTest(ReportingAppIntegrationTest):
 
         # Force the run/sample/project to be the first one in line
         # This also bypass the check for ready state
-        payload = {
-            'dataset_name': dataset_name,
-            'proc_id': test_type + '_' + dataset_name + '_atime',
-            'dataset_type': test_type,
-            'status': 'force_ready'
-        }
-        rest_communication.post_or_patch('analysis_driver_procs', [payload], id_field='proc_id')
-        # Ensure the next analysis_driver_procs won't be created at the same second.
-        time.sleep(1)
+        # payload = {
+        #     'dataset_name': dataset_name,
+        #     'proc_id': test_type + '_' + dataset_name + '_atime',
+        #     'dataset_type': test_type,
+        #     'status': 'force_ready'
+        # }
+        # rest_communication.post_or_patch('analysis_driver_procs', [payload], id_field='proc_id')
+        # # Ensure the next analysis_driver_procs won't be created at the same second.
+        # time.sleep(1)
 
     @staticmethod
     def _reset_logging():
@@ -397,7 +397,7 @@ class IntegrationTest(ReportingAppIntegrationTest):
     def _run_qc_test(self):
         exit_status = client.main(['--sample'])
 
-        self.assertEqual('exit status', exit_status, 0)
+        self.expect_equal(exit_status, 0, 'exit status')
         self.expect_qc_data(
             rest_communication.get_document('samples', where={'sample_id': self.dog_gatk_qc_sample_id}),
             self.cfg['qc']['qc']
@@ -462,6 +462,8 @@ class IntegrationTest(ReportingAppIntegrationTest):
 
         self._run_qc_test()
 
+        ad_proc = rest_communication.get_document('analysis_driver_procs', sort='-_created')
+
         exp_files = self.cfg['qc']['files'].copy()
         exp_files.update(self.cfg['resume']['files'])
         self.expect_output_files(
@@ -470,8 +472,7 @@ class IntegrationTest(ReportingAppIntegrationTest):
         )
 
         procs = rest_communication.get_documents('analysis_driver_procs')
-        # One proc for the sample forcing done in setup_test() and one for the actual process
-        self.expect_equal(len(procs), 2, 'used existing proc')
+        self.expect_equal(len(procs), 1, 'used existing proc')
         self.expect_equal(procs[0]['status'], 'finished', 'proc status finished')
 
         assert self._test_success
