@@ -142,17 +142,18 @@ class IntegrationTest(ReportingAppIntegrationTest):
         os.makedirs(cfg['jobs_dir'])
         os.makedirs(cfg[test_type]['output_dir'])
 
-        # Force the run/sample/project to be the first one in line
+    def run_force_ready(self, run_name):
+        # Force the run to be the first one in line
         # This also bypass the check for ready state
-        # payload = {
-        #     'dataset_name': dataset_name,
-        #     'proc_id': test_type + '_' + dataset_name + '_atime',
-        #     'dataset_type': test_type,
-        #     'status': 'force_ready'
-        # }
-        # rest_communication.post_or_patch('analysis_driver_procs', [payload], id_field='proc_id')
-        # # Ensure the next analysis_driver_procs won't be created at the same second.
-        # time.sleep(1)
+        payload = {
+            'dataset_name': run_name,
+            'proc_id': run_name + '_atime',
+            'dataset_type': 'run',
+            'status': 'force_ready'
+        }
+        rest_communication.post_or_patch('analysis_driver_procs', [payload], id_field='proc_id')
+        # Ensure the next analysis_driver_procs won't be created at the same second.
+        time.sleep(1)
 
     @staticmethod
     def _reset_logging():
@@ -237,6 +238,7 @@ class IntegrationTest(ReportingAppIntegrationTest):
 
     def test_demultiplexing(self):
         self.setup_test('run', 'test_demultiplexing', self.run_id)
+        self.run_force_ready(self.run_id)
         self._add_patches(
             patch('analysis_driver.quality_control.interop_metrics.get_last_cycles_with_existing_bcls', return_value=310)
         )
@@ -303,6 +305,8 @@ class IntegrationTest(ReportingAppIntegrationTest):
 
     def test_demultiplexing_aborted(self):
         self.setup_test('run', 'test_demultiplexing_aborted', self.aborted_run_id)
+        self.run_force_ready(self.aborted_run_id)
+
         self._add_patches(
             patch('analysis_driver.quality_control.interop_metrics.get_last_cycles_with_existing_bcls', return_value=310)
         )
@@ -531,6 +535,8 @@ class IntegrationTest(ReportingAppIntegrationTest):
         )
 
         self.setup_test('run', 'test_rapid', self.rapid_run_id)
+        self.run_force_ready(self.rapid_run_id)
+
         # Remove the Samplesheet that might have been generated before
         samplesheet = os.path.join(cfg['run']['input_dir'], self.rapid_run_id, 'SampleSheet_analysis_driver.csv')
         if os.path.isfile(samplesheet):
