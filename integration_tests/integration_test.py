@@ -462,8 +462,6 @@ class IntegrationTest(ReportingAppIntegrationTest):
 
         self._run_qc_test()
 
-        ad_proc = rest_communication.get_document('analysis_driver_procs', sort='-_created')
-
         exp_files = self.cfg['qc']['files'].copy()
         exp_files.update(self.cfg['resume']['files'])
         self.expect_output_files(
