@@ -516,7 +516,6 @@ class IntegrationTest(ReportingAppIntegrationTest):
 
     def test_rapid_analysis(self):
         self._add_patches(
-            patch('egcg_core.clarity.get_run', return_value=mocked_data.mocked_rapid_run),
             patch('analysis_driver.quality_control.interop_metrics.get_last_cycles_with_existing_bcls', return_value=302)
         )
 
