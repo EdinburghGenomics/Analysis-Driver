@@ -2,6 +2,8 @@ import os.path
 import json
 from unittest.mock import patch
 from egcg_core import constants as c
+
+from analysis_driver.report_generation.crawler import Crawler
 from tests.test_analysisdriver import TestAnalysisDriver, NamedMock
 from analysis_driver import report_generation
 
@@ -33,6 +35,27 @@ class TestCrawler(TestAnalysisDriver):
                 d[k] = sorted(v)
             elif type(v) is dict:
                 cls._sort_lists(v)
+
+    def test_get_sample_information_from_lims(self):
+        with patch(ppath + 'crawler.rest_communication.get_document', return_value={
+            'Yield for Quoted Coverage (Gb)': 95,
+            'Required Yield (Gb)': 120,
+            'Coverage (X)': 30
+        }), \
+             patch(ppath + 'crawler.clarity.get_sample_sex', return_value='F'), \
+             patch(ppath + 'crawler.clarity.get_plate_id_and_well', return_value=('plate1', 'well1')), \
+             patch(ppath + 'crawler.clarity.get_user_sample_name', return_value='user_sample_id1'), \
+             patch(ppath + 'crawler.clarity.get_species_from_sample', return_value='Homo sapiens'):
+                sample_info = Crawler.get_sample_information_from_lims('Sample1')
+                assert sample_info == {
+                    'user_sample_id': 'user_sample_id1',
+                    'plate_name': 'plate1',
+                    'sex_validation': {'provided': 'female'},
+                    'species_name': 'Homo sapiens',
+                    'required_yield_q30': 95000000000,
+                    'required_yield': 120000000000,
+                    'required_coverage': 30
+                }
 
 
 class TestRunCrawler(TestCrawler):

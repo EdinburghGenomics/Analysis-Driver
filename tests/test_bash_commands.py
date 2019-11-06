@@ -15,6 +15,16 @@ class TestBashCommands(TestAnalysisDriver):
                '--sample-sheet %s --use-bases-mask %s') % (self.assets_path, self.fastq_path, sample_sheet_csv, mask)
         assert obs == exp
 
+    def test_bcl2fastq_per_lane(self):
+        obs = bash_commands.bcl2fastq_per_lane(
+            self.assets_path, self.fastq_path, 'samplesheet.csv', masks=['101y8i101y'], lanes=[1]
+        )
+        exp = [
+            'path/to/bcl2fastq_1.0.4 -l INFO --runfolder-dir %s --output-dir %s/lane_1 -r 8 -p 8 -w 8 '
+            '--sample-sheet samplesheet.csv --use-bases-mask 101y8i101y --tiles s_1' % (self.assets_path, self.fastq_path)
+        ]
+        assert obs == exp
+
     def test_fastqc(self):
         test_fastq = join(self.fastq_path, '10015AT', '10015ATA0001L05', 'this.fastq.gz')
         cur_dir = os.getcwd()
