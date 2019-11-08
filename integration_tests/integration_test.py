@@ -544,9 +544,11 @@ class IntegrationTest(ReportingAppIntegrationTest):
         cfg.content['delivery'] = {'dest': os.path.join(os.path.dirname(os.getcwd()), 'delivered_outputs', 'test_rapid')}
         os.makedirs(cfg['delivery']['dest'])
         cfg.content['sample']['output_dir'] = os.path.join(os.path.dirname(os.getcwd()), 'outputs', 'test_rapid')
+        with patch('analysis_driver.pipelines.demultiplexing.WaitForRead2._run', retur_value=1),\
+             patch('analysis_driver.pipelines.demultiplexing.Bcl2Fastq._run', retur_value=1):
+            exit_status = client.main(['--run'])
 
-        exit_status = client.main(['--run'])
-        self.assertEqual('exit status', exit_status, 0)
+        self.expect_equal(exit_status, 9, 'exit status')
 
         self.expect_output_files(
             self.cfg['rapid']['files'],
@@ -563,11 +565,7 @@ class IntegrationTest(ReportingAppIntegrationTest):
             ),
             self.cfg['rapid']['qc']
         )
-        self.expect_stage_data(['setup', 'wellduplicates', 'bcl2fastq', 'phixdetection', 'fastqfilter', 'seqtkfqchk',
-                                'md5sum', 'fastqc', 'integritycheck', 'qcoutput1', 'dataoutput', 'cleanup',
-                                'samtoolsdepthmulti', 'picardinsertsizemulti', 'qcoutput2', 'runreview',
-                                'picardmarkduplicatemulti', 'samtoolsstatsmulti', 'bwaalignmulti', 'waitforread2',
-                                'bcl2fastqpartialrun', 'picardgcbias', 'dragen', 'dragenmetrics', 'dragenoutput'])
+        self.expect_stage_data(['setup', ('bcl2fastq', 9), 'waitforread2', 'dragen', 'dragenmetrics', 'dragenoutput'])
 
         proc = rest_communication.get_document('analysis_driver_procs')
         self.expect_equal(
