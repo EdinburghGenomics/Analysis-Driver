@@ -567,7 +567,7 @@ class IntegrationTest(ReportingAppIntegrationTest):
         )
         self.expect_stage_data(['setup', ('bcl2fastq', 9), 'waitforread2', 'dragen', 'dragenmetrics', 'dragenoutput'])
 
-        proc = rest_communication.get_document('analysis_driver_procs')
+        proc = rest_communication.get_document('analysis_driver_procs', sort='-_created')
         self.expect_equal(
             rest_communication.get_document('runs', where={'run_id': self.rapid_run_id}).get('analysis_driver_procs'),
             [proc['proc_id']],
