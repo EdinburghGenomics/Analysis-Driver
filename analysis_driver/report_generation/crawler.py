@@ -19,6 +19,6 @@ class Crawler(AppLogger):
         if 'Required Yield (Gb)' in rest_data:
             sample_info[c.ELEMENT_SAMPLE_REQUIRED_YIELD] = int(rest_data.get('Required Yield (Gb)')) * 1000000000
         if 'Coverage (X)' in rest_data:
-            sample_info[c.ELEMENT_SAMPLE_REQUIRED_COVERAGE] = rest_data.get('Coverage (X)')
+            sample_info[c.ELEMENT_SAMPLE_REQUIRED_COVERAGE] = int(rest_data.get('Coverage (X)'))
 
         return sample_info

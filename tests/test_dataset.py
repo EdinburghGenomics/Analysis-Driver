@@ -334,6 +334,16 @@ class TestRunDataset(TestDataset):
         assert len(barcodes_len) == 1
         assert barcodes_len.pop() == 8
 
+    def test_has_barcode_in_lane(self):
+        d = RunDataset('test_dataset')
+        d._run_status = mocked_run_status
+        assert d.has_barcode_in_lane(lane_number=1) is False
+
+        d._run_status = mocked_run_status_pools
+        d._run_info = Mock(reads=Mock(has_barcodes=8))
+        assert d.has_barcode_in_lane(lane_number=1) == 8
+
+
     @patch('builtins.open')
     def test_generate_samplesheet(self, mocked_open):
         fake_run_elements = [

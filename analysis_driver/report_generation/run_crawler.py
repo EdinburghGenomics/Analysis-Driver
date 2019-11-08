@@ -103,10 +103,10 @@ class RunCrawler(Crawler):
         for project_id in self.projects:
             self.projects[project_id][ELEMENT_SAMPLES] = list(self.projects[project_id][ELEMENT_SAMPLES])
 
-        if dataset.has_barcode_in_lane(run_element[ELEMENT_LANE]):
-            # Add the unknown to the lane
-            for lane_id in self.lanes:
-                lane = self.lanes[lane_id][ELEMENT_LANE_NUMBER]
+        # Add the unknown to the lane if required
+        for lane_id in self.lanes:
+            lane = self.lanes[lane_id][ELEMENT_LANE_NUMBER]
+            if dataset.has_barcode_in_lane(lane):
                 unknown = '%s_%s_%s' % (self.dataset.name, lane, 'unknown')
                 self.lanes[lane_id][ELEMENT_RUN_ELEMENTS].append(unknown)
 
