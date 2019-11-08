@@ -60,7 +60,7 @@ def merge_lane_directories(fastq_dir, run_elements):
     """
     At the end of a per lane bcl2fastq run the data in the lane directories must be merged back to the main fastq dir
     This function does that by moving all the fastq files to the expected location
-    and the stats file are move to a central Stats folder. They are rename to avoid file collision.
+    and the stats file are move to a central Stats folder. They are renamed to avoid file collision.
     :param fastq_dir: The main fastq dir
     :param run_elements: The run element expected in this run
     """
