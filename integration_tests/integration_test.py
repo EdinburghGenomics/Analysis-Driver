@@ -544,8 +544,8 @@ class IntegrationTest(ReportingAppIntegrationTest):
         cfg.content['delivery'] = {'dest': os.path.join(os.path.dirname(os.getcwd()), 'delivered_outputs', 'test_rapid')}
         os.makedirs(cfg['delivery']['dest'])
         cfg.content['sample']['output_dir'] = os.path.join(os.path.dirname(os.getcwd()), 'outputs', 'test_rapid')
-        with patch('analysis_driver.pipelines.demultiplexing.WaitForRead2._run', retur_value=1),\
-             patch('analysis_driver.pipelines.demultiplexing.Bcl2Fastq._run', retur_value=1):
+        with patch('analysis_driver.pipelines.demultiplexing.WaitForRead2._run', return_value=1),\
+             patch('analysis_driver.pipelines.demultiplexing.Bcl2Fastq._run', return_value=1):
             exit_status = client.main(['--run'])
 
         self.expect_equal(exit_status, 9, 'exit status')
