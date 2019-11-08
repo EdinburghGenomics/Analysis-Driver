@@ -28,21 +28,21 @@ samples:
         artifact: { container_name: plate2, xpos: A, ypos: 5, reagent_labels:['D707-D502 (CTGAAGCT-ATAGAGGC)']} }
     - { name: 10015AT0009, project: 10015AT,  udfs: { User Sample Name: uid_10015AT0009, Required Yield (Gb): 120, Coverage (X): 30, Species: Homo sapiens, Analysis Type: Variant Calling gatk, Genome Version: hg38 },
         artifact: { container_name: plate2, xpos: A, ypos: 6, reagent_labels:['D708-D502 (TAATGCGC-ATAGAGGC)']} }
-    - { name: non_pooling_sample_1, project: 10015AT,  udfs: { User Sample Name: uid, Required Yield (Gb): 120, Coverage (X): 30, Species: Homo sapiens, Analysis Type: Variant Calling gatk, Rapid Analysis: no, Genome Version: hg38 },
+    - { name: non_pooling_sample_1, project: 10015AT,  udfs: { User Sample Name: uid, Required Yield (Gb): 120, Coverage (X): 30, Species: Homo sapiens, Analysis Type: Variant Calling gatk, Rapid Analysis: 'no', Genome Version: hg38 },
         artifact: { container_name: plate3, xpos: A, ypos: 1, reagent_labels:['D708-D502 (TAATGCGC-ATAGAGGC)']} }
-    - { name: non_pooling_sample_2, project: 10015AT,  udfs: { User Sample Name: uid, Required Yield (Gb): 120, Coverage (X): 30, Species: Homo sapiens, Analysis Type: Variant Calling gatk, Rapid Analysis: yes, Genome Version: hg38 },
+    - { name: non_pooling_sample_2, project: 10015AT,  udfs: { User Sample Name: uid, Required Yield (Gb): 120, Coverage (X): 30, Species: Homo sapiens, Analysis Type: Variant Calling gatk, Rapid Analysis: 'yes', Genome Version: hg38 },
         artifact: { container_name: plate3, xpos: A, ypos: 2, reagent_labels:['D708-D502 (TAATGCGC-ATAGAGGC)']} }
-    - { name: non_pooling_sample_3, project: 10015AT,  udfs: { User Sample Name: uid, Required Yield (Gb): 120, Coverage (X): 30, Species: Homo sapiens, Analysis Type: Variant Calling gatk, Rapid Analysis: no, Genome Version: hg38 },
+    - { name: non_pooling_sample_3, project: 10015AT,  udfs: { User Sample Name: uid, Required Yield (Gb): 120, Coverage (X): 30, Species: Homo sapiens, Analysis Type: Variant Calling gatk, Rapid Analysis: 'no', Genome Version: hg38 },
         artifact: { container_name: plate3, xpos: A, ypos: 3, reagent_labels:['D708-D502 (TAATGCGC-ATAGAGGC)']} }
-    - { name: non_pooling_sample_4, project: 10015AT,  udfs: { User Sample Name: uid, Required Yield (Gb): 120, Coverage (X): 30, Species: Homo sapiens, Analysis Type: Variant Calling gatk, Rapid Analysis: no, Genome Version: hg38 },
+    - { name: non_pooling_sample_4, project: 10015AT,  udfs: { User Sample Name: uid, Required Yield (Gb): 120, Coverage (X): 30, Species: Homo sapiens, Analysis Type: Variant Calling gatk, Rapid Analysis: 'no', Genome Version: hg38 },
         artifact: { container_name: plate3, xpos: A, ypos: 4, reagent_labels:['D708-D502 (TAATGCGC-ATAGAGGC)']} }
-    - { name: non_pooling_sample_5, project: 10015AT,  udfs: { User Sample Name: uid, Required Yield (Gb): 120, Coverage (X): 30, Species: Homo sapiens, Analysis Type: Variant Calling gatk, Rapid Analysis: no, Genome Version: hg38 },
+    - { name: non_pooling_sample_5, project: 10015AT,  udfs: { User Sample Name: uid, Required Yield (Gb): 120, Coverage (X): 30, Species: Homo sapiens, Analysis Type: Variant Calling gatk, Rapid Analysis: 'no', Genome Version: hg38 },
         artifact: { container_name: plate3, xpos: A, ypos: 5, reagent_labels:['D708-D502 (TAATGCGC-ATAGAGGC)']} }
-    - { name: non_pooling_sample_6, project: 10015AT,  udfs: { User Sample Name: uid, Required Yield (Gb): 120, Coverage (X): 30, Species: Homo sapiens, Analysis Type: Variant Calling gatk, Rapid Analysis: no, Genome Version: hg38 },
+    - { name: non_pooling_sample_6, project: 10015AT,  udfs: { User Sample Name: uid, Required Yield (Gb): 120, Coverage (X): 30, Species: Homo sapiens, Analysis Type: Variant Calling gatk, Rapid Analysis: 'no', Genome Version: hg38 },
         artifact: { container_name: plate3, xpos: A, ypos: 6, reagent_labels:['D708-D502 (TAATGCGC-ATAGAGGC)']} }
-    - { name: non_pooling_sample_7, project: 10015AT,  udfs: { User Sample Name: uid, Required Yield (Gb): 120, Coverage (X): 30, Species: Homo sapiens, Analysis Type: Variant Calling gatk, Rapid Analysis: no, Genome Version: hg38 },
+    - { name: non_pooling_sample_7, project: 10015AT,  udfs: { User Sample Name: uid, Required Yield (Gb): 120, Coverage (X): 30, Species: Homo sapiens, Analysis Type: Variant Calling gatk, Rapid Analysis: 'no', Genome Version: hg38 },
         artifact: { container_name: plate3, xpos: A, ypos: 7, reagent_labels:['D708-D502 (TAATGCGC-ATAGAGGC)']} }
-    - { name: non_pooling_sample_8, project: 10015AT,  udfs: { User Sample Name: uid, Required Yield (Gb): 120, Coverage (X): 30, Species: Homo sapiens, Analysis Type: Variant Calling gatk, Rapid Analysis: yes, Genome Version: hg38 },
+    - { name: non_pooling_sample_8, project: 10015AT,  udfs: { User Sample Name: uid, Required Yield (Gb): 120, Coverage (X): 30, Species: Homo sapiens, Analysis Type: Variant Calling gatk, Rapid Analysis: 'yes', Genome Version: hg38 },
         artifact: { container_name: plate3, xpos: A, ypos: 8, reagent_labels:['D708-D502 (TAATGCGC-ATAGAGGC)']} }
 
 # This will create additional artifacts (they will not be root artifact)
