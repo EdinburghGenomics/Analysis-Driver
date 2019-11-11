@@ -623,7 +623,7 @@ class IntegrationTest(ReportingAppIntegrationTest):
 
         self.expect_equal(
             ad_proc['data_source'],
-            ['_'.join([self.run_id, str(i), self.barcode]) for i in range(1, 8)],
+            ['_'.join([self.run_id, str(i), self.dog_gatk4_qc_sample_id]) for i in range(1, 8)],
             'data source'
         )
 
@@ -664,7 +664,7 @@ class IntegrationTest(ReportingAppIntegrationTest):
 
         self.expect_equal(
             ad_proc['data_source'],
-            ['_'.join([self.run_id, str(i), self.barcode]) for i in range(1, 8)],
+            ['_'.join([self.run_id, str(i), self.dog_gatk4_sample_id]) for i in range(1, 8)],
             'data source'
         )
         assert self._test_success
@@ -705,7 +705,7 @@ class IntegrationTest(ReportingAppIntegrationTest):
 
         self.expect_equal(
             ad_proc['data_source'],
-            ['_'.join([self.run_id, str(i), self.barcode]) for i in range(1, 8)],
+            ['_'.join([self.run_id, str(i), self.human_gatk4_sample_id]) for i in range(1, 8)],
             'data source'
         )
 
