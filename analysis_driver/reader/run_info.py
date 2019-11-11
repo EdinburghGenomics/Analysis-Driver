@@ -84,7 +84,10 @@ class Reads:
 
         for i in self.index_lengths:
             diff = i - barcode_len
-            out.append('i' + str(barcode_len) + 'n' * diff)
+            if barcode_len:
+                out.append('i' + str(barcode_len) + 'n' * diff)
+            else:
+                out.append('n' * diff)
 
         out.append('y' + str(self.num_cycles(self.downstream_read) - 1) + 'n')
         return ','.join(out)

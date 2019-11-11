@@ -1,7 +1,6 @@
 import os
 import subprocess
 import time
-from egcg_core import rest_communication, util
 
 from egcg_core import rest_communication, util, exceptions
 from unittest.mock import Mock, patch
@@ -55,45 +54,11 @@ class IntegrationTest(ReportingAppIntegrationTest):
         self.run_dir = os.path.dirname(os.getcwd())  # we're inside the checked out project, not the top level
 
     def setUp(self):
-        # Set the LIMS data yaml file before the super().setUp so it is picked up durring the setup
+        # Set the LIMS data yaml file before the super().setUp so it is picked up during the setup
         self.lims_data_yaml = os.path.join(os.path.dirname(__file__), 'data_for_clarity_lims.yaml')
 
         super().setUp()
         cfg.load_config_file(os.getenv('ANALYSISDRIVERCONFIG'), env_var='ANALYSISDRIVERENV')
-
-        samples = [self.dog_gatk4_sample_id, self.dog_gatk_sample_id, self.human_gatk4_sample_id, self.human_gatk_sample_id]
-        for sample in samples:
-            run_elements = []
-
-            for lane in range(1, 8):
-                run_elements.append({
-                    'run_id': self.run_id, 'project_id': self.project_id, 'sample_id': sample,
-                    'library_id': self.library_id, 'run_element_id': '%s_%s_%s' % (self.run_id, lane, sample),
-                    'useable': 'yes', 'barcode': self.barcode, 'lane': lane, 'bases_r1': 70000000,
-                    'bases_r2': 70000000,'clean_bases_r1': 66000000, 'clean_bases_r2': 66000000,
-                    'q30_bases_r1': 64000000, 'q30_bases_r2': 64000000, 'clean_q30_bases_r1': 64000000,
-                    'clean_q30_bases_r2': 64000000,'clean_reads': 1
-                })
-            # Lane 8 has no data
-            run_elements.append(
-                {'run_id': self.run_id, 'project_id': self.project_id, 'sample_id': sample,
-                 'library_id': self.library_id, 'run_element_id': '%s_%s_%s' % (self.run_id, 8, sample),
-                 'useable': 'no', 'barcode': self.barcode, 'lane': 8, 'bases_r1': 0, 'bases_r2': 0,
-                 'clean_bases_r1': 0, 'clean_bases_r2': 0, 'q30_bases_r1': 0,
-                 'q30_bases_r2': 0, 'clean_q30_bases_r1': 0, 'clean_q30_bases_r2': 0,
-                 'clean_reads': 0}
-            )
-            for e in run_elements:
-                rest_communication.post_entry('run_elements', e)
-
-            rest_communication.post_entry(
-                'samples',
-                {'library_id': self.library_id, 'project_id': self.project_id, 'sample_id': sample,
-                 'run_elements': [e['run_element_id'] for e in run_elements], 'required_yield': 900000000,
-                 'required_coverage': 30, 'required_yield': 120000000000}
-            )
-
-        rest_communication.post_entry('projects', {'project_id': self.project_id, 'samples': samples})
 
         rest_communication.post_entry('species', {'name': 'Homo sapiens', 'default_version': 'hg38'})
         rest_communication.post_entry('species', {'name': 'Canis lupus familiaris', 'default_version': 'CanFam3.1'})
@@ -123,6 +88,40 @@ class IntegrationTest(ReportingAppIntegrationTest):
         self.dynamic_patches = []
         self._test_success = True
 
+    def _upload_sample_data(self, sample_id):
+        """Create the sample data that will be uploaded to the REST API so that it can be used to know which
+        run element to use. This should only be used for sample process tests."""
+        run_elements = []
+
+        for lane in range(1, 8):
+            run_elements.append({
+                'run_id': self.run_id, 'project_id': self.project_id, 'sample_id': sample_id,
+                'library_id': self.library_id, 'run_element_id': '%s_%s_%s' % (self.run_id, lane, sample_id),
+                'useable': 'yes', 'barcode': self.barcode, 'lane': lane, 'bases_r1': 20000000000,
+                'bases_r2': 20000000000, 'clean_bases_r1': 18000000000, 'clean_bases_r2': 18000000000,
+                'q30_bases_r1': 19000000000, 'q30_bases_r2': 19000000000, 'clean_q30_bases_r1': 17000000000,
+                'clean_q30_bases_r2': 17000000000, 'clean_reads': 1
+            })
+        # Lane 8 has no data
+        run_elements.append(
+            {'run_id': self.run_id, 'project_id': self.project_id, 'sample_id': sample_id,
+             'library_id': self.library_id, 'run_element_id': '%s_%s_%s' % (self.run_id, 8, sample_id),
+             'useable': 'no', 'barcode': self.barcode, 'lane': 8, 'bases_r1': 0, 'bases_r2': 0,
+             'clean_bases_r1': 0, 'clean_bases_r2': 0, 'q30_bases_r1': 0,
+             'q30_bases_r2': 0, 'clean_q30_bases_r1': 0, 'clean_q30_bases_r2': 0,
+             'clean_reads': 0}
+        )
+        for e in run_elements:
+            rest_communication.post_entry('run_elements', e)
+
+        rest_communication.post_entry(
+            'samples',
+            {'library_id': self.library_id, 'project_id': self.project_id, 'sample_id': sample_id,
+             'run_elements': [e['run_element_id'] for e in run_elements],
+             'required_coverage': 30, 'required_yield': 120000000000}
+        )
+        rest_communication.post_entry('projects', {'project_id': self.project_id, 'samples': [sample_id]})
+
     def tearDown(self):
         super().tearDown()
         self._reset_logging()
@@ -137,31 +136,19 @@ class IntegrationTest(ReportingAppIntegrationTest):
         else:
             raise exceptions.EGCGError('Input dir %s does not exist' % input_dir)
 
+        if test_type == 'sample':
+            self._upload_sample_data(dataset_name)
+
         os.makedirs(cfg['jobs_dir'])
         os.makedirs(cfg[test_type]['output_dir'])
 
-        # def _fake_get_sample(sample_name):
-        #     return Mock(
-        #         name=sample_name,
-        #         udf={
-        #             'Coverage': 1337,
-        #             'Analysis Type': analysis_type,
-        #             'Yield for Quoted Coverage (Gb)': 15,
-        #             'Required Yield (Gb)': 30,
-        #             'Coverage (X)': 15,
-        #         }
-        #     )
-
-        # self._add_patches(
-        #     patch('egcg_core.clarity.get_sample', new=_fake_get_sample),
-        #     patch('egcg_core.clarity.get_species_from_sample', return_value=species)
-        # )
-
-        # Force the sample to be the first on in line
+    def run_force_ready(self, run_name):
+        # Force the run to be the first one in line
+        # This also bypass the check for ready state
         payload = {
-            'dataset_name': dataset_name,
-            'proc_id': test_type + '_' + dataset_name + '_atime',
-            'dataset_type': test_type,
+            'dataset_name': run_name,
+            'proc_id': run_name + '_atime',
+            'dataset_type': 'run',
             'status': 'force_ready'
         }
         rest_communication.post_or_patch('analysis_driver_procs', [payload], id_field='proc_id')
@@ -251,6 +238,7 @@ class IntegrationTest(ReportingAppIntegrationTest):
 
     def test_demultiplexing(self):
         self.setup_test('run', 'test_demultiplexing', self.run_id)
+        self.run_force_ready(self.run_id)
         self._add_patches(
             patch('analysis_driver.quality_control.interop_metrics.get_last_cycles_with_existing_bcls', return_value=310)
         )
@@ -298,7 +286,7 @@ class IntegrationTest(ReportingAppIntegrationTest):
             'setup', 'wellduplicates', 'bcl2fastq', 'phixdetection', 'fastqfilter', 'seqtkfqchk', 'md5sum', 'fastqc',
             'integritycheck', 'qcoutput1', 'dataoutput', 'cleanup', 'samtoolsdepthmulti', 'picardinsertsizemulti',
             'qcoutput2', 'runreview', 'picardmarkduplicatemulti', 'samtoolsstatsmulti', 'bwaalignmulti', 'waitforread2',
-            'bcl2fastqpartialrun', 'picardgcbias'
+            'bcl2fastqpartialrun', 'picardgcbias', 'earlyfastqfilter'
         ])
         # Get the most recent procs
         proc = rest_communication.get_document('analysis_driver_procs', sort='-_created')
@@ -317,6 +305,8 @@ class IntegrationTest(ReportingAppIntegrationTest):
 
     def test_demultiplexing_aborted(self):
         self.setup_test('run', 'test_demultiplexing_aborted', self.aborted_run_id)
+        self.run_force_ready(self.aborted_run_id)
+
         self._add_patches(
             patch('analysis_driver.quality_control.interop_metrics.get_last_cycles_with_existing_bcls', return_value=310)
         )
@@ -401,7 +391,7 @@ class IntegrationTest(ReportingAppIntegrationTest):
         self.expect_equal(ad_proc['genome_used'], 'CanFam3.1', 'genome used')
 
         self.expect_equal(
-            rest_communication.get_document('analysis_driver_procs')['data_source'],
+            ad_proc['data_source'],
             ['_'.join([self.run_id, str(i), self.dog_gatk_sample_id]) for i in range(1, 8)],
             'data source'
         )
@@ -411,7 +401,7 @@ class IntegrationTest(ReportingAppIntegrationTest):
     def _run_qc_test(self):
         exit_status = client.main(['--sample'])
 
-        self.assertEqual('exit status', exit_status, 0)
+        self.expect_equal(exit_status, 0, 'exit status')
         self.expect_qc_data(
             rest_communication.get_document('samples', where={'sample_id': self.dog_gatk_qc_sample_id}),
             self.cfg['qc']['qc']
@@ -420,7 +410,7 @@ class IntegrationTest(ReportingAppIntegrationTest):
                                 'mergefastqs', 'samtoolsstats', 'samplereview', 'haplotypecaller', 'cleanup',
                                 'fastqscreen', 'md5sum', 'bwamem', 'sampledataoutput', 'genotypegvcfs', 'blast'])
 
-        ad_proc = rest_communication.get_document('analysis_driver_procs')
+        ad_proc = rest_communication.get_document('analysis_driver_procs', sort='-_created')
 
         self.expect_equal(
             ad_proc['pipeline_used'],
@@ -431,8 +421,8 @@ class IntegrationTest(ReportingAppIntegrationTest):
         self.expect_equal(ad_proc['genome_used'], 'CanFam3.1', 'genome used')
 
         self.expect_equal(
-            rest_communication.get_document('analysis_driver_procs')['data_source'],
-            ['_'.join([self.run_id, str(i), self.barcode]) for i in range(1, 8)],
+            ad_proc['data_source'],
+            ['_'.join([self.run_id, str(i), self.dog_gatk_qc_sample_id]) for i in range(1, 8)],
             'data source'
         )
 
@@ -468,8 +458,10 @@ class IntegrationTest(ReportingAppIntegrationTest):
         )
 
         self._reset_logging()
-        client.main(['--sample', '--resume', '10015AT0004'])
-        self.expect_equal(rest_communication.get_document('analysis_driver_procs')['status'], 'resume', 'resumed')
+        client.main(['--sample', '--resume', self.dog_gatk_qc_sample_id])
+        ad_proc = rest_communication.get_document('analysis_driver_procs', sort='-_created')
+
+        self.expect_equal(ad_proc['status'], 'resume', 'resumed')
         self._reset_logging()
 
         self._run_qc_test()
@@ -499,13 +491,7 @@ class IntegrationTest(ReportingAppIntegrationTest):
                 {'proc_id': sample + 'proc_id', 'dataset_name': sample, 'dataset_type': 'sample',
                  'status': 'finished', 'pipeline_used': {'name': 'bcbio'}}
             )
-        rest_communication.patch_entry(
-            'projects',
-            {'samples': self.samples_for_project},
-            'project_id',
-            self.project_id,
-            update_lists=['samples']
-        )
+        rest_communication.post_entry('projects', {'project_id': self.project_id, 'samples': self.samples_for_project})
 
         self.setup_test('project', 'test_project', self.project_id)
         exit_status = client.main(['--project'])
@@ -518,10 +504,11 @@ class IntegrationTest(ReportingAppIntegrationTest):
 
         self.expect_stage_data(['genomicsdbimport', 'gathervcfs', 'genotypegvcfs', 'relatedness', 'peddy',
                                 'parserelatedness', 'output', 'cleanup'])
-        ad_procs = rest_communication.get_document('analysis_driver_procs', where={'dataset_name': self.project_id})
+        ad_proc = rest_communication.get_document('analysis_driver_procs', where={'dataset_name': self.project_id},
+                                                  sort='-_created')
         self.expect_equal(
-            ad_procs['pipeline_used'],
-            {'toolset_type': 'project_processing', 'name': 'gatk4project', 'toolset_version': 1},
+            ad_proc['pipeline_used'],
+            {'toolset_type': 'project_processing', 'name': 'project', 'toolset_version': 1},
             'pipeline used'
         )
 
@@ -529,7 +516,6 @@ class IntegrationTest(ReportingAppIntegrationTest):
 
     def test_rapid_analysis(self):
         self._add_patches(
-            patch('egcg_core.clarity.get_run', return_value=mocked_data.mocked_rapid_run),
             patch('analysis_driver.quality_control.interop_metrics.get_last_cycles_with_existing_bcls', return_value=302)
         )
 
@@ -548,6 +534,8 @@ class IntegrationTest(ReportingAppIntegrationTest):
         )
 
         self.setup_test('run', 'test_rapid', self.rapid_run_id)
+        self.run_force_ready(self.rapid_run_id)
+
         # Remove the Samplesheet that might have been generated before
         samplesheet = os.path.join(cfg['run']['input_dir'], self.rapid_run_id, 'SampleSheet_analysis_driver.csv')
         if os.path.isfile(samplesheet):
@@ -556,9 +544,11 @@ class IntegrationTest(ReportingAppIntegrationTest):
         cfg.content['delivery'] = {'dest': os.path.join(os.path.dirname(os.getcwd()), 'delivered_outputs', 'test_rapid')}
         os.makedirs(cfg['delivery']['dest'])
         cfg.content['sample']['output_dir'] = os.path.join(os.path.dirname(os.getcwd()), 'outputs', 'test_rapid')
+        with patch('analysis_driver.pipelines.demultiplexing.WaitForRead2._run', return_value=1),\
+             patch('analysis_driver.pipelines.demultiplexing.Bcl2Fastq._run', return_value=1):
+            exit_status = client.main(['--run'])
 
-        exit_status = client.main(['--run'])
-        self.assertEqual('exit status', exit_status, 0)
+        self.expect_equal(exit_status, 9, 'exit status')
 
         self.expect_output_files(
             self.cfg['rapid']['files'],
@@ -575,13 +565,10 @@ class IntegrationTest(ReportingAppIntegrationTest):
             ),
             self.cfg['rapid']['qc']
         )
-        self.expect_stage_data(['setup', 'wellduplicates', 'bcl2fastq', 'phixdetection', 'fastqfilter', 'seqtkfqchk',
-                                'md5sum', 'fastqc', 'integritycheck', 'qcoutput1', 'dataoutput', 'cleanup',
-                                'samtoolsdepthmulti', 'picardinsertsizemulti', 'qcoutput2', 'runreview',
-                                'picardmarkduplicatemulti', 'samtoolsstatsmulti', 'bwaalignmulti', 'waitforread2',
-                                'bcl2fastqpartialrun', 'picardgcbias', 'dragen', 'dragenmetrics', 'dragenoutput'])
+        self.expect_stage_data(['setup', ('bcl2fastq', 1), ('waitforread2', 1), 'wellduplicates', 'md5sum',
+                                'dragen', 'dragenmetrics', 'dragenoutput'])
 
-        proc = rest_communication.get_document('analysis_driver_procs')
+        proc = rest_communication.get_document('analysis_driver_procs', sort='-_created')
         self.expect_equal(
             rest_communication.get_document('runs', where={'run_id': self.rapid_run_id}).get('analysis_driver_procs'),
             [proc['proc_id']],
@@ -628,7 +615,7 @@ class IntegrationTest(ReportingAppIntegrationTest):
 
         self.expect_equal(
             ad_proc['pipeline_used'],
-            {'toolset_type': 'gatk4_sample_processing', 'name': 'qc_gatk4', 'toolset_version': 0},
+            {'toolset_type': 'gatk4_sample_processing', 'name': 'qc_gatk4', 'toolset_version': 1},
             'pipeline used'
         )
 
@@ -636,7 +623,7 @@ class IntegrationTest(ReportingAppIntegrationTest):
 
         self.expect_equal(
             ad_proc['data_source'],
-            ['_'.join([self.run_id, str(i), self.barcode]) for i in range(1, 8)],
+            ['_'.join([self.run_id, str(i), self.dog_gatk4_qc_sample_id]) for i in range(1, 8)],
             'data source'
         )
 
@@ -671,13 +658,13 @@ class IntegrationTest(ReportingAppIntegrationTest):
 
         self.expect_equal(
             ad_proc['pipeline_used'],
-            {'toolset_type': 'gatk4_sample_processing', 'name': 'variant_calling_gatk4', 'toolset_version': 0},
+            {'toolset_type': 'gatk4_sample_processing', 'name': 'variant_calling_gatk4', 'toolset_version': 1},
             'pipeline used'
         )
 
         self.expect_equal(
             ad_proc['data_source'],
-            ['_'.join([self.run_id, str(i), self.barcode]) for i in range(1, 8)],
+            ['_'.join([self.run_id, str(i), self.dog_gatk4_sample_id]) for i in range(1, 8)],
             'data source'
         )
         assert self._test_success
@@ -712,13 +699,13 @@ class IntegrationTest(ReportingAppIntegrationTest):
 
         self.expect_equal(
             ad_proc['pipeline_used'],
-            {'toolset_type': 'gatk4_sample_processing', 'name': 'human_variant_calling_gatk4', 'toolset_version': 0},
+            {'toolset_type': 'gatk4_sample_processing', 'name': 'human_variant_calling_gatk4', 'toolset_version': 1},
             'pipeline used'
         )
 
         self.expect_equal(
             ad_proc['data_source'],
-            ['_'.join([self.run_id, str(i), self.barcode]) for i in range(1, 8)],
+            ['_'.join([self.run_id, str(i), self.human_gatk4_sample_id]) for i in range(1, 8)],
             'data source'
         )
 

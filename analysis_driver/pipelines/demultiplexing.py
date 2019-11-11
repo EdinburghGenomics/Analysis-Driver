@@ -14,6 +14,7 @@ from analysis_driver.quality_control import well_duplicates, interop_metrics, BC
 from analysis_driver.report_generation import RunCrawler
 from analysis_driver.transfer_data import output_data_and_archive
 from analysis_driver.tool_versioning import toolset
+from analysis_driver.util.helper_functions import merge_lane_directories
 
 
 class DemultiplexingStage(segmentation.Stage):
@@ -69,11 +70,13 @@ class Setup(DemultiplexingStage):
 
 class Bcl2Fastq(DemultiplexingStage):
     def _run(self):
-        self.info('bcl2fastq mask: ' + self.dataset.mask)  # e.g: mask = 'y150n,i6,y150n'
+        lanes = range(1, self.dataset.number_of_lane + 1)
+        masks = [self.dataset.mask_per_lane(l) for l in lanes]
+        self.info('bcl2fastq mask: ' + ', '.join(('lane %s: %s' % (l, m) for l, m in zip(lanes, masks))))
+
         bcl2fastq_exit_status = executor.execute(
-            bash_commands.bcl2fastq(
-                self.input_dir, self.fastq_dir, self.dataset.sample_sheet_file, self.dataset.mask
-            ),
+            *(bash_commands.bcl2fastq_per_lane(self.input_dir, self.fastq_dir, self.dataset.sample_sheet_file,
+                                               masks, lanes)),
             job_name='bcl2fastq',
             working_dir=self.job_dir,
             cpus=8,
@@ -81,6 +84,9 @@ class Bcl2Fastq(DemultiplexingStage):
         ).join()
         if bcl2fastq_exit_status:
             return bcl2fastq_exit_status
+
+        # Merge the lane directories
+        merge_lane_directories(self.fastq_dir, self.dataset.run_elements)
 
         # Copy the Samplesheet Runinfo.xml run_parameters.xml to the fastq dir
         for f in ('SampleSheet_analysis_driver.csv', 'runParameters.xml',
@@ -258,15 +264,24 @@ class PartialRun(DemultiplexingStage):
 
 class Bcl2FastqPartialRun(PartialRun):
     def _run(self):
-        mask = self.dataset.mask.replace('y150n', 'y50n101')
-        self.info('bcl2fastq mask: ' + mask)
-        return executor.execute(
-            bash_commands.bcl2fastq(self.input_dir, self.fastq_intermediate_dir, self.dataset.sample_sheet_file, mask),
+        lanes = range(1, self.dataset.number_of_lane + 1)
+        masks = [self.dataset.mask_per_lane(l).replace('y150n', 'y50n101') for l in lanes]
+        self.info('bcl2fastq mask: ' + ', '.join(('lane %s: %s' % (l, m) for l,m in zip(lanes, masks))))
+
+        bcl2fastq_exit_status = executor.execute(
+            *(bash_commands.bcl2fastq_per_lane(self.input_dir, self.fastq_intermediate_dir,
+                                               self.dataset.sample_sheet_file, masks, lanes)),
             job_name='bcl2fastq_intermediate',
             working_dir=self.job_dir,
             cpus=8,
             mem=32
         ).join()
+        if bcl2fastq_exit_status:
+            return bcl2fastq_exit_status
+
+        # Merge the lane directories
+        merge_lane_directories(self.fastq_intermediate_dir, self.dataset.run_elements)
+        return bcl2fastq_exit_status
 
 
 class EarlyFastqFilter(PartialRun):

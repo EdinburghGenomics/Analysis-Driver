@@ -6,7 +6,7 @@ from datetime import datetime
 from errno import ESRCH
 from sys import modules
 from time import sleep
-from egcg_core import rest_communication
+from egcg_core import rest_communication, clarity
 from egcg_core.app_logging import AppLogger
 from egcg_core.clarity import sanitize_user_id, get_species_name
 from egcg_core.config import cfg
@@ -317,9 +317,11 @@ class RunDataset(Dataset):
         with open(filename, 'w') as f:
             f.write('\n'.join(all_lines) + '\n')
 
-    @property
-    def mask(self):
-        return self.run_info.reads.generate_mask(self.barcode_len)
+    def mask_per_lane(self, lane):
+        if self.has_barcode_in_lane(lane):
+            return self.run_info.reads.generate_mask(self.barcode_len)
+        return self.run_info.reads.generate_mask(0)
+
 
     def _is_ready(self):
         return True
@@ -341,6 +343,10 @@ class RunDataset(Dataset):
         if art.parent_process.type.name not in expected_pooling_step_names:
             raise ValueError('Unexpected step name: %s' % art.parent_process.type.name)
         return art.input_artifact_list()
+
+    @property
+    def number_of_lane(self):
+        return len(self.run_status['lanes'])
 
     @property
     def rapid_samples_by_lane(self):
@@ -401,8 +407,17 @@ class RunDataset(Dataset):
 
         return run_elements
 
-    @property
-    def has_barcodes(self):
+    def has_barcode_in_lane(self, lane_number):
+        """
+        Returns False if this lane has only one barcode (regardless of what is in the RunInfo.xml).
+        Otherwise delegate to the RunInfo object.
+        :param lane_number: the lane number to query.
+        :return: True if this lane needs to be use the barcode False otherwise.
+        """
+        lane_data = [l for l in self.run_status['lanes'] if str(l['lane']) == str(lane_number)][0]
+        # If there is only one sample in this lane then we won't demultiplex and should use a barcode length of 0
+        if len(lane_data['samples']) == 1:
+            return False
         return self.run_info.reads.has_barcodes
 
     @property
@@ -484,22 +499,18 @@ class SampleDataset(Dataset):
             self._lims_ntf = LimsNotification(self.name)
         return self._lims_ntf
 
-
     @property
     def species(self):
         if self._species is None:
             self._species = self.sample.get('species_name')
         if self._species is None:
-            self._species = get_species_name(self.lims_sample_info.get('Species'))
+            self._species = clarity.get_species_from_sample(self.name)
         return self._species
 
     @property
     def genome_version(self):
         if self._genome_version is None:
-            self._genome_version = self.lims_sample_info.get('Genome Version')
-            if not self._genome_version:
-                self._genome_version = rest_communication.get_document(
-                    'species', where={'name': self.species})['default_version']
+            self._genome_version = clarity.get_genome_version(sample_id=self.name, species=self.species)
         return self._genome_version
 
     @property
@@ -528,9 +539,7 @@ class SampleDataset(Dataset):
 
     @property
     def user_sample_id(self):
-        user_sample_name = self.lims_sample_info.get('User Sample Name')
-        if user_sample_name:
-            return sanitize_user_id(user_sample_name)
+        return clarity.get_user_sample_name(self.name)
 
     @property
     def run_elements(self):

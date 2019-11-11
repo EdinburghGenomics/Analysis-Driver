@@ -216,6 +216,17 @@ mocked_idt_artifact = NamedMock(
     reagent_labels=['001A IDT-ILMN TruSeq DNA-RNA UD 96 Indexes  Plate_UDI0001 (CCGCGGTT-AGCGCTAG)'],
     samples=[MockedSample(real_name='idt_sample')]
 )
+mocked_idt_pool = NamedMock(real_name='artpool', reagent_labels=[
+    '001A IDT-ILMN TruSeq DNA-RNA UD 96 Indexes  Plate_UDI0001 (CCGCGGTT-AGCGCTAG)',
+    '001A IDT-ILMN TruSeq DNA-RNA UD 96 Indexes  Plate_UDI0001 (CCGCGGTT-AGCGCTAG)',
+], samples=[
+    'idt_sample',
+    'idt_sample',
+], input_artifact_list=Mock(return_value=[
+    mocked_idt_artifact,
+    mocked_idt_artifact
+]), parent_process=Mock(type=NamedMock(real_name='Create PDP Pool')))
+
 mocked_lane_artifact_pool = NamedMock(real_name='artpool', reagent_labels=[
     'D703-D502 (CGCTCATT-ATAGAGGC)',
     'D704-D502 (GAGATTCC-ATAGAGGC)',
@@ -266,7 +277,7 @@ mocked_flowcell_user_prepared = Mock(placements={
     '8:1': mocked_lane_user_prep_artifact2
 })
 
-mocked_flowcell_idt = Mock(placements={'%s:1' % i: mocked_idt_artifact for i in range(1, 9)})
+mocked_flowcell_idt = Mock(placements={'%s:1' % i: mocked_idt_pool for i in range(1, 9)})
 
 
 class TestRunDataset(TestDataset):
@@ -322,6 +333,16 @@ class TestRunDataset(TestDataset):
         barcodes_len = set(len(r[c.ELEMENT_BARCODE]) for r in run_elements)
         assert len(barcodes_len) == 1
         assert barcodes_len.pop() == 8
+
+    def test_has_barcode_in_lane(self):
+        d = RunDataset('test_dataset')
+        d._run_status = mocked_run_status
+        assert d.has_barcode_in_lane(lane_number=1) is False
+
+        d._run_status = mocked_run_status_pools
+        d._run_info = Mock(reads=Mock(has_barcodes=8))
+        assert d.has_barcode_in_lane(lane_number=1) == 8
+
 
     @patch('builtins.open')
     def test_generate_samplesheet(self, mocked_open):
