@@ -734,7 +734,7 @@ class ProjectDataset(Dataset):
     @property
     def number_of_samples(self):
         if not self._number_of_samples:
-            self._number_of_samples = self.lims_project_info.get('nb_quoted_samples', -1)
+            self._number_of_samples = int(self.lims_project_info.get('nb_quoted_samples', -1))
         return self._number_of_samples
 
     @property
