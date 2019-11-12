@@ -7,7 +7,7 @@
 
 # This will create projects
 projects:
-    - { name: 10015AT, udfs: { Number of Quoted Samples: 6 } }
+    - { name: 10015AT, udfs: { Number of Quoted Samples: 2 } }
 
 # This will create the samples and the associated root artifact
 # artifact can be refered to using the sample's name
