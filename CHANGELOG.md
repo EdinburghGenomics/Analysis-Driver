@@ -1,10 +1,13 @@
 Changelog for Analysis-Driver
 =============================
 
-0.26 (unreleased)
+0.26 (2019-11-14)
 -----------------
 
-- Nothing changed yet.
+- Switch from using clarity REST API to using Reporting LIMS endpoints wherever possible
+- Split demultiplexing per lane and allow for non pooling lane to be sequenced in pooling run.
+- Fastq-Filterer applied to intermediate fastq files before alignment.
+- Project process now use GATK4 for trio check
 
 
 0.25.3 (2019-09-10)
