@@ -89,18 +89,21 @@ class TestFastqFilter(TestAnalysisDriver):
 
             expected_call_l2 = (
                 'run_filterer in_place L2_R1_001.fastq.gz L2_R2_001.fastq.gz L2_R1_001_filtered.fastq.gz '
-                'L2_R2_001_filtered.fastq.gz L2_R1_001_filtered.fastq L2_R2_001_filtered.fastq L2_fastqfilterer.stats '
-                'L2_phix_read_name.list L2_R1_001.fastq_discarded L2_R2_001.fastq_discarded'
+                'L2_R2_001_filtered.fastq.gz L2_R1_001_filtered.fastq L2_R2_001_filtered.fastq '
+                'L2_R1_001.fastq_discarded L2_R2_001.fastq_discarded --threshold 36 '
+                '--stats_file L2_fastqfilterer.stats --remove_reads L2_phix_read_name.list'
             )
             expected_call_l3 = (
                 'run_filterer keep_originals L3_R1_001.fastq.gz L3_R2_001.fastq.gz L3_R1_001_filtered.fastq.gz '
-                'L3_R2_001_filtered.fastq.gz L3_R1_001_filtered.fastq L3_R2_001_filtered.fastq L3_fastqfilterer.stats '
-                'L3_phix_read_name.list L3_R1_001.fastq_discarded L3_R2_001.fastq_discarded --remove_tiles 1101'
+                'L3_R2_001_filtered.fastq.gz L3_R1_001_filtered.fastq L3_R2_001_filtered.fastq '
+                'L3_R1_001.fastq_discarded L3_R2_001.fastq_discarded --threshold 36 '
+                '--stats_file L3_fastqfilterer.stats --remove_tiles 1101 --remove_reads L3_phix_read_name.list'
             )
             expected_call_l4 = (
                 'run_filterer keep_originals L4_R1_001.fastq.gz L4_R2_001.fastq.gz L4_R1_001_filtered.fastq.gz '
-                'L4_R2_001_filtered.fastq.gz L4_R1_001_filtered.fastq L4_R2_001_filtered.fastq L4_fastqfilterer.stats '
-                'L4_phix_read_name.list L4_R1_001.fastq_discarded L4_R2_001.fastq_discarded --trim_r2 147'
+                'L4_R2_001_filtered.fastq.gz L4_R1_001_filtered.fastq L4_R2_001_filtered.fastq '
+                'L4_R1_001.fastq_discarded L4_R2_001.fastq_discarded --threshold 36 '
+                '--stats_file L4_fastqfilterer.stats --remove_reads L4_phix_read_name.list --trim_r2 147'
             )
             assert expected_call_l2 == pexecute.call_args[0][1]
             assert expected_call_l3 == pexecute.call_args[0][2]
@@ -115,7 +118,7 @@ class TestWaitForRead2(TestAnalysisDriver):
         # Run info states 150 cycles for first read, 8 index cycles, and 50 cycles for second read = 208
         run_info = Mock(reads=Mock(upstream_read=Mock(attrib={'NumCycles': '150'}), index_lengths=[8]))
         dataset = NamedMock(real_name='testrun', run_info=run_info, input_dir='path/to/input',
-                            lims_run=Mock(udf={'Run Status': 'RunStarted'}))
+                            run_status={'run_status': 'RunStarted'})
 
         stage = dm.WaitForRead2(dataset=dataset)
 

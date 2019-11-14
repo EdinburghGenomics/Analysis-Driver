@@ -7,32 +7,21 @@ test_projects = os.path.join(TestAnalysisDriver.assets_path, 'test_projects', 't
 relatedness_outfiles = os.path.join(test_projects, 'relatedness_outfiles')
 
 
-class TestProjects(TestAnalysisDriver):
-    @staticmethod
-    def fake_dataset(sample_ids, pipeline_used=None):
-        samples_processed = []
-        for s in sample_ids:
-            sample = {'sample_id': s, 'user_sample_id': 'uid_' + s}
-            if pipeline_used:
-                sample['aggregated'] = {'most_recent_proc': {'pipeline_used': {'name': pipeline_used}}}
-            samples_processed.append(sample)
+class TestProject(TestAnalysisDriver):
+    def setUp(self):
+        self.pipeline = projects.Project(Mock(reference_genome=os.path.join(self.assets_path, 'genome.fa')))
 
-        return NamedMock(
-            real_name='test_dataset',
-            samples_processed=samples_processed
-        )
+    @patch.object(projects.Project, 'trio_check', return_value='some_trio_check_stages')
+    @patch.object(projects.Project, 'stage', return_value='a_cleanup_stage')
+    def test_build(self, mocked_stage, mocked_check):
+        self.pipeline.dataset.get_processed_gvcfs.return_value = ['10015AT0004']
+        assert self.pipeline.build() == 'a_cleanup_stage'
+        assert mocked_stage.call_count == 1
+        assert mocked_check.call_count == 0
 
-    def test_2_samples(self):
-        pipeline = projects.build_pipeline(self.fake_dataset(['10015AT0004', '10015AT0003'], 'bcbio'))
-        assert len(pipeline.previous_stages) > 0
-
-    def test_1_sample(self):
-        pipeline = projects.build_pipeline(self.fake_dataset(['10015AT0004']))
-        assert len(pipeline.previous_stages) == 0
-
-    def test_non_human(self):
-        pipeline = projects.build_pipeline(self.fake_dataset(['sample1', 'sample2', 'sample3'], 'qc'))
-        assert len(pipeline.previous_stages) == 0
+        self.pipeline.dataset.get_processed_gvcfs.return_value = ['10015AT0004', '10015AT0003']
+        assert self.pipeline.build() == 'some_trio_check_stages'
+        mocked_check.assert_called_with(['10015AT0004', '10015AT0003'])
 
 
 class TestOutput(TestAnalysisDriver):

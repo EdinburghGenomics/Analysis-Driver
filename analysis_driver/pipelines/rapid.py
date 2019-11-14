@@ -4,7 +4,7 @@ from datetime import date
 from collections import defaultdict
 from egcg_core.config import cfg
 from egcg_core import executor, util, rest_communication
-from analysis_driver import segmentation, transfer_data
+from analysis_driver import segmentation, transfer_data, pipelines
 from analysis_driver.util import bash_commands
 from analysis_driver.reader.demultiplexing_parsers import parse_interop_summary
 
@@ -261,16 +261,13 @@ class DragenOutput(RapidStage):
         return exit_status
 
 
-def build_pipeline(dataset, setup):
-    """
-    Not currently intended for use on its own - used by demultiplexing.build_pipeline.
-    :param dataset.RunDataset dataset:
-    :param analysis_driver.segmentation.Stage setup: The Setup stage from demultiplexing
-    """
-    def stage(cls, **kwargs):
-        return cls(dataset=dataset, **kwargs)
-
-    dragen = stage(Dragen, previous_stages=[setup])
-    dragen_metrics = stage(DragenMetrics, previous_stages=[dragen])
-    dragen_output = stage(DragenOutput, previous_stages=[dragen_metrics])
-    return dragen_output
+class Rapid(pipelines.Pipeline):
+    def build(self, setup):
+        """
+        Not currently intended for use on its own - used by demultiplexing.build_pipeline.
+        :param analysis_driver.segmentation.Stage setup: The Setup stage from demultiplexing
+        """
+        dragen = self.stage(Dragen, previous_stages=[setup])
+        dragen_metrics = self.stage(DragenMetrics, previous_stages=[dragen])
+        dragen_output = self.stage(DragenOutput, previous_stages=[dragen_metrics])
+        return dragen_output

@@ -23,6 +23,15 @@ class RelatednessStage(Stage):
     def relationship(member):
         return clarity.get_sample(member).udf.get('Relationship') or 'Other'
 
+    @staticmethod
+    def memory(gvcfs):
+        """Allocate 3Gb of memory per gVCF, but set a min of 50 and a max of 248."""
+
+        return min(
+            max(len(gvcfs) * 3, 50),
+            248
+        )
+
 
 class ParseRelatedness(RelatednessStage):
     parse_method = Parameter()
@@ -146,13 +155,6 @@ class ParseRelatedness(RelatednessStage):
 class GenotypeGVCFs(RelatednessStage):
     gVCFs = ListParameter()
 
-    @property
-    def memory(self):
-        return min(
-            max(len(self.gVCFs) * 3, 50),
-            248
-        )
-
     def gatk_genotype_gvcfs_cmd(self, memory, number_threads):
         gvcf_variants = ' '. join(['--variant ' + util.find_file(i) for i in self.gVCFs])
         return java_command(memory=memory, tmp_dir=self.job_dir, jar=toolset['gatk']) + \
@@ -162,11 +164,11 @@ class GenotypeGVCFs(RelatednessStage):
 
     def _run(self):
         return executor.execute(
-            self.gatk_genotype_gvcfs_cmd(self.memory, number_threads=12),
+            self.gatk_genotype_gvcfs_cmd(self.memory(self.gVCFs), number_threads=12),
             job_name='gatk_genotype_gvcfs',
             working_dir=self.job_dir,
             cpus=12,
-            mem=self.memory + 2
+            mem=self.memory(self.gVCFs) + 2
         ).join()
 
 

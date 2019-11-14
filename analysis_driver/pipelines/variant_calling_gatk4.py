@@ -1,56 +1,16 @@
 import os
-
 from egcg_core import executor
-from egcg_core.config import cfg
-
 from analysis_driver import quality_control as qc
-from analysis_driver.pipelines import common
-from analysis_driver.pipelines.common import tabix_vcf, MergeFastqs, SamtoolsStats
-from analysis_driver.pipelines.qc_gatk4 import SplitHaplotypeCaller, PostAlignmentScatter, GATK4FilePath, GATK4Stage, \
+from analysis_driver.pipelines import Pipeline, common
+from analysis_driver.pipelines.qc_gatk4 import SplitHaplotypeCaller, PostAlignmentScatter, GATK4Stage, \
     FastqIndex, SplitBWA, MergeBamAndDup, GatherVCF, MergeVariants, SelectSNPs, SelectIndels, SNPsFiltration, \
-    IndelsFiltration
+    IndelsFiltration, ChunkHandler
 from analysis_driver.tool_versioning import toolset
 from analysis_driver.util.bash_commands import picard_command, java_command
-
-toolset_type = 'gatk4_sample_processing'
-name = 'variant_calling_gatk4'
 
 
 class PostAlignmentScatterVC(PostAlignmentScatter):
     """Generic class providing ability to split the genome in chromosomes."""
-
-    def split_genome_chromosomes(self, with_unmapped=False):
-        """
-        Split the genome per chromosomes aggregating smaller chromosomes to similar length as the longest chromosome
-        Code inspired from GATK best practice workflow:
-        https://github.com/gatk-workflows/broad-prod-wgs-germline-snps-indels/blob/190945e358a6ee7a8c65bacd7b28c66527383376/PairedEndSingleSampleWf.wdl#L969
-
-        :return: list of list of chromosome names
-        """
-        fai_file = self.dataset.reference_genome + '.fai'
-        with open(fai_file) as open_file:
-            sequence_tuple_list = []
-            for line in open_file:
-                sp_line = line.strip().split()
-                sequence_tuple_list.append((sp_line[0], int(sp_line[1])))
-            longest_sequence = sorted(sequence_tuple_list, key=lambda x: x[1], reverse=True)[0][1]
-        chunks = []
-        current_chunks = []
-        chunks.append(current_chunks)
-        temp_size = 0
-        for sequence_tuple in sequence_tuple_list:
-            if temp_size + sequence_tuple[1] <= longest_sequence:
-                temp_size += sequence_tuple[1]
-                current_chunks.append(sequence_tuple[0])
-            else:
-                current_chunks = []
-                chunks.append(current_chunks)
-                current_chunks.append(sequence_tuple[0])
-                temp_size = sequence_tuple[1]
-        # add the unmapped sequences as a separate line to ensure that they are recalibrated as well
-        if with_unmapped:
-            chunks.append(['unmapped'])
-        return chunks
 
     def split_base_recal_grp(self, chunk):
         return os.path.join(self.split_file_dir, self.dataset.name + '_base_recal_grp_%s.grp' % chunk)
@@ -77,7 +37,7 @@ class ScatterBaseRecalibrator(PostAlignmentScatterVC):
     def _run(self):
         return executor.execute(
             *[self.base_recalibrator_cmd(chrom_names)
-              for chrom_names in self.split_genome_chromosomes()],
+              for chrom_names in self.pipeline.chunk_handler.split_genome_chromosomes()],
             job_name='gatk_base_recal',
             working_dir=self.exec_dir,
             cpus=1,
@@ -91,7 +51,7 @@ class GatherBQSRReport(PostAlignmentScatterVC):
     def _run(self):
         bqsr_reports_list = os.path.join(self.split_file_dir, self.dataset.name + '_bqsr_reports.list')
         with open(bqsr_reports_list, 'w') as open_file:
-            for chrom_names in self.split_genome_chromosomes():
+            for chrom_names in self.pipeline.chunk_handler.split_genome_chromosomes():
                 open_file.write(self.split_base_recal_grp(chrom_names[0]) + '\n')
 
         gather_bqsr_status = executor.execute(
@@ -119,7 +79,7 @@ class ScatterApplyBQSR(PostAlignmentScatterVC):
     def _run(self):
         return executor.execute(
             *[self.apply_bqsr_cmd(chrom_names)
-              for chrom_names in self.split_genome_chromosomes(with_unmapped=True)],
+              for chrom_names in self.pipeline.chunk_handler.split_genome_chromosomes(with_unmapped=True)],
             job_name='apply_bqsr',
             working_dir=self.exec_dir,
             cpus=1,
@@ -133,7 +93,7 @@ class GatherRecalBam(PostAlignmentScatterVC):
     def _run(self):
         bam_file_list = os.path.join(self.split_file_dir, self.dataset.name + '_recal_bam.list')
         with open(bam_file_list, 'w') as open_file:
-            for chrom_names in self.split_genome_chromosomes(with_unmapped=True):
+            for chrom_names in self.pipeline.chunk_handler.split_genome_chromosomes(with_unmapped=True):
                 open_file.write(self.split_recal_bam(chrom_names[0]) + '\n')
 
         gather_bam_status = executor.execute(
@@ -178,7 +138,7 @@ class GatherGVCF(PostAlignmentScatterVC):
     def _run(self):
         gvcf_list = os.path.join(self.split_file_dir, self.dataset.name + '_g.vcf.list')
         with open(gvcf_list, 'w') as open_file:
-            for chunks in self.split_genome_in_chunks():
+            for chunks in self.pipeline.chunk_handler.split_genome_in_chunks():
                 open_file.write(self.gvcf_per_chunk(chunks[0]) + '\n')
 
         concat_vcf_status = executor.execute(
@@ -190,7 +150,7 @@ class GatherGVCF(PostAlignmentScatterVC):
         ).join()
 
         if concat_vcf_status == 0:
-            concat_vcf_status = tabix_vcf(self.exec_dir, self.sample_gvcf)
+            concat_vcf_status = common.tabix_vcf(self.exec_dir, self.sample_gvcf)
 
         return concat_vcf_status
 
@@ -218,7 +178,7 @@ class SplitGenotypeGVCFs(PostAlignmentScatterVC):
     def _run(self):
         return executor.execute(
             *[self.genotypegvcf_cmd(chunk, region_file)
-              for chunk, region_file in self.split_genome_files().items()],
+              for chunk, region_file in self.pipeline.chunk_handler.split_genome_files(self.split_file_dir).items()],
             job_name='split_genotype_call',
             working_dir=self.exec_dir,
             cpus=1,
@@ -257,69 +217,77 @@ class VariantAnnotation(GATK4Stage):
             mem=20
         ).join()
         if snpeff_status == 0:
-            snpeff_status = tabix_vcf(self.exec_dir, self.snps_effects_output_vcf)
+            snpeff_status = common.tabix_vcf(self.exec_dir, self.snps_effects_output_vcf)
         return snpeff_status
 
 
-def build_pipeline(dataset):
-    """Build the variant calling pipeline (for non human)."""
+class VarCallingGATK4(Pipeline):
+    toolset_type = 'gatk4_sample_processing'
+    name = 'variant_calling_gatk4'
 
-    def stage(cls, **params):
-        return cls(dataset=dataset, **params)
+    def __init__(self, dataset):
+        super().__init__(dataset)
+        self.chunk_handler = ChunkHandler(self.dataset)
 
-    # merge fastq to do contamination check
-    merge_fastqs = stage(MergeFastqs)
-    contam = stage(qc.FastqScreen, previous_stages=[merge_fastqs], fq_pattern=merge_fastqs.fq_pattern)
-    blast = stage(qc.Blast, previous_stages=[merge_fastqs], fastq_file=merge_fastqs.fq_pattern.replace('?', '1'))
-
-    # create fastq index then align and recalibrate via scatter-gather strategy
-    fastq_index = stage(FastqIndex)
-    split_bwa = stage(SplitBWA, previous_stages=[fastq_index])
-    merge_bam_dup = stage(MergeBamAndDup, previous_stages=[split_bwa])
-    base_recal = stage(ScatterBaseRecalibrator, previous_stages=[merge_bam_dup])
-    gather_bqsr = stage(GatherBQSRReport, previous_stages=[base_recal])
-    apply_bqsr = stage(ScatterApplyBQSR, previous_stages=[gather_bqsr])
-    merge_bam = stage(GatherRecalBam, previous_stages=[apply_bqsr])
-
-    # bam file QC
-    verify_bam_id = stage(qc.VerifyBamID, bam_file=merge_bam.recal_bam, previous_stages=[merge_bam])
-    samtools_stat = stage(SamtoolsStats, bam_file=merge_bam.recal_bam, previous_stages=[merge_bam])
-    samtools_depth = stage(qc.SamtoolsDepth, bam_file=merge_bam.recal_bam, previous_stages=[merge_bam])
-
-    # variants call via scatter-gather strategy
-    haplotype_caller = stage(SplitHaplotypeCallerVC, bam_file=merge_bam.recal_bam, previous_stages=[merge_bam])
-    gather_gcvf = stage(GatherGVCF, previous_stages=[haplotype_caller])
-    genotype_gcvf = stage(SplitGenotypeGVCFs, previous_stages=[haplotype_caller])
-    gather_vcf = stage(GatherVCFVC, previous_stages=[genotype_gcvf])
-
-    variant_file = gather_vcf.genotyped_vcf
-    steps_required = [gather_vcf]
-    if 'snpEff' in dataset.genome_dict:
-        # variant annotation
-        annotate_vcf = stage(VariantAnnotation, previous_stages=[gather_vcf])
-        variant_file = annotate_vcf.snps_effects_output_vcf
-        steps_required = [annotate_vcf]
-
-    # variant filtering with Hard Filters
-    select_snps = stage(SelectSNPs, input_vcf=variant_file, previous_stages=steps_required)
-    select_indels = stage(SelectIndels, input_vcf=variant_file, previous_stages=steps_required)
-    hard_filter_snps = stage(SNPsFiltration, previous_stages=[select_snps])
-    hard_filter_indels = stage(IndelsFiltration, previous_stages=[select_indels])
-
-    # Hard Filter variant merge
-    merge_hf = stage(MergeVariants, stage_name='merge_variants_hard_filter',
-                     vcf_files=[hard_filter_snps.hard_filtered_snps_vcf, hard_filter_indels.hard_filtered_indels_vcf],
-                     output_vcf_file=hard_filter_indels.hard_filtered_vcf,
-                     previous_stages=[hard_filter_snps, hard_filter_indels])
-
-    # Variant stats
-    vcfstats = stage(qc.VCFStats, vcf_file=merge_hf.hard_filtered_vcf, previous_stages=[merge_hf])
-
-    final_stages = [contam, blast, vcfstats, verify_bam_id, samtools_depth, samtools_stat,
-                    gather_gcvf, merge_hf]
-
-    output = stage(common.SampleDataOutput, previous_stages=final_stages, output_fileset='gatk4_var_calling')
-    review = stage(common.SampleReview, previous_stages=[output])
-    cleanup = stage(common.Cleanup, previous_stages=[review])
-
-    return cleanup
+    def build(self):
+        """Build the variant calling pipeline (for non human)."""
+    
+        # merge fastq to do contamination check
+        merge_fastqs = self.stage(common.MergeFastqs)
+        contam = self.stage(qc.FastqScreen, previous_stages=[merge_fastqs], fq_pattern=merge_fastqs.fq_pattern)
+        blast = self.stage(qc.Blast, previous_stages=[merge_fastqs], fastq_file=merge_fastqs.fq_pattern.replace('?', '1'))
+    
+        # create fastq index then align and recalibrate via scatter-gather strategy
+        fastq_index = self.stage(FastqIndex)
+        split_bwa = self.stage(SplitBWA, previous_stages=[fastq_index])
+        merge_bam_dup = self.stage(MergeBamAndDup, previous_stages=[split_bwa])
+        base_recal = self.stage(ScatterBaseRecalibrator, previous_stages=[merge_bam_dup])
+        gather_bqsr = self.stage(GatherBQSRReport, previous_stages=[base_recal])
+        apply_bqsr = self.stage(ScatterApplyBQSR, previous_stages=[gather_bqsr])
+        merge_bam = self.stage(GatherRecalBam, previous_stages=[apply_bqsr])
+    
+        # bam file QC
+        verify_bam_id = self.stage(qc.VerifyBamID, bam_file=merge_bam.recal_bam, previous_stages=[merge_bam])
+        samtools_stat = self.stage(common.SamtoolsStats, bam_file=merge_bam.recal_bam, previous_stages=[merge_bam])
+        samtools_depth = self.stage(qc.SamtoolsDepth, bam_file=merge_bam.recal_bam, previous_stages=[merge_bam])
+    
+        # variants call via scatter-gather strategy
+        haplotype_caller = self.stage(SplitHaplotypeCallerVC, bam_file=merge_bam.recal_bam, previous_stages=[merge_bam])
+        gather_gcvf = self.stage(GatherGVCF, previous_stages=[haplotype_caller])
+        genotype_gcvf = self.stage(SplitGenotypeGVCFs, previous_stages=[haplotype_caller])
+        gather_vcf = self.stage(GatherVCFVC, previous_stages=[genotype_gcvf])
+    
+        variant_file = gather_vcf.genotyped_vcf
+        steps_required = [gather_vcf]
+        if 'snpEff' in self.dataset.genome_dict:
+            # variant annotation
+            annotate_vcf = self.stage(VariantAnnotation, previous_stages=[gather_vcf])
+            variant_file = annotate_vcf.snps_effects_output_vcf
+            steps_required = [annotate_vcf]
+    
+        # variant filtering with Hard Filters
+        select_snps = self.stage(SelectSNPs, input_vcf=variant_file, previous_stages=steps_required)
+        select_indels = self.stage(SelectIndels, input_vcf=variant_file, previous_stages=steps_required)
+        hard_filter_snps = self.stage(SNPsFiltration, previous_stages=[select_snps])
+        hard_filter_indels = self.stage(IndelsFiltration, previous_stages=[select_indels])
+    
+        # Hard Filter variant merge
+        merge_hf = self.stage(MergeVariants, stage_name='merge_variants_hard_filter',
+                              vcf_files=[
+                                  hard_filter_snps.hard_filtered_snps_vcf,
+                                  hard_filter_indels.hard_filtered_indels_vcf
+                              ],
+                              output_vcf_file=hard_filter_indels.hard_filtered_vcf,
+                              previous_stages=[hard_filter_snps, hard_filter_indels])
+    
+        # Variant stats
+        vcfstats = self.stage(qc.VCFStats, vcf_file=merge_hf.hard_filtered_vcf, previous_stages=[merge_hf])
+    
+        final_stages = [contam, blast, vcfstats, verify_bam_id, samtools_depth, samtools_stat,
+                        gather_gcvf, merge_hf]
+    
+        output = self.stage(common.SampleDataOutput, previous_stages=final_stages, output_fileset='gatk4_var_calling')
+        review = self.stage(common.SampleReview, previous_stages=[output])
+        cleanup = self.stage(common.Cleanup, previous_stages=[review])
+    
+        return cleanup

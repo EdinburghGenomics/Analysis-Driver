@@ -7,16 +7,14 @@ from egcg_core import executor, util, rest_communication, constants as c
 from analysis_driver import segmentation
 from analysis_driver.reader.run_info import Reads
 from analysis_driver.util import bash_commands, find_all_fastq_pairs_for_lane, get_trim_values_for_bad_cycles
-from analysis_driver.pipelines import rapid
+from analysis_driver.pipelines import Pipeline, rapid
 from analysis_driver.pipelines.common import Cleanup
 from analysis_driver.exceptions import SequencingRunError, AnalysisDriverError
 from analysis_driver.quality_control import well_duplicates, interop_metrics, BCLValidator, BadTileCycleDetector
 from analysis_driver.report_generation import RunCrawler
 from analysis_driver.transfer_data import output_data_and_archive
 from analysis_driver.tool_versioning import toolset
-
-toolset_type = 'run_processing'
-name = 'demultiplexing'
+from analysis_driver.util.helper_functions import merge_lane_directories
 
 
 class DemultiplexingStage(segmentation.Stage):
@@ -58,7 +56,7 @@ class Setup(DemultiplexingStage):
             RunCrawler(self.dataset, run_dir=self.fastq_dir).send_data()
 
         # make sure the run is not aborted or errored before checking the bcl files
-        run_status = self.dataset.lims_run.udf.get('Run Status')
+        run_status = self.dataset.run_status.get('run_status')
         if run_status != 'RunCompleted':
             self.error('Run status is \'%s\'. Stopping.', run_status)
             raise SequencingRunError(run_status)
@@ -72,11 +70,13 @@ class Setup(DemultiplexingStage):
 
 class Bcl2Fastq(DemultiplexingStage):
     def _run(self):
-        self.info('bcl2fastq mask: ' + self.dataset.mask)  # e.g: mask = 'y150n,i6,y150n'
+        lanes = range(1, self.dataset.number_of_lane + 1)
+        masks = [self.dataset.mask_per_lane(l) for l in lanes]
+        self.info('bcl2fastq mask: ' + ', '.join(('lane %s: %s' % (l, m) for l, m in zip(lanes, masks))))
+
         bcl2fastq_exit_status = executor.execute(
-            bash_commands.bcl2fastq(
-                self.input_dir, self.fastq_dir, self.dataset.sample_sheet_file, self.dataset.mask
-            ),
+            *(bash_commands.bcl2fastq_per_lane(self.input_dir, self.fastq_dir, self.dataset.sample_sheet_file,
+                                               masks, lanes)),
             job_name='bcl2fastq',
             working_dir=self.job_dir,
             cpus=8,
@@ -84,6 +84,9 @@ class Bcl2Fastq(DemultiplexingStage):
         ).join()
         if bcl2fastq_exit_status:
             return bcl2fastq_exit_status
+
+        # Merge the lane directories
+        merge_lane_directories(self.fastq_dir, self.dataset.run_elements)
 
         # Copy the Samplesheet Runinfo.xml run_parameters.xml to the fastq dir
         for f in ('SampleSheet_analysis_driver.csv', 'runParameters.xml',
@@ -150,11 +153,11 @@ class FastqFilter(DemultiplexingStage):
             kwargs = {}
             if filter_lanes[lane]:
                 trim_r1, trim_r2 = get_trim_values_for_bad_cycles(bad_cycles.get(lane), self.dataset.run_info)
-                kwargs = {'tiles_to_filter': bad_tiles.get(lane), 'trim_r2': trim_r2}
+                kwargs = {'rm_tiles': bad_tiles.get(lane), 'trim_r2': trim_r2}
 
             for fqs in fq_pairs:
                 read_name_list = fqs[0][:-len('_R1_001.fastq.gz')] + '_phix_read_name.list'
-                cmds.append(bash_commands.fastq_filterer(fqs, read_name_list, **kwargs))
+                cmds.append(bash_commands.fastq_filterer(fqs, rm_reads=read_name_list, **kwargs))
 
         return executor.execute(
             *cmds,
@@ -245,7 +248,7 @@ class WaitForRead2(DemultiplexingStage):
             current_cycle = interop_metrics.get_last_cycles_with_existing_bcls(self.dataset.input_dir)
 
         # make sure the run is not aborted or errored before continuing with the rest of the pipeline
-        run_status = self.dataset.lims_run.udf.get('Run Status')
+        run_status = self.dataset.run_status.get('run_status')
         if run_status not in ['RunCompleted', 'RunStarted', 'RunPaused']:
             self.error('Run status is \'%s\'. Stopping.', run_status)
             raise SequencingRunError(run_status)
@@ -256,19 +259,46 @@ class WaitForRead2(DemultiplexingStage):
 class PartialRun(DemultiplexingStage):
     @property
     def fastq_intermediate_dir(self):
-        return join(self.job_dir, 'fastq_intermetiate')
+        return join(self.job_dir, 'fastq_intermediate')
 
 
 class Bcl2FastqPartialRun(PartialRun):
     def _run(self):
-        mask = self.dataset.mask.replace('y150n', 'y50n101')
-        self.info('bcl2fastq mask: ' + mask)
-        return executor.execute(
-            bash_commands.bcl2fastq(self.input_dir, self.fastq_intermediate_dir, self.dataset.sample_sheet_file, mask),
+        lanes = range(1, self.dataset.number_of_lane + 1)
+        masks = [self.dataset.mask_per_lane(l).replace('y150n', 'y50n101') for l in lanes]
+        self.info('bcl2fastq mask: ' + ', '.join(('lane %s: %s' % (l, m) for l,m in zip(lanes, masks))))
+
+        bcl2fastq_exit_status = executor.execute(
+            *(bash_commands.bcl2fastq_per_lane(self.input_dir, self.fastq_intermediate_dir,
+                                               self.dataset.sample_sheet_file, masks, lanes)),
             job_name='bcl2fastq_intermediate',
             working_dir=self.job_dir,
             cpus=8,
             mem=32
+        ).join()
+        if bcl2fastq_exit_status:
+            return bcl2fastq_exit_status
+
+        # Merge the lane directories
+        merge_lane_directories(self.fastq_intermediate_dir, self.dataset.run_elements)
+        return bcl2fastq_exit_status
+
+
+class EarlyFastqFilter(PartialRun):
+    def _run(self):
+        cmds = []
+        for lane in range(1, 9):
+            fq_pairs = find_all_fastq_pairs_for_lane(self.fastq_intermediate_dir, lane)
+            for fqs in fq_pairs:
+                cmds.append(bash_commands.fastq_filterer(fqs))
+
+        return executor.execute(
+            *cmds,
+            prelim_cmds=[bash_commands.fq_filt_prelim_cmd()],
+            job_name='fastq_filterer',
+            working_dir=self.job_dir,
+            cpus=10,
+            mem=6
         ).join()
 
 
@@ -461,39 +491,40 @@ class RunReview(DemultiplexingStage):
         return 0
 
 
-def build_pipeline(dataset):
-    def stage(cls, **params):
-        return cls(dataset=dataset, **params)
+class Demultiplexing(Pipeline):
+    toolset_type = 'run_processing'
 
-    wait_for_read2 = stage(WaitForRead2)
-    bcl2fastq_half_run = stage(Bcl2FastqPartialRun, previous_stages=[wait_for_read2])
-    align_output = stage(BwaAlignMulti, previous_stages=[bcl2fastq_half_run])
-    stats_output = stage(SamtoolsStatsMulti, previous_stages=[align_output])
-    depth_output = stage(SamtoolsDepthMulti, previous_stages=[align_output])
-    md_output = stage(PicardMarkDuplicateMulti, previous_stages=[align_output])
-    is_output = stage(PicardInsertSizeMulti, previous_stages=[align_output])
-    gc_bias = stage(PicardGCBias, previous_stages=[align_output])
+    def build(self):
+        wait_for_read2 = self.stage(WaitForRead2)
+        bcl2fastq_half_run = self.stage(Bcl2FastqPartialRun, previous_stages=[wait_for_read2])
+        early_fastq_filter = self.stage(EarlyFastqFilter, previous_stages=[bcl2fastq_half_run])
+        align_output = self.stage(BwaAlignMulti, previous_stages=[early_fastq_filter])
+        stats_output = self.stage(SamtoolsStatsMulti, previous_stages=[align_output])
+        depth_output = self.stage(SamtoolsDepthMulti, previous_stages=[align_output])
+        md_output = self.stage(PicardMarkDuplicateMulti, previous_stages=[align_output])
+        is_output = self.stage(PicardInsertSizeMulti, previous_stages=[align_output])
+        gc_bias = self.stage(PicardGCBias, previous_stages=[align_output])
 
-    setup = stage(Setup)
-    bcl2fastq = stage(Bcl2Fastq, previous_stages=[setup])
-    phix_detection = stage(PhixDetection, previous_stages=[bcl2fastq])
-    fastq_filter = stage(FastqFilter, previous_stages=[phix_detection])
-    welldups = stage(well_duplicates.WellDuplicates, run_directory=bcl2fastq.input_dir,
-                     output_directory=bcl2fastq.fastq_dir, previous_stages=[setup])
-    integrity_check = stage(IntegrityCheck, previous_stages=[fastq_filter])
-    fastqc = stage(FastQC, previous_stages=[fastq_filter])
-    seqtk = stage(SeqtkFQChk, previous_stages=[fastq_filter])
-    md5 = stage(MD5Sum, previous_stages=[fastq_filter])
-    qc_output = stage(QCOutput, stage_name='qcoutput1', run_crawler_stage=RunCrawler.STAGE_FILTER,
-                      previous_stages=[welldups, integrity_check, fastqc, seqtk, md5])
+        setup = self.stage(Setup)
+        bcl2fastq = self.stage(Bcl2Fastq, previous_stages=[setup])
+        phix_detection = self.stage(PhixDetection, previous_stages=[bcl2fastq])
+        fastq_filter = self.stage(FastqFilter, previous_stages=[phix_detection])
+        welldups = self.stage(well_duplicates.WellDuplicates, run_directory=bcl2fastq.input_dir,
+                              output_directory=bcl2fastq.fastq_dir, previous_stages=[setup])
+        integrity_check = self.stage(IntegrityCheck, previous_stages=[fastq_filter])
+        fastqc = self.stage(FastQC, previous_stages=[fastq_filter])
+        seqtk = self.stage(SeqtkFQChk, previous_stages=[fastq_filter])
+        md5 = self.stage(MD5Sum, previous_stages=[fastq_filter])
+        qc_output = self.stage(QCOutput, stage_name='qcoutput1', run_crawler_stage=RunCrawler.STAGE_FILTER,
+                               previous_stages=[welldups, integrity_check, fastqc, seqtk, md5])
 
-    qc_output2 = stage(QCOutput, stage_name='qcoutput2', run_crawler_stage=RunCrawler.STAGE_MAPPING,
-                       previous_stages=[qc_output, stats_output, depth_output, md_output, is_output, gc_bias])
-    data_output = stage(DataOutput, previous_stages=[qc_output2])
-    final_checkpoint = [data_output]
-    if dataset.rapid_samples_by_lane:
-        final_checkpoint.append(rapid.build_pipeline(dataset, setup))
+        qc_output2 = self.stage(QCOutput, stage_name='qcoutput2', run_crawler_stage=RunCrawler.STAGE_MAPPING,
+                                previous_stages=[qc_output, stats_output, depth_output, md_output, is_output, gc_bias])
+        data_output = self.stage(DataOutput, previous_stages=[qc_output2])
+        final_checkpoint = [data_output]
+        if self.dataset.rapid_samples_by_lane:
+            final_checkpoint.append(rapid.Rapid(self.dataset).build(setup))
 
-    cleanup = stage(Cleanup, previous_stages=final_checkpoint)
-    review = stage(RunReview, previous_stages=[cleanup])
-    return review
+        cleanup = self.stage(Cleanup, previous_stages=final_checkpoint)
+        review = self.stage(RunReview, previous_stages=[cleanup])
+        return review

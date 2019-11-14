@@ -1,14 +1,24 @@
 import luigi
 from egcg_core.config import cfg
 from egcg_core.app_logging import logging_default as log_cfg
-from analysis_driver.pipelines import demultiplexing, bcbio, qc, variant_calling, projects, variant_calling_gatk4, \
-    qc_gatk4, human_variant_calling_gatk4
 
-register = {
-    p.name: p
-    for p in (demultiplexing, bcbio, qc, variant_calling, projects, human_variant_calling_gatk4, variant_calling_gatk4,
-              qc_gatk4)
-}
+
+class Pipeline:
+    toolset_type = None
+    _name = None
+
+    def __init__(self, dataset):
+        self.dataset = dataset
+
+    @property
+    def name(self):
+        return self._name or self.__class__.__name__.lower()
+
+    def stage(self, cls, **params):
+        return cls(dataset=self.dataset, pipeline=self, **params)
+
+    def build(self):
+        raise NotImplementedError
 
 
 def pipeline(dataset):
@@ -19,9 +29,9 @@ def pipeline(dataset):
     luigi.interface.setup_interface_logging.has_run = True  # turn off Luigi's default logging setup
     log_cfg.get_logger('luigi-interface', 20)  # just calling log_cfg.get_logger registers the luigi-interface
 
+    final_stage = dataset.pipeline.build()
     dataset.resolve_pipeline_and_toolset()
     dataset.start()
-    final_stage = dataset.pipeline.build_pipeline(dataset)
 
     luigi_params = {
         'tasks': [final_stage],

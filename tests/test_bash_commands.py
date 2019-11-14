@@ -15,6 +15,16 @@ class TestBashCommands(TestAnalysisDriver):
                '--sample-sheet %s --use-bases-mask %s') % (self.assets_path, self.fastq_path, sample_sheet_csv, mask)
         assert obs == exp
 
+    def test_bcl2fastq_per_lane(self):
+        obs = bash_commands.bcl2fastq_per_lane(
+            self.assets_path, self.fastq_path, 'samplesheet.csv', masks=['101y8i101y'], lanes=[1]
+        )
+        exp = [
+            'path/to/bcl2fastq_1.0.4 -l INFO --runfolder-dir %s --output-dir %s/lane_1 -r 8 -p 8 -w 8 '
+            '--sample-sheet samplesheet.csv --use-bases-mask 101y8i101y --tiles s_1' % (self.assets_path, self.fastq_path)
+        ]
+        assert obs == exp
+
     def test_fastqc(self):
         test_fastq = join(self.fastq_path, '10015AT', '10015ATA0001L05', 'this.fastq.gz')
         cur_dir = os.getcwd()
@@ -115,15 +125,21 @@ class TestBashCommands(TestAnalysisDriver):
         assert bash_commands.seqtk_fqchk(fastq_file) == expected
 
     def test_fastq_filterer(self):
-        assert bash_commands.fastq_filterer(('RE_R1_001.fastq.gz', 'RE_R2_001.fastq.gz'), 'RE_phix_read_name.txt') == (
+        assert bash_commands.fastq_filterer(('RE_R1_001.fastq.gz', 'RE_R2_001.fastq.gz')) == (
             'run_filterer in_place RE_R1_001.fastq.gz RE_R2_001.fastq.gz RE_R1_001_filtered.fastq.gz '
-            'RE_R2_001_filtered.fastq.gz RE_R1_001_filtered.fastq RE_R2_001_filtered.fastq RE_fastqfilterer.stats '
-            'RE_phix_read_name.txt RE_R1_001.fastq_discarded RE_R2_001.fastq_discarded'
+            'RE_R2_001_filtered.fastq.gz RE_R1_001_filtered.fastq RE_R2_001_filtered.fastq '
+            'RE_R1_001.fastq_discarded RE_R2_001.fastq_discarded --threshold 36 --stats_file RE_fastqfilterer.stats'
         )
-        assert bash_commands.fastq_filterer(('RE_R1_001.fastq.gz', 'RE_R2_001.fastq.gz'), 'RE_phix_read_name.txt', trim_r1=149) == (
+        obs = bash_commands.fastq_filterer(
+            ('RE_R1_001.fastq.gz', 'RE_R2_001.fastq.gz'),
+            38, [1101, 2101, 2202], 'RE_phix_read_names.txt', 149, 148, True, True, 'different_stats_file.txt'
+        )
+
+        assert obs == (
             'run_filterer keep_originals RE_R1_001.fastq.gz RE_R2_001.fastq.gz RE_R1_001_filtered.fastq.gz '
-            'RE_R2_001_filtered.fastq.gz RE_R1_001_filtered.fastq RE_R2_001_filtered.fastq RE_fastqfilterer.stats '
-            'RE_phix_read_name.txt RE_R1_001.fastq_discarded RE_R2_001.fastq_discarded --trim_r1 149'
+            'RE_R2_001_filtered.fastq.gz RE_R1_001_filtered.fastq RE_R2_001_filtered.fastq RE_R1_001.fastq_discarded '
+            'RE_R2_001.fastq_discarded --threshold 38 --stats_file different_stats_file.txt --remove_tiles '
+            '1101,2101,2202 --remove_reads RE_phix_read_names.txt --trim_r1 149 --trim_r2 148 --quiet --unsafe'
         )
 
     def test_picard_gc_bias(self):
