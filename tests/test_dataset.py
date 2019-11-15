@@ -363,19 +363,19 @@ class TestRunDataset(TestDataset):
             self.dataset._generate_samplesheet('a_samplesheet')
             mocked_open.return_value.__enter__.return_value.write.assert_called_with('\n'.join(exp))
 
-    def test_sample_sheet_file(self):
+    def test_sample_sheet_file_for_lane(self):
         self.dataset.input_dir = os.path.join(self.assets_path)
-        sample_sheet_file = os.path.join(self.dataset.input_dir, 'SampleSheet_analysis_driver.csv')
+        sample_sheet_file = os.path.join(self.dataset.input_dir, 'SampleSheet_analysis_driver_lane1.csv')
         with patch.object(RunDataset, '_generate_samplesheet') as mgenerate:
-            _ = self.dataset.sample_sheet_file
-        mgenerate.assert_called_once_with(sample_sheet_file)
+            _ = self.dataset.sample_sheet_file_for_lane(1)
+        mgenerate.assert_called_once_with(sample_sheet_file, 1)
 
     def test_sample_sheet_file_exists(self):
         self.dataset.input_dir = os.path.join(self.assets_path)
-        sample_sheet_file = os.path.join(self.dataset.input_dir, 'SampleSheet_analysis_driver.csv')
+        sample_sheet_file = os.path.join(self.dataset.input_dir, 'SampleSheet_analysis_driver_lane1.csv')
         open(sample_sheet_file, 'w').close()
         with patch.object(RunDataset, '_generate_samplesheet') as mgenerate:
-            _ = self.dataset.sample_sheet_file
+            _ = self.dataset.sample_sheet_file_for_lane(1)
         assert mgenerate.call_count == 0
         os.remove(sample_sheet_file)
 

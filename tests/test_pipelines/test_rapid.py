@@ -22,7 +22,7 @@ class TestDragen(TestAnalysisDriver):
                 real_name='a_run',
                 type='run',
                 rapid_samples_by_lane={'2': {'sample_id': 'a_sample', 'User Sample Name': 'uid_a_sample'}},
-                sample_sheet_file='path/to/SampleSheet_analysis_driver.csv'
+                sample_sheet_file_for_lane=Mock(return_value='path/to/SampleSheet_analysis_driver.csv')
             )
         )
         d._run()

@@ -89,9 +89,11 @@ class Bcl2Fastq(DemultiplexingStage):
         merge_lane_directories(self.fastq_dir, self.dataset.run_elements)
 
         # Copy the Samplesheet Runinfo.xml run_parameters.xml to the fastq dir
-        for f in ('SampleSheet_analysis_driver.csv', 'runParameters.xml',
-                  'RunInfo.xml', 'RTAConfiguration.xml'):
+        for f in ('runParameters.xml', 'RunInfo.xml', 'RTAConfiguration.xml'):
             shutil.copy2(join(self.input_dir, f), join(self.fastq_dir, f))
+        for lane in range(1, 9):
+            f = basename(self.dataset.sample_sheet_file_for_lane(lane))
+            shutil.copy2(self.dataset.sample_sheet_file_for_lane(lane), join(self.fastq_dir, f))
         if not exists(join(self.fastq_dir, 'InterOp')):
             shutil.copytree(join(self.input_dir, 'InterOp'), join(self.fastq_dir, 'InterOp'))
 

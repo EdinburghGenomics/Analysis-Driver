@@ -9,6 +9,7 @@ app_logger = log_cfg.get_logger(__name__)
 
 
 def bcl2fastq_per_lane(input_dir, fastq_dir, sample_sheet_func, masks, lanes):
+    # Note sample_sheet_func is the function to get the samplesheet not the samplesheet file itself
     cmds = []
     for mask, lane in zip(masks, lanes):
         lane_fastq_dir = os.path.join(fastq_dir, 'lane_' + str(lane))

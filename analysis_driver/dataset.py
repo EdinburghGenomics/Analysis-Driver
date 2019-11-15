@@ -294,7 +294,7 @@ class RunDataset(Dataset):
         pass
 
     def sample_sheet_file_for_lane(self, lane):
-        if lane not in self._sample_sheet_file_per_lane is None:
+        if lane not in self._sample_sheet_file_per_lane:
             self._sample_sheet_file_per_lane[lane] = os.path.join(self.input_dir, 'SampleSheet_analysis_driver_lane%s.csv' % lane)
             if not os.path.isfile(self._sample_sheet_file_per_lane[lane]):
                 self._generate_samplesheet(self._sample_sheet_file_per_lane[lane], lane)
