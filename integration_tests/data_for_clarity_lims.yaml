@@ -53,7 +53,7 @@ artifacts:
     - { name: l4, samples: [10015AT0001, 10015AT0002, 10015AT0003, 10015AT0004, 10015AT0006, 10015AT0007, 10015AT0008, 10015AT0009], container_name: FLOWCELL1, xpos: 0, ypos: 3 }
     - { name: l5, samples: [10015AT0001, 10015AT0002, 10015AT0003, 10015AT0004, 10015AT0006, 10015AT0007, 10015AT0008, 10015AT0009], container_name: FLOWCELL1, xpos: 0, ypos: 4 }
     - { name: l6, samples: [10015AT0001, 10015AT0002, 10015AT0003, 10015AT0004, 10015AT0006, 10015AT0007, 10015AT0008, 10015AT0009], container_name: FLOWCELL1, xpos: 0, ypos: 5 }
-    - { name: l7, samples: [10015AT0001, 10015AT0002, 10015AT0003, 10015AT0004, 10015AT0006, 10015AT0007, 10015AT0008, 10015AT0009], container_name: FLOWCELL1, xpos: 0, ypos: 6 }
+    - { name: l7, samples: [10015AT0001], container_name: FLOWCELL1, xpos: 0, ypos: 6 }
     - { name: l8, samples: [10015AT0001, 10015AT0002, 10015AT0003, 10015AT0004, 10015AT0006, 10015AT0007, 10015AT0008, 10015AT0009], container_name: FLOWCELL1, xpos: 0, ypos: 7 }
     - { name: npl1, samples: [non_pooling_sample_1], container_name: FLOWCELL2, xpos: 0, ypos: 0 }
     - { name: npl2, samples: [non_pooling_sample_2], container_name: FLOWCELL2, xpos: 0, ypos: 1 }

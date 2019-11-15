@@ -75,7 +75,7 @@ class Bcl2Fastq(DemultiplexingStage):
         self.info('bcl2fastq mask: ' + ', '.join(('lane %s: %s' % (l, m) for l, m in zip(lanes, masks))))
 
         bcl2fastq_exit_status = executor.execute(
-            *(bash_commands.bcl2fastq_per_lane(self.input_dir, self.fastq_dir, self.dataset.sample_sheet_file,
+            *(bash_commands.bcl2fastq_per_lane(self.input_dir, self.fastq_dir, self.dataset.sample_sheet_file_for_lane,
                                                masks, lanes)),
             job_name='bcl2fastq',
             working_dir=self.job_dir,
@@ -270,7 +270,7 @@ class Bcl2FastqPartialRun(PartialRun):
 
         bcl2fastq_exit_status = executor.execute(
             *(bash_commands.bcl2fastq_per_lane(self.input_dir, self.fastq_intermediate_dir,
-                                               self.dataset.sample_sheet_file, masks, lanes)),
+                                               self.dataset.sample_sheet_file_for_lane, masks, lanes)),
             job_name='bcl2fastq_intermediate',
             working_dir=self.job_dir,
             cpus=8,

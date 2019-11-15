@@ -270,11 +270,11 @@ class RunDataset(Dataset):
     def __init__(self, name, most_recent_proc=None):
         super().__init__(name, most_recent_proc)
         self._run_info = None
-        self._sample_sheet_file = None
+        self._sample_sheet_file_per_lane = {}
         self.input_dir = os.path.join(cfg['run']['input_dir'], self.name)
         self._run_status = None
         self._run_elements = None
-        self._barcode_len = None
+        self._barcode_len = {}
         self._rapid_samples_by_lane = None
 
     def initialise_entity(self):
@@ -290,15 +290,17 @@ class RunDataset(Dataset):
             self._run_info = reader.RunInfo(self.input_dir)
         return self._run_info
 
-    @property
     def sample_sheet_file(self):
-        if self._sample_sheet_file is None:
-            self._sample_sheet_file = os.path.join(self.input_dir, 'SampleSheet_analysis_driver.csv')
-            if not os.path.isfile(self._sample_sheet_file):
-                self._generate_samplesheet(self._sample_sheet_file)
-        return self._sample_sheet_file
+        pass
 
-    def _generate_samplesheet(self, filename):
+    def sample_sheet_file_for_lane(self, lane):
+        if lane not in self._sample_sheet_file_per_lane is None:
+            self._sample_sheet_file_per_lane[lane] = os.path.join(self.input_dir, 'SampleSheet_analysis_driver_lane%s.csv' % lane)
+            if not os.path.isfile(self._sample_sheet_file_per_lane[lane]):
+                self._generate_samplesheet(self._sample_sheet_file_per_lane[lane], lane)
+        return self._sample_sheet_file_per_lane[lane]
+
+    def _generate_samplesheet(self, filename, lane=None):
         all_lines = [
             '[Header]', 'Date, ' + now('%d/%m/%Y'), 'Workflow, Generate FASTQ Only', '',
             '[Settings]', 'Adapter, AGATCGGAAGAGCACACGTCTGAACTCCAGTCA',
@@ -307,6 +309,9 @@ class RunDataset(Dataset):
         ]
         # order the run elements so they produce a deterministic samplesheet
         for run_element in sorted(self.run_elements, key=lambda x: (x[ELEMENT_LANE], x[ELEMENT_BARCODE])):
+            if lane and run_element[ELEMENT_LANE] != str(lane):
+                continue
+
             all_lines.append(','.join([
                 run_element[ELEMENT_LANE],
                 run_element[ELEMENT_SAMPLE_INTERNAL_ID],
@@ -319,9 +324,8 @@ class RunDataset(Dataset):
 
     def mask_per_lane(self, lane):
         if self.has_barcode_in_lane(lane):
-            return self.run_info.reads.generate_mask(self.barcode_len)
+            return self.run_info.reads.generate_mask(self.barcode_len(lane))
         return self.run_info.reads.generate_mask(0)
-
 
     def _is_ready(self):
         return True
@@ -420,20 +424,22 @@ class RunDataset(Dataset):
             return False
         return self.run_info.reads.has_barcodes
 
-    @property
-    def barcode_len(self):
-        if not self._barcode_len:
-            self._barcode_len = self._check_barcodes()
-        return self._barcode_len
+    def barcode_len(self, lane):
+        if lane not in self._barcode_len:
+            self._barcode_len[lane] = self._check_barcodes(lane)
+        return self._barcode_len[lane]
 
-    def _check_barcodes(self):
+    def _check_barcodes(self, lane):
         """
-        For each run element, check that all the DNA barcodes are the same length
-        :return: The DNA barcode length
+        For each run element of a lane, check that all the DNA barcodes are the same length
+        :param lane: the lane for which the barcode len should be returned
+        :return: The DNA barcode length for the specified lane
         """
         previous_r = None
 
         for r in self.run_elements:
+            if r[ELEMENT_LANE] != str(lane):
+                continue
             if previous_r and len(previous_r[ELEMENT_BARCODE]) != len(r[ELEMENT_BARCODE]):
                 raise AnalysisDriverError(
                     'Unexpected barcode length for %s: %s in project %s' % (
@@ -442,7 +448,7 @@ class RunDataset(Dataset):
                 )
             previous_r = r
 
-        self.debug('Barcode check done. Barcode len: %s', len(previous_r[ELEMENT_BARCODE]))
+        self.debug('Barcode check for lane %s done. Barcode len: %s', lane, len(previous_r[ELEMENT_BARCODE]))
         return len(previous_r[ELEMENT_BARCODE])
 
     def is_sequencing(self):

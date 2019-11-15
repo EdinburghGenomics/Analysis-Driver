@@ -41,7 +41,7 @@ class Dragen(RapidStage):
                 cmd.format(
                     dragen=cfg['dragen']['executable'], ref=cfg['dragen']['reference'], run_dir=self.input_dir,
                     lane=lane, out_dir=self.rapid_output_dir(lane), user_sample_id=sample['User Sample Name'],
-                    sample_sheet=self.dataset.sample_sheet_file, dbsnp=cfg['dragen']['dbsnp'],
+                    sample_sheet=self.dataset.sample_sheet_file_for_lane(lane), dbsnp=cfg['dragen']['dbsnp'],
                     tmp_dir=os.path.join(cfg['dragen']['staging'], self.dataset.name + '_' + lane)
                 )
             )
