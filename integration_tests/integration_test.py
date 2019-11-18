@@ -257,7 +257,7 @@ class IntegrationTest(ReportingAppIntegrationTest):
         )
         self.expect_equal(
             len(rest_communication.get_document('samples', where={'sample_id': '10015AT0004'})['run_elements']),
-            8,
+            7,
             '# run elements'
         )
         output_dir = os.path.join(cfg['run']['output_dir'], self.run_id)

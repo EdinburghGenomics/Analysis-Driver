@@ -75,7 +75,7 @@ class Bcl2Fastq(DemultiplexingStage):
         self.info('bcl2fastq mask: ' + ', '.join(('lane %s: %s' % (l, m) for l, m in zip(lanes, masks))))
 
         bcl2fastq_exit_status = executor.execute(
-            *(bash_commands.bcl2fastq_per_lane(self.input_dir, self.fastq_dir, self.dataset.sample_sheet_file,
+            *(bash_commands.bcl2fastq_per_lane(self.input_dir, self.fastq_dir, self.dataset.sample_sheet_file_for_lane,
                                                masks, lanes)),
             job_name='bcl2fastq',
             working_dir=self.job_dir,
@@ -89,9 +89,11 @@ class Bcl2Fastq(DemultiplexingStage):
         merge_lane_directories(self.fastq_dir, self.dataset.run_elements)
 
         # Copy the Samplesheet Runinfo.xml run_parameters.xml to the fastq dir
-        for f in ('SampleSheet_analysis_driver.csv', 'runParameters.xml',
-                  'RunInfo.xml', 'RTAConfiguration.xml'):
+        for f in ('runParameters.xml', 'RunInfo.xml', 'RTAConfiguration.xml'):
             shutil.copy2(join(self.input_dir, f), join(self.fastq_dir, f))
+        for lane in range(1, 9):
+            f = basename(self.dataset.sample_sheet_file_for_lane(lane))
+            shutil.copy2(self.dataset.sample_sheet_file_for_lane(lane), join(self.fastq_dir, f))
         if not exists(join(self.fastq_dir, 'InterOp')):
             shutil.copytree(join(self.input_dir, 'InterOp'), join(self.fastq_dir, 'InterOp'))
 
@@ -270,7 +272,7 @@ class Bcl2FastqPartialRun(PartialRun):
 
         bcl2fastq_exit_status = executor.execute(
             *(bash_commands.bcl2fastq_per_lane(self.input_dir, self.fastq_intermediate_dir,
-                                               self.dataset.sample_sheet_file, masks, lanes)),
+                                               self.dataset.sample_sheet_file_for_lane, masks, lanes)),
             job_name='bcl2fastq_intermediate',
             working_dir=self.job_dir,
             cpus=8,

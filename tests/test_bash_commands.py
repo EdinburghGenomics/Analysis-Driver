@@ -17,7 +17,7 @@ class TestBashCommands(TestAnalysisDriver):
 
     def test_bcl2fastq_per_lane(self):
         obs = bash_commands.bcl2fastq_per_lane(
-            self.assets_path, self.fastq_path, 'samplesheet.csv', masks=['101y8i101y'], lanes=[1]
+            self.assets_path, self.fastq_path, lambda a: 'samplesheet.csv', masks=['101y8i101y'], lanes=[1]
         )
         exp = [
             'path/to/bcl2fastq_1.0.4 -l INFO --runfolder-dir %s --output-dir %s/lane_1 -r 8 -p 8 -w 8 '
