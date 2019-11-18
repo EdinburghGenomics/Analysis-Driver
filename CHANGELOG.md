@@ -1,10 +1,10 @@
 Changelog for Analysis-Driver
 =============================
 
-0.27 (unreleased)
------------------
+0.26.1 (2019-11-18)
+-------------------
 
-- Nothing changed yet.
+- Fix the demultiplexing of run with mixed barcode length across lanes
 
 
 0.26 (2019-11-14)
